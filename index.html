@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบประมวลผลข้อมูล GIS กรุงเทพมหานคร</title>
+    
+    <!-- Tailwind CSS สำหรับจัด UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS สำหรับแผนที่ -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Turf.js สำหรับวิเคราะห์ข้อมูลเชิงพื้นที่ (เช่น Buffer, คำนวณพื้นที่) -->
+    <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    
+    <!-- shpjs สำหรับอ่านไฟล์ Shapefile (.zip) -->
+    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+    
+    <!-- Chart.js สำหรับวาดกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome สำหรับไอคอน -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <style>
+        /* ซ่อน Scrollbar บางจุดให้ดูสะอาดตา */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 p-4 min-h-screen">
+
+    <!-- Header -->
+    <header class="mb-6 flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+        <div class="flex items-center gap-3">
+            <div class="p-3 bg-blue-600 rounded-lg text-white">
+                <i class="fa-solid fa-map-location-dot text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900">ระบบประมวลผลข้อมูล GIS กรุงเทพมหานคร</h1>
+                <p class="text-sm text-slate-500">อัปโหลด วิเคราะห์ และแสดงผลแผนที่เชิงพื้นที่ด้วย HTML/JS ล้วน</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Left Column - Controls & Stats -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            
+            <!-- Upload Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                <h2 class="text-lg font-semibold flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> นำเข้าข้อมูลแผนที่
+                </h2>
+                
+                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors relative overflow-hidden">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6" id="upload-prompt">
+                        <i class="fa-solid fa-layer-group text-3xl mb-3 text-slate-400"></i>
+                        <p class="mb-2 text-sm text-slate-600"><span class="font-semibold">คลิกเพื่ออัปโหลดไฟล์</span></p>
+                        <p class="text-xs text-slate-500">Shapefile (.zip) หรือ .geojson</p>
+                    </div>
+                    <input type="file" id="file-upload" class="hidden" accept=".zip,.geojson,.json" />
+                    
+                    <!-- Loading Overlay -->
+                    <div id="loading-overlay" class="absolute inset-0 bg-white/90 flex flex-col items-center justify-center rounded-lg hidden">
+                        <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
+                        <span class="text-sm text-slate-600 font-medium">กำลังประมวลผล...</span>
+                    </div>
+                </label>
+
+                <div id="error-message" class="hidden mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2 border border-red-100">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                    <span id="error-text">เกิดข้อผิดพลาด</span>
+                </div>
+            </div>
+
+            <!-- Analysis Tools Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                <h2 class="text-lg font-semibold flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-flask text-blue-600"></i> เครื่องมือวิเคราะห์
+                </h2>
+                <p class="text-sm text-slate-500 mb-4">จำลองการวิเคราะห์ข้อมูลเชิงพื้นที่จากไฟล์ที่ท่านอัปโหลด</p>
+                
+                <button id="btn-buffer" disabled class="w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed">
+                    <i class="fa-solid fa-shield-halved"></i> จำลองพื้นที่เสี่ยง (Buffer 500ม.)
+                </button>
+                <button id="btn-clear-analysis" class="hidden w-full mt-2 py-2 px-4 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+                    ซ่อนผลลัพธ์
+                </button>
+            </div>
+
+            <!-- Stats Summary Card -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                <h2 class="text-lg font-semibold flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-circle-info text-blue-600"></i> สรุปภาพรวมข้อมูล
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span class="text-sm text-slate-600">จำนวนเรคคอร์ด</span>
+                        <span id="stat-count" class="font-bold text-lg text-slate-800">0</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span class="text-sm text-slate-600">พื้นที่รวม (ตร.กม.)</span>
+                        <span id="stat-area" class="font-bold text-lg text-emerald-600">0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <span class="text-sm text-slate-600">ความยาวเส้น (กม.)</span>
+                        <span id="stat-length" class="font-bold text-lg text-blue-600">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column - Map & Chart -->
+        <div class="lg:col-span-3 flex flex-col gap-6">
+            
+            <!-- Map Area -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden relative" style="height: 500px;">
+                <div id="map-container" class="w-full h-full z-10"></div>
+                
+                <!-- Initial State Overlay -->
+                <div id="map-overlay" class="absolute inset-0 z-[400] pointer-events-none flex items-center justify-center bg-slate-900/5">
+                    <div class="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg flex items-center gap-2 text-slate-600 font-medium">
+                        <i class="fa-solid fa-location-arrow text-blue-500 animate-pulse"></i>
+                        รอการอัปโหลดข้อมูลแผนที่...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Area -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex-grow min-h-[300px]">
+                <h2 class="text-lg font-semibold flex items-center gap-2 mb-6">
+                    <i class="fa-solid fa-chart-simple text-blue-600"></i> <span id="chart-title">ยังไม่มีข้อมูล</span>
+                </h2>
+                
+                <div id="chart-container" class="h-64 w-full hidden">
+                    <canvas id="myChart"></canvas>
+                </div>
+                
+                <div id="chart-empty" class="h-48 w-full flex items-center justify-center border-2 border-dashed border-slate-100 rounded-lg text-slate-400">
+                    ยังไม่มีข้อมูลสำหรับสร้างกราฟ
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Global Variables
+        let map;
+        let mainGeoJsonLayer = null;
+        let analysisGeoJsonLayer = null;
+        let currentGeoData = null;
+        let chartInstance = null;
+
+        // Initialize Map
+        document.addEventListener('DOMContentLoaded', () => {
+            // ตั้งค่าพิกัดเริ่มต้นเป็น อนุสาวรีย์ประชาธิปไตย กทม.
+            map = L.map('map-container').setView([13.7563, 100.5018], 11);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // แก้ปัญหาไอคอนหมุดของ Leaflet หาย
+            delete L.Icon.Default.prototype._getIconUrl;
+            L.Icon.Default.mergeOptions({
+                iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+                iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png'
+            });
+        });
+
+        // Event Listeners
+        const fileInput = document.getElementById('file-upload');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const errorDiv = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const mapOverlay = document.getElementById('map-overlay');
+        
+        // Buttons
+        const btnBuffer = document.getElementById('btn-buffer');
+        const btnClearAnalysis = document.getElementById('btn-clear-analysis');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show loading, hide errors
+            loadingOverlay.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            clearAnalysis();
+
+            try {
+                let parsedGeojson = null;
+
+                if (file.name.toLowerCase().endsWith('.zip')) {
+                    // อ่าน Shapefile 
+                    const buffer = await file.arrayBuffer();
+                    const result = await shp(buffer);
+                    parsedGeojson = Array.isArray(result) ? result[0] : result;
+                } else if (file.name.toLowerCase().endsWith('.geojson') || file.name.toLowerCase().endsWith('.json')) {
+                    // อ่าน GeoJSON
+                    const text = await file.text();
+                    parsedGeojson = JSON.parse(text);
+                } else {
+                    throw new Error('รองรับเฉพาะไฟล์ .zip (Shapefile) หรือ .geojson เท่านั้นครับ');
+                }
+
+                currentGeoData = parsedGeojson;
+                
+                // นำไปแสดงผล
+                displayOnMap(parsedGeojson);
+                calculateStats(parsedGeojson);
+                
+                // เปิดใช้งานปุ่มวิเคราะห์
+                btnBuffer.disabled = false;
+                btnBuffer.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+                btnBuffer.classList.add('bg-indigo-50', 'text-indigo-600', 'hover:bg-indigo-100', 'border', 'border-indigo-200');
+
+                // เอาป้าย "รอการอัพโหลด" ในแผนที่ออก
+                mapOverlay.classList.add('hidden');
+
+            } catch (err) {
+                console.error(err);
+                errorText.textContent = err.message || 'เกิดข้อผิดพลาดในการอ่านไฟล์ กรุณาตรวจสอบรูปแบบไฟล์';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                loadingOverlay.classList.add('hidden');
+                fileInput.value = ''; // Reset input
+            }
+        });
+
+        // ฟังก์ชันแสดงข้อมูลบนแผนที่
+        function displayOnMap(geoData, isAnalysis = false) {
+            // สร้าง Popup
+            const onEachFeature = (feature, layer) => {
+                if (feature.properties) {
+                    const popupContent = Object.entries(feature.properties)
+                        .slice(0, 5)
+                        .map(([key, value]) => `<b>${key}:</b> ${value}`)
+                        .join('<br/>');
+                    if (popupContent) layer.bindPopup(popupContent);
+                }
+            };
+
+            if (!isAnalysis) {
+                // ข้อมูลหลัก
+                if (mainGeoJsonLayer) map.removeLayer(mainGeoJsonLayer);
+                
+                mainGeoJsonLayer = L.geoJSON(geoData, {
+                    style: {
+                        color: '#2563eb',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.2
+                    },
+                    onEachFeature: onEachFeature
+                }).addTo(map);
+
+                // ขยับมุมกล้อง
+                map.fitBounds(mainGeoJsonLayer.getBounds(), { padding: [50, 50] });
+            } else {
+                // ข้อมูลวิเคราะห์ (Buffer)
+                if (analysisGeoJsonLayer) map.removeLayer(analysisGeoJsonLayer);
+                
+                analysisGeoJsonLayer = L.geoJSON(geoData, {
+                    style: {
+                        color: '#ef4444',
+                        weight: 1,
+                        opacity: 0.5,
+                        fillColor: '#f87171',
+                        fillOpacity: 0.4
+                    }
+                }).addTo(map);
+
+                // ปรับสีข้อมูลหลักให้จางลง
+                if (mainGeoJsonLayer) {
+                    mainGeoJsonLayer.setStyle({
+                        color: '#1e293b',
+                        weight: 1,
+                        opacity: 0.4,
+                        fillOpacity: 0
+                    });
+                }
+                
+                map.fitBounds(analysisGeoJsonLayer.getBounds(), { padding: [50, 50] });
+                btnClearAnalysis.classList.remove('hidden');
+            }
+        }
+
+        // ฟังก์ชันคำนวณสถิติ
+        function calculateStats(data) {
+            if (!data || !data.features || !window.turf) return;
+
+            const features = data.features;
+            let totalArea = 0;
+            let totalLength = 0;
+            const sampleProps = [];
+
+            features.forEach((f, i) => {
+                if (f.geometry) {
+                    const type = f.geometry.type;
+                    try {
+                        if (type.includes('Polygon')) {
+                            totalArea += turf.area(f) / 1000000; // แปลงเป็น ตร.กม.
+                        } else if (type.includes('LineString')) {
+                            totalLength += turf.length(f); // กม.
+                        }
+                    } catch (e) {}
+                }
+
+                if (f.properties && i < 100) {
+                    sampleProps.push(f.properties);
+                }
+            });
+
+            // อัปเดตตัวเลขใน UI
+            document.getElementById('stat-count').textContent = features.length.toLocaleString();
+            document.getElementById('stat-area').textContent = totalArea.toFixed(2);
+            document.getElementById('stat-length').textContent = totalLength.toFixed(2);
+
+            // เตรียมข้อมูลวาดกราฟ
+            prepareChartData(features, sampleProps);
+        }
+
+        // ฟังก์ชันวาดกราฟด้วย Chart.js
+        function prepareChartData(features, sampleProps) {
+            if (features.length === 0) return;
+            
+            let chartData = [];
+            let chartLabels = [];
+            let chartTitle = 'ประเภทของรูปทรง (Geometry Types)';
+            
+            // หาคอลัมน์ที่เป็นตัวเลขเพื่อมาพล็อต
+            const firstProp = sampleProps[0] || {};
+            const keys = Object.keys(firstProp);
+            let numericKey = keys.find(k => typeof firstProp[k] === 'number' && !k.toLowerCase().includes('id'));
+
+            if (numericKey) {
+                chartTitle = `กราฟแสดงค่า ${numericKey} (สูงสุด 10 อันดับ)`;
+                
+                const sortedProps = [...sampleProps].sort((a, b) => (b[numericKey] || 0) - (a[numericKey] || 0)).slice(0, 10);
+                chartLabels = sortedProps.map((p, i) => String(p.name || p.NAME || p.title || `ข้อมูลที่ ${i+1}`).substring(0, 15));
+                chartData = sortedProps.map(p => p[numericKey] || 0);
+            } else {
+                // นับจำนวน Geometry type
+                const typeCounts = {};
+                features.forEach(f => {
+                    const type = f.geometry?.type || 'ไม่ระบุ';
+                    typeCounts[type] = (typeCounts[type] || 0) + 1;
+                });
+                chartLabels = Object.keys(typeCounts);
+                chartData = Object.values(typeCounts);
+            }
+
+            document.getElementById('chart-title').textContent = chartTitle;
+            document.getElementById('chart-empty').classList.add('hidden');
+            document.getElementById('chart-container').classList.remove('hidden');
+
+            renderChart(chartLabels, chartData);
+        }
+
+        function renderChart(labels, data) {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            
+            // ลบกราฟเก่าทิ้งก่อน
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ข้อมูล',
+                        data: data,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { borderDash: [3, 3], color: '#e2e8f0' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // วิเคราะห์เชิงพื้นที่ (Buffer)
+        btnBuffer.addEventListener('click', () => {
+            if (!currentGeoData) return;
+            
+            // เปลี่ยนปุ่มเป็นสถานะกำลังโหลด
+            const originalHtml = btnBuffer.innerHTML;
+            btnBuffer.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังวิเคราะห์...';
+            btnBuffer.disabled = true;
+
+            // ใช้ setTimeout เพื่อให้ UI ได้อัพเดทก่อนรันคำสั่งหนักๆ
+            setTimeout(() => {
+                try {
+                    // สร้าง Buffer 0.5 กม.
+                    const buffered = turf.buffer(currentGeoData, 0.5, { units: 'kilometers' });
+                    displayOnMap(buffered, true);
+                } catch (e) {
+                    alert("ไม่สามารถวิเคราะห์ข้อมูลนี้ได้: " + e.message);
+                } finally {
+                    btnBuffer.innerHTML = originalHtml;
+                    btnBuffer.disabled = false;
+                }
+            }, 100);
+        });
+
+        // ล้างผลลัพธ์การวิเคราะห์
+        btnClearAnalysis.addEventListener('click', clearAnalysis);
+
+        function clearAnalysis() {
+            if (analysisGeoJsonLayer) {
+                map.removeLayer(analysisGeoJsonLayer);
+                analysisGeoJsonLayer = null;
+            }
+            if (mainGeoJsonLayer) {
+                // คืนสีเดิม
+                mainGeoJsonLayer.setStyle({
+                    color: '#2563eb',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.2
+                });
+                map.fitBounds(mainGeoJsonLayer.getBounds(), { padding: [50, 50] });
+            }
+            btnClearAnalysis.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
