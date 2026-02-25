@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
@@ -84,13 +84,50 @@
                 <h2 class="text-lg font-semibold flex items-center gap-2 mb-4">
                     <i class="fa-solid fa-flask text-blue-600"></i> เครื่องมือวิเคราะห์
                 </h2>
-                <p class="text-sm text-slate-500 mb-4">จำลองการวิเคราะห์ข้อมูลเชิงพื้นที่จากไฟล์ที่ท่านอัปโหลด</p>
+                <p class="text-sm text-slate-500 mb-4">คลิกเพื่อวิเคราะห์ข้อมูลเชิงพื้นที่บนเบราว์เซอร์</p>
                 
-                <button id="btn-buffer" disabled class="w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed">
-                    <i class="fa-solid fa-shield-halved"></i> จำลองพื้นที่เสี่ยง (Buffer 500ม.)
-                </button>
-                <button id="btn-clear-analysis" class="hidden w-full mt-2 py-2 px-4 text-sm text-slate-500 hover:text-slate-800 transition-colors">
-                    ซ่อนผลลัพธ์
+                <!-- เพิ่มช่องตั้งค่าระยะทาง -->
+                <div class="mb-4">
+                    <label for="analysis-distance" class="block text-xs font-medium text-slate-700 mb-1">
+                        <i class="fa-solid fa-sliders text-blue-500 mr-1"></i> ระยะทาง / ขนาด Grid (เมตร)
+                    </label>
+                    <input type="number" id="analysis-distance" value="500" min="1" step="any" disabled
+                        class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400 transition-colors">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2" id="analysis-buttons-container">
+                    <button onclick="runAnalysis('buffer')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-shield-halved text-base mb-1"></i> สร้าง Buffer
+                    </button>
+                    <button onclick="runAnalysis('envelope')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-vector-square text-base mb-1"></i> Bounding Box
+                    </button>
+                    <button onclick="runAnalysis('convex')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-draw-polygon text-base mb-1"></i> Convex Hull
+                    </button>
+                    <button onclick="runAnalysis('centroid')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-crosshairs text-base mb-1"></i> Centroid
+                    </button>
+                    <button onclick="runAnalysis('hexgrid')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-cubes text-base mb-1"></i> Hex Grid
+                    </button>
+                    <button onclick="runAnalysis('squaregrid')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-border-all text-base mb-1"></i> Square Grid
+                    </button>
+                    <button onclick="runAnalysis('explode')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-braille text-base mb-1"></i> สกัดจุด (Vertices)
+                    </button>
+                    <button onclick="runAnalysis('simplify')" disabled class="analysis-btn w-full py-2 px-2 rounded-lg flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors bg-slate-100 text-slate-400 cursor-not-allowed text-center">
+                        <i class="fa-solid fa-route text-base mb-1"></i> ลดรูป (Simplify)
+                    </button>
+                </div>
+
+                <div id="analysis-loading" class="hidden w-full mt-3 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin"></i> กำลังประมวลผล...
+                </div>
+
+                <button id="btn-clear-analysis" class="hidden w-full mt-3 py-2 px-4 text-sm text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                    <i class="fa-solid fa-eye-slash"></i> ซ่อนผลลัพธ์การวิเคราะห์
                 </button>
             </div>
 
@@ -185,9 +222,11 @@
         const errorText = document.getElementById('error-text');
         const mapOverlay = document.getElementById('map-overlay');
         
-        // Buttons
-        const btnBuffer = document.getElementById('btn-buffer');
+        // Buttons & UI
+        const analysisButtons = document.querySelectorAll('.analysis-btn');
+        const analysisLoading = document.getElementById('analysis-loading');
         const btnClearAnalysis = document.getElementById('btn-clear-analysis');
+        const distanceInput = document.getElementById('analysis-distance');
 
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -221,9 +260,12 @@
                 calculateStats(parsedGeojson);
                 
                 // เปิดใช้งานปุ่มวิเคราะห์
-                btnBuffer.disabled = false;
-                btnBuffer.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
-                btnBuffer.classList.add('bg-indigo-50', 'text-indigo-600', 'hover:bg-indigo-100', 'border', 'border-indigo-200');
+                analysisButtons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+                    btn.classList.add('bg-indigo-50', 'text-indigo-600', 'hover:bg-indigo-100', 'border', 'border-indigo-200');
+                });
+                distanceInput.disabled = false;
 
                 // เอาป้าย "รอการอัพโหลด" ในแผนที่ออก
                 mapOverlay.classList.add('hidden');
@@ -279,6 +321,16 @@
                         opacity: 0.5,
                         fillColor: '#f87171',
                         fillOpacity: 0.4
+                    },
+                    pointToLayer: function (feature, latlng) {
+                        return L.circleMarker(latlng, {
+                            radius: 4,
+                            fillColor: "#ef4444",
+                            color: "#b91c1c",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
                     }
                 }).addTo(map);
 
@@ -408,29 +460,66 @@
             });
         }
 
-        // วิเคราะห์เชิงพื้นที่ (Buffer)
-        btnBuffer.addEventListener('click', () => {
+        // ตัวประมวลผลการวิเคราะห์เชิงพื้นที่แบบรวม
+        function runAnalysis(type) {
             if (!currentGeoData) return;
             
-            // เปลี่ยนปุ่มเป็นสถานะกำลังโหลด
-            const originalHtml = btnBuffer.innerHTML;
-            btnBuffer.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังวิเคราะห์...';
-            btnBuffer.disabled = true;
+            // ปิดปุ่มและโชว์ loading
+            analysisLoading.classList.remove('hidden');
+            analysisButtons.forEach(btn => btn.disabled = true);
+            distanceInput.disabled = true;
 
             // ใช้ setTimeout เพื่อให้ UI ได้อัพเดทก่อนรันคำสั่งหนักๆ
             setTimeout(() => {
                 try {
-                    // สร้าง Buffer 0.5 กม.
-                    const buffered = turf.buffer(currentGeoData, 0.5, { units: 'kilometers' });
-                    displayOnMap(buffered, true);
+                    let result;
+                    const bbox = turf.bbox(currentGeoData);
+                    
+                    // ดึงค่าระยะทางจาก input และแปลงเป็นกิโลเมตร
+                    const distanceMeters = parseFloat(distanceInput.value) || 500;
+                    const distanceKm = distanceMeters / 1000;
+
+                    switch(type) {
+                        case 'buffer':
+                            result = turf.buffer(currentGeoData, distanceKm, { units: 'kilometers' });
+                            break;
+                        case 'envelope':
+                            result = turf.envelope(currentGeoData);
+                            break;
+                        case 'convex':
+                            result = turf.convex(currentGeoData);
+                            break;
+                        case 'centroid':
+                            result = turf.centroid(currentGeoData);
+                            break;
+                        case 'hexgrid':
+                            result = turf.hexGrid(bbox, distanceKm, { units: 'kilometers' });
+                            break;
+                        case 'squaregrid':
+                            result = turf.squareGrid(bbox, distanceKm, { units: 'kilometers' });
+                            break;
+                        case 'explode':
+                            result = turf.explode(currentGeoData);
+                            break;
+                        case 'simplify':
+                            result = turf.simplify(currentGeoData, { tolerance: 0.005, highQuality: false });
+                            break;
+                        default:
+                            throw new Error("ไม่รู้จักประเภทการวิเคราะห์นี้");
+                    }
+
+                    if (!result) throw new Error("ผลลัพธ์การประมวลผลว่างเปล่า");
+
+                    displayOnMap(result, true);
                 } catch (e) {
-                    alert("ไม่สามารถวิเคราะห์ข้อมูลนี้ได้: " + e.message);
+                    alert("ไม่สามารถวิเคราะห์ข้อมูลนี้ได้: " + e.message + "\n(ข้อมูลของคุณอาจไม่รองรับกับฟังก์ชันนี้)");
                 } finally {
-                    btnBuffer.innerHTML = originalHtml;
-                    btnBuffer.disabled = false;
+                    analysisLoading.classList.add('hidden');
+                    analysisButtons.forEach(btn => btn.disabled = false);
+                    distanceInput.disabled = false;
                 }
-            }, 100);
-        });
+            }, 50);
+        }
 
         // ล้างผลลัพธ์การวิเคราะห์
         btnClearAnalysis.addEventListener('click', clearAnalysis);
