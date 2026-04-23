@@ -15,9 +15,9 @@ const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false }
 export default function Home() {
   const [selectedTag, setSelectedTag] = useState("การร้องเรียน"); // Default to new Traffy tag
   const [selectedDistrict, setSelectedDistrict] = useState<any>(null);
-  const [selectedYear, setSelectedYear] = useState(2024);
+  const [selectedYear, setSelectedYear] = useState(2026);
 
-  const availableYears = [2020, 2021, 2022, 2023, 2024];
+  const availableYears = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
   const handleTagSelect = (tag: string) => {
     setSelectedTag(tag);

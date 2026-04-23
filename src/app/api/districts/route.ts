@@ -74,8 +74,8 @@ function mergeHistoricalData(geojson: any, targetYear: number) {
     const props = feature.properties;
     const districtId = props.id;
 
-    // Simulate historical population/density changes (approx 1-2% per year backward from 2024)
-    const yearsDiff = 2024 - targetYear;
+    // Simulate historical population/density changes (approx 1-2% per year backward from 2026)
+    const yearsDiff = 2026 - targetYear;
     if (yearsDiff > 0) {
         const factor = Math.pow(1 - (props.growth_rate / 100), yearsDiff);
         props.population = Math.floor(props.population * factor);

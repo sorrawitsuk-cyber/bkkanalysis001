@@ -143,7 +143,7 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
             />
             
             {/* Divider Line between Actual and Forecast */}
-            <ReferenceLine x={2024} stroke="#cbd5e1" strokeDasharray="3 3" />
+            <ReferenceLine x={2026} stroke="#cbd5e1" strokeDasharray="3 3" />
 
             {/* Historical Area */}
             <Area 

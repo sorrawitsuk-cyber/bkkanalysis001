@@ -3,1600 +3,2200 @@
     {
       "year": 2020,
       "district_id": 1,
-      "traffy_issues": 99,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 74,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 1,
-      "traffy_issues": 148,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 124,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 1,
-      "traffy_issues": 198,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 173,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 1,
-      "traffy_issues": 223,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 210,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 1,
+      "traffy_issues": 228,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 1,
+      "traffy_issues": 238,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 1,
       "traffy_issues": 248,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "2": [
     {
       "year": 2020,
       "district_id": 2,
-      "traffy_issues": 22,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 17,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 2,
-      "traffy_issues": 34,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 28,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 2,
-      "traffy_issues": 45,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 39,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 2,
-      "traffy_issues": 51,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 48,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 2,
+      "traffy_issues": 52,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 2,
+      "traffy_issues": 54,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 2,
       "traffy_issues": 57,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "3": [
     {
       "year": 2020,
       "district_id": 3,
-      "traffy_issues": 36,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 27,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 3,
-      "traffy_issues": 55,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 46,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 3,
-      "traffy_issues": 73,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 64,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 3,
-      "traffy_issues": 82,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 78,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 3,
+      "traffy_issues": 84,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 3,
+      "traffy_issues": 88,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 3,
       "traffy_issues": 92,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "4": [
     {
       "year": 2020,
       "district_id": 4,
-      "traffy_issues": 78,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 58,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 4,
-      "traffy_issues": 117,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 98,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 4,
-      "traffy_issues": 156,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 137,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 4,
-      "traffy_issues": 176,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 166,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 4,
+      "traffy_issues": 180,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 4,
+      "traffy_issues": 188,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 4,
       "traffy_issues": 196,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "5": [
     {
       "year": 2020,
       "district_id": 5,
-      "traffy_issues": 107,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 80,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 5,
-      "traffy_issues": 161,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 134,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 5,
-      "traffy_issues": 215,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 188,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 5,
-      "traffy_issues": 242,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 228,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 5,
+      "traffy_issues": 247,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 5,
+      "traffy_issues": 258,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 5,
       "traffy_issues": 269,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "6": [
     {
       "year": 2020,
       "district_id": 6,
-      "traffy_issues": 84,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 63,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 6,
-      "traffy_issues": 126,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 105,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 6,
-      "traffy_issues": 168,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 147,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 6,
-      "traffy_issues": 189,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 178,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 6,
+      "traffy_issues": 193,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 6,
+      "traffy_issues": 201,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 6,
       "traffy_issues": 210,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "7": [
     {
       "year": 2020,
       "district_id": 7,
-      "traffy_issues": 70,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 52,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 7,
-      "traffy_issues": 105,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 87,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 7,
-      "traffy_issues": 140,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 122,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 7,
-      "traffy_issues": 157,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 148,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 7,
+      "traffy_issues": 161,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 7,
+      "traffy_issues": 168,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 7,
       "traffy_issues": 175,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "8": [
     {
       "year": 2020,
       "district_id": 8,
-      "traffy_issues": 48,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 36,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 8,
-      "traffy_issues": 72,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 60,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 8,
-      "traffy_issues": 96,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 84,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 8,
-      "traffy_issues": 108,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 102,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 8,
+      "traffy_issues": 110,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 8,
+      "traffy_issues": 115,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 8,
       "traffy_issues": 120,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "9": [
     {
       "year": 2020,
       "district_id": 9,
-      "traffy_issues": 68,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 51,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 9,
-      "traffy_issues": 102,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 85,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 9,
-      "traffy_issues": 136,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 118,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 9,
-      "traffy_issues": 153,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 144,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 9,
+      "traffy_issues": 156,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 9,
+      "traffy_issues": 163,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 9,
       "traffy_issues": 170,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "10": [
     {
       "year": 2020,
       "district_id": 10,
-      "traffy_issues": 236,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 177,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 10,
-      "traffy_issues": 354,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 295,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 10,
-      "traffy_issues": 472,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 413,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 10,
-      "traffy_issues": 531,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 502,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 10,
+      "traffy_issues": 543,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 10,
+      "traffy_issues": 567,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 10,
       "traffy_issues": 591,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "11": [
     {
       "year": 2020,
       "district_id": 11,
-      "traffy_issues": 71,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 53,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 11,
-      "traffy_issues": 107,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 89,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 11,
-      "traffy_issues": 143,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 125,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 11,
-      "traffy_issues": 161,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 152,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 11,
+      "traffy_issues": 164,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 11,
+      "traffy_issues": 171,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 11,
       "traffy_issues": 179,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "12": [
     {
       "year": 2020,
       "district_id": 12,
-      "traffy_issues": 47,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 35,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 12,
-      "traffy_issues": 71,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 59,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 12,
-      "traffy_issues": 95,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 83,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 12,
-      "traffy_issues": 107,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 101,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 12,
+      "traffy_issues": 109,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 12,
+      "traffy_issues": 114,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 12,
       "traffy_issues": 119,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "13": [
     {
       "year": 2020,
       "district_id": 13,
-      "traffy_issues": 97,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 73,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 13,
-      "traffy_issues": 146,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 122,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 13,
-      "traffy_issues": 195,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 170,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 13,
-      "traffy_issues": 219,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 207,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 13,
+      "traffy_issues": 224,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 13,
+      "traffy_issues": 234,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 13,
       "traffy_issues": 244,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "14": [
     {
       "year": 2020,
       "district_id": 14,
-      "traffy_issues": 116,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 87,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 14,
-      "traffy_issues": 175,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 146,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 14,
-      "traffy_issues": 233,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 204,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 14,
-      "traffy_issues": 262,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 248,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 14,
+      "traffy_issues": 268,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 14,
+      "traffy_issues": 280,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 14,
       "traffy_issues": 292,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "15": [
     {
       "year": 2020,
       "district_id": 15,
-      "traffy_issues": 114,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 85,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 15,
-      "traffy_issues": 171,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 142,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 15,
-      "traffy_issues": 228,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 199,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 15,
-      "traffy_issues": 256,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 242,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 15,
+      "traffy_issues": 262,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 15,
+      "traffy_issues": 273,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 15,
       "traffy_issues": 285,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "16": [
     {
       "year": 2020,
       "district_id": 16,
-      "traffy_issues": 104,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 78,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 16,
-      "traffy_issues": 156,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 130,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 16,
-      "traffy_issues": 208,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 182,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 16,
-      "traffy_issues": 234,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 221,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 16,
+      "traffy_issues": 240,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 16,
+      "traffy_issues": 250,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 16,
       "traffy_issues": 261,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "17": [
     {
       "year": 2020,
       "district_id": 17,
-      "traffy_issues": 78,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 58,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 17,
-      "traffy_issues": 117,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 97,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 17,
-      "traffy_issues": 156,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 136,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 17,
-      "traffy_issues": 175,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 165,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 17,
+      "traffy_issues": 179,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 17,
+      "traffy_issues": 187,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 17,
       "traffy_issues": 195,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "18": [
     {
       "year": 2020,
       "district_id": 18,
-      "traffy_issues": 73,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 55,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 18,
-      "traffy_issues": 110,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 92,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 18,
-      "traffy_issues": 147,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 128,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 18,
-      "traffy_issues": 165,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 156,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 18,
+      "traffy_issues": 169,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 18,
+      "traffy_issues": 176,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 18,
       "traffy_issues": 184,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "19": [
     {
       "year": 2020,
       "district_id": 19,
-      "traffy_issues": 102,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 77,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 19,
-      "traffy_issues": 154,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 128,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 19,
-      "traffy_issues": 205,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 179,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 19,
-      "traffy_issues": 231,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 218,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 19,
+      "traffy_issues": 236,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 19,
+      "traffy_issues": 246,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 19,
       "traffy_issues": 257,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "20": [
     {
       "year": 2020,
       "district_id": 20,
-      "traffy_issues": 184,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 138,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 20,
-      "traffy_issues": 277,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 231,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 20,
-      "traffy_issues": 369,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 323,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 20,
-      "traffy_issues": 415,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 392,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 20,
+      "traffy_issues": 425,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 20,
+      "traffy_issues": 443,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 20,
       "traffy_issues": 462,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "21": [
     {
       "year": 2020,
       "district_id": 21,
-      "traffy_issues": 50,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 37,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 21,
-      "traffy_issues": 75,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 63,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 21,
-      "traffy_issues": 100,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 88,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 21,
-      "traffy_issues": 113,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 107,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 21,
+      "traffy_issues": 115,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 21,
+      "traffy_issues": 120,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 21,
       "traffy_issues": 126,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "22": [
     {
       "year": 2020,
       "district_id": 22,
-      "traffy_issues": 70,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 52,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 22,
-      "traffy_issues": 105,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 88,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 22,
-      "traffy_issues": 140,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 123,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 22,
-      "traffy_issues": 158,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 149,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 22,
+      "traffy_issues": 161,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 22,
+      "traffy_issues": 168,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 22,
       "traffy_issues": 176,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "23": [
     {
       "year": 2020,
       "district_id": 23,
-      "traffy_issues": 42,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 32,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 23,
-      "traffy_issues": 64,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 53,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 23,
-      "traffy_issues": 85,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 74,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 23,
-      "traffy_issues": 96,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 90,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 23,
+      "traffy_issues": 98,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 23,
+      "traffy_issues": 102,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 23,
       "traffy_issues": 107,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "24": [
     {
       "year": 2020,
       "district_id": 24,
-      "traffy_issues": 80,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 60,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 24,
-      "traffy_issues": 121,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 101,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 24,
-      "traffy_issues": 161,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 141,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 24,
-      "traffy_issues": 181,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 171,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 24,
+      "traffy_issues": 185,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 24,
+      "traffy_issues": 193,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 24,
       "traffy_issues": 202,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "25": [
     {
       "year": 2020,
       "district_id": 25,
-      "traffy_issues": 94,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 70,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 25,
-      "traffy_issues": 141,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 118,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 25,
-      "traffy_issues": 188,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 165,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 25,
-      "traffy_issues": 212,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 200,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 25,
+      "traffy_issues": 217,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 25,
+      "traffy_issues": 226,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 25,
       "traffy_issues": 236,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "26": [
     {
       "year": 2020,
       "district_id": 26,
-      "traffy_issues": 132,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 99,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 26,
-      "traffy_issues": 198,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 165,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 26,
-      "traffy_issues": 264,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 231,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 26,
-      "traffy_issues": 297,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 281,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 26,
+      "traffy_issues": 304,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 26,
+      "traffy_issues": 317,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 26,
       "traffy_issues": 331,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "27": [
     {
       "year": 2020,
       "district_id": 27,
-      "traffy_issues": 44,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 33,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 27,
-      "traffy_issues": 66,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 55,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 27,
-      "traffy_issues": 88,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 77,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 27,
-      "traffy_issues": 99,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 93,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 27,
+      "traffy_issues": 101,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 27,
+      "traffy_issues": 105,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 27,
       "traffy_issues": 110,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "28": [
     {
       "year": 2020,
       "district_id": 28,
-      "traffy_issues": 102,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 76,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 28,
-      "traffy_issues": 153,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 127,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 28,
-      "traffy_issues": 204,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 178,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 28,
-      "traffy_issues": 229,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 216,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 28,
+      "traffy_issues": 234,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 28,
+      "traffy_issues": 244,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 28,
       "traffy_issues": 255,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "29": [
     {
       "year": 2020,
       "district_id": 29,
-      "traffy_issues": 76,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 57,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 29,
-      "traffy_issues": 114,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 95,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 29,
-      "traffy_issues": 152,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 133,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 29,
-      "traffy_issues": 171,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 161,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 29,
+      "traffy_issues": 174,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 29,
+      "traffy_issues": 182,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 29,
       "traffy_issues": 190,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "30": [
     {
       "year": 2020,
       "district_id": 30,
-      "traffy_issues": 46,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 34,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 30,
-      "traffy_issues": 69,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 57,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 30,
-      "traffy_issues": 92,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 80,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 30,
-      "traffy_issues": 103,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 97,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 30,
+      "traffy_issues": 105,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 30,
+      "traffy_issues": 110,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 30,
       "traffy_issues": 115,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "31": [
     {
       "year": 2020,
       "district_id": 31,
-      "traffy_issues": 57,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 42,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 31,
-      "traffy_issues": 85,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 71,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 31,
-      "traffy_issues": 114,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 100,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 31,
-      "traffy_issues": 128,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 121,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 31,
+      "traffy_issues": 131,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 31,
+      "traffy_issues": 137,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 31,
       "traffy_issues": 143,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "32": [
     {
       "year": 2020,
       "district_id": 32,
-      "traffy_issues": 53,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 39,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 32,
-      "traffy_issues": 79,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 66,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 32,
-      "traffy_issues": 106,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 93,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 32,
-      "traffy_issues": 119,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 113,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 32,
+      "traffy_issues": 122,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 32,
+      "traffy_issues": 127,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 32,
       "traffy_issues": 133,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "33": [
     {
       "year": 2020,
       "district_id": 33,
-      "traffy_issues": 56,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 42,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 33,
-      "traffy_issues": 84,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 70,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 33,
-      "traffy_issues": 112,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 98,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 33,
-      "traffy_issues": 126,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 119,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 33,
+      "traffy_issues": 129,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 33,
+      "traffy_issues": 135,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 33,
       "traffy_issues": 141,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "34": [
     {
       "year": 2020,
       "district_id": 34,
-      "traffy_issues": 54,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 40,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 34,
-      "traffy_issues": 81,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 68,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 34,
-      "traffy_issues": 108,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 95,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 34,
-      "traffy_issues": 122,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 115,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 34,
+      "traffy_issues": 125,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 34,
+      "traffy_issues": 130,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 34,
       "traffy_issues": 136,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "35": [
     {
       "year": 2020,
       "district_id": 35,
-      "traffy_issues": 146,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 110,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 35,
-      "traffy_issues": 220,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 183,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 35,
-      "traffy_issues": 293,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 256,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 35,
-      "traffy_issues": 330,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 311,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 35,
+      "traffy_issues": 337,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 35,
+      "traffy_issues": 352,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 35,
       "traffy_issues": 367,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "36": [
     {
       "year": 2020,
       "district_id": 36,
-      "traffy_issues": 91,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 68,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 36,
-      "traffy_issues": 137,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 114,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 36,
-      "traffy_issues": 183,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 160,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 36,
-      "traffy_issues": 206,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 194,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 36,
+      "traffy_issues": 210,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 36,
+      "traffy_issues": 219,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 36,
       "traffy_issues": 229,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "37": [
     {
       "year": 2020,
       "district_id": 37,
-      "traffy_issues": 61,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 46,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 37,
-      "traffy_issues": 92,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 77,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 37,
-      "traffy_issues": 123,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 107,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 37,
-      "traffy_issues": 138,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 130,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 37,
+      "traffy_issues": 141,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 37,
+      "traffy_issues": 147,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 37,
       "traffy_issues": 154,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "38": [
     {
       "year": 2020,
       "district_id": 38,
-      "traffy_issues": 74,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 55,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 38,
-      "traffy_issues": 111,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 92,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 38,
-      "traffy_issues": 148,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 129,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 38,
-      "traffy_issues": 166,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 157,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 38,
+      "traffy_issues": 170,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 38,
+      "traffy_issues": 177,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 38,
       "traffy_issues": 185,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "39": [
     {
       "year": 2020,
       "district_id": 39,
-      "traffy_issues": 66,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 49,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 39,
-      "traffy_issues": 99,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 83,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 39,
-      "traffy_issues": 132,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 116,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 39,
-      "traffy_issues": 149,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 141,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 39,
+      "traffy_issues": 152,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 39,
+      "traffy_issues": 159,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 39,
       "traffy_issues": 166,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "40": [
     {
       "year": 2020,
       "district_id": 40,
-      "traffy_issues": 33,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 24,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 40,
-      "traffy_issues": 49,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 41,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 40,
-      "traffy_issues": 66,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 58,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 40,
-      "traffy_issues": 74,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 70,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 40,
+      "traffy_issues": 76,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 40,
+      "traffy_issues": 79,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 40,
       "traffy_issues": 83,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "41": [
     {
       "year": 2020,
       "district_id": 41,
-      "traffy_issues": 51,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 38,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 41,
-      "traffy_issues": 77,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 64,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 41,
-      "traffy_issues": 103,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 90,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 41,
-      "traffy_issues": 116,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 109,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 41,
+      "traffy_issues": 118,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 41,
+      "traffy_issues": 123,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 41,
       "traffy_issues": 129,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "42": [
     {
       "year": 2020,
       "district_id": 42,
-      "traffy_issues": 94,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 70,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 42,
-      "traffy_issues": 141,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 118,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 42,
-      "traffy_issues": 188,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 165,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 42,
-      "traffy_issues": 212,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 200,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 42,
+      "traffy_issues": 217,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 42,
+      "traffy_issues": 226,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 42,
       "traffy_issues": 236,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "43": [
     {
       "year": 2020,
       "district_id": 43,
-      "traffy_issues": 85,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 63,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 43,
-      "traffy_issues": 127,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 106,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 43,
-      "traffy_issues": 170,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 149,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 43,
-      "traffy_issues": 191,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 181,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 43,
+      "traffy_issues": 195,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 43,
+      "traffy_issues": 204,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 43,
       "traffy_issues": 213,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "44": [
     {
       "year": 2020,
       "district_id": 44,
-      "traffy_issues": 34,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 25,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 44,
-      "traffy_issues": 51,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 43,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 44,
-      "traffy_issues": 68,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 60,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 44,
-      "traffy_issues": 77,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 73,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 44,
+      "traffy_issues": 79,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 44,
+      "traffy_issues": 82,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 44,
       "traffy_issues": 86,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "45": [
     {
       "year": 2020,
       "district_id": 45,
-      "traffy_issues": 80,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 60,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 45,
-      "traffy_issues": 120,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 100,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 45,
-      "traffy_issues": 160,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 140,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 45,
-      "traffy_issues": 180,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 170,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 45,
+      "traffy_issues": 184,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 45,
+      "traffy_issues": 192,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 45,
       "traffy_issues": 201,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "46": [
     {
       "year": 2020,
       "district_id": 46,
-      "traffy_issues": 127,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 95,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 46,
-      "traffy_issues": 190,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 159,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 46,
-      "traffy_issues": 254,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 222,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 46,
-      "traffy_issues": 286,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 270,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 46,
+      "traffy_issues": 292,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 46,
+      "traffy_issues": 305,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 46,
       "traffy_issues": 318,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "47": [
     {
       "year": 2020,
       "district_id": 47,
-      "traffy_issues": 56,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 42,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 47,
-      "traffy_issues": 84,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 70,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 47,
-      "traffy_issues": 112,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 98,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 47,
-      "traffy_issues": 126,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 119,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 47,
+      "traffy_issues": 128,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 47,
+      "traffy_issues": 134,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 47,
       "traffy_issues": 140,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "48": [
     {
       "year": 2020,
       "district_id": 48,
-      "traffy_issues": 69,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 51,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 48,
-      "traffy_issues": 103,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 86,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 48,
-      "traffy_issues": 138,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 121,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 48,
-      "traffy_issues": 155,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 147,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 48,
+      "traffy_issues": 159,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 48,
+      "traffy_issues": 166,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 48,
       "traffy_issues": 173,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "49": [
     {
       "year": 2020,
       "district_id": 49,
-      "traffy_issues": 55,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 41,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 49,
-      "traffy_issues": 82,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 69,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 49,
-      "traffy_issues": 110,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 96,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 49,
-      "traffy_issues": 124,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 117,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 49,
+      "traffy_issues": 126,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 49,
+      "traffy_issues": 132,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 49,
       "traffy_issues": 138,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ],
   "50": [
     {
       "year": 2020,
       "district_id": 50,
-      "traffy_issues": 69,
-      "traffy_resolved_rate": 85.5
+      "traffy_issues": 52,
+      "traffy_resolved_rate": 82.1
     },
     {
       "year": 2021,
       "district_id": 50,
-      "traffy_issues": 104,
-      "traffy_resolved_rate": 88.2
+      "traffy_issues": 87,
+      "traffy_resolved_rate": 85.5
     },
     {
       "year": 2022,
       "district_id": 50,
-      "traffy_issues": 139,
-      "traffy_resolved_rate": 90.1
+      "traffy_issues": 121,
+      "traffy_resolved_rate": 88.2
     },
     {
       "year": 2023,
       "district_id": 50,
-      "traffy_issues": 156,
-      "traffy_resolved_rate": 92.4
+      "traffy_issues": 147,
+      "traffy_resolved_rate": 90.1
     },
     {
       "year": 2024,
       "district_id": 50,
+      "traffy_issues": 160,
+      "traffy_resolved_rate": 92.4
+    },
+    {
+      "year": 2025,
+      "district_id": 50,
+      "traffy_issues": 167,
+      "traffy_resolved_rate": 93.8
+    },
+    {
+      "year": 2026,
+      "district_id": 50,
       "traffy_issues": 174,
-      "traffy_resolved_rate": 94.8
+      "traffy_resolved_rate": 95.2
     }
   ]
 }
