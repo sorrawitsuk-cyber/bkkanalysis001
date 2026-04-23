@@ -14,16 +14,18 @@ export async function GET(request: Request) {
   }
 
   // 1. Fetch from Supabase
-  let { data, error } = await supabase
+  const { data: dbData, error } = await supabase
     .from('district_statistics')
     .select('*')
     .eq('district_id', districtId)
     .order('year', { ascending: true });
 
+  let finalData: any[] = dbData || [];
+
   // 2. Fallback to mock data if DB fails or empty
-  if (error || !data || data.length === 0) {
+  if (error || !dbData || dbData.length === 0) {
     console.warn("⚠️ Falling back to dummy statistics for district", districtId);
-    data = generateDummyStats(parseInt(districtId, 10));
+    finalData = generateDummyStats(parseInt(districtId, 10));
   }
 
   // 3. Merge Traffy Open Data history
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
     const districtTraffy = traffyAll[districtId] || [];
     
     // Merge into data
-    data = data.map((row: any) => {
+    finalData = finalData.map((row: any) => {
       const tData = districtTraffy.find((t: any) => t.year === row.year);
       if (tData) {
          return {
@@ -46,7 +48,7 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(finalData);
 }
 
 function generateDummyStats(districtId: number) {

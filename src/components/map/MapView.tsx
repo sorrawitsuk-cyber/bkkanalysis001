@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -101,8 +101,8 @@ export default function MapView({ onSelectDistrict, activeTag, selectedYear }: M
           className: 'bg-white/90 backdrop-blur-sm border-0 shadow-lg rounded-lg text-sm px-3 py-2 font-sans'
         }).openTooltip();
       },
-      mouseout: (e: any) => {
-        const target = e.target;
+      mouseout: () => {
+        const target = layer;
         target.setStyle(style(feature));
         layer.closeTooltip();
       },

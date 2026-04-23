@@ -20,9 +20,9 @@ export async function GET(request: Request) {
 
     // 2. Format database rows into GeoJSON
     const geojson = {
-      type: "FeatureCollection",
+      type: "FeatureCollection" as const,
       features: data.map(row => ({
-        type: "Feature",
+        type: "Feature" as const,
         properties: {
           id: row.id,
           name_th: row.name_th,
@@ -38,8 +38,8 @@ export async function GET(request: Request) {
     };
 
     // DEBUG: Check if first feature is a square
-    const firstGeom = geojson.features[0]?.geometry;
-    if (firstGeom && firstGeom.coordinates[0].length <= 5) {
+    const firstGeom: any = geojson.features[0]?.geometry;
+    if (firstGeom && firstGeom.coordinates && firstGeom.coordinates[0].length <= 5) {
         console.warn("⚠️ Detected square geometry in Supabase. Overriding with local real GeoJSON.");
         return serveLocalGeoJSON(year);
     }
@@ -56,20 +56,20 @@ export async function GET(request: Request) {
 function serveLocalGeoJSON(year: number) {
   const filePath = path.join(process.cwd(), 'src', 'data', 'bkk_districts.geojson');
   const fileContent = fs.readFileSync(filePath, 'utf8');
-  let geojson = JSON.parse(fileContent);
+  const geojson = JSON.parse(fileContent);
   return NextResponse.json(mergeHistoricalData(geojson, year));
 }
 
 function mergeHistoricalData(geojson: any, targetYear: number) {
   // Read Traffy data
   const traffyPath = path.join(process.cwd(), 'src', 'data', 'traffy_data.json');
-  let traffyData = {};
+  let traffyData: any = {};
   if (fs.existsSync(traffyPath)) {
     traffyData = JSON.parse(fs.readFileSync(traffyPath, 'utf8'));
   }
 
   // Adjust properties based on year
-  geojson.features = geojson.features.map((feature: any) => {
+  const updatedFeatures = geojson.features.map((feature: any) => {
     const props = feature.properties;
     const districtId = props.id;
 
@@ -96,5 +96,5 @@ function mergeHistoricalData(geojson: any, targetYear: number) {
     return feature;
   });
 
-  return geojson;
+  return { ...geojson, features: updatedFeatures };
 }

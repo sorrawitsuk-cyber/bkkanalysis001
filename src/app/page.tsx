@@ -42,7 +42,7 @@ export default function Home() {
 
         <div className="absolute inset-0 z-0">
            <MapView 
-             onSelectDistrict={(d) => setSelectedDistrict(d)} 
+             onSelectDistrict={(d: any) => setSelectedDistrict(d)} 
              activeTag={selectedTag} 
              selectedYear={selectedYear} 
            />

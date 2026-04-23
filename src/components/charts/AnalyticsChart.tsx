@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, ComposedChart, Line } from "recharts";
+import { ResponsiveContainer, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, ComposedChart, Line } from "recharts";
 
 interface AnalyticsChartProps {
   district: any;
@@ -89,16 +89,12 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
   // Map active tag to data key
   let dataKey = "density";
   let color = "#6366f1";
-  let name = "ความหนาแน่น (คน/ตร.กม.)";
 
-  if (activeTag === "ประชากร") { dataKey = "population"; color = "#3b82f6"; name = "จำนวนประชากร"; }
-  if (activeTag === "พื้นที่สีเขียว") { dataKey = "ndvi"; color = "#10b981"; name = "ดัชนีพื้นที่สีเขียว (NDVI)"; }
-  if (activeTag === "การเข้าถึง") { dataKey = "accessibility_index"; color = "#8b5cf6"; name = "ดัชนีการเข้าถึง"; }
-  if (activeTag === "การร้องเรียน") { dataKey = "traffy_issues"; color = "#f59e0b"; name = "เรื่องร้องเรียน (Traffy)"; }
+  if (activeTag === "ประชากร") { dataKey = "population"; color = "#3b82f6"; }
+  if (activeTag === "พื้นที่สีเขียว") { dataKey = "ndvi"; color = "#10b981"; }
+  if (activeTag === "การเข้าถึง") { dataKey = "accessibility_index"; color = "#8b5cf6"; }
+  if (activeTag === "การร้องเรียน") { dataKey = "traffy_issues"; color = "#f59e0b"; }
 
-  // Split data into historical and forecast for rendering styling
-  const historicalData = data.filter(d => !d.isForecast);
-  
   return (
     <div className="w-full">
       <div className="flex justify-between items-end mb-4">
@@ -135,7 +131,7 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
             <Tooltip 
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
               labelStyle={{ fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}
-              formatter={(value: any, name: any, props: any) => [
+              formatter={(value: any, _name: any, props: any) => [
                 <span key="val">
                   {value.toLocaleString()} 
                   {props.payload.isForecast && <span className="ml-2 text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5 rounded">FORECAST</span>}
@@ -158,7 +154,6 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
               isAnimationActive={false}
             />
 
-            {/* Connect historical and forecast lines using the strokeDasharray trick or two separate line components */}
             <Line 
               type="monotone" 
               dataKey={dataKey} 
@@ -166,8 +161,6 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
               strokeWidth={3} 
               dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} 
               activeDot={{ r: 6, strokeWidth: 0 }} 
-              // Function to make dashed only for forecast. Recharts doesn't natively support dynamic dasharray per segment easily.
-              // We'll just style the whole line and use the tooltip to indicate forecast, or we can use a custom shape.
             />
           </ComposedChart>
         </ResponsiveContainer>
