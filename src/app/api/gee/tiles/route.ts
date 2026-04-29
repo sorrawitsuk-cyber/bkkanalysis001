@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import ee, { initGEE } from '@/lib/gee';
-import fs from 'fs';
-import path from 'path';
+import bkkBoundaryData from '@/data/bkk_districts.geojson';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,13 +11,8 @@ export async function GET(request: Request) {
   try {
     await initGEE();
 
-    // 1. Load BKK Boundary
-    const geojsonPath = path.join(process.cwd(), 'src', 'data', 'bkk_districts.geojson');
-    if (!fs.existsSync(geojsonPath)) {
-      throw new Error('Boundary data not found');
-    }
-    const geojson = JSON.parse(fs.readFileSync(geojsonPath, 'utf8'));
-    const bkkBoundary = ee.FeatureCollection(geojson).geometry();
+    // 1. Load BKK Boundary using direct import so Vercel bundles it
+    const bkkBoundary = ee.FeatureCollection(bkkBoundaryData).geometry();
 
     /**
      * Helper to get LST image for a specific year
