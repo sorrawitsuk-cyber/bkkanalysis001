@@ -78,13 +78,13 @@ export default function EarthEnginePage() {
                 onClick={() => setMapMode('district')}
                 className={`text-[9px] px-2 py-1 rounded transition-colors ${mapMode === 'district' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                เขต (Polygons)
+                รายเขต (Districts)
               </button>
               <button
                 onClick={() => setMapMode('idw')}
                 className={`text-[9px] px-2 py-1 rounded transition-colors ${mapMode === 'idw' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                สมูท (IDW)
+                ภาพดาวเทียม (GEE)
               </button>
             </div>
           </div>

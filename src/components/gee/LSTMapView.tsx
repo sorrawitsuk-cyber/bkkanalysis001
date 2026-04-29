@@ -61,15 +61,43 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
   };
 
   useEffect(() => {
+    const updateGeeLayer = async () => {
+      if (!mapRef.current) return;
+
+      // Clean up previous layers
+      if (heatLayerRef.current) {
+        mapRef.current.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+      if (geeLayerRef.current) {
+        mapRef.current.removeLayer(geeLayerRef.current);
+        geeLayerRef.current = null;
+      }
+
+      if (mapMode === 'idw' && summary?.selectedYear) {
+        try {
+          const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}`);
+          const data = await res.json();
+          if (data.urlFormat) {
+            geeLayerRef.current = L.tileLayer(data.urlFormat, {
+              maxZoom: 20,
+              opacity: 0.8
+            }).addTo(mapRef.current);
+          }
+        } catch (err) {
+          console.error("Failed to load GEE tiles:", err);
+        }
+      }
+    };
+
+    updateGeeLayer();
+  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear]);
+
+  useEffect(() => {
     if (!mapRef.current || !geojsonData) return;
 
     if (geojsonLayerRef.current) {
       mapRef.current.removeLayer(geojsonLayerRef.current);
-    }
-
-    if (heatLayerRef.current) {
-      mapRef.current.removeLayer(heatLayerRef.current);
-      heatLayerRef.current = null;
     }
 
     if (maskLayerRef.current) {
@@ -116,77 +144,7 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         }
       }).addTo(mapRef.current);
     } else {
-      // IDW Map Mode
-      const heatPoints: any[] = [];
-      const tempGeojsonLayer = L.geoJSON(geojsonData);
-      
-      tempGeojsonLayer.eachLayer((layer: any) => {
-        if (layer.getBounds) {
-          const val = compareMode ? layer.feature.properties.delta : layer.feature.properties.mean_lst;
-          if (val !== undefined && val !== null) {
-            const center = layer.getBounds().getCenter();
-            
-            // Normalize intensity based on dynamic range
-            let intensity = 0;
-            if (compareMode) {
-              const min = summary?.min_delta || -2;
-              const max = summary?.max_delta || 2;
-              intensity = (val - min) / (max - min);
-            } else {
-              const min = summary?.min_lst || 30;
-              const max = summary?.max_lst || 40;
-              intensity = (val - min) / (max - min);
-            }
-            intensity = Math.max(0.01, Math.min(1.0, intensity));
-            
-            // Add multiple points around centroid to fill the district area smoothly
-            heatPoints.push([center.lat, center.lng, intensity]);
-            heatPoints.push([center.lat + 0.02, center.lng, intensity]);
-            heatPoints.push([center.lat - 0.02, center.lng, intensity]);
-            heatPoints.push([center.lat, center.lng + 0.02, intensity]);
-            heatPoints.push([center.lat, center.lng - 0.02, intensity]);
-          }
-        }
-      });
-
-      const gradient = compareMode ? {
-        0.0: '#2166AC',
-        0.25: '#67A9CF',
-        0.5: '#F7F7F7',
-        0.75: '#EF8A62',
-        1.0: '#B2182B'
-      } : {
-        0.0: '#FFEDA0',
-        0.2: '#FED976',
-        0.4: '#FD8D3C',
-        0.6: '#E31A1C',
-        0.8: '#BD0026',
-        1.0: '#800026'
-      };
-
-      // @ts-ignore
-      heatLayerRef.current = L.heatLayer(heatPoints, {
-        radius: 65,
-        blur: 85,
-        maxZoom: 11,
-        minOpacity: 0.4,
-        gradient: gradient
-      }).addTo(mapRef.current);
-
-      // Add inverted mask to clip the heat layer
-      if (invertedMask) {
-        maskLayerRef.current = L.geoJSON(invertedMask, {
-          style: {
-            fillColor: '#0b0f19',
-            fillOpacity: 1,
-            color: 'transparent',
-            weight: 0
-          },
-          interactive: false // Let mouse events pass through to tooltip layer
-        }).addTo(mapRef.current);
-      }
-
-      // Add invisible polygons just for tooltip interactivity
+      // GEE Mode - Add invisible polygons just for tooltip interactivity
       geojsonLayerRef.current = L.geoJSON(geojsonData, {
         style: { fillOpacity: 0, weight: 1, color: 'rgba(255,255,255,0.1)' },
         onEachFeature: (feature, layer) => {
@@ -208,6 +166,19 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
           }
         }
       }).addTo(mapRef.current);
+
+      // Add inverted mask to clip the heat layer
+      if (invertedMask) {
+        maskLayerRef.current = L.geoJSON(invertedMask, {
+          style: {
+            fillColor: '#0b0f19',
+            fillOpacity: 1,
+            color: 'transparent',
+            weight: 0
+          },
+          interactive: false
+        }).addTo(mapRef.current);
+      }
     }
 
     // Zoom to selected district
