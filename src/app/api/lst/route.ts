@@ -136,6 +136,21 @@ export async function GET(request: Request) {
       currentAvg = currentYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / currentYearData.length;
     }
 
+    // 4. Monthly Trend
+    const monthlyData = new Array(12).fill(0);
+    const monthlyCounts = new Array(12).fill(0);
+    currentYearData.forEach((d: any) => {
+      if (d.monthly_lst) {
+        d.monthly_lst.forEach((temp: number, monthIdx: number) => {
+          monthlyData[monthIdx] += temp;
+          monthlyCounts[monthIdx] += 1;
+        });
+      }
+    });
+    const monthlyTrend = monthlyData.map((sum, idx) => 
+      monthlyCounts[idx] > 0 ? parseFloat((sum / monthlyCounts[idx]).toFixed(2)) : 0
+    );
+
     return NextResponse.json({
       geojson: { type: "FeatureCollection", features },
       invertedMask: invertedMask,
@@ -144,6 +159,7 @@ export async function GET(request: Request) {
         compareYear: compareYear,
         averageTemp: parseFloat(currentAvg.toFixed(2)),
         yearlyTrend,
+        monthlyTrend,
         ranking,
         min_lst: min_lst !== Infinity ? min_lst : 30,
         max_lst: max_lst !== -Infinity ? max_lst : 40,

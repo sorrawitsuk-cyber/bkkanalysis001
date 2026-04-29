@@ -117,6 +117,48 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           </div>
         </section>
 
+        {!compareMode && summary.monthlyTrend && (
+          <>
+            <div className="h-px bg-slate-800/60" />
+            
+            {/* Monthly Trend Chart */}
+            <section>
+              <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+                <Calendar className="w-3 h-3" /> แนวโน้มรายเดือน (Monthly)
+              </h3>
+              <div className="flex items-end gap-[2px] h-16 mb-2">
+                {summary.monthlyTrend.map((temp: number, i: number) => {
+                  // Normalize the height between 30C and 40C
+                  const minT = 30;
+                  const maxT = 40;
+                  const pct = Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+                  
+                  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                  
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                      <div
+                        className="w-full rounded-t-sm bg-slate-700 hover:bg-orange-500 transition-colors duration-200 min-h-[4px]"
+                        style={{ height: `${pct}%` }}
+                      />
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
+                        {months[i]}: {temp}°C
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between text-[8px] text-slate-500">
+                <span>ม.ค.</span>
+                <span>เม.ย.</span>
+                <span>ก.ค.</span>
+                <span>ต.ค.</span>
+                <span>ธ.ค.</span>
+              </div>
+            </section>
+          </>
+        )}
+
         <div className="h-px bg-slate-800/60" />
 
         {/* Ranking */}

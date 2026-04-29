@@ -44,11 +44,35 @@ function generateLST() {
       
       const finalTemp = parseFloat((baseTemp + yearOffset + anomaly).toFixed(2));
       
+      // Generate monthly profile (12 months)
+      // Bangkok is hottest in April/May, cooler in Dec/Jan
+      const monthly_lst = [];
+      const monthOffsets = [
+        -2.5, // Jan
+        -1.0, // Feb
+        1.5,  // Mar
+        3.5,  // Apr
+        3.0,  // May
+        1.0,  // Jun
+        0.5,  // Jul
+        0.0,  // Aug
+        -0.5, // Sep
+        -1.0, // Oct
+        -1.5, // Nov
+        -3.0  // Dec
+      ];
+
+      for (let m = 0; m < 12; m++) {
+        const mTemp = finalTemp + monthOffsets[m] + (Math.random() * 1.0 - 0.5);
+        monthly_lst.push(parseFloat(mTemp.toFixed(2)));
+      }
+      
       data.push({
         district_id: id,
         district_name: name,
         year: year,
         mean_lst: finalTemp,
+        monthly_lst: monthly_lst,
         max_lst: parseFloat((finalTemp + 3 + Math.random() * 2).toFixed(2)), // Max temp is usually 3-5C higher than mean
         vegetation_index: parseFloat((1 - (finalTemp - 30) / 15).toFixed(2)) // Inverse correlation with temp
       });
