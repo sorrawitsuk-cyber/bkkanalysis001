@@ -66,21 +66,30 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
       <div className="p-5 flex-1 flex flex-col gap-6">
         
         {/* Main KPI */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-800">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'ส่วนต่างเฉลี่ย' : 'อุณหภูมิเฉลี่ย'}</div>
-            <div className="text-2xl font-bold text-slate-100 font-mono">
-              {!compareMode && summary.averageTemp}
-              {compareMode && (
-                 // To get average delta we can just compute it if we want, but for now we just show N/A or summary.averageTemp is still mean_lst
-                 "N/A" // Because we didn't calculate average delta in API yet, wait, we can just say N/A or hide it
-              )}
-              {!compareMode && <span className="text-sm text-slate-500">°C</span>}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'เฉลี่ย' : 'เฉลี่ย'}
+            </div>
+            <div className="text-xl font-bold text-slate-100 font-mono">
+              {!compareMode ? summary.averageTemp : "N/A"}
+              {!compareMode && <span className="text-xs text-slate-500">°C</span>}
             </div>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-800">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Trees className="w-3 h-3 text-emerald-400"/> ข้อมูลปี</div>
-            <div className="text-2xl font-bold text-emerald-400 font-mono">{summary.selectedYear}</div>
+          <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <Activity className="w-3 h-3 text-red-500"/> {compareMode ? 'พุ่งสูงสุด' : 'สูงสุดของปี'}
+            </div>
+            <div className="text-xl font-bold text-red-500 font-mono">
+              {!compareMode ? summary.maxTemp : "N/A"}
+              {!compareMode && <span className="text-xs text-red-500/50">°C</span>}
+            </div>
+          </div>
+          <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <Trees className="w-3 h-3 text-emerald-400"/> ข้อมูลปี
+            </div>
+            <div className="text-xl font-bold text-emerald-400 font-mono">{summary.selectedYear}</div>
           </div>
         </div>
 
@@ -92,20 +101,28 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
             <Activity className="w-3 h-3" /> แนวโน้มความร้อน (Trend)
           </h3>
           <div className="flex items-end gap-[3px] h-20 mb-2">
-            {(summary.yearlyTrend || []).map(([year, temp]: [string, number], i: number) => {
+            {(summary.yearlyTrend || []).map((item: any, i: number) => {
+              const year = item[0];
+              const temp = item[1];
+              const maxMonthIdx = item[2];
+              
               // Normalize the height between 30C and 40C
               const minT = 30;
               const maxT = 40;
               const pct = Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
               
+              const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+              const peakText = maxMonthIdx !== undefined && maxMonthIdx >= 0 ? ` (พีกสุดเดือน ${months[maxMonthIdx]})` : '';
+
               return (
                 <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                   <div
                     className="w-full rounded-t-sm bg-gradient-to-t from-orange-600 to-yellow-400 min-h-[4px] transition-all duration-300 group-hover:from-orange-500 group-hover:to-yellow-300"
                     style={{ height: `${pct}%` }}
                   />
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
-                    {year}: {temp}°C
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
+                    <span>{year}: {temp}°C</span>
+                    {peakText && <span className="text-[8px] text-red-400">{peakText}</span>}
                   </div>
                 </div>
               );
@@ -124,7 +141,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
             {/* Monthly Trend Chart */}
             <section>
               <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
-                <Calendar className="w-3 h-3" /> แนวโน้มรายเดือน (Monthly)
+                <Calendar className="w-3 h-3" /> แนวโน้มรายเดือน ปี {summary.selectedYear}
               </h3>
               <div className="flex items-end gap-[2px] h-16 mb-2">
                 {summary.monthlyTrend.map((temp: number, i: number) => {
@@ -135,10 +152,17 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                   
                   const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
                   
+                  // Color gradient logic
+                  const isHot = temp > 36.5;
+                  const isWarm = temp > 34;
+                  const barColor = isHot ? 'bg-gradient-to-t from-orange-600 to-red-500' :
+                                   isWarm ? 'bg-gradient-to-t from-yellow-600 to-orange-400' :
+                                   'bg-gradient-to-t from-slate-600 to-slate-400';
+                  
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                       <div
-                        className="w-full rounded-t-sm bg-slate-700 hover:bg-orange-500 transition-colors duration-200 min-h-[4px]"
+                        className={`w-full rounded-t-sm ${barColor} hover:brightness-110 transition-all duration-200 min-h-[4px]`}
                         style={{ height: `${pct}%` }}
                       />
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">

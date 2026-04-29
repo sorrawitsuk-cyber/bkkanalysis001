@@ -102,17 +102,37 @@ export async function GET(request: Request) {
       summaryData = lstData.filter((d: any) => d.district_name === districtFilter || `เขต${d.district_name}` === districtFilter);
     }
 
-    // 1. Overall Average
+    // 1. Overall Average & Yearly Trend
     const trendData = summaryData.reduce((acc: any, curr: any) => {
       if (!acc[curr.year]) {
-        acc[curr.year] = { sum: 0, count: 0 };
+        acc[curr.year] = { sum: 0, count: 0, monthlyData: new Array(12).fill(0), monthlyCount: new Array(12).fill(0) };
       }
       acc[curr.year].sum += curr.mean_lst;
       acc[curr.year].count += 1;
+      if (curr.monthly_lst) {
+        curr.monthly_lst.forEach((mTemp: number, idx: number) => {
+          acc[curr.year].monthlyData[idx] += mTemp;
+          acc[curr.year].monthlyCount[idx] += 1;
+        });
+      }
       return acc;
     }, {});
     
-    const yearlyTrend = Object.keys(trendData).sort().map(y => [y, parseFloat((trendData[y].sum / trendData[y].count).toFixed(2))]);
+    const yearlyTrend = Object.keys(trendData).sort().map(y => {
+      const avg = parseFloat((trendData[y].sum / trendData[y].count).toFixed(2));
+      let maxMonthIdx = -1;
+      let maxMonthTemp = -Infinity;
+      trendData[y].monthlyData.forEach((sum: number, idx: number) => {
+        if (trendData[y].monthlyCount[idx] > 0) {
+          const mAvg = sum / trendData[y].monthlyCount[idx];
+          if (mAvg > maxMonthTemp) {
+            maxMonthTemp = mAvg;
+            maxMonthIdx = idx;
+          }
+        }
+      });
+      return [y, avg, maxMonthIdx];
+    });
 
     // 2. Ranking
     let ranking;
@@ -129,11 +149,13 @@ export async function GET(request: Request) {
         .map((d: any) => [d.district_name, d.mean_lst]);
     }
 
-    // 3. Current average
+    // 3. Current average & max
     let currentAvg = 0;
+    let maxTemp = 0;
     const currentYearData = summaryData.filter((d: any) => d.year === year);
     if (currentYearData.length > 0) {
       currentAvg = currentYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / currentYearData.length;
+      maxTemp = currentYearData.reduce((max: number, curr: any) => Math.max(max, curr.max_lst || curr.mean_lst), -Infinity);
     }
 
     // 4. Monthly Trend
@@ -158,6 +180,7 @@ export async function GET(request: Request) {
         selectedYear: year,
         compareYear: compareYear,
         averageTemp: parseFloat(currentAvg.toFixed(2)),
+        maxTemp: maxTemp > -Infinity ? parseFloat(maxTemp.toFixed(2)) : null,
         yearlyTrend,
         monthlyTrend,
         ranking,
