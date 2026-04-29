@@ -1,0 +1,3602 @@
+[
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2018,
+    "mean_lst": 35.74,
+    "max_lst": 38.97,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2019,
+    "mean_lst": 35.85,
+    "max_lst": 38.88,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2020,
+    "mean_lst": 36.25,
+    "max_lst": 40.24,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2021,
+    "mean_lst": 36.23,
+    "max_lst": 39.4,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2022,
+    "mean_lst": 36.72,
+    "max_lst": 39.99,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2023,
+    "mean_lst": 38.24,
+    "max_lst": 42.36,
+    "vegetation_index": 0.45
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2024,
+    "mean_lst": 37.87,
+    "max_lst": 41.9,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2025,
+    "mean_lst": 37,
+    "max_lst": 40.95,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 1,
+    "district_name": "พระนคร",
+    "year": 2026,
+    "mean_lst": 37.55,
+    "max_lst": 41.15,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2018,
+    "mean_lst": 36.34,
+    "max_lst": 39.74,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2019,
+    "mean_lst": 36.14,
+    "max_lst": 40.07,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2020,
+    "mean_lst": 36.65,
+    "max_lst": 40.07,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2021,
+    "mean_lst": 36.67,
+    "max_lst": 40.88,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2022,
+    "mean_lst": 37.01,
+    "max_lst": 41.13,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2023,
+    "mean_lst": 38.14,
+    "max_lst": 43.12,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2024,
+    "mean_lst": 38.58,
+    "max_lst": 42.39,
+    "vegetation_index": 0.43
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2025,
+    "mean_lst": 37.01,
+    "max_lst": 41.84,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 2,
+    "district_name": "สัมพันธวงศ์",
+    "year": 2026,
+    "mean_lst": 37.25,
+    "max_lst": 42.15,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2018,
+    "mean_lst": 37.52,
+    "max_lst": 41.92,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2019,
+    "mean_lst": 37.59,
+    "max_lst": 40.85,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2020,
+    "mean_lst": 37.43,
+    "max_lst": 41.71,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2021,
+    "mean_lst": 37.69,
+    "max_lst": 41.01,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2022,
+    "mean_lst": 38.26,
+    "max_lst": 41.81,
+    "vegetation_index": 0.45
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2023,
+    "mean_lst": 39.78,
+    "max_lst": 43.1,
+    "vegetation_index": 0.35
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2024,
+    "mean_lst": 39.27,
+    "max_lst": 43.89,
+    "vegetation_index": 0.38
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2025,
+    "mean_lst": 38.79,
+    "max_lst": 42.46,
+    "vegetation_index": 0.41
+  },
+  {
+    "district_id": 3,
+    "district_name": "ป้อมปราบศัตรูพ่าย",
+    "year": 2026,
+    "mean_lst": 38.77,
+    "max_lst": 43.63,
+    "vegetation_index": 0.42
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2018,
+    "mean_lst": 35.85,
+    "max_lst": 39.33,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2019,
+    "mean_lst": 35.94,
+    "max_lst": 39.24,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2020,
+    "mean_lst": 36.24,
+    "max_lst": 40.99,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2021,
+    "mean_lst": 36.84,
+    "max_lst": 41.44,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2022,
+    "mean_lst": 36.8,
+    "max_lst": 41.13,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2023,
+    "mean_lst": 38.81,
+    "max_lst": 41.9,
+    "vegetation_index": 0.41
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2024,
+    "mean_lst": 38.25,
+    "max_lst": 41.76,
+    "vegetation_index": 0.45
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2025,
+    "mean_lst": 37.17,
+    "max_lst": 40.34,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 4,
+    "district_name": "บางรัก",
+    "year": 2026,
+    "mean_lst": 36.97,
+    "max_lst": 40.62,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2018,
+    "mean_lst": 36.41,
+    "max_lst": 39.58,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2019,
+    "mean_lst": 36.74,
+    "max_lst": 40.6,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2020,
+    "mean_lst": 37.08,
+    "max_lst": 41.6,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2021,
+    "mean_lst": 37.3,
+    "max_lst": 41.53,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2022,
+    "mean_lst": 37.55,
+    "max_lst": 42.41,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2023,
+    "mean_lst": 38.98,
+    "max_lst": 42.04,
+    "vegetation_index": 0.4
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2024,
+    "mean_lst": 39.08,
+    "max_lst": 42.34,
+    "vegetation_index": 0.39
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2025,
+    "mean_lst": 37.41,
+    "max_lst": 40.68,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 5,
+    "district_name": "ปทุมวัน",
+    "year": 2026,
+    "mean_lst": 37.55,
+    "max_lst": 42.16,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2018,
+    "mean_lst": 35.93,
+    "max_lst": 39.89,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2019,
+    "mean_lst": 35.99,
+    "max_lst": 39,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2020,
+    "mean_lst": 36.34,
+    "max_lst": 40.19,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2021,
+    "mean_lst": 36.43,
+    "max_lst": 41.27,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2022,
+    "mean_lst": 36.53,
+    "max_lst": 40.62,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2023,
+    "mean_lst": 37.74,
+    "max_lst": 42.22,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2024,
+    "mean_lst": 38.52,
+    "max_lst": 42.31,
+    "vegetation_index": 0.43
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2025,
+    "mean_lst": 36.8,
+    "max_lst": 41.14,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 6,
+    "district_name": "ราชเทวี",
+    "year": 2026,
+    "mean_lst": 37.81,
+    "max_lst": 42.17,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2018,
+    "mean_lst": 36.68,
+    "max_lst": 39.87,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2019,
+    "mean_lst": 37.05,
+    "max_lst": 41.46,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2020,
+    "mean_lst": 36.99,
+    "max_lst": 40.73,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2021,
+    "mean_lst": 37.47,
+    "max_lst": 41.64,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2022,
+    "mean_lst": 37.64,
+    "max_lst": 40.75,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2023,
+    "mean_lst": 39.44,
+    "max_lst": 43.97,
+    "vegetation_index": 0.37
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2024,
+    "mean_lst": 39.11,
+    "max_lst": 42.52,
+    "vegetation_index": 0.39
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2025,
+    "mean_lst": 38.19,
+    "max_lst": 42.32,
+    "vegetation_index": 0.45
+  },
+  {
+    "district_id": 7,
+    "district_name": "พญาไท",
+    "year": 2026,
+    "mean_lst": 38.95,
+    "max_lst": 43.42,
+    "vegetation_index": 0.4
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2018,
+    "mean_lst": 36.23,
+    "max_lst": 40.43,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2019,
+    "mean_lst": 36.6,
+    "max_lst": 39.61,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2020,
+    "mean_lst": 36.38,
+    "max_lst": 40.86,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2021,
+    "mean_lst": 36.56,
+    "max_lst": 41.01,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2022,
+    "mean_lst": 36.76,
+    "max_lst": 40.85,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2023,
+    "mean_lst": 38.88,
+    "max_lst": 42.06,
+    "vegetation_index": 0.41
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2024,
+    "mean_lst": 39.02,
+    "max_lst": 43.04,
+    "vegetation_index": 0.4
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2025,
+    "mean_lst": 37.16,
+    "max_lst": 41.2,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 8,
+    "district_name": "ดุสิต",
+    "year": 2026,
+    "mean_lst": 37.42,
+    "max_lst": 42.28,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2018,
+    "mean_lst": 35.08,
+    "max_lst": 38.89,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2019,
+    "mean_lst": 35.11,
+    "max_lst": 38.21,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2020,
+    "mean_lst": 35.33,
+    "max_lst": 38.99,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2021,
+    "mean_lst": 35.05,
+    "max_lst": 38.43,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2022,
+    "mean_lst": 35.9,
+    "max_lst": 40.33,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2023,
+    "mean_lst": 37.16,
+    "max_lst": 40.94,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2024,
+    "mean_lst": 37.13,
+    "max_lst": 41.74,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2025,
+    "mean_lst": 35.71,
+    "max_lst": 40.51,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 9,
+    "district_name": "บางซื่อ",
+    "year": 2026,
+    "mean_lst": 35.84,
+    "max_lst": 39.89,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2018,
+    "mean_lst": 34.08,
+    "max_lst": 38.38,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2019,
+    "mean_lst": 34.03,
+    "max_lst": 37.55,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2020,
+    "mean_lst": 34.16,
+    "max_lst": 39.14,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2021,
+    "mean_lst": 34.42,
+    "max_lst": 37.66,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2022,
+    "mean_lst": 34.25,
+    "max_lst": 38,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2023,
+    "mean_lst": 36.39,
+    "max_lst": 39.83,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2024,
+    "mean_lst": 36.13,
+    "max_lst": 40.64,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2025,
+    "mean_lst": 35.23,
+    "max_lst": 38.94,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 10,
+    "district_name": "จตุจักร",
+    "year": 2026,
+    "mean_lst": 34.82,
+    "max_lst": 39.73,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2018,
+    "mean_lst": 33.36,
+    "max_lst": 36.61,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2019,
+    "mean_lst": 33.8,
+    "max_lst": 38.61,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2020,
+    "mean_lst": 33.75,
+    "max_lst": 37.93,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2021,
+    "mean_lst": 34.4,
+    "max_lst": 38.79,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2022,
+    "mean_lst": 34.54,
+    "max_lst": 39.32,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2023,
+    "mean_lst": 35.64,
+    "max_lst": 40.38,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2024,
+    "mean_lst": 36.26,
+    "max_lst": 39.35,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2025,
+    "mean_lst": 34.81,
+    "max_lst": 39.48,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 11,
+    "district_name": "ดอนเมือง",
+    "year": 2026,
+    "mean_lst": 34.87,
+    "max_lst": 39.09,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2018,
+    "mean_lst": 32.98,
+    "max_lst": 36.63,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2019,
+    "mean_lst": 33.08,
+    "max_lst": 37.1,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2020,
+    "mean_lst": 33.33,
+    "max_lst": 37.78,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2021,
+    "mean_lst": 33.47,
+    "max_lst": 38.41,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2022,
+    "mean_lst": 33.66,
+    "max_lst": 38.02,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2023,
+    "mean_lst": 34.85,
+    "max_lst": 39.47,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2024,
+    "mean_lst": 34.63,
+    "max_lst": 38.91,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2025,
+    "mean_lst": 34.33,
+    "max_lst": 37.47,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 12,
+    "district_name": "หลักสี่",
+    "year": 2026,
+    "mean_lst": 33.94,
+    "max_lst": 37.14,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2018,
+    "mean_lst": 35.35,
+    "max_lst": 39.67,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2019,
+    "mean_lst": 35.31,
+    "max_lst": 39,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2020,
+    "mean_lst": 35.69,
+    "max_lst": 39.44,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2021,
+    "mean_lst": 35.31,
+    "max_lst": 39.18,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2022,
+    "mean_lst": 35.6,
+    "max_lst": 39.69,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2023,
+    "mean_lst": 36.92,
+    "max_lst": 40.8,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2024,
+    "mean_lst": 37.71,
+    "max_lst": 41.41,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2025,
+    "mean_lst": 36.44,
+    "max_lst": 40.88,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 13,
+    "district_name": "บางเขน",
+    "year": 2026,
+    "mean_lst": 36.39,
+    "max_lst": 41.18,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2018,
+    "mean_lst": 35.88,
+    "max_lst": 38.99,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2019,
+    "mean_lst": 36.41,
+    "max_lst": 41.3,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2020,
+    "mean_lst": 36.32,
+    "max_lst": 39.52,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2021,
+    "mean_lst": 36.85,
+    "max_lst": 40.9,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2022,
+    "mean_lst": 36.43,
+    "max_lst": 40.02,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2023,
+    "mean_lst": 38.13,
+    "max_lst": 41.76,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2024,
+    "mean_lst": 39.21,
+    "max_lst": 42.37,
+    "vegetation_index": 0.39
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2025,
+    "mean_lst": 37.85,
+    "max_lst": 41.61,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 14,
+    "district_name": "ดินแดง",
+    "year": 2026,
+    "mean_lst": 37.3,
+    "max_lst": 40.79,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2018,
+    "mean_lst": 37.53,
+    "max_lst": 41.3,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2019,
+    "mean_lst": 37.46,
+    "max_lst": 41.67,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2020,
+    "mean_lst": 38.03,
+    "max_lst": 42.2,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2021,
+    "mean_lst": 37.8,
+    "max_lst": 42.25,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2022,
+    "mean_lst": 38.29,
+    "max_lst": 41.85,
+    "vegetation_index": 0.45
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2023,
+    "mean_lst": 40.11,
+    "max_lst": 43.6,
+    "vegetation_index": 0.33
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2024,
+    "mean_lst": 40.19,
+    "max_lst": 44.49,
+    "vegetation_index": 0.32
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2025,
+    "mean_lst": 38.95,
+    "max_lst": 43.71,
+    "vegetation_index": 0.4
+  },
+  {
+    "district_id": 15,
+    "district_name": "ห้วยขวาง",
+    "year": 2026,
+    "mean_lst": 39.04,
+    "max_lst": 42.93,
+    "vegetation_index": 0.4
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2018,
+    "mean_lst": 35.79,
+    "max_lst": 39.75,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2019,
+    "mean_lst": 36.15,
+    "max_lst": 39.78,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2020,
+    "mean_lst": 36.03,
+    "max_lst": 40.88,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2021,
+    "mean_lst": 36.28,
+    "max_lst": 40.26,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2022,
+    "mean_lst": 36.35,
+    "max_lst": 40,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2023,
+    "mean_lst": 38.02,
+    "max_lst": 41.52,
+    "vegetation_index": 0.47
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2024,
+    "mean_lst": 38.56,
+    "max_lst": 41.9,
+    "vegetation_index": 0.43
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2025,
+    "mean_lst": 37.67,
+    "max_lst": 40.92,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 16,
+    "district_name": "คลองเตย",
+    "year": 2026,
+    "mean_lst": 37.37,
+    "max_lst": 42.07,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2018,
+    "mean_lst": 34.15,
+    "max_lst": 38.05,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2019,
+    "mean_lst": 34.37,
+    "max_lst": 38.62,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2020,
+    "mean_lst": 34.24,
+    "max_lst": 39.21,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2021,
+    "mean_lst": 34.82,
+    "max_lst": 38.91,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2022,
+    "mean_lst": 34.73,
+    "max_lst": 37.82,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2023,
+    "mean_lst": 36.29,
+    "max_lst": 40.4,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2024,
+    "mean_lst": 35.82,
+    "max_lst": 39.34,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2025,
+    "mean_lst": 34.74,
+    "max_lst": 37.95,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 17,
+    "district_name": "ลาดพร้าว",
+    "year": 2026,
+    "mean_lst": 35.54,
+    "max_lst": 39.56,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2018,
+    "mean_lst": 32.94,
+    "max_lst": 36.46,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2019,
+    "mean_lst": 33.11,
+    "max_lst": 37.77,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2020,
+    "mean_lst": 32.94,
+    "max_lst": 37.63,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2021,
+    "mean_lst": 33.48,
+    "max_lst": 38.15,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2022,
+    "mean_lst": 33.05,
+    "max_lst": 36.17,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2023,
+    "mean_lst": 34.81,
+    "max_lst": 39.15,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2024,
+    "mean_lst": 34.61,
+    "max_lst": 39.07,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2025,
+    "mean_lst": 33.86,
+    "max_lst": 38.11,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 18,
+    "district_name": "สายไหม",
+    "year": 2026,
+    "mean_lst": 33.72,
+    "max_lst": 36.9,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2018,
+    "mean_lst": 35.64,
+    "max_lst": 39.68,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2019,
+    "mean_lst": 36.24,
+    "max_lst": 39.82,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2020,
+    "mean_lst": 36.53,
+    "max_lst": 41.03,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2021,
+    "mean_lst": 36.12,
+    "max_lst": 39.16,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2022,
+    "mean_lst": 36.65,
+    "max_lst": 40.59,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2023,
+    "mean_lst": 38.04,
+    "max_lst": 41.34,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2024,
+    "mean_lst": 38.15,
+    "max_lst": 41.48,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2025,
+    "mean_lst": 37.17,
+    "max_lst": 40.63,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 19,
+    "district_name": "วัฒนา",
+    "year": 2026,
+    "mean_lst": 36.71,
+    "max_lst": 41.68,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2018,
+    "mean_lst": 33.9,
+    "max_lst": 37.96,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2019,
+    "mean_lst": 33.75,
+    "max_lst": 37.27,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2020,
+    "mean_lst": 33.81,
+    "max_lst": 38.24,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2021,
+    "mean_lst": 34.04,
+    "max_lst": 37.24,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2022,
+    "mean_lst": 34.18,
+    "max_lst": 39.05,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2023,
+    "mean_lst": 35.6,
+    "max_lst": 39.89,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2024,
+    "mean_lst": 35.87,
+    "max_lst": 39.39,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2025,
+    "mean_lst": 34.51,
+    "max_lst": 38.15,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 20,
+    "district_name": "บางกะปิ",
+    "year": 2026,
+    "mean_lst": 35.55,
+    "max_lst": 39.77,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2018,
+    "mean_lst": 34.63,
+    "max_lst": 39.19,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2019,
+    "mean_lst": 35.09,
+    "max_lst": 39.75,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2020,
+    "mean_lst": 35.07,
+    "max_lst": 38.1,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2021,
+    "mean_lst": 35.01,
+    "max_lst": 39.42,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2022,
+    "mean_lst": 35.26,
+    "max_lst": 40.23,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2023,
+    "mean_lst": 37.01,
+    "max_lst": 41.1,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2024,
+    "mean_lst": 36.86,
+    "max_lst": 40.68,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2025,
+    "mean_lst": 35.71,
+    "max_lst": 40,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 21,
+    "district_name": "บางกอกใหญ่",
+    "year": 2026,
+    "mean_lst": 35.98,
+    "max_lst": 39.55,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2018,
+    "mean_lst": 32.73,
+    "max_lst": 35.77,
+    "vegetation_index": 0.82
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2019,
+    "mean_lst": 32.95,
+    "max_lst": 37.75,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2020,
+    "mean_lst": 33.01,
+    "max_lst": 36.78,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2021,
+    "mean_lst": 32.82,
+    "max_lst": 37.52,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2022,
+    "mean_lst": 33.15,
+    "max_lst": 37.54,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2023,
+    "mean_lst": 34.93,
+    "max_lst": 38.39,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2024,
+    "mean_lst": 34.75,
+    "max_lst": 39.15,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2025,
+    "mean_lst": 34.14,
+    "max_lst": 38.78,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 22,
+    "district_name": "ตลิ่งชัน",
+    "year": 2026,
+    "mean_lst": 34.13,
+    "max_lst": 38.72,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2018,
+    "mean_lst": 31.6,
+    "max_lst": 35.62,
+    "vegetation_index": 0.89
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2019,
+    "mean_lst": 31.82,
+    "max_lst": 36.13,
+    "vegetation_index": 0.88
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2020,
+    "mean_lst": 31.92,
+    "max_lst": 35.04,
+    "vegetation_index": 0.87
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2021,
+    "mean_lst": 32.29,
+    "max_lst": 36.39,
+    "vegetation_index": 0.85
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2022,
+    "mean_lst": 32.19,
+    "max_lst": 36.74,
+    "vegetation_index": 0.85
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2023,
+    "mean_lst": 34.16,
+    "max_lst": 37.6,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2024,
+    "mean_lst": 33.91,
+    "max_lst": 37.02,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2025,
+    "mean_lst": 33.13,
+    "max_lst": 37.51,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 23,
+    "district_name": "ทวีวัฒนา",
+    "year": 2026,
+    "mean_lst": 33.26,
+    "max_lst": 38.12,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2018,
+    "mean_lst": 37.49,
+    "max_lst": 41.03,
+    "vegetation_index": 0.5
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2019,
+    "mean_lst": 37.37,
+    "max_lst": 40.98,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2020,
+    "mean_lst": 37.77,
+    "max_lst": 42.57,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2021,
+    "mean_lst": 38.06,
+    "max_lst": 43.02,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2022,
+    "mean_lst": 38.06,
+    "max_lst": 41.76,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2023,
+    "mean_lst": 40.15,
+    "max_lst": 43.81,
+    "vegetation_index": 0.32
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2024,
+    "mean_lst": 39.9,
+    "max_lst": 44.11,
+    "vegetation_index": 0.34
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2025,
+    "mean_lst": 38.44,
+    "max_lst": 41.98,
+    "vegetation_index": 0.44
+  },
+  {
+    "district_id": 24,
+    "district_name": "วังทองหลาง",
+    "year": 2026,
+    "mean_lst": 38.37,
+    "max_lst": 41.76,
+    "vegetation_index": 0.44
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2018,
+    "mean_lst": 33.54,
+    "max_lst": 37.06,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2019,
+    "mean_lst": 33.7,
+    "max_lst": 38.61,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2020,
+    "mean_lst": 34.26,
+    "max_lst": 37.3,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2021,
+    "mean_lst": 34.67,
+    "max_lst": 37.79,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2022,
+    "mean_lst": 34.7,
+    "max_lst": 37.71,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2023,
+    "mean_lst": 36.04,
+    "max_lst": 39.59,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2024,
+    "mean_lst": 35.8,
+    "max_lst": 39.38,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2025,
+    "mean_lst": 34.46,
+    "max_lst": 39.07,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 25,
+    "district_name": "บางพลัด",
+    "year": 2026,
+    "mean_lst": 35.05,
+    "max_lst": 39.55,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2018,
+    "mean_lst": 35.09,
+    "max_lst": 39.18,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2019,
+    "mean_lst": 35.33,
+    "max_lst": 39.92,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2020,
+    "mean_lst": 35.49,
+    "max_lst": 39.24,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2021,
+    "mean_lst": 35.67,
+    "max_lst": 38.77,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2022,
+    "mean_lst": 35.53,
+    "max_lst": 39.23,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2023,
+    "mean_lst": 37.66,
+    "max_lst": 41.71,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2024,
+    "mean_lst": 37.82,
+    "max_lst": 41.01,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2025,
+    "mean_lst": 36.51,
+    "max_lst": 40.75,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 26,
+    "district_name": "บางกอกน้อย",
+    "year": 2026,
+    "mean_lst": 36.44,
+    "max_lst": 40.1,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2018,
+    "mean_lst": 32.85,
+    "max_lst": 36.7,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2019,
+    "mean_lst": 32.95,
+    "max_lst": 37.34,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2020,
+    "mean_lst": 33.09,
+    "max_lst": 36.76,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2021,
+    "mean_lst": 33.14,
+    "max_lst": 36.39,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2022,
+    "mean_lst": 33.7,
+    "max_lst": 38.02,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2023,
+    "mean_lst": 35.3,
+    "max_lst": 39.62,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2024,
+    "mean_lst": 34.69,
+    "max_lst": 38.48,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2025,
+    "mean_lst": 33.5,
+    "max_lst": 37.92,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 27,
+    "district_name": "หนองแขม",
+    "year": 2026,
+    "mean_lst": 34.2,
+    "max_lst": 38.34,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2018,
+    "mean_lst": 33.28,
+    "max_lst": 37.48,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2019,
+    "mean_lst": 33.4,
+    "max_lst": 37.01,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2020,
+    "mean_lst": 33.76,
+    "max_lst": 37.4,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2021,
+    "mean_lst": 33.63,
+    "max_lst": 38.21,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2022,
+    "mean_lst": 34.15,
+    "max_lst": 37.66,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2023,
+    "mean_lst": 35.69,
+    "max_lst": 38.89,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2024,
+    "mean_lst": 35.87,
+    "max_lst": 39.55,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2025,
+    "mean_lst": 34.48,
+    "max_lst": 38.22,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 28,
+    "district_name": "บางแค",
+    "year": 2026,
+    "mean_lst": 34.45,
+    "max_lst": 37.54,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2018,
+    "mean_lst": 32.76,
+    "max_lst": 37.64,
+    "vegetation_index": 0.82
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2019,
+    "mean_lst": 32.62,
+    "max_lst": 35.85,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2020,
+    "mean_lst": 33.18,
+    "max_lst": 36.88,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2021,
+    "mean_lst": 33.46,
+    "max_lst": 37.04,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2022,
+    "mean_lst": 33.86,
+    "max_lst": 36.93,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2023,
+    "mean_lst": 34.97,
+    "max_lst": 38.69,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2024,
+    "mean_lst": 34.86,
+    "max_lst": 38.77,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2025,
+    "mean_lst": 34.26,
+    "max_lst": 37.89,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 29,
+    "district_name": "บึงกุ่ม",
+    "year": 2026,
+    "mean_lst": 33.71,
+    "max_lst": 38.59,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2018,
+    "mean_lst": 32.86,
+    "max_lst": 37.33,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2019,
+    "mean_lst": 33.11,
+    "max_lst": 37.5,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2020,
+    "mean_lst": 33.18,
+    "max_lst": 38,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2021,
+    "mean_lst": 33.27,
+    "max_lst": 37.68,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2022,
+    "mean_lst": 33.07,
+    "max_lst": 37.96,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2023,
+    "mean_lst": 34.9,
+    "max_lst": 38.73,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2024,
+    "mean_lst": 35.49,
+    "max_lst": 40.42,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2025,
+    "mean_lst": 34.45,
+    "max_lst": 38.9,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 30,
+    "district_name": "คันนายาว",
+    "year": 2026,
+    "mean_lst": 34.29,
+    "max_lst": 39.24,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2018,
+    "mean_lst": 31.73,
+    "max_lst": 36.24,
+    "vegetation_index": 0.88
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2019,
+    "mean_lst": 31.61,
+    "max_lst": 34.96,
+    "vegetation_index": 0.89
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2020,
+    "mean_lst": 31.93,
+    "max_lst": 36.32,
+    "vegetation_index": 0.87
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2021,
+    "mean_lst": 32.15,
+    "max_lst": 35.45,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2022,
+    "mean_lst": 32.16,
+    "max_lst": 36.59,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2023,
+    "mean_lst": 33.75,
+    "max_lst": 38,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2024,
+    "mean_lst": 33.96,
+    "max_lst": 37.76,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2025,
+    "mean_lst": 32.73,
+    "max_lst": 36.15,
+    "vegetation_index": 0.82
+  },
+  {
+    "district_id": 31,
+    "district_name": "ภาษีเจริญ",
+    "year": 2026,
+    "mean_lst": 33.33,
+    "max_lst": 38.07,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2018,
+    "mean_lst": 31.83,
+    "max_lst": 36.39,
+    "vegetation_index": 0.88
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2019,
+    "mean_lst": 31.8,
+    "max_lst": 35.49,
+    "vegetation_index": 0.88
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2020,
+    "mean_lst": 32.23,
+    "max_lst": 36.59,
+    "vegetation_index": 0.85
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2021,
+    "mean_lst": 31.97,
+    "max_lst": 36.55,
+    "vegetation_index": 0.87
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2022,
+    "mean_lst": 32.66,
+    "max_lst": 36.11,
+    "vegetation_index": 0.82
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2023,
+    "mean_lst": 34,
+    "max_lst": 37.1,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2024,
+    "mean_lst": 34.57,
+    "max_lst": 38.04,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2025,
+    "mean_lst": 33.17,
+    "max_lst": 36.42,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 32,
+    "district_name": "คลองสามวา",
+    "year": 2026,
+    "mean_lst": 32.75,
+    "max_lst": 37.41,
+    "vegetation_index": 0.82
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2018,
+    "mean_lst": 34.82,
+    "max_lst": 38.47,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2019,
+    "mean_lst": 34.94,
+    "max_lst": 39.33,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2020,
+    "mean_lst": 35.23,
+    "max_lst": 38.7,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2021,
+    "mean_lst": 35.35,
+    "max_lst": 38.5,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2022,
+    "mean_lst": 35.16,
+    "max_lst": 38.52,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2023,
+    "mean_lst": 36.92,
+    "max_lst": 40.01,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2024,
+    "mean_lst": 36.9,
+    "max_lst": 41.28,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2025,
+    "mean_lst": 35.66,
+    "max_lst": 40.37,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 33,
+    "district_name": "บางนา",
+    "year": 2026,
+    "mean_lst": 36.43,
+    "max_lst": 40.33,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2018,
+    "mean_lst": 32.44,
+    "max_lst": 37.44,
+    "vegetation_index": 0.84
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2019,
+    "mean_lst": 32.85,
+    "max_lst": 36.79,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2020,
+    "mean_lst": 33.06,
+    "max_lst": 37.74,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2021,
+    "mean_lst": 33.13,
+    "max_lst": 37.05,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2022,
+    "mean_lst": 33.21,
+    "max_lst": 37.2,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2023,
+    "mean_lst": 34.65,
+    "max_lst": 38.25,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2024,
+    "mean_lst": 35.06,
+    "max_lst": 39.62,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2025,
+    "mean_lst": 33.5,
+    "max_lst": 37.24,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 34,
+    "district_name": "มีนบุรี",
+    "year": 2026,
+    "mean_lst": 34.59,
+    "max_lst": 37.73,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2018,
+    "mean_lst": 32.49,
+    "max_lst": 36.51,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2019,
+    "mean_lst": 32.58,
+    "max_lst": 37.04,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2020,
+    "mean_lst": 32.6,
+    "max_lst": 35.84,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2021,
+    "mean_lst": 33.03,
+    "max_lst": 36.37,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2022,
+    "mean_lst": 33.14,
+    "max_lst": 36.63,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2023,
+    "mean_lst": 34.44,
+    "max_lst": 38.18,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2024,
+    "mean_lst": 34.52,
+    "max_lst": 39.49,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2025,
+    "mean_lst": 33.05,
+    "max_lst": 37.6,
+    "vegetation_index": 0.8
+  },
+  {
+    "district_id": 35,
+    "district_name": "ประเวศ",
+    "year": 2026,
+    "mean_lst": 33.61,
+    "max_lst": 38.29,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2018,
+    "mean_lst": 32.16,
+    "max_lst": 35.41,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2019,
+    "mean_lst": 32.49,
+    "max_lst": 35.51,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2020,
+    "mean_lst": 32.39,
+    "max_lst": 36.69,
+    "vegetation_index": 0.84
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2021,
+    "mean_lst": 32.92,
+    "max_lst": 36.6,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2022,
+    "mean_lst": 33.21,
+    "max_lst": 36.96,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2023,
+    "mean_lst": 34.74,
+    "max_lst": 39.36,
+    "vegetation_index": 0.68
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2024,
+    "mean_lst": 35.36,
+    "max_lst": 40.33,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2025,
+    "mean_lst": 33.69,
+    "max_lst": 36.88,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 36,
+    "district_name": "สะพานสูง",
+    "year": 2026,
+    "mean_lst": 33.08,
+    "max_lst": 37.55,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2018,
+    "mean_lst": 33.31,
+    "max_lst": 36.86,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2019,
+    "mean_lst": 33.95,
+    "max_lst": 37.67,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2020,
+    "mean_lst": 33.99,
+    "max_lst": 38.42,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2021,
+    "mean_lst": 33.72,
+    "max_lst": 37.95,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2022,
+    "mean_lst": 34.1,
+    "max_lst": 37.22,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2023,
+    "mean_lst": 36.08,
+    "max_lst": 40.7,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2024,
+    "mean_lst": 35.8,
+    "max_lst": 40.31,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2025,
+    "mean_lst": 34.66,
+    "max_lst": 39.64,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 37,
+    "district_name": "พระโขนง",
+    "year": 2026,
+    "mean_lst": 35.4,
+    "max_lst": 38.58,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2018,
+    "mean_lst": 34.58,
+    "max_lst": 38.45,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2019,
+    "mean_lst": 34.62,
+    "max_lst": 38.05,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2020,
+    "mean_lst": 34.91,
+    "max_lst": 38.12,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2021,
+    "mean_lst": 35.22,
+    "max_lst": 38.37,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2022,
+    "mean_lst": 35.34,
+    "max_lst": 39.31,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2023,
+    "mean_lst": 36.83,
+    "max_lst": 41.46,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2024,
+    "mean_lst": 37.21,
+    "max_lst": 40.76,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2025,
+    "mean_lst": 35.2,
+    "max_lst": 39.34,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 38,
+    "district_name": "สวนหลวง",
+    "year": 2026,
+    "mean_lst": 35.52,
+    "max_lst": 39.24,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2018,
+    "mean_lst": 34.39,
+    "max_lst": 38.44,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2019,
+    "mean_lst": 34.59,
+    "max_lst": 38.41,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2020,
+    "mean_lst": 34.44,
+    "max_lst": 39.06,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2021,
+    "mean_lst": 34.6,
+    "max_lst": 38.23,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2022,
+    "mean_lst": 35.05,
+    "max_lst": 38.08,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2023,
+    "mean_lst": 36.76,
+    "max_lst": 41.59,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2024,
+    "mean_lst": 36.27,
+    "max_lst": 41.13,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2025,
+    "mean_lst": 35.63,
+    "max_lst": 39.27,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 39,
+    "district_name": "จอมทอง",
+    "year": 2026,
+    "mean_lst": 35.07,
+    "max_lst": 38.31,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2018,
+    "mean_lst": 32,
+    "max_lst": 36.07,
+    "vegetation_index": 0.87
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2019,
+    "mean_lst": 32.14,
+    "max_lst": 36.49,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2020,
+    "mean_lst": 32.05,
+    "max_lst": 35.1,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2021,
+    "mean_lst": 32.79,
+    "max_lst": 35.81,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2022,
+    "mean_lst": 32.57,
+    "max_lst": 35.61,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2023,
+    "mean_lst": 34.07,
+    "max_lst": 38.34,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2024,
+    "mean_lst": 33.47,
+    "max_lst": 38.38,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2025,
+    "mean_lst": 33.54,
+    "max_lst": 37.07,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 40,
+    "district_name": "ราษฎร์บูรณะ",
+    "year": 2026,
+    "mean_lst": 33.57,
+    "max_lst": 38.02,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2018,
+    "mean_lst": 31.68,
+    "max_lst": 35.99,
+    "vegetation_index": 0.89
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2019,
+    "mean_lst": 31.8,
+    "max_lst": 36.5,
+    "vegetation_index": 0.88
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2020,
+    "mean_lst": 32,
+    "max_lst": 35.36,
+    "vegetation_index": 0.87
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2021,
+    "mean_lst": 32.54,
+    "max_lst": 37.5,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2022,
+    "mean_lst": 32.36,
+    "max_lst": 37.34,
+    "vegetation_index": 0.84
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2023,
+    "mean_lst": 33.93,
+    "max_lst": 38.57,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2024,
+    "mean_lst": 33.88,
+    "max_lst": 37.25,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2025,
+    "mean_lst": 33.73,
+    "max_lst": 38.29,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 41,
+    "district_name": "ทุ่งครุ",
+    "year": 2026,
+    "mean_lst": 33.23,
+    "max_lst": 37.78,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2018,
+    "mean_lst": 34.65,
+    "max_lst": 39.6,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2019,
+    "mean_lst": 34.96,
+    "max_lst": 38.65,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2020,
+    "mean_lst": 35.07,
+    "max_lst": 38.76,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2021,
+    "mean_lst": 35.62,
+    "max_lst": 40.57,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2022,
+    "mean_lst": 35.41,
+    "max_lst": 38.75,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2023,
+    "mean_lst": 36.85,
+    "max_lst": 41.43,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2024,
+    "mean_lst": 37.01,
+    "max_lst": 41.43,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2025,
+    "mean_lst": 35.41,
+    "max_lst": 38.69,
+    "vegetation_index": 0.64
+  },
+  {
+    "district_id": 42,
+    "district_name": "คลองสาน",
+    "year": 2026,
+    "mean_lst": 35.86,
+    "max_lst": 39.5,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2018,
+    "mean_lst": 34.28,
+    "max_lst": 39.1,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2019,
+    "mean_lst": 34.31,
+    "max_lst": 39.03,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2020,
+    "mean_lst": 34.55,
+    "max_lst": 38.65,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2021,
+    "mean_lst": 34.92,
+    "max_lst": 39.75,
+    "vegetation_index": 0.67
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2022,
+    "mean_lst": 34.4,
+    "max_lst": 38.33,
+    "vegetation_index": 0.71
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2023,
+    "mean_lst": 36.47,
+    "max_lst": 40.23,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2024,
+    "mean_lst": 36.41,
+    "max_lst": 41.01,
+    "vegetation_index": 0.57
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2025,
+    "mean_lst": 36,
+    "max_lst": 40.42,
+    "vegetation_index": 0.6
+  },
+  {
+    "district_id": 43,
+    "district_name": "ธนบุรี",
+    "year": 2026,
+    "mean_lst": 35.24,
+    "max_lst": 39.97,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2018,
+    "mean_lst": 33.43,
+    "max_lst": 37.14,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2019,
+    "mean_lst": 33.54,
+    "max_lst": 36.67,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2020,
+    "mean_lst": 33.78,
+    "max_lst": 36.84,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2021,
+    "mean_lst": 33.95,
+    "max_lst": 38.74,
+    "vegetation_index": 0.74
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2022,
+    "mean_lst": 34.13,
+    "max_lst": 37.89,
+    "vegetation_index": 0.72
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2023,
+    "mean_lst": 35.81,
+    "max_lst": 40.3,
+    "vegetation_index": 0.61
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2024,
+    "mean_lst": 35.14,
+    "max_lst": 38.76,
+    "vegetation_index": 0.66
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2025,
+    "mean_lst": 34.44,
+    "max_lst": 37.53,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 44,
+    "district_name": "บางบอน",
+    "year": 2026,
+    "mean_lst": 34.63,
+    "max_lst": 38.5,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2018,
+    "mean_lst": 32.1,
+    "max_lst": 35.22,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2019,
+    "mean_lst": 32.14,
+    "max_lst": 35.16,
+    "vegetation_index": 0.86
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2020,
+    "mean_lst": 32.18,
+    "max_lst": 35.45,
+    "vegetation_index": 0.85
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2021,
+    "mean_lst": 32.78,
+    "max_lst": 36.56,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2022,
+    "mean_lst": 32.28,
+    "max_lst": 37.13,
+    "vegetation_index": 0.85
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2023,
+    "mean_lst": 34.04,
+    "max_lst": 38.56,
+    "vegetation_index": 0.73
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2024,
+    "mean_lst": 34.58,
+    "max_lst": 39.29,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2025,
+    "mean_lst": 32.57,
+    "max_lst": 35.8,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 45,
+    "district_name": "บางขุนเทียน",
+    "year": 2026,
+    "mean_lst": 33.68,
+    "max_lst": 37.43,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2018,
+    "mean_lst": 36.73,
+    "max_lst": 40.83,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2019,
+    "mean_lst": 36.9,
+    "max_lst": 40.51,
+    "vegetation_index": 0.54
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2020,
+    "mean_lst": 36.81,
+    "max_lst": 40.47,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2021,
+    "mean_lst": 37.17,
+    "max_lst": 42.15,
+    "vegetation_index": 0.52
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2022,
+    "mean_lst": 37.64,
+    "max_lst": 42.44,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2023,
+    "mean_lst": 39.54,
+    "max_lst": 44.17,
+    "vegetation_index": 0.36
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2024,
+    "mean_lst": 38.5,
+    "max_lst": 42.77,
+    "vegetation_index": 0.43
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2025,
+    "mean_lst": 37.62,
+    "max_lst": 41.41,
+    "vegetation_index": 0.49
+  },
+  {
+    "district_id": 46,
+    "district_name": "สาทร",
+    "year": 2026,
+    "mean_lst": 38.06,
+    "max_lst": 41.18,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2018,
+    "mean_lst": 37.29,
+    "max_lst": 40.69,
+    "vegetation_index": 0.51
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2019,
+    "mean_lst": 37.1,
+    "max_lst": 41.62,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2020,
+    "mean_lst": 37.09,
+    "max_lst": 40.96,
+    "vegetation_index": 0.53
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2021,
+    "mean_lst": 37.74,
+    "max_lst": 42.14,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2022,
+    "mean_lst": 37.96,
+    "max_lst": 41.27,
+    "vegetation_index": 0.47
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2023,
+    "mean_lst": 39.88,
+    "max_lst": 44.02,
+    "vegetation_index": 0.34
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2024,
+    "mean_lst": 38.97,
+    "max_lst": 42.65,
+    "vegetation_index": 0.4
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2025,
+    "mean_lst": 37.87,
+    "max_lst": 42.43,
+    "vegetation_index": 0.48
+  },
+  {
+    "district_id": 47,
+    "district_name": "บางคอแหลม",
+    "year": 2026,
+    "mean_lst": 38,
+    "max_lst": 42.01,
+    "vegetation_index": 0.47
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2018,
+    "mean_lst": 35.59,
+    "max_lst": 39.67,
+    "vegetation_index": 0.63
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2019,
+    "mean_lst": 35.72,
+    "max_lst": 38.94,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2020,
+    "mean_lst": 36.17,
+    "max_lst": 40.94,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2021,
+    "mean_lst": 36.27,
+    "max_lst": 40.17,
+    "vegetation_index": 0.58
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2022,
+    "mean_lst": 36.66,
+    "max_lst": 40.99,
+    "vegetation_index": 0.56
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2023,
+    "mean_lst": 38.03,
+    "max_lst": 41.16,
+    "vegetation_index": 0.46
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2024,
+    "mean_lst": 38.42,
+    "max_lst": 42.14,
+    "vegetation_index": 0.44
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2025,
+    "mean_lst": 36.14,
+    "max_lst": 40.14,
+    "vegetation_index": 0.59
+  },
+  {
+    "district_id": 48,
+    "district_name": "ยานนาวา",
+    "year": 2026,
+    "mean_lst": 36.69,
+    "max_lst": 41.24,
+    "vegetation_index": 0.55
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2018,
+    "mean_lst": 31.9,
+    "max_lst": 36.23,
+    "vegetation_index": 0.87
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2019,
+    "mean_lst": 32.3,
+    "max_lst": 36.41,
+    "vegetation_index": 0.85
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2020,
+    "mean_lst": 32.41,
+    "max_lst": 36.41,
+    "vegetation_index": 0.84
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2021,
+    "mean_lst": 32.58,
+    "max_lst": 36.34,
+    "vegetation_index": 0.83
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2022,
+    "mean_lst": 32.83,
+    "max_lst": 36.34,
+    "vegetation_index": 0.81
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2023,
+    "mean_lst": 34.61,
+    "max_lst": 39.49,
+    "vegetation_index": 0.69
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2024,
+    "mean_lst": 34.56,
+    "max_lst": 38.86,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2025,
+    "mean_lst": 33.31,
+    "max_lst": 37.65,
+    "vegetation_index": 0.78
+  },
+  {
+    "district_id": 49,
+    "district_name": "ลาดกระบัง",
+    "year": 2026,
+    "mean_lst": 33.57,
+    "max_lst": 36.79,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2018,
+    "mean_lst": 33.08,
+    "max_lst": 37.91,
+    "vegetation_index": 0.79
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2019,
+    "mean_lst": 33.47,
+    "max_lst": 38.13,
+    "vegetation_index": 0.77
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2020,
+    "mean_lst": 33.71,
+    "max_lst": 38.21,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2021,
+    "mean_lst": 33.74,
+    "max_lst": 38.2,
+    "vegetation_index": 0.75
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2022,
+    "mean_lst": 33.6,
+    "max_lst": 36.88,
+    "vegetation_index": 0.76
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2023,
+    "mean_lst": 35.31,
+    "max_lst": 39.77,
+    "vegetation_index": 0.65
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2024,
+    "mean_lst": 35.71,
+    "max_lst": 39.69,
+    "vegetation_index": 0.62
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2025,
+    "mean_lst": 34.57,
+    "max_lst": 39.4,
+    "vegetation_index": 0.7
+  },
+  {
+    "district_id": 50,
+    "district_name": "หนองจอก",
+    "year": 2026,
+    "mean_lst": 34.23,
+    "max_lst": 38.89,
+    "vegetation_index": 0.72
+  }
+]

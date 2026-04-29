@@ -1,107 +1,141 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Sidebar from "@/components/Sidebar";
-import AnalyticsChart from "@/components/charts/AnalyticsChart";
-import TimeSlider from "@/components/ui/TimeSlider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Info } from "lucide-react";
+import { Flame, Layers } from "lucide-react";
 
-// Dynamically import map component due to window/SSR Leaflet constraints
 const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false });
 
 export default function Home() {
-  const [selectedTag, setSelectedTag] = useState("การร้องเรียน"); // Default to new Traffy tag
-  const [selectedDistrict, setSelectedDistrict] = useState<any>(null);
-  const [selectedYear, setSelectedYear] = useState(2026);
+  const [activeTag, setActiveTag] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
+  const [activeDistrictGroup, setActiveDistrictGroup] = useState("ทั้งหมด");
+  const [traffyData, setTraffyData] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState<string>('');
+  const [mapMode, setMapMode] = useState<'points' | 'heatmap'>('points');
 
-  const availableYears = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+  useEffect(() => {
+    setLoading(true);
+    // Build query params dynamically
+    const params = new URLSearchParams({ limit: '5000' });
+    if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
+    if (activeCategory !== 'ทั้งหมด') params.append('category', activeCategory);
+    if (activeDistrictGroup !== 'ทั้งหมด') params.append('district_group', activeDistrictGroup);
 
-  const handleTagSelect = (tag: string) => {
-    setSelectedTag(tag);
-  };
+    fetch(`/api/traffy?${params.toString()}`)
+      .then(res => res.json())
+      .then(data => {
+        setTraffyData(data.geojson);
+        setSummary(data.summary);
+        setDataSource(data.source || 'unknown');
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [activeDistrict, activeCategory, activeDistrictGroup]);
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden text-slate-800 font-sans">
-      <Sidebar onTagSelect={handleTagSelect} activeTag={selectedTag} />
-      
+    <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
+      <Sidebar
+        onTagSelect={setActiveTag}
+        activeTag={activeTag}
+        onDistrictSelect={setActiveDistrict}
+        activeDistrict={activeDistrict}
+        onCategorySelect={setActiveCategory}
+        activeCategory={activeCategory}
+        onDistrictGroupSelect={setActiveDistrictGroup}
+        activeDistrictGroup={activeDistrictGroup}
+        traffyData={traffyData}
+        summary={summary}
+        loading={loading}
+      />
+
       <main className="flex-1 relative">
-        {/* Floating Map Header */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-fit">
-          <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3 ring-1 ring-slate-900/5">
-            <div className="bg-indigo-100 p-1.5 rounded-lg text-indigo-600">
-              <Info className="h-4 w-4" />
-            </div>
-            <p className="text-sm font-medium text-slate-700 whitespace-nowrap flex items-center gap-2">
-              <span>แผนที่แสดงการวิเคราะห์: <span className="font-bold text-indigo-600">{selectedTag}</span></span>
-              <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full border border-slate-200">ข้อมูลอัปเดต ณ ปี {selectedYear}</span>
-            </p>
-          </div>
-        </div>
-
         <div className="absolute inset-0 z-0">
-           <MapView 
-             onSelectDistrict={(d: any) => setSelectedDistrict(d)} 
-             activeTag={selectedTag} 
-             selectedYear={selectedYear} 
-           />
+          <MapView activeTag={activeTag} traffyData={traffyData} mapMode={mapMode} />
         </div>
-        
-        {/* District Analytics Panel Overlay */}
-        {selectedDistrict && (
-          <div className="absolute top-6 right-6 z-[1001] w-[420px] animate-in slide-in-from-right-8 duration-300 shadow-2xl">
-            <Card className="border-0 bg-white/95 backdrop-blur-md shadow-2xl rounded-2xl overflow-hidden ring-1 ring-slate-900/5 flex flex-col max-h-[90vh]">
-              <CardHeader className="bg-indigo-600 px-6 py-4 relative shrink-0">
-                <button 
-                  onClick={() => setSelectedDistrict(null)}
-                  className="absolute right-4 top-4 text-white/70 hover:text-white transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-                <CardTitle className="text-white text-xl flex flex-col tracking-tight">
-                  {selectedDistrict.name_th}
-                  <span className="text-xs font-normal opacity-80 mt-0.5">{selectedDistrict.name_en}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 overflow-y-auto custom-scrollbar flex-1">
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                  <div>
-                    <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">ประชากร</h4>
-                    <p className="text-2xl font-bold text-slate-700 mt-1">{selectedDistrict.population?.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">การร้องเรียน (เรื่อง)</h4>
-                    <p className="text-2xl font-bold text-amber-600 mt-1">
-                      {selectedDistrict.traffy_issues?.toLocaleString() || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">ความหนาแน่น</h4>
-                    <p className="text-2xl font-bold text-slate-700 mt-1">{selectedDistrict.density?.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">อัตราแก้ปัญหา</h4>
-                    <p className={`text-2xl font-bold mt-1 ${selectedDistrict.traffy_resolved_rate > 80 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {selectedDistrict.traffy_resolved_rate || 0}%
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="mt-8 pt-4 border-t border-slate-100">
-                   <AnalyticsChart district={selectedDistrict} activeTag={selectedTag} />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
-        <TimeSlider 
-          years={availableYears} 
-          selectedYear={selectedYear} 
-          onChange={setSelectedYear} 
-        />
+        {/* Top-right floating panel: Legend + Controls */}
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
+          
+          {/* Map Mode Toggle */}
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl">
+            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
+              <Layers className="w-3 h-3" /> โหมดแผนที่
+            </h4>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setMapMode('points')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                  mapMode === 'points'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                ● จุด (Points)
+              </button>
+              <button
+                onClick={() => setMapMode('heatmap')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                  mapMode === 'heatmap'
+                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                🔥 ความร้อน (Heat)
+              </button>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-56">
+            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">สัญลักษณ์ (Legend)</h4>
+            {[
+              { label: "รอรับเรื่อง", color: "#ef4444", sub: "Waiting" },
+              { label: "กำลังดำเนินการ", color: "#eab308", sub: "In Progress" },
+              { label: "ส่งต่อ", color: "#f97316", sub: "Forwarded" },
+              { label: "เสร็จสิ้น", color: "#22c55e", sub: "Resolved" },
+            ].map(item => (
+              <div key={item.label} className="flex items-center gap-2 mb-1.5 last:mb-0">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color, boxShadow: `0 0 6px ${item.color}60` }} />
+                <span className="text-[11px] text-slate-200">{item.label}</span>
+                <span className="text-[9px] text-slate-500">({item.sub})</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Data source badge */}
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl text-center">
+            <span className="text-[9px] text-slate-500">แสดงข้อมูล</span>
+            <div className="text-lg font-black text-indigo-400 leading-tight">
+              {summary?.totalFetched?.toLocaleString() || "..."}
+              <span className="text-[9px] text-slate-500 font-normal ml-1">
+                จุดบนแผนที่
+              </span>
+            </div>
+            <div className="text-xl font-black text-amber-400 leading-tight mt-1">
+              {summary?.totalApi?.toLocaleString() || "..."}
+              <span className="text-[9px] text-slate-500 font-normal ml-1">
+                ข้อมูลในระบบ (charts)
+              </span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-800">
+              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                dataSource === 'supabase' 
+                  ? 'bg-green-500/20 text-green-400' 
+                  : 'bg-amber-500/20 text-amber-400'
+              }`}>
+                {dataSource === 'supabase' ? '⚡ SUPABASE' : '🌐 LIVE API'}
+              </span>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );

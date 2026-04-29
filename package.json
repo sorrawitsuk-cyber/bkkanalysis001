@@ -11,9 +11,12 @@
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/supabase-js": "^2.104.0",
+    "@turf/turf": "^7.3.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
     "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
     "lucide-react": "^1.8.0",
     "next": "14.2.35",
     "node-fetch": "^3.3.2",

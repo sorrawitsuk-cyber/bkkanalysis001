@@ -1,0 +1,184 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees } from "lucide-react";
+import Link from "next/link";
+
+interface LSTSidebarProps {
+  onDistrictSelect: (district: string) => void;
+  activeDistrict: string;
+  summary: any;
+  loading: boolean;
+  compareMode?: boolean;
+}
+
+export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: LSTSidebarProps) {
+  
+  // Skeleton Loader
+  if (loading || !summary) {
+    return (
+      <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 p-5 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto hidden md:flex">
+        <div className="animate-pulse space-y-6">
+          <div className="h-10 bg-slate-800/50 rounded w-3/4"></div>
+          <div className="h-24 bg-slate-800/50 rounded"></div>
+          <div className="h-40 bg-slate-800/50 rounded"></div>
+          <div className="h-64 bg-slate-800/50 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
+      
+      {/* Header */}
+      <div className="p-5 border-b border-slate-800/60 sticky top-0 bg-[#0f172a]/95 backdrop-blur z-20">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center border border-orange-500/30">
+            <ThermometerSun className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-100 leading-none">เกาะความร้อนเมือง</h1>
+            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">{compareMode ? 'Temperature Anomaly' : 'Urban Heat Island (LST)'}</p>
+          </div>
+        </div>
+
+        {/* District Filter */}
+        <div>
+          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+            <MapPin className="w-3 h-3" /> พื้นที่ (DISTRICT)
+          </label>
+          <div className="relative">
+            <select
+              value={activeDistrict}
+              onChange={(e) => onDistrictSelect(e.target.value)}
+              className="w-full bg-slate-900/50 border border-slate-800 text-slate-300 text-xs rounded-md px-3 py-2 appearance-none focus:outline-none focus:border-orange-500/50 transition-colors cursor-pointer"
+            >
+              <option value="ทั้งหมด">กรุงเทพมหานคร (ทั้งหมด)</option>
+              {summary.ranking?.map(([d]: any) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5 flex-1 flex flex-col gap-6">
+        
+        {/* Main KPI */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-800">
+            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'ส่วนต่างเฉลี่ย' : 'อุณหภูมิเฉลี่ย'}</div>
+            <div className="text-2xl font-bold text-slate-100 font-mono">
+              {!compareMode && summary.averageTemp}
+              {compareMode && (
+                 // To get average delta we can just compute it if we want, but for now we just show N/A or summary.averageTemp is still mean_lst
+                 "N/A" // Because we didn't calculate average delta in API yet, wait, we can just say N/A or hide it
+              )}
+              {!compareMode && <span className="text-sm text-slate-500">°C</span>}
+            </div>
+          </div>
+          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-800">
+            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Trees className="w-3 h-3 text-emerald-400"/> ข้อมูลปี</div>
+            <div className="text-2xl font-bold text-emerald-400 font-mono">{summary.selectedYear}</div>
+          </div>
+        </div>
+
+        <div className="h-px bg-slate-800/60" />
+
+        {/* Historical Trend Chart */}
+        <section>
+          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+            <Activity className="w-3 h-3" /> แนวโน้มความร้อน (Trend)
+          </h3>
+          <div className="flex items-end gap-[3px] h-20 mb-2">
+            {(summary.yearlyTrend || []).map(([year, temp]: [string, number], i: number) => {
+              // Normalize the height between 30C and 40C
+              const minT = 30;
+              const maxT = 40;
+              const pct = Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+              
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                  <div
+                    className="w-full rounded-t-sm bg-gradient-to-t from-orange-600 to-yellow-400 min-h-[4px] transition-all duration-300 group-hover:from-orange-500 group-hover:to-yellow-300"
+                    style={{ height: `${pct}%` }}
+                  />
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
+                    {year}: {temp}°C
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+            <span>{summary.yearlyTrend?.[0]?.[0]}</span>
+            <span>{summary.yearlyTrend?.[summary.yearlyTrend?.length - 1]?.[0]}</span>
+          </div>
+        </section>
+
+        <div className="h-px bg-slate-800/60" />
+
+        {/* Ranking */}
+        <section className="flex-1">
+          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+            <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : 'อันดับความร้อน · Top 10 Hottest'}
+          </h3>
+          <div className="space-y-1.5">
+            {(summary.ranking || []).slice(0, 10).map(([district, val]: [string, number], i: number) => {
+              // Normalize for progress bar
+              let pct = 0;
+              if (compareMode) {
+                // For delta: max delta usually ~2C
+                pct = Math.max(0, Math.min(100, (val / (summary.max_delta || 2)) * 100));
+              } else {
+                // For temp: normalize 30-40C
+                const min = summary?.min_lst || 30;
+                const max = summary?.max_lst || 40;
+                pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+              }
+              
+              const isSelected = activeDistrict === district;
+              const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(1);
+              const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-blue-400') : 'text-orange-400';
+              const barGradient = compareMode 
+                ? (val > 0 ? 'from-orange-500 to-red-500' : 'from-blue-300 to-blue-500') 
+                : 'from-yellow-500 to-red-500';
+              
+              return (
+                <button 
+                  key={district}
+                  onClick={() => onDistrictSelect(isSelected ? 'ทั้งหมด' : district)}
+                  className={`w-full flex items-center gap-2 group transition-all duration-200 ${
+                    activeDistrict !== 'ทั้งหมด' && !isSelected 
+                      ? 'opacity-40 grayscale-[50%]' 
+                      : 'opacity-100 hover:scale-[1.02]'
+                  }`}
+                >
+                  <span className="text-[10px] text-slate-600 w-4 text-right font-mono">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between text-[11px] mb-0.5">
+                      <span className="text-slate-300 truncate pr-1">{district}</span>
+                      <span className={`${colorClass} font-mono tabular-nums`}>{displayVal}°</span>
+                    </div>
+                    <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
+                      <div className={`h-full bg-gradient-to-r ${barGradient} rounded-full`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      {/* Footer Navigation */}
+      <div className="p-4 border-t border-slate-800/60 text-center">
+        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest">
+          กลับไปหน้า Traffy Fondue <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+    </div>
+  );
+}
