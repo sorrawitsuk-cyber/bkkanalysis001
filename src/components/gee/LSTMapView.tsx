@@ -20,6 +20,7 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const heatLayerRef = useRef<any>(null);
   const maskLayerRef = useRef<L.GeoJSON | null>(null);
+  const geeLayerRef = useRef<L.TileLayer | null>(null);
 
   useEffect(() => {
     if (!mapRef.current) {
