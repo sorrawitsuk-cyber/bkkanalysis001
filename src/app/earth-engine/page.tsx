@@ -143,43 +143,72 @@ export default function EarthEnginePage() {
               {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง (Anomaly)' : 'สัญลักษณ์ความร้อน (LST)'}
             </h4>
             
-            {compareMode ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#B2182B]" /> <span>&gt; +1.5°C (ร้อนขึ้นมาก)</span>
+            {(() => {
+              if (compareMode) {
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
+                      <span className="w-3 h-3 rounded-full bg-[#B2182B]" /> <span>&gt; +1.5°C (ร้อนขึ้นมาก)</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
+                      <span className="w-3 h-3 rounded-full bg-[#EF8A62]" /> <span>+0.5°C ถึง +1.5°C</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
+                      <span className="w-3 h-3 rounded-full bg-[#F7F7F7]" /> <span>-0.5°C ถึง +0.5°C (คงที่)</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
+                      <span className="w-3 h-3 rounded-full bg-[#67A9CF]" /> <span>-1.5°C ถึง -0.5°C</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
+                      <span className="w-3 h-3 rounded-full bg-[#2166AC]" /> <span>&lt; -1.5°C (เย็นลงมาก)</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              const min = summary?.min_lst || 30;
+              const max = summary?.max_lst || 40;
+              const range = max - min;
+              const pct80 = (min + range * 0.8).toFixed(1);
+              const pct60 = (min + range * 0.6).toFixed(1);
+              const pct40 = (min + range * 0.4).toFixed(1);
+              const pct20 = (min + range * 0.2).toFixed(1);
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#800026]" /> <span>ร้อนที่สุด (Max)</span>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">&gt; {pct80}°C</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#E31A1C]" /> <span>ร้อนมาก</span>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">{pct60} - {pct80}°C</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#FD8D3C]" /> <span>ร้อน</span>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">{pct40} - {pct60}°C</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#FEB24C]" /> <span>ปานกลาง</span>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">{pct20} - {pct40}°C</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-[#FFEDA0]" /> <span>เย็นที่สุด (Min)</span>
+                    </div>
+                    <span className="font-mono text-[9px] text-slate-400">&lt; {pct20}°C</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#EF8A62]" /> <span>+0.5°C ถึง +1.5°C</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#F7F7F7]" /> <span>-0.5°C ถึง +0.5°C (คงที่)</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#67A9CF]" /> <span>-1.5°C ถึง -0.5°C</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#2166AC]" /> <span>&lt; -1.5°C (เย็นลงมาก)</span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#800026]" /> <span>ร้อนที่สุดในพื้นที่ (Max)</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#E31A1C]" /> <span>ร้อนมาก</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#FD8D3C]" /> <span>ร้อน</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#FEB24C]" /> <span>ปานกลาง</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                  <span className="w-3 h-3 rounded-full bg-[#FFEDA0]" /> <span>เย็นที่สุดในพื้นที่ (Min)</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
             
             <div className="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed">
               {compareMode 

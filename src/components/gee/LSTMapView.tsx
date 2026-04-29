@@ -99,13 +99,17 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         onEachFeature: (feature, layer) => {
           const name = feature.properties?.name_th || 'Unknown';
           const val = compareMode ? feature.properties?.delta : feature.properties?.mean_lst;
+          const maxVal = feature.properties?.max_lst;
           
           if (val !== undefined && val !== null) {
             const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(2);
+            const extraInfo = !compareMode && maxVal ? `<div class="text-[10px] text-slate-400 mt-1">สูงสุด: <span class="text-red-400 font-mono">${maxVal.toFixed(2)}°C</span></div>` : '';
+            
             layer.bindTooltip(`
-              <div class="bg-slate-900 text-slate-100 p-2 rounded border border-slate-700 shadow-xl">
-                <div class="font-bold mb-1">${name}</div>
-                <div class="text-${compareMode ? (val > 0 ? 'red' : 'blue') : 'orange'}-400 text-lg font-mono">${displayVal} °C</div>
+              <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[120px]">
+                <div class="font-bold mb-1 border-b border-slate-800 pb-1">${name}</div>
+                <div class="text-[10px] text-slate-400">${compareMode ? 'ส่วนต่าง:' : 'เฉลี่ย:'} <span class="text-${compareMode ? (val > 0 ? 'red' : 'blue') : 'orange'}-400 text-lg font-mono ml-1">${displayVal}°C</span></div>
+                ${extraInfo}
               </div>
             `, { sticky: true, className: 'bg-transparent border-none shadow-none' });
           }
@@ -188,12 +192,17 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         onEachFeature: (feature, layer) => {
           const name = feature.properties?.name_th || 'Unknown';
           const val = compareMode ? feature.properties?.delta : feature.properties?.mean_lst;
+          const maxVal = feature.properties?.max_lst;
+          
           if (val !== undefined && val !== null) {
             const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(2);
+            const extraInfo = !compareMode && maxVal ? `<div class="text-[10px] text-slate-400 mt-1">สูงสุด: <span class="text-red-400 font-mono">${maxVal.toFixed(2)}°C</span></div>` : '';
+            
             layer.bindTooltip(`
-              <div class="bg-slate-900 text-slate-100 p-2 rounded border border-slate-700 shadow-xl">
-                <div class="font-bold mb-1">${name}</div>
-                <div class="text-${compareMode ? (val > 0 ? 'red' : 'blue') : 'orange'}-400 text-lg font-mono">${displayVal} °C</div>
+              <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[120px]">
+                <div class="font-bold mb-1 border-b border-slate-800 pb-1">${name}</div>
+                <div class="text-[10px] text-slate-400">${compareMode ? 'ส่วนต่าง:' : 'เฉลี่ย:'} <span class="text-${compareMode ? (val > 0 ? 'red' : 'blue') : 'orange'}-400 text-lg font-mono ml-1">${displayVal}°C</span></div>
+                ${extraInfo}
               </div>
             `, { sticky: true, className: 'bg-transparent border-none shadow-none' });
           }
