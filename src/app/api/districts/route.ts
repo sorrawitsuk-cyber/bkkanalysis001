@@ -61,6 +61,7 @@ function serveLocalGeoJSON(year: number) {
 
 function mergeHistoricalData(geojson: any, targetYear: number) {
   // Traffy data is now imported statically
+  const typedTraffyData = traffyData as any;
 
   // Adjust properties based on year
   const updatedFeatures = geojson.features.map((feature: any) => {
@@ -76,8 +77,8 @@ function mergeHistoricalData(geojson: any, targetYear: number) {
     }
 
     // Merge Traffy Open Data for specific year
-    if (traffyData[districtId]) {
-       const yearData = traffyData[districtId].find((d: any) => d.year === targetYear);
+    if (typedTraffyData[districtId]) {
+       const yearData = typedTraffyData[districtId].find((d: any) => d.year === targetYear);
        if (yearData) {
          props.traffy_issues = yearData.traffy_issues;
          props.traffy_resolved_rate = yearData.traffy_resolved_rate;
