@@ -207,6 +207,12 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                 const max = summary.max_lst || 40;
                 pct = ((val - min) / (max - min)) * 100;
               }
+
+              const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(1);
+              const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-blue-400') : 'text-orange-400';
+              const barGradient = compareMode 
+                ? (val > 0 ? 'from-orange-500 to-red-500' : 'from-blue-300 to-blue-500') 
+                : 'from-yellow-500 to-red-500';
               
               return (
                 <button 

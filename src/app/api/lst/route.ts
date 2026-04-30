@@ -128,7 +128,7 @@ export async function GET(request: Request) {
 
     // 2. Ranking & Summary Data
     const currentYearData = summaryData.filter((d: any) => d.year === year);
-    let ranking = [];
+    let ranking: any[] = [];
     let currentAvg = 0;
     let maxTemp = 0;
 
