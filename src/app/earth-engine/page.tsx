@@ -25,6 +25,7 @@ export default function EarthEnginePage() {
   const [opacity, setOpacity] = useState(0.8);
   const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
   const [isExporting, setIsExporting] = useState(false);
+  const [mapSnapshot, setMapSnapshot] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -61,13 +62,30 @@ export default function EarthEnginePage() {
 
   const handleExportPDF = async () => {
     setIsExporting(true);
+    
+    // 1. Capture Map
+    const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
+    let imgDataUrl = null;
+    if (mapContainer) {
+      try {
+        const mapCanvas = await html2canvas(mapContainer, { useCORS: true, allowTaint: true, scale: 2 });
+        imgDataUrl = mapCanvas.toDataURL('image/png');
+      } catch (err) {
+        console.warn('Map capture failed', err);
+      }
+    }
+    setMapSnapshot(imgDataUrl);
+    
+    // Wait for react to render the image in the hidden report
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     const element = document.getElementById("executive-report");
     if (element) {
       try {
-        const canvas = await html2canvas(element, { scale: 2 });
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF({
-          orientation: "portrait",
+          orientation: "landscape", // Landscape is better for Side-by-Side
           unit: "mm",
           format: "a4",
         });
@@ -82,6 +100,7 @@ export default function EarthEnginePage() {
         alert("เกิดข้อผิดพลาดในการสร้าง PDF");
       }
     }
+    setMapSnapshot(null);
     setIsExporting(false);
   };
 
@@ -115,6 +134,8 @@ export default function EarthEnginePage() {
           activeDistrict={activeDistrict} 
           compareMode={compareMode} 
           compareYear={compareYear} 
+          mapSnapshot={mapSnapshot}
+          mapMode={mapMode}
         />
 
         {/* Data Source Badge */}
