@@ -4,9 +4,14 @@ import bkkBoundaryData from '@/data/bkk_districts.geojson';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const year = parseInt(searchParams.get('year') || '2024', 10);
+  
+  // Handle 'null' or 'NaN' strings from frontend
+  const yearParam = searchParams.get('year');
+  const baselineParam = searchParams.get('baseline');
+  
+  const year = yearParam && yearParam !== 'null' ? parseInt(yearParam, 10) : 2024;
+  const baselineYear = baselineParam && baselineParam !== 'null' ? parseInt(baselineParam, 10) : 2018;
   const isCompare = searchParams.get('compare') === 'true';
-  const baselineYear = parseInt(searchParams.get('baseline') || '2018', 10);
 
   try {
     await initGEE();
