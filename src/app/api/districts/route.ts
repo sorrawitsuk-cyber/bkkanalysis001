@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
-import fs from 'fs';
-import path from 'path';
+import bkkDistrictsData from '@/data/bkk_districts.json';
+import traffyData from '@/data/traffy_data.json';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,19 +55,12 @@ export async function GET(request: Request) {
 }
 
 function serveLocalGeoJSON(year: number) {
-  const filePath = path.join(process.cwd(), 'src', 'data', 'bkk_districts.geojson');
-  const fileContent = fs.readFileSync(filePath, 'utf8');
-  const geojson = JSON.parse(fileContent);
-  return NextResponse.json(mergeHistoricalData(geojson, year));
+  // Use statically imported data
+  return NextResponse.json(mergeHistoricalData(bkkDistrictsData, year));
 }
 
 function mergeHistoricalData(geojson: any, targetYear: number) {
-  // Read Traffy data
-  const traffyPath = path.join(process.cwd(), 'src', 'data', 'traffy_data.json');
-  let traffyData: any = {};
-  if (fs.existsSync(traffyPath)) {
-    traffyData = JSON.parse(fs.readFileSync(traffyPath, 'utf8'));
-  }
+  // Traffy data is now imported statically
 
   // Adjust properties based on year
   const updatedFeatures = geojson.features.map((feature: any) => {

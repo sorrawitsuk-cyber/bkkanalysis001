@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import * as turf from '@turf/turf';
+import geojson from '@/data/bkk_districts.json';
+import lstData from '@/data/lst_data.json';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +14,7 @@ export async function GET(request: Request) {
     const districtFilter = searchParams.get('district');
 
     // Read Data
-    const geojsonPath = path.join(process.cwd(), 'src', 'data', 'bkk_districts.geojson');
-    const lstDataPath = path.join(process.cwd(), 'src', 'data', 'lst_data.json');
-    
-    if (!fs.existsSync(geojsonPath) || !fs.existsSync(lstDataPath)) {
-      return NextResponse.json({ error: 'Data not found' }, { status: 404 });
-    }
-
-    const geojson = JSON.parse(fs.readFileSync(geojsonPath, 'utf8'));
-    const lstData = JSON.parse(fs.readFileSync(lstDataPath, 'utf8'));
+    // Data is now imported statically
 
     // Create inverted mask for BKK
     let invertedMask = null;

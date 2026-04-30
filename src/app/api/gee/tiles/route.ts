@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import ee, { initGEE } from '@/lib/gee';
-import bkkBoundaryData from '@/data/bkk_districts.geojson';
+import bkkBoundaryData from '@/data/bkk_districts.json';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
