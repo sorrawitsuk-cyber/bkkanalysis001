@@ -192,6 +192,7 @@ export async function GET(request: Request) {
       monthlyCounts[idx] > 0 ? parseFloat((sum / monthlyCounts[idx]).toFixed(2)) : 0
     );
 
+    let baselineMonthlyTrend: number[] = [];
     const monthlyDeltaTrend = compareYear ? (() => {
       const baselineMonthlyData = new Array(12).fill(0);
       const baselineMonthlyCounts = new Array(12).fill(0);
@@ -206,9 +207,13 @@ export async function GET(request: Request) {
           }
         });
 
+      baselineMonthlyTrend = baselineMonthlyData.map((sum, idx) =>
+        baselineMonthlyCounts[idx] > 0 ? parseFloat((sum / baselineMonthlyCounts[idx]).toFixed(2)) : 0
+      );
+
       return monthlyTrend.map((temp, idx) => {
         if (monthlyCounts[idx] === 0 || baselineMonthlyCounts[idx] === 0) return 0;
-        const baselineMonthAvg = baselineMonthlyData[idx] / baselineMonthlyCounts[idx];
+        const baselineMonthAvg = baselineMonthlyTrend[idx];
         return parseFloat((temp - baselineMonthAvg).toFixed(2));
       });
     })() : [];
@@ -226,6 +231,7 @@ export async function GET(request: Request) {
         yearlyTrend,
         yearlyDeltaTrend,
         monthlyTrend,
+        baselineMonthlyTrend,
         monthlyDeltaTrend,
         ranking,
         min_lst: min_lst !== Infinity ? min_lst : 30,
