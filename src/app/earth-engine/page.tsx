@@ -65,6 +65,19 @@ export default function EarthEnginePage() {
           />
         </div>
 
+        {/* Data Source Badge */}
+        <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
+          </div>
+          <div className="text-[11px] text-slate-400 leading-relaxed">
+            <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
+            <p><span className="text-white">Period:</span> Jan 01 - Dec 31, {selectedYear} (Yearly Median)</p>
+            <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temp)</p>
+          </div>
+        </div>
+
         {/* Top-right floating panel: Year Slider & Legend */}
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
           
