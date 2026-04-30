@@ -84,6 +84,10 @@ export async function GET(request: Request) {
       urlFormat: mapIdData.urlFormat,
       mapid: mapIdData.mapid,
       token: mapIdData.token
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'
+      }
     });
 
   } catch (error: any) {

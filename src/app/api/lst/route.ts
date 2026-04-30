@@ -195,6 +195,10 @@ export async function GET(request: Request) {
         min_delta: min_delta !== Infinity ? min_delta : -2,
         max_delta: max_delta !== -Infinity ? max_delta : 2,
       }
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=43200'
+      }
     });
 
   } catch (error: any) {
