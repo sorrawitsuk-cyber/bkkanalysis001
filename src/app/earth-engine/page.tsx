@@ -138,54 +138,62 @@ export default function EarthEnginePage() {
         {/* Top-right floating panel: Year Slider & Legend */}
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
           
-          {/* Map Mode Toggle */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64 flex justify-between items-center">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-              <Layers className="w-3 h-3" /> รูปแบบ (Map Style)
-            </h4>
-            <div className="flex gap-1.5 ml-2 mr-auto">
-              <button 
-                onClick={handleExportPDF}
-                disabled={isExporting}
-                className={`text-[9px] px-2 py-1 rounded border transition-all flex items-center gap-1
-                  ${isExporting 
-                    ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-wait' 
-                    : 'bg-indigo-600/20 text-indigo-400 border-indigo-500/50 hover:bg-indigo-600 hover:text-white'
-                  }`}
-              >
-                {isExporting ? 'กำลังสร้าง...' : <><FileDown className="w-3 h-3" /> ออกรายงาน</>}
-              </button>
+          {/* Map Style & Main Controls */}
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
+              </h4>
               <button 
                 onClick={handleReset}
-                className="text-[9px] px-2 py-1 bg-slate-800 text-slate-400 hover:text-white rounded border border-slate-700 hover:border-slate-500 transition-all"
+                className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
               >
-                Reset
+                RESET
               </button>
             </div>
-            <div className="flex bg-slate-800/80 rounded-md p-0.5 ml-2">
+
+            {/* Mode Toggle */}
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
               <button
                 onClick={() => setMapMode('district')}
-                className={`text-[9px] px-2 py-1 rounded transition-colors ${mapMode === 'district' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === 'district' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 รายเขต (Districts)
               </button>
               <button
                 onClick={() => setMapMode('idw')}
-                className={`text-[9px] px-2 py-1 rounded transition-colors ${mapMode === 'idw' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === 'idw' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                ภาพดาวเทียม (GEE)
+                ดาวเทียม (GEE)
               </button>
             </div>
+
+            {/* Export Button - Full Width */}
+            <button 
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className={`w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border flex items-center justify-center gap-2
+                ${isExporting 
+                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-wait' 
+                  : 'bg-indigo-600/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-600 hover:text-white shadow-lg shadow-indigo-500/5'
+                }`}
+            >
+              {isExporting ? (
+                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังสร้างรายงาน...</>
+              ) : (
+                <><FileDown className="w-3.5 h-3.5" /> นำออกรายงานสรุป (PDF)</>
+              )}
+            </button>
           </div>
 
           {/* Opacity Slider (Only visible in GEE mode) */}
           {mapMode === 'idw' && (
-            <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                  ความจาง (Layer Opacity)
+            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  ความโปร่งใส (Opacity)
                 </h4>
-                <span className="text-[10px] font-mono text-orange-500 font-bold">{Math.round(opacity * 100)}%</span>
+                <span className="text-xs font-mono text-orange-500 font-bold bg-orange-500/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
               </div>
               <input 
                 type="range" 
@@ -194,31 +202,33 @@ export default function EarthEnginePage() {
                 step="0.01" 
                 value={opacity} 
                 onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
               />
             </div>
           )}
 
           {/* Base Map Selector */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
-              <Layers className="w-3 h-3" /> แผนที่ฐาน (Base Map)
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
+              </div>
             </h4>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'dark', label: 'Dark Matter' },
-                { id: 'light', label: 'Positron' },
+                { id: 'dark', label: 'Dark' },
+                { id: 'light', label: 'Light' },
                 { id: 'satellite', label: 'Satellite' },
-                { id: 'streets', label: 'OpenStreet' },
-                { id: 'none', label: 'ปิด (None)' }
+                { id: 'streets', label: 'Street' },
+                { id: 'none', label: 'None' }
               ].map((map) => (
                 <button
                   key={map.id}
                   onClick={() => setBaseMap(map.id as any)}
-                  className={`text-[9px] py-1.5 rounded border transition-all ${
+                  className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${
                     baseMap === map.id 
-                      ? 'bg-orange-500 border-orange-500 text-white font-bold' 
-                      : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500'
+                      ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/20' 
+                      : 'bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300'
                   }`}
                 >
                   {map.label}
@@ -228,14 +238,14 @@ export default function EarthEnginePage() {
           </div>
 
           {/* Year Filter */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-64">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                <Layers className="w-3 h-3" /> เลือกปี (Year Filter)
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-80">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
               </h4>
               <button 
                 onClick={() => setCompareMode(!compareMode)}
-                className={`text-[9px] px-2 py-1 rounded transition-colors border ${compareMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' : 'bg-transparent text-slate-400 border-slate-700 hover:border-slate-500'}`}
+                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' : 'bg-transparent text-slate-500 border-slate-700 hover:border-slate-500'}`}
               >
                 เปรียบเทียบปี
               </button>
@@ -252,13 +262,13 @@ export default function EarthEnginePage() {
               max="2026" 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mb-2"
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mb-2"
             />
 
             {compareMode && (
               <div className="mt-4 pt-4 border-t border-slate-800/50">
                 <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                  <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                     ปีฐานที่ใช้เทียบ (Baseline)
                   </h4>
                   <span className="text-sm font-bold text-indigo-400 font-mono">{compareYear}</span>
@@ -269,7 +279,7 @@ export default function EarthEnginePage() {
                   max="2026" 
                   value={compareYear}
                   onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
-                  className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                 />
               </div>
             )}
