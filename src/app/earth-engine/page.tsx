@@ -196,7 +196,7 @@ export default function EarthEnginePage() {
           {/* Legend */}
           <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-64">
             <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-              {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง (Anomaly)' : 'สัญลักษณ์ความร้อน (LST)'}
+              {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง (Anomaly)' : 'อุณหภูมิเฉลี่ยพื้นผิว (Annual Median)'}
             </h4>
             
             {(() => {
