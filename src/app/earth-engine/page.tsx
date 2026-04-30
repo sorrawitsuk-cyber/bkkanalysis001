@@ -85,7 +85,7 @@ export default function EarthEnginePage() {
         const canvas = await html2canvas(element, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF({
-          orientation: "landscape", // Landscape is better for Side-by-Side
+          orientation: "portrait",
           unit: "mm",
           format: "a4",
         });

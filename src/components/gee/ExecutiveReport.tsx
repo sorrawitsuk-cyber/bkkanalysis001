@@ -54,14 +54,12 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
   };
 
   return (
-    // Landscape A4 aspect ratio (297x210mm). Approx 1123x794 pixels.
+    // Portrait A4 aspect ratio (210x297mm). Approx 794x1123 pixels.
     <div 
       id="executive-report" 
-      className="bg-slate-50 text-slate-900 absolute top-0 left-[-9999px] z-[-1] flex"
-      style={{ width: '1123px', height: '794px' }}
+      className="bg-white text-slate-900 absolute top-0 left-[-9999px] z-[-1] flex flex-col"
+      style={{ width: '794px', height: '1123px', padding: '40px' }}
     >
-      {/* Left Sidebar (Data & Charts) */}
-      <div className="w-[450px] h-full bg-white border-r-2 border-slate-200 p-8 flex flex-col shadow-2xl relative z-10">
       {/* Header */}
       <div className="border-b-2 border-slate-900 pb-4 mb-6">
         <h1 className="text-2xl font-bold text-slate-900 mb-1">
@@ -124,71 +122,148 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
         {renderExplanation()}
       </div>
 
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+      {/* Map Inset */}
+      <div className="w-full h-[360px] rounded-xl overflow-hidden relative mb-8 border border-slate-300 shadow-md bg-slate-900">
+        {mapSnapshot ? (
+          <img src={mapSnapshot} alt="Map Capture" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+            <MapPin className="w-12 h-12 mb-2 opacity-50" />
+            <p className="text-xs">ไม่สามารถจับภาพแผนที่ได้</p>
+          </div>
+        )}
+
+        {/* GIS Element: North Arrow */}
+        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-1.5 rounded-md shadow-sm border border-slate-200 flex flex-col items-center text-slate-800">
+           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+             <polygon points="12 2 16 22 12 17 8 22 12 2" fill="currentColor" />
+           </svg>
+           <span className="text-[8px] font-black mt-0.5">N</span>
+        </div>
+
+        {/* GIS Element: Coordinates */}
+        <div className="absolute top-3 left-3 text-[9px] font-mono font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+           14°00'N, 100°15'E
+        </div>
+        <div className="absolute bottom-3 right-3 text-[9px] font-mono font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+           13°30'N, 100°55'E
+        </div>
+
+        {/* Mode Tag */}
+        <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded text-white text-[8px] font-mono">
+           {mapMode === 'idw' ? 'GEE Satellite Mode' : 'District Bounds Mode'}
+        </div>
+
+        {/* GIS Element: Scale Bar */}
+        <div className="absolute bottom-10 left-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded shadow-sm border border-slate-200 text-[9px] font-mono flex items-center gap-1.5 text-slate-800">
+           <div className="w-12 h-[3px] bg-slate-800 relative">
+              <div className="absolute top-[-2px] left-0 w-[1px] h-2 bg-slate-800"></div>
+              <div className="absolute top-[-2px] right-0 w-[1px] h-2 bg-slate-800"></div>
+           </div>
+           <strong>10 km</strong>
+        </div>
+
+        {/* Legend */}
+        <div className="absolute top-4 right-16 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-lg border border-slate-700 shadow-xl max-w-[150px]">
+           <h4 className="text-[8px] font-bold text-slate-300 uppercase tracking-widest mb-2 border-b border-slate-700 pb-1">
+              {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง' : 'สัญลักษณ์ระดับความร้อน'}
+           </h4>
+           {compareMode ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#B2182B]" /> <span>&gt; +1.5°C</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#EF8A62]" /> <span>+0.5°C ถึง +1.5°C</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#F7F7F7]" /> <span>คงที่</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#67A9CF]" /> <span>-1.5°C ถึง -0.5°C</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#2166AC]" /> <span>&lt; -1.5°C</span></div>
+              </div>
+           ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#800026]" /> <span>ร้อนที่สุด</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#E31A1C]" /> <span>ร้อนมาก</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#FD8D3C]" /> <span>ร้อน</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#FEB24C]" /> <span>ปานกลาง</span></div>
+                <div className="flex items-center gap-2 text-[8px] text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-[#FFEDA0]" /> <span>เย็นที่สุด</span></div>
+              </div>
+           )}
+        </div>
+      </div>
+
+      {/* Rankings and Trends - Side by Side */}
+      <div className="flex gap-8 flex-1 min-h-0">
         {/* Rankings */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-lg p-4">
-          <h3 className="text-sm font-bold text-slate-800 mb-2 border-l-4 border-slate-900 pl-2">
+        <div className="flex-[4] flex flex-col">
+          <h3 className="text-sm font-bold text-slate-800 mb-3 border-l-4 border-slate-900 pl-2">
             {compareMode ? '10 อันดับเขตที่ความร้อนพุ่งสูง' : '10 อันดับเขตที่ร้อนที่สุด'}
           </h3>
-          <table className="w-full text-[10px]">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-300">
-                <th className="text-left py-1 text-slate-500 font-bold">อันดับ</th>
-                <th className="text-left py-1 text-slate-500 font-bold">เขต</th>
-                <th className="text-right py-1 text-slate-500 font-bold">
+                <th className="text-left py-2 text-slate-500 font-bold w-12">อันดับ</th>
+                <th className="text-left py-2 text-slate-500 font-bold">เขต</th>
+                <th className="text-right py-2 text-slate-500 font-bold">
                   {compareMode ? 'ส่วนต่าง' : 'อุณหภูมิ (°C)'}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {top10.slice(0, 5).map(([dist, val]: any, idx: number) => (
+              {top10.map(([dist, val]: any, idx: number) => (
                 <tr key={dist} className="border-b border-slate-100">
-                  <td className="py-1 text-slate-500 font-mono">{idx + 1}</td>
-                  <td className="py-1 font-medium">{dist}</td>
-                  <td className="py-1 text-right font-mono font-bold text-slate-700">
+                  <td className="py-1.5 text-slate-500 font-mono">{idx + 1}</td>
+                  <td className="py-1.5 font-medium">{dist}</td>
+                  <td className="py-1.5 text-right font-mono font-bold text-slate-700">
                     {compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(2)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="text-[8px] text-slate-400 mt-1 italic">* แสดงเพียง 5 อันดับแรกเพื่อความกระชับ</div>
         </div>
 
         {/* Trends */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <h3 className="text-sm font-bold text-slate-800 mb-2 border-l-4 border-slate-900 pl-2">แนวโน้มอุณหภูมิ</h3>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="text-[9px] text-slate-500 mb-1 text-center">รายเดือน</div>
-              <div className="flex items-end gap-0.5 h-16 border-b border-l border-slate-300 pb-1 pl-1">
+        <div className="flex-[6] flex flex-col border-l border-slate-200 pl-8">
+          <h3 className="text-sm font-bold text-slate-800 mb-4 border-l-4 border-slate-900 pl-2">แนวโน้มอุณหภูมิ</h3>
+          <div className="flex flex-col gap-6 flex-1 justify-center">
+            {/* Monthly Trend */}
+            <div>
+              <div className="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-widest">แนวโน้มรายเดือน (Monthly)</div>
+              <div className="flex items-end gap-1 h-20 border-b border-l border-slate-300 pb-1 pl-1">
                 {summary.monthlyTrend.map((temp: number, i: number) => {
                       const currentYear = new Date().getFullYear();
                       const currentMonth = new Date().getMonth();
                       const isFutureMonth = summary.selectedYear === currentYear && i > currentMonth;
                       const pct = Math.max(0, Math.min(100, ((temp - 30) / 10) * 100));
+                      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
                       
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
                           {!isFutureMonth ? (
-                            <div className="w-full bg-orange-500 rounded-t-sm" style={{ height: `${pct}%` }} />
+                            <>
+                              <div className="text-[8px] text-slate-500 font-mono mb-1">{temp}</div>
+                              <div className="w-full bg-orange-500 rounded-t-sm" style={{ height: `${pct}%` }} />
+                            </>
                           ) : (
                             <div className="w-full bg-slate-200 h-[2px]" />
                           )}
+                          <div className="text-[8px] text-slate-600 mt-1">{months[i]}</div>
                         </div>
                       );
                 })}
               </div>
             </div>
-            <div className="flex-1">
-              <div className="text-[9px] text-slate-500 mb-1 text-center">รายปี</div>
-              <div className="flex items-end gap-0.5 h-16 border-b border-l border-slate-300 pb-1 pl-1">
+            
+            {/* Yearly Trend */}
+            <div>
+              <div className="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-widest">แนวโน้มรายปี (Yearly)</div>
+              <div className="flex items-end gap-1.5 h-20 border-b border-l border-slate-300 pb-1 pl-1">
                 {summary.yearlyTrend.map((item: any, i: number) => {
+                    const year = item[0];
                     const temp = item[1];
                     const pct = Math.max(0, Math.min(100, ((temp - 34) / 6) * 100));
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
-                        <div className="w-full bg-slate-700 rounded-t-sm" style={{ height: `${pct}%` }} />
+                         <div className="text-[8px] text-slate-500 font-mono mb-1">{temp.toFixed(1)}</div>
+                         <div className="w-full bg-slate-700 rounded-t-sm" style={{ height: `${pct}%` }} />
+                         <div className="text-[8px] text-slate-600 mt-1">{year.toString().slice(-2)}</div>
                       </div>
                     );
                 })}
@@ -197,55 +272,6 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
           </div>
         </div>
       </div>
-
-      </div>
-
-      {/* Right Content Area (Map Snapshot) */}
-      <div className="flex-1 h-full relative bg-slate-900 overflow-hidden">
-        {mapSnapshot ? (
-          <img src={mapSnapshot} alt="Map Capture" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-            <MapPin className="w-16 h-16 mb-4 opacity-50" />
-            <p>ไม่สามารถจับภาพแผนที่ได้ (Map Snapshot Unavailable)</p>
-          </div>
-        )}
-        
-        {/* Mode Overlay on Map */}
-        <div className="absolute top-8 left-8 bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-700 shadow-xl max-w-sm">
-          <div className="text-[12px] text-slate-300">
-            <div><strong>โหมดการแสดงผล:</strong> {mapMode === 'idw' ? 'ภาพถ่ายดาวเทียมความละเอียดสูง (GEE)' : 'ระดับเขตปกครอง (Districts)'}</div>
-          </div>
-        </div>
-
-        {/* Legend Overlay on Map */}
-        <div className="absolute bottom-8 right-8 bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-700 shadow-xl w-64">
-           <h4 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-              {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง' : 'สัญลักษณ์ระดับความร้อน'}
-           </h4>
-           {compareMode ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#B2182B]" /> <span>&gt; +1.5°C (ร้อนขึ้นมาก)</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#EF8A62]" /> <span>+0.5°C ถึง +1.5°C</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#F7F7F7]" /> <span>-0.5°C ถึง +0.5°C (คงที่)</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#67A9CF]" /> <span>-1.5°C ถึง -0.5°C</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#2166AC]" /> <span>&lt; -1.5°C (เย็นลงมาก)</span></div>
-              </div>
-           ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#800026]" /> <span>ร้อนที่สุด (Max)</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#E31A1C]" /> <span>ร้อนมาก</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#FD8D3C]" /> <span>ร้อน</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#FEB24C]" /> <span>ปานกลาง</span></div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-300"><span className="w-3 h-3 rounded-full bg-[#FFEDA0]" /> <span>เย็นที่สุด (Min)</span></div>
-              </div>
-           )}
-        </div>
-      </div>
-
-
-      {/* Footer Info placed at the bottom of the map via absolute positioning, so we don't need the old footer block here. Actually wait, let's keep it inside the map area */}
-
     </div>
   );
 }
