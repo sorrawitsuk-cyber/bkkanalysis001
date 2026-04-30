@@ -25,7 +25,6 @@ export default function EarthEnginePage() {
   const [opacity, setOpacity] = useState(0.8);
   const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
   const [isExporting, setIsExporting] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
