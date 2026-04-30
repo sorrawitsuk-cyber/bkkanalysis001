@@ -25,8 +25,8 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
   const delta = summary.avgDelta || 0;
   const baselineAvg = summary.baselineAverageTemp || 0;
   const ranking = summary.ranking || [];
-  const top8 = ranking.slice(0, 8);
-  const topDistricts = top8.slice(0, 3).map((d: any) => d[0]).join(', ');
+  const top10 = ranking.slice(0, 10);
+  const topDistricts = top10.slice(0, 3).map((d: any) => d[0]).join(', ');
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
   const monthlyTrend = summary.monthlyTrend || [];
   const baselineMonthlyTrend = summary.baselineMonthlyTrend || [];
@@ -44,8 +44,8 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
     Math.max(4, Math.min(100, ((value - min) / Math.max(1, max - min)) * 100));
 
   const insightText = compareMode
-    ? `เมื่อเทียบกับปีฐาน ${compareYear} พื้นที่ ${activeDistrict} มีค่า LST เฉลี่ยเปลี่ยนแปลง ${delta >= 0 ? '+' : ''}${delta.toFixed(2)}°C โดยเขตที่เพิ่มขึ้นสูงสุดในชุดข้อมูลนี้เพิ่ม ${maxIncreaseValue >= 0 ? '+' : ''}${maxIncreaseValue.toFixed(2)}°C พื้นที่ที่ควรจับตา ได้แก่ ${topDistricts}`
-    : `ปี ${summary.selectedYear} พื้นที่ ${activeDistrict} มีค่า LST เฉลี่ย ${avgTemp.toFixed(2)}°C และค่าสูงสุด ${maxTemp.toFixed(2)}°C พื้นที่ที่สะสมความร้อนสูง ได้แก่ ${topDistricts}`;
+    ? `เมื่อเทียบกับปี ${compareYear} พื้นที่ ${activeDistrict} มีอุณหภูมิพื้นผิวเฉลี่ยสูงขึ้น ${delta >= 0 ? '+' : ''}${delta.toFixed(2)}°C หมายความว่าโดยรวมพื้นที่นี้ร้อนขึ้นจากปีฐาน เขตที่เพิ่มขึ้นมากที่สุดเพิ่ม ${maxIncreaseValue >= 0 ? '+' : ''}${maxIncreaseValue.toFixed(2)}°C พื้นที่ที่ควรติดตามเป็นพิเศษคือ ${topDistricts}`
+    : `ปี ${summary.selectedYear} พื้นที่ ${activeDistrict} มีอุณหภูมิพื้นผิวเฉลี่ย ${avgTemp.toFixed(2)}°C และค่าสูงสุด ${maxTemp.toFixed(2)}°C พื้นที่ที่ร้อนเด่นและควรติดตาม ได้แก่ ${topDistricts}`;
 
   return (
     <div
@@ -109,9 +109,9 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
         <p className="text-xs text-gray-700 leading-snug">{insightText}</p>
       </div>
 
-      <div className="w-full h-[330px] rounded-xl overflow-hidden relative mb-5 border border-slate-300 shadow-md bg-slate-950">
+      <div className="w-[670px] h-[330px] mx-auto rounded-xl overflow-hidden relative mb-5 border border-slate-300 shadow-md bg-slate-950">
         {mapSnapshot ? (
-          <img src={mapSnapshot} alt="Map Capture" className="w-full h-full object-contain bg-slate-950" />
+          <img src={mapSnapshot} alt="Map Capture" className="w-full h-full object-cover object-center bg-slate-950" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
             <MapPin className="w-12 h-12 mb-2 opacity-50" />
@@ -128,7 +128,7 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
         <div className="absolute top-3 left-3 text-[9px] font-mono font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
           14°00&apos;N, 100°15&apos;E
         </div>
-        <div className="absolute bottom-3 right-3 text-[9px] font-mono font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+        <div className="absolute bottom-5 right-5 text-[8px] font-mono font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
           13°30&apos;N, 100°55&apos;E
         </div>
         <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded text-white text-[8px] font-mono">
@@ -146,7 +146,7 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
       <div className="flex gap-5 min-h-0 overflow-hidden">
         <div className="flex-[4] flex flex-col min-w-0">
           <h3 className="text-sm font-bold text-slate-800 mb-3 border-l-4 border-slate-900 pl-2">
-            {compareMode ? '8 อันดับเขตที่ความร้อนเพิ่มขึ้น' : '8 อันดับเขตที่ร้อนที่สุด'}
+            {compareMode ? '10 อันดับเขตที่ความร้อนเพิ่มขึ้น' : '10 อันดับเขตที่ร้อนที่สุด'}
           </h3>
           <table className="w-full text-[10px]">
             <thead>
@@ -157,7 +157,7 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
               </tr>
             </thead>
             <tbody>
-              {top8.map(([dist, val]: any, idx: number) => (
+              {top10.map(([dist, val]: any, idx: number) => (
                 <tr key={dist} className="border-b border-slate-100">
                   <td className="py-1.5 text-slate-500 font-mono">{idx + 1}</td>
                   <td className="py-1.5 font-medium truncate max-w-[120px]">{dist}</td>

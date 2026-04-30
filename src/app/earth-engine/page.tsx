@@ -307,8 +307,8 @@ export default function EarthEnginePage() {
           </div>
 
           {/* Legend */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-64">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-72 max-w-[calc(100vw-2rem)]">
+            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3 leading-tight break-words">
               {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง (Anomaly)' : 'อุณหภูมิเฉลี่ยพื้นผิว (Annual Median)'}
             </h4>
             
@@ -379,7 +379,7 @@ export default function EarthEnginePage() {
               );
             })()}
             
-            <div className="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed">
+            <div className="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed break-words overflow-hidden">
               {compareMode 
                 ? <><span className="text-indigo-400 font-bold">Temperature Anomaly</span> แสดงส่วนต่างอุณหภูมิเปรียบเทียบระหว่างปีปัจจุบันและปีฐาน สีแดงคือร้อนขึ้น สีฟ้าคือเย็นลง</>
                 : <><span className="text-yellow-500 font-bold">LST (Land Surface Temperature)</span> คืออุณหภูมิพื้นผิวที่วัดจากภาพถ่ายดาวเทียม สะท้อนความร้อนที่แผ่ออกจากพื้นดินและอาคาร</>
