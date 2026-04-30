@@ -14,10 +14,12 @@ interface LSTMapViewProps {
   compareMode?: boolean;
   summary?: any;
   opacity?: number;
+  baseMap?: 'dark' | 'light' | 'satellite' | 'streets';
 }
 
-export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary, opacity = 0.8 }: LSTMapViewProps) {
+export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary, opacity = 0.8, baseMap = 'dark' }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
+  const baseLayerRef = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const heatLayerRef = useRef<any>(null);
   const maskLayerRef = useRef<L.GeoJSON | null>(null);
@@ -39,7 +41,8 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         zoomControl: false,
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      // Initialize base layer
+      baseLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20
@@ -83,6 +86,20 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
       });
     }
   }, []);
+
+  // Handle Base Map change
+  useEffect(() => {
+    if (!mapRef.current || !baseLayerRef.current) return;
+
+    const mapUrls: Record<string, string> = {
+      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      streets: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    };
+
+    baseLayerRef.current.setUrl(mapUrls[baseMap] || mapUrls.dark);
+  }, [baseMap]);
 
   // Function to determine color based on temperature
   const getColor = (temp: number) => {

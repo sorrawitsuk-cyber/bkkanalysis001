@@ -20,6 +20,7 @@ export default function EarthEnginePage() {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.8);
+  const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets'>('dark');
 
   useEffect(() => {
     setLoading(true);
@@ -73,6 +74,7 @@ export default function EarthEnginePage() {
               compareMode={compareMode}
               summary={summary}
               opacity={opacity}
+              baseMap={baseMap}
             />
         </div>
 
@@ -144,6 +146,33 @@ export default function EarthEnginePage() {
               />
             </div>
           )}
+
+          {/* Base Map Selector */}
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64">
+            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
+              <Layers className="w-3 h-3" /> แผนที่ฐาน (Base Map)
+            </h4>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: 'dark', label: 'Dark Matter' },
+                { id: 'light', label: 'Positron' },
+                { id: 'satellite', label: 'Satellite' },
+                { id: 'streets', label: 'OpenStreet' }
+              ].map((map) => (
+                <button
+                  key={map.id}
+                  onClick={() => setBaseMap(map.id as any)}
+                  className={`text-[9px] py-1.5 rounded border transition-all ${
+                    baseMap === map.id 
+                      ? 'bg-orange-500 border-orange-500 text-white font-bold' 
+                      : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  {map.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Year Filter */}
           <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-64">
