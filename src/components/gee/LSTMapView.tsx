@@ -13,14 +13,23 @@ interface LSTMapViewProps {
   mapMode: 'district' | 'idw';
   compareMode?: boolean;
   summary?: any;
+  opacity?: number;
 }
 
-export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary }: LSTMapViewProps) {
+export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary, opacity = 0.8 }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const heatLayerRef = useRef<any>(null);
   const maskLayerRef = useRef<L.GeoJSON | null>(null);
   const geeLayerRef = useRef<L.TileLayer | null>(null);
+  const yearRef = useRef(summary?.selectedYear || 2024);
+
+  // Update yearRef when summary changes
+  useEffect(() => {
+    if (summary?.selectedYear) {
+      yearRef.current = summary.selectedYear;
+    }
+  }, [summary?.selectedYear]);
 
   useEffect(() => {
     if (!mapRef.current) {
@@ -35,6 +44,43 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         subdomains: 'abcd',
         maxZoom: 20
       }).addTo(mapRef.current);
+
+      // Add Map Click Handler for Point Query
+      mapRef.current.on('click', async (e: L.LeafletMouseEvent) => {
+        if (!mapRef.current) return;
+        
+        const { lat, lng } = e.latlng;
+        
+        // Show loading popup
+        const popup = L.popup()
+          .setLatLng(e.latlng)
+          .setContent('<div class="p-2 text-xs font-mono"><span class="animate-pulse">⏳ กำลังวิเคราะห์พิกเซล...</span></div>')
+          .openOn(mapRef.current);
+
+        try {
+          const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}`);
+          const data = await res.json();
+          
+          if (data.temp !== undefined && data.temp !== null) {
+            popup.setContent(`
+              <div class="bg-slate-950 text-white p-3 rounded-lg border border-slate-800 shadow-2xl min-w-[140px]">
+                <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">Pixel Analysis</div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[10px] text-slate-400">พิกเซล (LST):</span>
+                  <span class="text-orange-400 font-mono font-bold text-lg">${data.temp}°C</span>
+                </div>
+                <div class="text-[9px] text-slate-500 italic mt-1">
+                  📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}
+                </div>
+              </div>
+            `);
+          } else {
+            popup.setContent('<div class="p-2 text-xs text-yellow-400">⚠️ No data at this point</div>');
+          }
+        } catch (err) {
+          popup.setContent('<div class="p-2 text-xs text-red-400">❌ Error fetching data</div>');
+        }
+      });
     }
   }, []);
 
@@ -82,7 +128,7 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
           if (data.urlFormat) {
             geeLayerRef.current = L.tileLayer(data.urlFormat, {
               maxZoom: 20,
-              opacity: 0.8
+              opacity: opacity
             }).addTo(mapRef.current);
           }
         } catch (err) {
@@ -93,6 +139,13 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
 
     updateGeeLayer();
   }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear]);
+
+  // Update opacity when prop changes
+  useEffect(() => {
+    if (geeLayerRef.current) {
+      geeLayerRef.current.setOpacity(opacity);
+    }
+  }, [opacity]);
 
   useEffect(() => {
     if (!mapRef.current || !geojsonData) return;

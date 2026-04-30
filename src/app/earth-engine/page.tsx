@@ -19,6 +19,7 @@ export default function EarthEnginePage() {
   const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [opacity, setOpacity] = useState(0.8);
 
   useEffect(() => {
     setLoading(true);
@@ -55,14 +56,15 @@ export default function EarthEnginePage() {
 
       <main className="flex-1 relative">
         <div className="absolute inset-0 z-0">
-          <LSTMapView 
-            geojsonData={geojsonData} 
-            invertedMask={invertedMask}
-            activeDistrict={activeDistrict} 
-            mapMode={mapMode} 
-            compareMode={compareMode}
-            summary={summary}
-          />
+            <LSTMapView 
+              geojsonData={geojsonData} 
+              invertedMask={invertedMask}
+              activeDistrict={activeDistrict} 
+              mapMode={mapMode} 
+              compareMode={compareMode}
+              summary={summary}
+              opacity={opacity}
+            />
         </div>
 
         {/* Data Source Badge */}
@@ -100,9 +102,31 @@ export default function EarthEnginePage() {
                 ภาพดาวเทียม (GEE)
               </button>
             </div>
+            </div>
           </div>
-          
-          {/* Year Controls */}
+
+          {/* Opacity Slider (Only visible in GEE mode) */}
+          {mapMode === 'idw' && (
+            <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                  ความจาง (Layer Opacity)
+                </h4>
+                <span className="text-[10px] font-mono text-orange-500 font-bold">{Math.round(opacity * 100)}%</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="1" 
+                step="0.01" 
+                value={opacity} 
+                onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+              />
+            </div>
+          )}
+
+          {/* Year Filter */}
           <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-64">
             <div className="flex justify-between items-center mb-3">
               <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
