@@ -19,8 +19,10 @@ export async function GET(request: Request) {
 
     // 2. Load Landsat (Same logic as tiles)
     const collectionId = year >= 2022 ? 'LANDSAT/LC09/C02/T1_L2' : 'LANDSAT/LC08/C02/T1_L2';
+    const currentYear = new Date().getFullYear();
+    const today = new Date().toISOString().split('T')[0];
     const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
+    const endDate = year === currentYear ? today : `${year}-12-31`;
 
     const getLST = (image: any) => {
       const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);

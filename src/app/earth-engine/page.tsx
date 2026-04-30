@@ -75,7 +75,12 @@ export default function EarthEnginePage() {
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
-            <p><span className="text-white">Period:</span> Jan 01 - Dec 31, {selectedYear} (Yearly Median)</p>
+            <p>
+              <span className="text-white">Period:</span> Jan 01 - {selectedYear === new Date().getFullYear() 
+                ? new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) 
+                : 'Dec 31'}, {selectedYear}
+              {selectedYear === new Date().getFullYear() ? ' (Year-to-Date)' : ' (Yearly Median)'}
+            </p>
             <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temp)</p>
           </div>
         </div>

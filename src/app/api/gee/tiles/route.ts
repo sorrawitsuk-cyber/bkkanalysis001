@@ -26,9 +26,14 @@ export async function GET(request: Request) {
       // Use Landsat 9 for newer data, Landsat 8 for older
       const collectionId = y >= 2022 ? "LANDSAT/LC09/C02/T1_L2" : "LANDSAT/LC08/C02/T1_L2";
       
+      const currentYear = new Date().getFullYear();
+      const today = new Date().toISOString().split('T')[0];
+      const startDate = `${y}-01-01`;
+      const endDate = y === currentYear ? today : `${y}-12-31`;
+
       const collection = ee.ImageCollection(collectionId)
         .filterBounds(bkkBoundary)
-        .filterDate(`${y}-01-01`, `${y}-12-31`)
+        .filterDate(startDate, endDate)
         .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
       // Use median to remove clouds/artifacts
