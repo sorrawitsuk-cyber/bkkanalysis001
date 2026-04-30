@@ -4,7 +4,10 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import LSTSidebar from "@/components/gee/LSTSidebar";
-import { Layers } from "lucide-react";
+import ExecutiveReport from "@/components/gee/ExecutiveReport";
+import { Layers, FileDown } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Use dynamic import for Map to prevent SSR issues with Leaflet
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
@@ -21,6 +24,8 @@ export default function EarthEnginePage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.8);
   const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -55,6 +60,32 @@ export default function EarthEnginePage() {
     setBaseMap('dark');
   };
 
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    const element = document.getElementById("executive-report");
+    if (element) {
+      try {
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`BKK_Heat_Report_${selectedYear}_${activeDistrict}.pdf`);
+      } catch (err) {
+        console.error("Error generating PDF", err);
+        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+      }
+    }
+    setIsExporting(false);
+  };
+
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       <LSTSidebar
@@ -78,6 +109,14 @@ export default function EarthEnginePage() {
               baseMap={baseMap}
             />
         </div>
+
+        {/* Hidden Report Component for PDF Export */}
+        <ExecutiveReport 
+          summary={summary} 
+          activeDistrict={activeDistrict} 
+          compareMode={compareMode} 
+          compareYear={compareYear} 
+        />
 
         {/* Data Source Badge */}
         <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
@@ -105,12 +144,25 @@ export default function EarthEnginePage() {
             <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
               <Layers className="w-3 h-3" /> รูปแบบ (Map Style)
             </h4>
-            <button 
-              onClick={handleReset}
-              className="text-[9px] px-2 py-1 bg-slate-800 text-slate-400 hover:text-white rounded border border-slate-700 hover:border-slate-500 transition-all"
-            >
-              Reset
-            </button>
+            <div className="flex gap-1.5 ml-2 mr-auto">
+              <button 
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className={`text-[9px] px-2 py-1 rounded border transition-all flex items-center gap-1
+                  ${isExporting 
+                    ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-wait' 
+                    : 'bg-indigo-600/20 text-indigo-400 border-indigo-500/50 hover:bg-indigo-600 hover:text-white'
+                  }`}
+              >
+                {isExporting ? 'กำลังสร้าง...' : <><FileDown className="w-3 h-3" /> ออกรายงาน</>}
+              </button>
+              <button 
+                onClick={handleReset}
+                className="text-[9px] px-2 py-1 bg-slate-800 text-slate-400 hover:text-white rounded border border-slate-700 hover:border-slate-500 transition-all"
+              >
+                Reset
+              </button>
+            </div>
             <div className="flex bg-slate-800/80 rounded-md p-0.5 ml-2">
               <button
                 onClick={() => setMapMode('district')}
