@@ -238,18 +238,7 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         }
       }).addTo(mapRef.current);
 
-      // Add inverted mask to clip the heat layer
-      if (invertedMask) {
-        maskLayerRef.current = L.geoJSON(invertedMask, {
-          style: {
-            fillColor: '#0b0f19',
-            fillOpacity: 1,
-            color: 'transparent',
-            weight: 0
-          },
-          interactive: false
-        }).addTo(mapRef.current);
-      }
+      // Removed inverted mask to show full base map coverage
     }
 
     // Zoom to selected district
