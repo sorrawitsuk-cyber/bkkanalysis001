@@ -126,40 +126,36 @@ export async function GET(request: Request) {
       return [y, avg, maxMonthIdx];
     });
 
-    // 2. Ranking
-    let ranking;
-    if (compareYear) {
-    // 2. Ranking (Top Hottest Districts for selected year, or Top Increases if comparing)
-    let ranking = [];
+    // 2. Ranking & Summary Data
     const currentYearData = summaryData.filter((d: any) => d.year === year);
-    if (compareYear) {
-      // Calculate delta for each district
-      const compYearData = summaryData.filter((d: any) => d.year === compareYear);
-      const compMap = new Map(compYearData.map((d: any) => [d.district_id, d.mean_lst]));
-      
-      ranking = currentYearData
-        .map((d: any) => {
-          const baseline = compMap.get(d.district_id);
-          return {
-            name: d.district_name,
-            delta: baseline !== undefined ? d.mean_lst - baseline : 0
-          };
-        })
-        .sort((a: any, b: any) => b.delta - a.delta)
-        .map((d: any) => [d.name, d.delta]);
-    } else {
-      ranking = currentYearData
-        .sort((a: any, b: any) => b.mean_lst - a.mean_lst)
-        .map((d: any) => [d.district_name, d.mean_lst]);
-    }
-
-    // 3. Current average & max
+    let ranking = [];
     let currentAvg = 0;
     let maxTemp = 0;
-    const currentYearData = summaryData.filter((d: any) => d.year === year);
+
     if (currentYearData.length > 0) {
       currentAvg = currentYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / currentYearData.length;
       maxTemp = currentYearData.reduce((max: number, curr: any) => Math.max(max, curr.max_lst || curr.mean_lst), -Infinity);
+
+      if (compareYear) {
+        // Calculate delta for each district
+        const compYearData = summaryData.filter((d: any) => d.year === compareYear);
+        const compMap = new Map(compYearData.map((d: any) => [d.district_id, d.mean_lst]));
+        
+        ranking = currentYearData
+          .map((d: any) => {
+            const baseline = compMap.get(d.district_id);
+            return {
+              name: d.district_name,
+              delta: baseline !== undefined ? d.mean_lst - baseline : 0
+            };
+          })
+          .sort((a: any, b: any) => b.delta - a.delta)
+          .map((d: any) => [d.name, d.delta]);
+      } else {
+        ranking = currentYearData
+          .sort((a: any, b: any) => b.mean_lst - a.mean_lst)
+          .map((d: any) => [d.district_name, d.mean_lst]);
+      }
     }
 
     // 4. Monthly Trend
