@@ -98,6 +98,7 @@ export default function EarthEnginePage() {
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
           
           {/* Map Mode Toggle */}
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64 flex justify-between items-center">
             <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
               <Layers className="w-3 h-3" /> รูปแบบ (Map Style)
             </h4>
@@ -120,7 +121,6 @@ export default function EarthEnginePage() {
               >
                 ภาพดาวเทียม (GEE)
               </button>
-            </div>
             </div>
           </div>
 
