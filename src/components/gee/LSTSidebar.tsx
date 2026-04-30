@@ -149,6 +149,10 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               </h3>
               <div className="flex items-end gap-[2px] h-16 mb-2">
                 {summary.monthlyTrend.map((temp: number, i: number) => {
+                  const currentYear = new Date().getFullYear();
+                  const currentMonth = new Date().getMonth();
+                  const isFutureMonth = summary.selectedYear === currentYear && i > currentMonth;
+                  
                   // Normalize the height between 30C and 40C
                   const minT = 30;
                   const maxT = 40;
@@ -159,19 +163,29 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                   // Color gradient logic
                   const isHot = temp > 36.5;
                   const isWarm = temp > 34;
-                  const barColor = isHot ? 'bg-gradient-to-t from-orange-600 to-red-500' :
-                                   isWarm ? 'bg-gradient-to-t from-yellow-600 to-orange-400' :
-                                   'bg-gradient-to-t from-slate-600 to-slate-400';
+                  let barColor = isHot ? 'bg-gradient-to-t from-orange-600 to-red-500' :
+                                 isWarm ? 'bg-gradient-to-t from-yellow-600 to-orange-400' :
+                                 'bg-gradient-to-t from-slate-600 to-slate-400';
                   
+                  if (isFutureMonth) {
+                    barColor = 'bg-slate-800/30 border border-dashed border-slate-700';
+                  }
+
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                      <div
-                        className={`w-full rounded-t-sm ${barColor} hover:brightness-110 transition-all duration-200 min-h-[4px]`}
-                        style={{ height: `${pct}%` }}
-                      />
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
-                        {months[i]}: {temp}°C
-                      </div>
+                      {!isFutureMonth ? (
+                        <>
+                          <div
+                            className={`w-full rounded-t-sm ${barColor} hover:brightness-110 transition-all duration-200 min-h-[4px]`}
+                            style={{ height: `${pct}%` }}
+                          />
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-1.5 py-0.5 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
+                            {months[i]}: {temp}°C
+                          </div>
+                        </>
+                      ) : (
+                        <div className={`w-full rounded-t-sm ${barColor} h-1`} title="ยังไม่มีข้อมูล" />
+                      )}
                     </div>
                   );
                 })}
