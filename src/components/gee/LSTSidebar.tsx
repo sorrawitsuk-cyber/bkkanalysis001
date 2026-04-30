@@ -13,6 +13,7 @@ interface LSTSidebarProps {
 }
 
 export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: LSTSidebarProps) {
+  const [showAll, setShowAll] = useState(false);
   
   // Skeleton Loader
   if (loading || !summary) {
@@ -188,15 +189,23 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <div className="h-px bg-slate-800/60" />
 
         {/* Ranking */}
-        <section className="flex-1">
-          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
-            <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : 'อันดับความร้อน · Top 10 Hottest'}
-          </h3>
+        <section className="flex-1 pb-10">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] flex items-center gap-1.5">
+              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : 'อันดับความร้อน · Ranking'}
+            </h3>
+            <button 
+              onClick={() => setShowAll(!showAll)}
+              className="text-[9px] text-orange-500 hover:text-orange-400 font-bold uppercase tracking-wider transition-colors"
+            >
+              {showAll ? 'แสดงแค่ Top 10' : 'แสดงทั้ง 50 เขต'}
+            </button>
+          </div>
+
           <div className="space-y-1.5">
-            {(summary.ranking || []).slice(0, 10).map(([district, val]: [string, number], i: number) => {
+            {(summary.ranking || []).slice(0, showAll ? 50 : 10).map(([district, val]: [string, number], i: number) => {
               // Normalize for progress bar
               let pct = 0;
-              const isIncrease = val > 0;
               const isSelected = activeDistrict === district;
               if (compareMode) {
                 // For delta: max delta usually ~2C
@@ -224,14 +233,19 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                       : 'opacity-100 hover:scale-[1.02]'
                   }`}
                 >
-                  <span className="text-[10px] text-slate-600 w-4 text-right font-mono">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between text-[11px] mb-0.5">
-                      <span className="text-slate-300 truncate pr-1">{district}</span>
-                      <span className={`${colorClass} font-mono tabular-nums`}>{displayVal}°</span>
-                    </div>
-                    <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
-                      <div className={`h-full bg-gradient-to-r ${barGradient} rounded-full`} style={{ width: `${pct}%` }} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-600 w-4 text-right font-mono shrink-0">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className={`truncate pr-1 ${isSelected ? 'text-orange-400 font-bold' : 'text-slate-300 group-hover:text-white'}`}>{district}</span>
+                        <span className={`${colorClass} font-mono tabular-nums font-bold`}>{displayVal}°</span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full bg-gradient-to-r ${barGradient} rounded-full transition-all duration-700`} 
+                          style={{ width: `${pct}%` }} 
+                        />
+                      </div>
                     </div>
                   </div>
                 </button>
