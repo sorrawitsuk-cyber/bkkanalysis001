@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useState } from "react";
 import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees } from "lucide-react";
 import Link from "next/link";
 
