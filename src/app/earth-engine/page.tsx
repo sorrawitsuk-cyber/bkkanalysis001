@@ -42,7 +42,16 @@ export default function EarthEnginePage() {
         console.error(err);
         setLoading(false);
       });
-  }, [activeDistrict, selectedYear]);
+  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+
+  const handleReset = () => {
+    setActiveDistrict("ทั้งหมด");
+    setSelectedYear(2026);
+    setCompareMode(false);
+    setCompareYear(2018);
+    setMapMode('idw');
+    setOpacity(0.8);
+  };
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -89,11 +98,16 @@ export default function EarthEnginePage() {
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
           
           {/* Map Mode Toggle */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-64 flex justify-between items-center">
             <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
               <Layers className="w-3 h-3" /> รูปแบบ (Map Style)
             </h4>
-            <div className="flex bg-slate-800/80 rounded-md p-0.5">
+            <button 
+              onClick={handleReset}
+              className="text-[9px] px-2 py-1 bg-slate-800 text-slate-400 hover:text-white rounded border border-slate-700 hover:border-slate-500 transition-all"
+            >
+              Reset
+            </button>
+            <div className="flex bg-slate-800/80 rounded-md p-0.5 ml-2">
               <button
                 onClick={() => setMapMode('district')}
                 className={`text-[9px] px-2 py-1 rounded transition-colors ${mapMode === 'district' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
@@ -156,16 +170,16 @@ export default function EarthEnginePage() {
               max="2026" 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mb-4"
+              className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mb-2"
             />
 
             {compareMode && (
-              <div className="pt-3 border-t border-slate-800/80">
-                <h4 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-2">ปีฐาน (Baseline)</h4>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-slate-400 font-mono">2018</span>
-                  <span className="text-lg font-bold text-indigo-400 font-mono">{compareYear}</span>
-                  <span className="text-xs text-slate-400 font-mono">2026</span>
+              <div className="mt-4 pt-4 border-t border-slate-800/50">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                    ปีฐานที่ใช้เทียบ (Baseline)
+                  </h4>
+                  <span className="text-sm font-bold text-indigo-400 font-mono">{compareYear}</span>
                 </div>
                 <input 
                   type="range" 

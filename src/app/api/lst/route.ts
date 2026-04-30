@@ -129,14 +129,26 @@ export async function GET(request: Request) {
     // 2. Ranking
     let ranking;
     if (compareYear) {
-      // Rank by highest delta (increase in temp)
-      ranking = features
-        .filter((f: any) => f.properties.delta !== null)
-        .sort((a: any, b: any) => b.properties.delta - a.properties.delta)
-        .map((f: any) => [f.properties.name_th, f.properties.delta]);
+    // 2. Ranking (Top Hottest Districts for selected year, or Top Increases if comparing)
+    let ranking = [];
+    const currentYearData = summaryData.filter((d: any) => d.year === year);
+    if (compareYear) {
+      // Calculate delta for each district
+      const compYearData = summaryData.filter((d: any) => d.year === compareYear);
+      const compMap = new Map(compYearData.map((d: any) => [d.district_id, d.mean_lst]));
+      
+      ranking = currentYearData
+        .map((d: any) => {
+          const baseline = compMap.get(d.district_id);
+          return {
+            name: d.district_name,
+            delta: baseline !== undefined ? d.mean_lst - baseline : 0
+          };
+        })
+        .sort((a: any, b: any) => b.delta - a.delta)
+        .map((d: any) => [d.name, d.delta]);
     } else {
-      // Rank by highest temp
-      ranking = lstData.filter((d: any) => d.year === year)
+      ranking = currentYearData
         .sort((a: any, b: any) => b.mean_lst - a.mean_lst)
         .map((d: any) => [d.district_name, d.mean_lst]);
     }
@@ -172,6 +184,12 @@ export async function GET(request: Request) {
         selectedYear: year,
         compareYear: compareYear,
         averageTemp: parseFloat(currentAvg.toFixed(2)),
+        avgDelta: compareYear ? (() => {
+          const baselineData = summaryData.filter((d: any) => d.year === compareYear);
+          if (baselineData.length === 0) return 0;
+          const baselineAvg = baselineData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / baselineData.length;
+          return parseFloat((currentAvg - baselineAvg).toFixed(2));
+        })() : 0,
         maxTemp: maxTemp > -Infinity ? parseFloat(maxTemp.toFixed(2)) : null,
         yearlyTrend,
         monthlyTrend,

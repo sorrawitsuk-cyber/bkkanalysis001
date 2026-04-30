@@ -69,11 +69,11 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'เฉลี่ย' : 'เฉลี่ย'}
+              <ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'ส่วนต่างเฉลี่ย' : 'เฉลี่ย'}
             </div>
-            <div className="text-xl font-bold text-slate-100 font-mono">
-              {!compareMode ? summary.averageTemp : "N/A"}
-              {!compareMode && <span className="text-xs text-slate-500">°C</span>}
+            <div className={`text-xl font-bold font-mono ${compareMode ? (summary.avgDelta > 0 ? 'text-red-400' : 'text-blue-400') : 'text-slate-100'}`}>
+              {compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(2)}` : summary.avgDelta.toFixed(2)) : summary.averageTemp}
+              <span className="text-xs ml-1 opacity-50">°C</span>
             </div>
           </div>
           <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
@@ -81,15 +81,17 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               <Activity className="w-3 h-3 text-red-500"/> {compareMode ? 'พุ่งสูงสุด' : 'สูงสุดของปี'}
             </div>
             <div className="text-xl font-bold text-red-500 font-mono">
-              {!compareMode ? summary.maxTemp : "N/A"}
-              {!compareMode && <span className="text-xs text-red-500/50">°C</span>}
+              {compareMode ? `+${(summary.max_delta || 0).toFixed(1)}` : (summary.maxTemp || 0).toFixed(1)}
+              <span className="text-xs ml-1 opacity-50">°C</span>
             </div>
           </div>
           <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <Trees className="w-3 h-3 text-emerald-400"/> ข้อมูลปี
+              <Trees className="w-3 h-3 text-emerald-400"/> {compareMode ? 'ช่วงปี' : 'ข้อมูลปี'}
             </div>
-            <div className="text-xl font-bold text-emerald-400 font-mono">{summary.selectedYear}</div>
+            <div className="text-sm font-bold text-emerald-400 font-mono leading-tight">
+              {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : summary.selectedYear}
+            </div>
           </div>
         </div>
 
@@ -194,28 +196,23 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
             {(summary.ranking || []).slice(0, 10).map(([district, val]: [string, number], i: number) => {
               // Normalize for progress bar
               let pct = 0;
+              const isIncrease = val > 0;
+              const isSelected = activeDistrict === district;
               if (compareMode) {
                 // For delta: max delta usually ~2C
-                pct = Math.max(0, Math.min(100, (val / (summary.max_delta || 2)) * 100));
+                const maxD = Math.abs(summary.max_delta || 2);
+                pct = Math.min(100, (Math.abs(val) / maxD) * 100);
               } else {
-                // For temp: normalize 30-40C
-                const min = summary?.min_lst || 30;
-                const max = summary?.max_lst || 40;
-                pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+                const min = summary.min_lst || 30;
+                const max = summary.max_lst || 40;
+                pct = ((val - min) / (max - min)) * 100;
               }
-              
-              const isSelected = activeDistrict === district;
-              const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(1);
-              const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-blue-400') : 'text-orange-400';
-              const barGradient = compareMode 
-                ? (val > 0 ? 'from-orange-500 to-red-500' : 'from-blue-300 to-blue-500') 
-                : 'from-yellow-500 to-red-500';
               
               return (
                 <button 
                   key={district}
                   onClick={() => onDistrictSelect(isSelected ? 'ทั้งหมด' : district)}
-                  className={`w-full flex items-center gap-2 group transition-all duration-200 ${
+                  className={`w-full group transition-all duration-200 ${
                     activeDistrict !== 'ทั้งหมด' && !isSelected 
                       ? 'opacity-40 grayscale-[50%]' 
                       : 'opacity-100 hover:scale-[1.02]'
