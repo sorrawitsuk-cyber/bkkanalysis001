@@ -20,7 +20,7 @@ export default function EarthEnginePage() {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.8);
-  const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets'>('dark');
+  const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
 
   useEffect(() => {
     setLoading(true);
@@ -52,6 +52,7 @@ export default function EarthEnginePage() {
     setCompareYear(2018);
     setMapMode('idw');
     setOpacity(0.8);
+    setBaseMap('dark');
   };
 
   return (
@@ -157,7 +158,8 @@ export default function EarthEnginePage() {
                 { id: 'dark', label: 'Dark Matter' },
                 { id: 'light', label: 'Positron' },
                 { id: 'satellite', label: 'Satellite' },
-                { id: 'streets', label: 'OpenStreet' }
+                { id: 'streets', label: 'OpenStreet' },
+                { id: 'none', label: 'ปิด (None)' }
               ].map((map) => (
                 <button
                   key={map.id}

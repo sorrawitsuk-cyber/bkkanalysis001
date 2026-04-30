@@ -14,7 +14,7 @@ interface LSTMapViewProps {
   compareMode?: boolean;
   summary?: any;
   opacity?: number;
-  baseMap?: 'dark' | 'light' | 'satellite' | 'streets';
+  baseMap?: 'dark' | 'light' | 'satellite' | 'streets' | 'none';
 }
 
 export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary, opacity = 0.8, baseMap = 'dark' }: LSTMapViewProps) {
@@ -95,10 +95,16 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
       dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
       light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      streets: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      streets: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      none: '' // Placeholder
     };
 
-    baseLayerRef.current.setUrl(mapUrls[baseMap] || mapUrls.dark);
+    if (baseMap === 'none') {
+      baseLayerRef.current.setOpacity(0);
+    } else {
+      baseLayerRef.current.setOpacity(1);
+      baseLayerRef.current.setUrl(mapUrls[baseMap] || mapUrls.dark);
+    }
   }, [baseMap]);
 
   // Function to determine color based on temperature
