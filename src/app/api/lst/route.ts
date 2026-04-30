@@ -125,12 +125,24 @@ export async function GET(request: Request) {
       });
       return [y, avg, maxMonthIdx];
     });
+    const yearlyAverageMap = new Map<number, number>(yearlyTrend.map(([trendYear, avg]) => [Number(trendYear), Number(avg)]));
+    const baselineTrendAvg = compareYear ? yearlyAverageMap.get(compareYear) : null;
+    const yearlyDeltaTrend = compareYear && baselineTrendAvg !== null && baselineTrendAvg !== undefined
+      ? yearlyTrend.map(([trendYear, avg, maxMonthIdx]) => [
+          trendYear,
+          parseFloat((Number(avg) - baselineTrendAvg).toFixed(2)),
+          maxMonthIdx,
+        ])
+      : [];
 
     // 2. Ranking & Summary Data
     const currentYearData = summaryData.filter((d: any) => d.year === year);
     let ranking: any[] = [];
     let currentAvg = 0;
     let maxTemp = 0;
+    let baselineAvg = 0;
+    let maxIncreaseDelta = 0;
+    let minIncreaseDelta = 0;
 
     if (currentYearData.length > 0) {
       currentAvg = currentYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / currentYearData.length;
@@ -139,6 +151,9 @@ export async function GET(request: Request) {
       if (compareYear) {
         // Calculate delta for each district
         const compYearData = summaryData.filter((d: any) => d.year === compareYear);
+        baselineAvg = compYearData.length > 0
+          ? compYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / compYearData.length
+          : 0;
         const compMap = new Map(compYearData.map((d: any) => [d.district_id, d.mean_lst]));
         
         ranking = currentYearData
@@ -151,6 +166,10 @@ export async function GET(request: Request) {
           })
           .sort((a: any, b: any) => b.delta - a.delta)
           .map((d: any) => [d.name, d.delta]);
+        if (ranking.length > 0) {
+          maxIncreaseDelta = Math.max(...ranking.map(([, deltaValue]) => deltaValue));
+          minIncreaseDelta = Math.min(...ranking.map(([, deltaValue]) => deltaValue));
+        }
       } else {
         ranking = currentYearData
           .sort((a: any, b: any) => b.mean_lst - a.mean_lst)
@@ -173,6 +192,27 @@ export async function GET(request: Request) {
       monthlyCounts[idx] > 0 ? parseFloat((sum / monthlyCounts[idx]).toFixed(2)) : 0
     );
 
+    const monthlyDeltaTrend = compareYear ? (() => {
+      const baselineMonthlyData = new Array(12).fill(0);
+      const baselineMonthlyCounts = new Array(12).fill(0);
+      summaryData
+        .filter((d: any) => d.year === compareYear)
+        .forEach((d: any) => {
+          if (d.monthly_lst) {
+            d.monthly_lst.forEach((temp: number, monthIdx: number) => {
+              baselineMonthlyData[monthIdx] += temp;
+              baselineMonthlyCounts[monthIdx] += 1;
+            });
+          }
+        });
+
+      return monthlyTrend.map((temp, idx) => {
+        if (monthlyCounts[idx] === 0 || baselineMonthlyCounts[idx] === 0) return 0;
+        const baselineMonthAvg = baselineMonthlyData[idx] / baselineMonthlyCounts[idx];
+        return parseFloat((temp - baselineMonthAvg).toFixed(2));
+      });
+    })() : [];
+
     return NextResponse.json({
       geojson: { type: "FeatureCollection", features },
       invertedMask: invertedMask,
@@ -180,20 +220,20 @@ export async function GET(request: Request) {
         selectedYear: year,
         compareYear: compareYear,
         averageTemp: parseFloat(currentAvg.toFixed(2)),
-        avgDelta: compareYear ? (() => {
-          const baselineData = summaryData.filter((d: any) => d.year === compareYear);
-          if (baselineData.length === 0) return 0;
-          const baselineAvg = baselineData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / baselineData.length;
-          return parseFloat((currentAvg - baselineAvg).toFixed(2));
-        })() : 0,
+        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed(2)) : null,
+        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed(2)) : 0,
         maxTemp: maxTemp > -Infinity ? parseFloat(maxTemp.toFixed(2)) : null,
         yearlyTrend,
+        yearlyDeltaTrend,
         monthlyTrend,
+        monthlyDeltaTrend,
         ranking,
         min_lst: min_lst !== Infinity ? min_lst : 30,
         max_lst: max_lst !== -Infinity ? max_lst : 40,
         min_delta: min_delta !== Infinity ? min_delta : -2,
         max_delta: max_delta !== -Infinity ? max_delta : 2,
+        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed(2)),
+        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed(2)),
       }
     }, {
       headers: {

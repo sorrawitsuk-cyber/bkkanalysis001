@@ -30,6 +30,13 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
     );
   }
 
+  const yearlyDisplayTrend = compareMode && summary.yearlyDeltaTrend?.length
+    ? summary.yearlyDeltaTrend
+    : (summary.yearlyTrend || []);
+  const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
+  const maxAbsTrend = Math.max(1, ...trendValues);
+  const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
+
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
       
@@ -69,29 +76,29 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         
         {/* Main KPI */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
               <ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'ส่วนต่างเฉลี่ย' : 'เฉลี่ย'}
             </div>
-            <div className={`text-xl font-bold font-mono ${compareMode ? (summary.avgDelta > 0 ? 'text-red-400' : 'text-blue-400') : 'text-slate-100'}`}>
+            <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta > 0 ? 'text-red-400' : 'text-blue-400') : 'text-slate-100'}`}>
               {compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(2)}` : summary.avgDelta.toFixed(2)) : summary.averageTemp}
               <span className="text-xs ml-1 opacity-50">°C</span>
             </div>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
               <Activity className="w-3 h-3 text-red-500"/> {compareMode ? 'พุ่งสูงสุด' : 'สูงสุดของปี'}
             </div>
-            <div className="text-xl font-bold text-red-500 font-mono">
-              {compareMode ? `+${(summary.max_delta || 0).toFixed(1)}` : (summary.maxTemp || 0).toFixed(1)}
+            <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode && maxIncreaseValue < 0 ? 'text-blue-400' : 'text-red-500'}`}>
+              {compareMode ? `${maxIncreaseValue > 0 ? '+' : ''}${maxIncreaseValue.toFixed(1)}` : (summary.maxTemp || 0).toFixed(1)}
               <span className="text-xs ml-1 opacity-50">°C</span>
             </div>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
               <Trees className="w-3 h-3 text-emerald-400"/> {compareMode ? 'ช่วงปี' : 'ข้อมูลปี'}
             </div>
-            <div className="text-sm font-bold text-emerald-400 font-mono leading-tight">
+            <div className="text-sm font-bold text-emerald-400 font-mono leading-tight break-words">
               {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : summary.selectedYear}
             </div>
           </div>
@@ -101,11 +108,16 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
 
         {/* Historical Trend Chart */}
         <section>
-          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
+          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5 leading-tight">
             <Activity className="w-3 h-3" /> แนวโน้มความร้อน (Trend)
           </h3>
+          {compareMode && (
+            <p className="text-[9px] text-slate-500 leading-snug mb-3">
+              Yearly anomaly against {summary.compareYear}; red is warmer, blue is cooler.
+            </p>
+          )}
           <div className="flex items-end gap-[3px] h-20 mb-2">
-            {(summary.yearlyTrend || []).map((item: any, i: number) => {
+            {yearlyDisplayTrend.map((item: any, i: number) => {
               const year = item[0];
               const temp = item[1];
               const maxMonthIdx = item[2];
@@ -113,7 +125,12 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               // Normalize the height between 30C and 40C
               const minT = 30;
               const maxT = 40;
-              const pct = Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+              const pct = compareMode
+                ? Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100))
+                : Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+              const trendColor = compareMode
+                ? (temp >= 0 ? 'from-orange-600 to-red-500' : 'from-blue-300 to-blue-600')
+                : 'from-orange-600 to-yellow-400';
               
               const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
               const peakText = maxMonthIdx !== undefined && maxMonthIdx >= 0 ? ` (พีกสุดเดือน ${months[maxMonthIdx]})` : '';
@@ -121,7 +138,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                   <div
-                    className="w-full rounded-t-sm bg-gradient-to-t from-orange-600 to-yellow-400 min-h-[4px] transition-all duration-300 group-hover:from-orange-500 group-hover:to-yellow-300"
+                    className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
                     style={{ height: `${pct}%` }}
                   />
                   <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
@@ -133,8 +150,8 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
             })}
           </div>
           <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-            <span>{summary.yearlyTrend?.[0]?.[0]}</span>
-            <span>{summary.yearlyTrend?.[summary.yearlyTrend?.length - 1]?.[0]}</span>
+            <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
+            <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
           </div>
         </section>
 
@@ -205,13 +222,13 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
 
         {/* Ranking */}
         <section className="flex-1 pb-10">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] flex items-center gap-1.5">
+          <div className="flex justify-between items-start gap-2 mb-3">
+            <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : 'อันดับความร้อน · Ranking'}
             </h3>
             <button 
               onClick={() => setShowAll(!showAll)}
-              className="text-[9px] text-orange-500 hover:text-orange-400 font-bold uppercase tracking-wider transition-colors"
+              className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-orange-500 hover:text-orange-400 font-bold uppercase tracking-wide transition-colors"
             >
               {showAll ? 'แสดงแค่ Top 10' : 'แสดงทั้ง 50 เขต'}
             </button>

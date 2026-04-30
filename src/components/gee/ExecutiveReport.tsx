@@ -24,7 +24,19 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
   const maxTemp = summary.maxTemp;
   const delta = summary.avgDelta;
   const ranking = summary.ranking || [];
-  const top10 = ranking.slice(0, 10);
+  const top10 = ranking.slice(0, 8);
+  const baselineAvg = summary.baselineAverageTemp;
+  const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
+  const monthlyReportTrend = compareMode && summary.monthlyDeltaTrend?.length
+    ? summary.monthlyDeltaTrend
+    : (summary.monthlyTrend || []);
+  const yearlyReportTrend = compareMode && summary.yearlyDeltaTrend?.length
+    ? summary.yearlyDeltaTrend
+    : (summary.yearlyTrend || []);
+  const topDistricts = top10.slice(0, 3).map((d: any) => d[0]).join(', ');
+  const insightText = compareMode
+    ? `Compared with ${compareYear}, ${activeDistrict} changed by ${delta > 0 ? '+' : ''}${delta.toFixed(2)}°C on average. The largest district increase in this selection is ${maxIncreaseValue > 0 ? '+' : ''}${maxIncreaseValue.toFixed(2)}°C. Top increase areas: ${topDistricts}.`
+    : `In ${summary.selectedYear}, ${activeDistrict} has an average LST of ${avgTemp}°C and a maximum observed value of ${maxTemp}°C. Top heat accumulation areas: ${topDistricts}.`;
   
   // Dynamic Explanation Text
   const renderExplanation = () => {
@@ -57,19 +69,19 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
     // Portrait A4 aspect ratio (210x297mm). Approx 794x1123 pixels.
     <div 
       id="executive-report" 
-      className="bg-white text-slate-900 absolute top-0 left-[-9999px] z-[-1] flex flex-col"
-      style={{ width: '794px', height: '1123px', padding: '40px' }}
+      className="bg-white text-slate-900 absolute top-0 left-[-9999px] z-[-1] flex flex-col overflow-hidden"
+      style={{ width: '794px', height: '1123px', padding: '28px' }}
     >
       {/* Header */}
-      <div className="border-b-2 border-slate-900 pb-4 mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">
+      <div className="border-b-2 border-slate-900 pb-3 mb-4">
+        <h1 className="text-xl font-bold text-slate-900 mb-1 leading-tight">
           รายงานสรุปสถานการณ์เกาะความร้อนเมือง (Executive Summary)
         </h1>
         <div className="flex justify-between items-end">
-          <h2 className="text-sm font-semibold text-slate-600 uppercase tracking-widest">
+          <h2 className="text-xs font-semibold text-slate-600 uppercase tracking-widest">
             Bangkok Urban Heat Island Analytics
           </h2>
-          <div className="text-xs text-slate-500 text-right">
+          <div className="text-[10px] text-slate-500 text-right leading-tight">
             <div>วันที่ออกรายงาน: {currentDate}</div>
             <div>พื้นที่วิเคราะห์: {activeDistrict}</div>
           </div>
@@ -77,38 +89,38 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
       </div>
 
       {/* Overview Metrics */}
-      <div className="mb-6">
+      <div className="mb-4">
         <h3 className="text-lg font-bold text-slate-800 mb-2 border-l-4 border-slate-900 pl-2">ภาพรวม (Overview)</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div className="text-xs font-bold text-slate-500 uppercase mb-1">ปีที่วิเคราะห์</div>
-            <div className="text-2xl font-black text-slate-800">
+            <div className="text-xl font-black text-slate-800">
               {compareMode ? `${compareYear} vs ${summary.selectedYear}` : summary.selectedYear}
             </div>
           </div>
-          <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
+          <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
             <div className="text-xs font-bold text-orange-600 uppercase mb-1 flex items-center gap-1">
               <ThermometerSun className="w-3 h-3" /> อุณหภูมิเฉลี่ย (Mean)
             </div>
-            <div className="text-2xl font-black text-orange-600">
+            <div className="text-xl font-black text-orange-600">
               {avgTemp}°C
             </div>
           </div>
           {compareMode ? (
-            <div className={`${delta > 0 ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'} p-4 rounded-lg border`}>
+            <div className={`${delta > 0 ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'} p-3 rounded-lg border`}>
               <div className={`text-xs font-bold ${delta > 0 ? 'text-red-600' : 'text-blue-600'} uppercase mb-1 flex items-center gap-1`}>
                 <Activity className="w-3 h-3" /> ส่วนต่าง (Delta)
               </div>
-              <div className={`text-2xl font-black ${delta > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+              <div className={`text-xl font-black ${delta > 0 ? 'text-red-600' : 'text-blue-600'}`}>
                 {delta > 0 ? '+' : ''}{delta.toFixed(2)}°C
               </div>
             </div>
           ) : (
-             <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+             <div className="bg-red-50 p-3 rounded-lg border border-red-100">
               <div className="text-xs font-bold text-red-600 uppercase mb-1 flex items-center gap-1">
                 <ThermometerSun className="w-3 h-3" /> ร้อนสูงสุด (Max)
               </div>
-              <div className="text-2xl font-black text-red-600">
+              <div className="text-xl font-black text-red-600">
                 {maxTemp}°C
               </div>
             </div>
@@ -117,13 +129,13 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
       </div>
 
       {/* Explanation */}
-      <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+      <div className="mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
         <h3 className="text-sm font-bold text-slate-800 mb-2">บทสรุปผู้บริหาร (Executive Insight)</h3>
-        {renderExplanation()}
+        <p className="text-xs text-gray-700 leading-snug">{insightText}</p>
       </div>
 
       {/* Map Inset */}
-      <div className="w-full h-[360px] rounded-xl overflow-hidden relative mb-8 border border-slate-300 shadow-md bg-slate-900">
+      <div className="w-full h-[300px] rounded-xl overflow-hidden relative mb-5 border border-slate-300 shadow-md bg-slate-900">
         {mapSnapshot ? (
           <img src={mapSnapshot} alt="Map Capture" className="w-full h-full object-cover" />
         ) : (
@@ -189,13 +201,13 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
       </div>
 
       {/* Rankings and Trends - Side by Side */}
-      <div className="flex gap-8 flex-1 min-h-0">
+      <div className="flex gap-5 flex-1 min-h-0 overflow-hidden">
         {/* Rankings */}
-        <div className="flex-[4] flex flex-col">
+        <div className="flex-[4] flex flex-col min-w-0">
           <h3 className="text-sm font-bold text-slate-800 mb-3 border-l-4 border-slate-900 pl-2">
             {compareMode ? '10 อันดับเขตที่ความร้อนพุ่งสูง' : '10 อันดับเขตที่ร้อนที่สุด'}
           </h3>
-          <table className="w-full text-xs">
+          <table className="w-full text-[10px]">
             <thead>
               <tr className="border-b border-slate-300">
                 <th className="text-left py-2 text-slate-500 font-bold w-12">อันดับ</th>
@@ -220,18 +232,20 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
         </div>
 
         {/* Trends */}
-        <div className="flex-[6] flex flex-col border-l border-slate-200 pl-8">
+        <div className="flex-[6] flex flex-col border-l border-slate-200 pl-5 min-w-0">
           <h3 className="text-sm font-bold text-slate-800 mb-4 border-l-4 border-slate-900 pl-2">แนวโน้มอุณหภูมิ</h3>
-          <div className="flex flex-col gap-6 flex-1 justify-center">
+          <div className="flex flex-col gap-4 flex-1 justify-center">
             {/* Monthly Trend */}
             <div>
               <div className="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-widest">แนวโน้มรายเดือน (Monthly)</div>
-              <div className="flex items-end gap-1 h-20 border-b border-l border-slate-300 pb-1 pl-1">
-                {summary.monthlyTrend.map((temp: number, i: number) => {
+              <div className="flex items-end gap-1 h-16 border-b border-l border-slate-300 pb-1 pl-1">
+                {monthlyReportTrend.map((temp: number, i: number) => {
                       const currentYear = new Date().getFullYear();
                       const currentMonth = new Date().getMonth();
                       const isFutureMonth = summary.selectedYear === currentYear && i > currentMonth;
-                      const pct = Math.max(0, Math.min(100, ((temp - 30) / 10) * 100));
+                      const pct = compareMode
+                        ? Math.max(4, Math.min(100, (Math.abs(temp) / 3) * 100))
+                        : Math.max(0, Math.min(100, ((temp - 30) / 10) * 100));
                       const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
                       
                       return (
@@ -239,7 +253,7 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
                           {!isFutureMonth ? (
                             <>
                               <div className="text-[8px] text-slate-500 font-mono mb-1">{temp}</div>
-                              <div className="w-full bg-orange-500 rounded-t-sm" style={{ height: `${pct}%` }} />
+                              <div className={`w-full ${compareMode ? (temp >= 0 ? 'bg-red-500' : 'bg-blue-500') : 'bg-orange-500'} rounded-t-sm`} style={{ height: `${pct}%` }} />
                             </>
                           ) : (
                             <div className="w-full bg-slate-200 h-[2px]" />
@@ -254,15 +268,17 @@ export default function ExecutiveReport({ summary, activeDistrict, compareMode, 
             {/* Yearly Trend */}
             <div>
               <div className="text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-widest">แนวโน้มรายปี (Yearly)</div>
-              <div className="flex items-end gap-1.5 h-20 border-b border-l border-slate-300 pb-1 pl-1">
-                {summary.yearlyTrend.map((item: any, i: number) => {
+              <div className="flex items-end gap-1.5 h-16 border-b border-l border-slate-300 pb-1 pl-1">
+                {yearlyReportTrend.map((item: any, i: number) => {
                     const year = item[0];
                     const temp = item[1];
-                    const pct = Math.max(0, Math.min(100, ((temp - 34) / 6) * 100));
+                    const pct = compareMode
+                      ? Math.max(4, Math.min(100, (Math.abs(temp) / 3) * 100))
+                      : Math.max(0, Math.min(100, ((temp - 34) / 6) * 100));
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
                          <div className="text-[8px] text-slate-500 font-mono mb-1">{temp.toFixed(1)}</div>
-                         <div className="w-full bg-slate-700 rounded-t-sm" style={{ height: `${pct}%` }} />
+                         <div className={`w-full ${compareMode ? (temp >= 0 ? 'bg-red-600' : 'bg-blue-600') : 'bg-slate-700'} rounded-t-sm`} style={{ height: `${pct}%` }} />
                          <div className="text-[8px] text-slate-600 mt-1">{year.toString().slice(-2)}</div>
                       </div>
                     );
