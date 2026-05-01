@@ -1,10 +1,17 @@
 /**
- * Daily Traffy update: ดึงข้อมูลล่าสุด N รายการจาก Traffy API แล้ว append เข้า BigQuery
- * View traffy_complaints_current จะ dedup ให้อัตโนมัติ (ใช้ ingested_at ล่าสุด)
+ * Daily Traffy update — Two-tier fetch strategy:
+ *
+ *   Tier 1  NEW_COUNT (default 5,000) records from offset 0
+ *           → ข้อมูลใหม่ + สถานะที่เปลี่ยนเร็วๆ นี้
+ *
+ *   Tier 2  DEEP_COUNT (default 10,000) records จาก rotating offset
+ *           → ครอบคลุม ticket เก่าที่เปลี่ยนสถานะช้า
+ *           → offset = (dayNum % totalChunks) * DEEP_COUNT
+ *           → ครบทุก record ใน ~(total/DEEP_COUNT) วัน (~130 วัน สำหรับ 1.3M)
  *
  * Usage:
- *   node scripts/update-traffy-bq.mjs              # ดึง 15,000 รายการล่าสุด
- *   node scripts/update-traffy-bq.mjs --count 5000
+ *   node scripts/update-traffy-bq.mjs
+ *   node scripts/update-traffy-bq.mjs --new 5000 --deep 10000
  *   node scripts/update-traffy-bq.mjs --dry-run
  */
 
@@ -36,12 +43,21 @@ if (!PROJECT_ID || !DATASET_ID) {
 }
 
 // ── Args ──────────────────────────────────────────────────────────────────────
-const args    = process.argv.slice(2);
-const COUNT   = parseInt(args[args.indexOf('--count') > -1 ? args.indexOf('--count') + 1 : -1] || '15000');
-const DRY_RUN = args.includes('--dry-run');
-const BATCH   = 500;   // records per Traffy API call
+const args      = process.argv.slice(2);
+const flag      = (name) => { const i = args.indexOf(name); return i > -1 ? parseInt(args[i + 1]) : null; };
+const NEW_COUNT  = flag('--new')   ?? 5_000;
+const DEEP_COUNT = flag('--deep')  ?? 10_000;
+const DRY_RUN    = args.includes('--dry-run');
+const BATCH      = 500;
 
 const TRAFFY_API = 'https://publicapi.traffy.in.th/share/teamchadchart/search';
+
+// ── Rotating offset: deterministic, stateless, no external state needed ───────
+// anchor = 2026-01-01 UTC; advances DEEP_COUNT records per day
+const ANCHOR_MS   = Date.UTC(2026, 0, 1);
+const dayNum      = Math.floor((Date.now() - ANCHOR_MS) / 86_400_000);
+
+// deepOffset is computed after we know the total record count from the API
 
 // ── District / classification helpers ────────────────────────────────────────
 const DISTRICT_NAMES = [
@@ -115,6 +131,7 @@ function transform(item, ingestedAt) {
   };
 }
 
+// ── Fetch helpers ─────────────────────────────────────────────────────────────
 async function fetchWithRetry(url, retries = 4) {
   for (let i = 1; i <= retries; i++) {
     try {
@@ -130,11 +147,30 @@ async function fetchWithRetry(url, retries = 4) {
   }
 }
 
+async function fetchRange(startOffset, count, label, ingestedAt) {
+  const records = [];
+  let offset = startOffset;
+  process.stdout.write(`  [${label}] offset ${startOffset.toLocaleString()} → +${count.toLocaleString()} `);
+  while (records.length < count) {
+    const limit = Math.min(BATCH, count - records.length);
+    const data  = await fetchWithRetry(`${TRAFFY_API}?limit=${limit}&start=${offset}`);
+    const results = data.results ?? [];
+    if (results.length === 0) break;
+    records.push(...results.map(r => transform(r, ingestedAt)).filter(r => r.ticket_id));
+    offset += results.length;
+    process.stdout.write('.');
+    if (results.length < limit) break;
+  }
+  console.log(` ${records.length.toLocaleString()} records`);
+  return { records, total: 0 };
+}
+
 // ── BigQuery Load Job ─────────────────────────────────────────────────────────
 const bq      = new BigQuery({ projectId: PROJECT_ID, credentials });
 const bqTable = bq.dataset(DATASET_ID).table('traffy_complaints');
 
 async function loadToBigQuery(records) {
+  if (records.length === 0) return;
   const tmpFile = resolve(tmpdir(), `traffy_update_${Date.now()}.jsonl`);
   writeFileSync(tmpFile, records.map(r => JSON.stringify(r)).join('\n'), 'utf-8');
   try {
@@ -161,47 +197,60 @@ async function loadToBigQuery(records) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const ingestedAt = new Date().toISOString();
-const records    = [];
-let offset       = 0;
+const today      = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
 
-console.log(`\n🔄 Traffy daily update  [${new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}]`);
+console.log(`\n🔄 Traffy daily update  [${today}]`);
 console.log(`   Project: ${PROJECT_ID}.${DATASET_ID}`);
-console.log(`   Target : ${COUNT.toLocaleString()} most-recent records`);
-if (DRY_RUN) console.log('   Mode   : DRY RUN (no BigQuery write)\n');
+console.log(`   Tier 1 : ${NEW_COUNT.toLocaleString()} newest records (offset 0)`);
+console.log(`   Tier 2 : ${DEEP_COUNT.toLocaleString()} records, rotating deep scan`);
+if (DRY_RUN) console.log('   Mode   : DRY RUN\n');
+else console.log('');
 
-while (records.length < COUNT) {
-  const remaining = COUNT - records.length;
-  const limit     = Math.min(BATCH, remaining);
-  let data;
-  try {
-    data = await fetchWithRetry(`${TRAFFY_API}?limit=${limit}&start=${offset}`);
-  } catch (err) {
-    console.error(`\n❌ Traffy API error at offset ${offset}: ${err.message}`);
-    process.exit(1);
-  }
+// ── Tier 1: newest records ────────────────────────────────────────────────────
+// Also grab total count from first API call
+const firstPage = await fetchWithRetry(`${TRAFFY_API}?limit=1&start=0`);
+const apiTotal  = firstPage.total ?? firstPage.count ?? 1_300_000;
 
-  const results = data.results ?? [];
-  if (results.length === 0) break;
+const { records: tier1 } = await fetchRange(0, NEW_COUNT, 'Tier1 new', ingestedAt);
 
-  records.push(...results.map(r => transform(r, ingestedAt)).filter(r => r.ticket_id));
-  offset += results.length;
+// ── Tier 2: rotating deep scan ────────────────────────────────────────────────
+// Divide total records into chunks of DEEP_COUNT.
+// Each day advances one chunk. Cycle restarts after ~(total/DEEP_COUNT) days.
+// e.g. 1,300,000 / 10,000 = 130 days per full cycle → all records refreshed every 4 months.
+const totalChunks  = Math.ceil(apiTotal / DEEP_COUNT);
+const chunkIndex   = dayNum % totalChunks;
+const deepOffset   = chunkIndex * DEEP_COUNT;
+// Skip if deep window overlaps tier1 (both at offset 0-ish on day 0)
+const deepStart    = deepOffset < NEW_COUNT ? NEW_COUNT : deepOffset;
 
-  process.stdout.write(`\r  Fetched ${records.length.toLocaleString()} / ${COUNT.toLocaleString()} records...`);
+console.log(`\n   API total  : ${apiTotal.toLocaleString()} records`);
+console.log(`   Cycle      : ${totalChunks} days per full pass (every record refreshed every ~${totalChunks} days)`);
+console.log(`   Today      : chunk ${chunkIndex + 1}/${totalChunks}  (offset ${deepStart.toLocaleString()})`);
+console.log('');
 
-  if (results.length < limit) break;
-}
+const { records: tier2 } = await fetchRange(deepStart, DEEP_COUNT, 'Tier2 deep', ingestedAt);
 
-console.log(`\n  ✅ Fetched ${records.length.toLocaleString()} records`);
-if (records.length === 0) { console.log('  Nothing to load.'); process.exit(0); }
+// ── Deduplicate within this batch (same ticket may appear in both tiers) ──────
+const seen = new Set();
+const allRecords = [...tier1, ...tier2].filter(r => {
+  if (seen.has(r.ticket_id)) return false;
+  seen.add(r.ticket_id);
+  return true;
+});
+
+console.log(`\n  Total unique records this run: ${allRecords.length.toLocaleString()}`);
+console.log(`    Tier 1 (new)  : ${tier1.length.toLocaleString()}`);
+console.log(`    Tier 2 (deep) : ${tier2.length.toLocaleString()}`);
 
 if (DRY_RUN) {
-  console.log('\n[DRY RUN] Sample record:');
-  console.log(JSON.stringify(records[0], null, 2));
+  console.log('\n[DRY RUN] Sample tier2 record:');
+  console.log(JSON.stringify(tier2[0], null, 2));
   process.exit(0);
 }
 
-console.log(`  📤 Loading to BigQuery...`);
-await loadToBigQuery(records);
-console.log(`  ✅ Loaded ${records.length.toLocaleString()} records (ingested_at: ${ingestedAt})`);
-console.log(`\n  View traffy_complaints_current จะ dedup อัตโนมัติ`);
-console.log('🎉 Done!\n');
+process.stdout.write('\n  📤 Loading to BigQuery...');
+const t0 = Date.now();
+await loadToBigQuery(allRecords);
+console.log(` done (${Date.now() - t0}ms)`);
+console.log(`  ✅ ${allRecords.length.toLocaleString()} records loaded (ingested_at: ${ingestedAt})`);
+console.log('\n🎉 Done!\n');
