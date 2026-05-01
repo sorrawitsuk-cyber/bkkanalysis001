@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Activity, Calendar, ChevronRight, Leaf, MapPin, Trees } from "lucide-react";
 import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
 
-type NdviLayer = "ndvi_score" | "green_area_ratio" | "ndvi_mean" | "low_green_ratio" | "ntl_mean";
+type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 
 interface GreenSpaceSidebarProps {
   onDistrictSelect: (district: string) => void;
@@ -20,17 +20,16 @@ interface GreenSpaceSidebarProps {
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
-const layerConfig: Record<NdviLayer, { label: string; shortLabel: string; digits: number; percent?: boolean }> = {
-  ndvi_score: { label: "คะแนนพื้นที่สีเขียว", shortLabel: "คะแนนสูงสุด", digits: 2 },
+const layerConfig: Record<NdviLayer, { label: string; shortLabel: string; digits: number; percent?: boolean; rai?: boolean }> = {
+  green_area_rai: { label: "ขนาดพื้นที่สีเขียว", shortLabel: "ขนาดสูงสุด", digits: 0, rai: true },
   green_area_ratio: { label: "สัดส่วนพื้นที่สีเขียว", shortLabel: "เขียวสูงสุด", digits: 1, percent: true },
   ndvi_mean: { label: "ค่า NDVI เฉลี่ย", shortLabel: "NDVI สูงสุด", digits: 3 },
-  low_green_ratio: { label: "สัดส่วนพื้นที่เขียวน้อย", shortLabel: "เขียวน้อยสูงสุด", digits: 1, percent: true },
-  ntl_mean: { label: "ความสว่างกลางคืนเฉลี่ย", shortLabel: "สว่างสูงสุด", digits: 2 },
 };
 
 function formatMetric(value: number | null | undefined, layer: NdviLayer) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
   const config = layerConfig[layer];
+  if (config.rai) return `${value.toLocaleString("th-TH", { maximumFractionDigits: config.digits })} ไร่`;
   return config.percent ? `${(value * 100).toFixed(config.digits)}%` : value.toFixed(config.digits);
 }
 
@@ -39,7 +38,7 @@ export default function GreenSpaceSidebar({
   activeDistrict,
   summary,
   geojsonData,
-  ndviLayer = "ndvi_mean",
+  ndviLayer = "green_area_rai",
   loading,
   compareMode,
 }: GreenSpaceSidebarProps) {

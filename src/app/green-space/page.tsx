@@ -4,12 +4,12 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
-import { Calendar, Layers, RefreshCw } from "lucide-react";
-import { formatPercent, formatRai } from "@/lib/ndvi";
+import { Calendar, Layers } from "lucide-react";
+import { formatRai } from "@/lib/ndvi";
 
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
 
-type NdviLayer = "ndvi_score" | "green_area_ratio" | "ndvi_mean" | "low_green_ratio" | "ntl_mean";
+type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 
 export default function GreenSpacePage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
@@ -23,7 +23,7 @@ export default function GreenSpacePage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
-  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
+  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("green_area_rai");
 
   useEffect(() => {
     setLoading(true);
@@ -56,18 +56,22 @@ export default function GreenSpacePage() {
     setMapMode("idw");
     setOpacity(0.78);
     setBaseMap("dark");
-    setNdviLayer("ndvi_mean");
+    setNdviLayer("green_area_rai");
   };
 
   const ndviSummary = summary?.ndviSummary;
+  const districtCount = geojsonData?.features?.length || 50;
+  const avgGreenAreaRai = ndviSummary?.total_green_area_rai && districtCount
+    ? ndviSummary.total_green_area_rai / districtCount
+    : null;
   const kpiCards = [
     {
       label: "ค่า NDVI เฉลี่ย กทม.",
       value: ndviSummary?.avg_ndvi_mean !== null && ndviSummary?.avg_ndvi_mean !== undefined ? ndviSummary.avg_ndvi_mean.toFixed(3) : "ไม่มีข้อมูล",
     },
     {
-      label: "คะแนนพื้นที่สีเขียว",
-      value: ndviSummary?.avg_ndvi_score !== null && ndviSummary?.avg_ndvi_score !== undefined ? ndviSummary.avg_ndvi_score.toFixed(2) : "ไม่มีข้อมูล",
+      label: "ขนาดพื้นที่สีเขียวเฉลี่ย",
+      value: formatRai(avgGreenAreaRai),
     },
     {
       label: "พื้นที่สีเขียวโดยประมาณ",
@@ -170,11 +174,9 @@ export default function GreenSpacePage() {
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ชั้นข้อมูล NDVI</h4>
               <div className="grid grid-cols-1 gap-1.5">
                 {[
-                  ["ndvi_score", "คะแนนพื้นที่สีเขียว"],
+                  ["green_area_rai", "ขนาดพื้นที่สีเขียว"],
                   ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"],
                   ["ndvi_mean", "ค่า NDVI เฉลี่ย"],
-                  ["low_green_ratio", "สัดส่วนพื้นที่เขียวน้อย"],
-                  ["ntl_mean", "ความสว่างกลางคืนเฉลี่ย"],
                 ].map(([id, label]) => (
                   <button
                     key={id}
@@ -191,18 +193,18 @@ export default function GreenSpacePage() {
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-800/70">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Legend</h4>
-              <div className="grid grid-cols-1 gap-1.5">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">สัญลักษณ์แผนที่</h4>
+              <div className="grid grid-cols-5 gap-1.5">
                 {[
-                  ["#8c2d04", "เขียวน้อยมาก"],
-                  ["#d94801", "เขียวน้อย"],
-                  ["#f6e05e", "ปานกลาง"],
-                  ["#68d391", "ดี"],
-                  ["#238b45", "ดีมาก"],
+                  ["#8c2d04", "ต่ำมาก"],
+                  ["#d94801", "ต่ำ"],
+                  ["#f6e05e", "กลาง"],
+                  ["#68d391", "สูง"],
+                  ["#238b45", "สูงมาก"],
                 ].map(([color, label]) => (
-                  <div key={label} className="flex items-center gap-2 text-[10px] text-slate-300">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span>{label}</span>
+                  <div key={label} className="min-w-0">
+                    <span className="block h-2 rounded-sm mb-1" style={{ backgroundColor: color }} />
+                    <span className="block text-[8px] text-slate-400 truncate">{label}</span>
                   </div>
                 ))}
               </div>
@@ -295,65 +297,6 @@ export default function GreenSpacePage() {
             )}
           </div>
 
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-72 max-w-[calc(100vw-2rem)]">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3 leading-tight break-words">
-              {compareMode ? "สัญลักษณ์การเปลี่ยนแปลง NDVI" : "ดัชนีพืชพรรณ NDVI (Annual Median)"}
-            </h4>
-
-            {compareMode ? (
-              <div className="space-y-2">
-                {[
-                  ["#047857", "> +0.15 (เขียวเพิ่มมาก)"],
-                  ["#86EFAC", "+0.05 ถึง +0.15"],
-                  ["#F7F7F7", "-0.05 ถึง +0.05 (คงที่)"],
-                  ["#F59E0B", "-0.15 ถึง -0.05"],
-                  ["#8B1E1E", "< -0.15 (เขียวลดมาก)"],
-                ].map(([color, label]) => (
-                  <div key={label} className="flex items-center gap-3 text-[11px] text-slate-300">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} /> <span>{label}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {[
-                  ["#065F46", "เขียวหนาแน่นมาก"],
-                  ["#16A34A", "เขียวหนาแน่น"],
-                  ["#84CC16", "เขียวปานกลาง"],
-                  ["#FACC15", "เขียวน้อย"],
-                  ["#B45309", "พื้นที่พืชน้อยมาก"],
-                ].map(([color, label]) => (
-                  <div key={label} className="flex items-center gap-3 text-[11px] text-slate-300">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} /> <span>{label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed break-words overflow-hidden">
-              {compareMode ? (
-                <>
-                  <span className="text-emerald-400 font-bold">NDVI Anomaly</span> แสดงการเปลี่ยนแปลงความเขียวของพืชพรรณ สีเขียวคือเพิ่มขึ้น สีน้ำตาลคือถดถอย
-                </>
-              ) : (
-                <>
-                  <span className="text-emerald-400 font-bold">NDVI</span> คือดัชนีพืชพรรณจากดาวเทียม ค่าสูงสะท้อนพื้นที่ที่มีพืชพรรณหนาแน่นหรือสุขภาพพืชดีกว่า
-                </>
-              )}
-            </div>
-
-            <div className="mt-3 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed">
-              <div className="font-bold text-slate-300 mb-2">ตัวชี้วัดสรุป</div>
-              <div>สัดส่วนพื้นที่สีเขียวเฉลี่ย: <span className="text-emerald-300 font-mono">{formatPercent(ndviSummary?.avg_green_area_ratio)}</span></div>
-              <div>แหล่งข้อมูล: <span className="text-emerald-300">{summary?.dataSource || "ไม่มีข้อมูล"}</span></div>
-            </div>
-
-            {loading && (
-              <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
-                <RefreshCw className="w-3 h-3 animate-spin" /> กำลังโหลดข้อมูลพื้นที่สีเขียว...
-              </div>
-            )}
-          </div>
         </div>
       </main>
     </div>

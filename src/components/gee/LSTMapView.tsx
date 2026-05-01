@@ -16,21 +16,22 @@ interface LSTMapViewProps {
   opacity?: number;
   baseMap?: "dark" | "light" | "satellite" | "streets" | "none";
   analysisType?: "heat" | "green";
-  ndviLayer?: "ndvi_score" | "green_area_ratio" | "ndvi_mean" | "low_green_ratio" | "ntl_mean";
+  ndviLayer?: "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
 const layerLabels: Record<string, string> = {
-  ndvi_score: "คะแนนพื้นที่สีเขียว",
+  green_area_rai: "ขนาดพื้นที่สีเขียว",
   green_area_ratio: "สัดส่วนพื้นที่สีเขียว",
   ndvi_mean: "ค่า NDVI เฉลี่ย",
-  low_green_ratio: "สัดส่วนพื้นที่เขียวน้อย",
-  ntl_mean: "ความสว่างกลางคืนเฉลี่ย",
 };
 
 function formatValue(value: number | null | undefined, digits = 2, suffix = "") {
   if (value === null || value === undefined || Number.isNaN(value)) return "ไม่มีข้อมูล";
+  if (suffix.trim() === "ไร่") {
+    return `${value.toLocaleString("th-TH", { maximumFractionDigits: digits })}${suffix}`;
+  }
   return `${value.toFixed(digits)}${suffix}`;
 }
 
@@ -43,7 +44,7 @@ export default function LSTMapView({
   opacity = 0.8,
   baseMap = "dark",
   analysisType = "heat",
-  ndviLayer = "ndvi_score",
+  ndviLayer = "green_area_rai",
 }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
@@ -118,10 +119,8 @@ export default function LSTMapView({
   const getFeatureValue = useCallback((feature: any) => {
     if (compareMode) return analysisType === "green" ? feature?.properties?.vegetation_delta : feature?.properties?.delta;
     if (analysisType !== "green") return feature?.properties?.mean_lst;
-    if (ndviLayer === "ndvi_score") return feature?.properties?.ndvi_score;
+    if (ndviLayer === "green_area_rai") return feature?.properties?.green_area_rai;
     if (ndviLayer === "green_area_ratio") return feature?.properties?.green_area_ratio;
-    if (ndviLayer === "low_green_ratio") return feature?.properties?.low_green_ratio;
-    if (ndviLayer === "ntl_mean") return feature?.properties?.ntl_mean;
     return feature?.properties?.ndvi_mean ?? feature?.properties?.ndvi;
   }, [analysisType, compareMode, ndviLayer]);
 
@@ -137,15 +136,12 @@ export default function LSTMapView({
     if (analysisType === "green") {
       let min = 0.1;
       let max = 0.6;
-      if (ndviLayer === "ndvi_score") {
+      if (ndviLayer === "green_area_rai") {
         min = 0;
-        max = 10;
-      } else if (ndviLayer === "green_area_ratio" || ndviLayer === "low_green_ratio") {
+        max = 20000;
+      } else if (ndviLayer === "green_area_ratio") {
         min = 0;
         max = 0.7;
-      } else if (ndviLayer === "ntl_mean") {
-        min = 0;
-        max = Math.max(60, summary?.max_lst || 60);
       }
       const pct = (value - min) / Math.max(0.01, max - min);
       return pct > 0.8 ? "#238b45" : pct > 0.6 ? "#68d391" : pct > 0.4 ? "#f6e05e" : pct > 0.2 ? "#d94801" : "#8c2d04";
@@ -207,9 +203,12 @@ export default function LSTMapView({
       onEachFeature: (feature, layer) => {
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
-        const decimals = analysisType === "green" && ndviLayer !== "ndvi_score" ? 3 : 2;
-        const unit = analysisType === "heat" ? "°C" : "";
+        const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : 2;
+        const unit = analysisType === "heat" ? "°C" : ndviLayer === "green_area_rai" ? " ไร่" : "";
         const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : "อุณหภูมิพื้นผิว";
+        const selectedDisplay = ndviLayer === "green_area_ratio" && typeof value === "number"
+          ? `${(value * 100).toFixed(1)}%`
+          : formatValue(value, decimals, unit);
         const deltaLine = props.vegetation_delta !== null && props.vegetation_delta !== undefined
           ? `<div class="text-[10px] text-slate-400 mt-1">แนวโน้ม: <span class="${props.vegetation_delta >= 0 ? "text-emerald-300" : "text-amber-300"} font-mono">${props.vegetation_delta >= 0 ? "+" : ""}${props.vegetation_delta.toFixed(3)}</span></div>`
           : "";
@@ -217,10 +216,9 @@ export default function LSTMapView({
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[190px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}</div>
-            <div class="text-[10px] text-slate-400">${title}: <span class="text-emerald-300 text-lg font-mono ml-1">${formatValue(value, decimals, unit)}</span></div>
+            <div class="text-[10px] text-slate-400">${title}: <span class="text-emerald-300 text-lg font-mono ml-1">${selectedDisplay}</span></div>
             ${analysisType === "green" ? `
               <div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">คะแนน: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_score, 2)}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">ระดับ: <span class="text-emerald-300">${props.ndvi_class || "ไม่มีข้อมูล"}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">พื้นที่สีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_ratio !== null && props.green_area_ratio !== undefined ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "ไม่มีข้อมูล"}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">ประมาณ: <span class="text-emerald-300 font-mono">${props.green_area_rai !== null && props.green_area_rai !== undefined ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "ไม่มีข้อมูล"}</span></div>
