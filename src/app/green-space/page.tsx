@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
-import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
 import { Calendar, Layers, RefreshCw } from "lucide-react";
 import { formatPercent, formatRai } from "@/lib/ndvi";
 
@@ -24,7 +23,7 @@ export default function GreenSpacePage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
-  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_score");
+  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
 
   useEffect(() => {
     setLoading(true);
@@ -57,7 +56,7 @@ export default function GreenSpacePage() {
     setMapMode("idw");
     setOpacity(0.78);
     setBaseMap("dark");
-    setNdviLayer("ndvi_score");
+    setNdviLayer("ndvi_mean");
   };
 
   const ndviSummary = summary?.ndviSummary;
@@ -90,6 +89,8 @@ export default function GreenSpacePage() {
         onDistrictSelect={setActiveDistrict}
         activeDistrict={activeDistrict}
         summary={summary}
+        geojsonData={geojsonData}
+        ndviLayer={ndviLayer}
         loading={loading}
         compareMode={compareMode}
       />
@@ -177,11 +178,32 @@ export default function GreenSpacePage() {
                 ].map(([id, label]) => (
                   <button
                     key={id}
-                    onClick={() => setNdviLayer(id as NdviLayer)}
+                    onClick={() => {
+                      setNdviLayer(id as NdviLayer);
+                      setMapMode("district");
+                    }}
                     className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
                   >
                     {label}
                   </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-800/70">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Legend</h4>
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  ["#8c2d04", "เขียวน้อยมาก"],
+                  ["#d94801", "เขียวน้อย"],
+                  ["#f6e05e", "ปานกลาง"],
+                  ["#68d391", "ดี"],
+                  ["#238b45", "ดีมาก"],
+                ].map(([color, label]) => (
+                  <div key={label} className="flex items-center gap-2 text-[10px] text-slate-300">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span>{label}</span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -333,8 +355,6 @@ export default function GreenSpacePage() {
             )}
           </div>
         </div>
-
-        <NdviInsightsPanel summary={summary} />
       </main>
     </div>
   );

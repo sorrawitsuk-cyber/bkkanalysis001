@@ -21,7 +21,7 @@ export default function NdviInsightsPanel({ summary }: NdviInsightsPanelProps) {
   }));
 
   return (
-    <div className="absolute bottom-4 right-4 z-[1000] w-[460px] max-w-[calc(100vw-2rem)] bg-[#0f172a]/95 backdrop-blur-md rounded-xl border border-slate-800 shadow-2xl p-4 hidden xl:block">
+    <div className="w-full bg-slate-900/50 rounded-lg border border-slate-800 p-3">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="text-xs font-bold text-slate-100">เขตที่ NDVI ต่ำและแนวโน้มพื้นที่สีเขียว</h3>
@@ -32,8 +32,8 @@ export default function NdviInsightsPanel({ summary }: NdviInsightsPanelProps) {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="h-44 min-w-0">
+      <div className="grid grid-cols-1 gap-4">
+        <div className="h-40 min-w-0">
           <div className="text-[10px] text-slate-400 mb-2">10 เขต NDVI ต่ำสุด</div>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={lowRanking} layout="vertical" margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
@@ -46,7 +46,7 @@ export default function NdviInsightsPanel({ summary }: NdviInsightsPanelProps) {
           </ResponsiveContainer>
         </div>
 
-        <div className="h-44 min-w-0">
+        <div className="h-40 min-w-0">
           <div className="text-[10px] text-slate-400 mb-2">แนวโน้ม NDVI รายปี</div>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
