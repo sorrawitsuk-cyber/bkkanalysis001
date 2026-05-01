@@ -68,6 +68,11 @@ export async function GET(request: Request) {
         problem_type:   categoryFilter,
         district_group: groupFilter,
       },
+      types: {
+        district:       'STRING',
+        problem_type:   'STRING',
+        district_group: 'STRING',
+      },
       parameterMode: 'NAMED' as const,
       location: 'asia-southeast1',
     };
