@@ -18,41 +18,72 @@ export async function GET(request: Request) {
     // 1. Define Point
     const point = ee.Geometry.Point([lng, lat]);
 
-    // 2. Load Landsat (Same logic as tiles)
-    const collectionId = year >= 2022 ? 'LANDSAT/LC09/C02/T1_L2' : 'LANDSAT/LC08/C02/T1_L2';
     const currentYear = new Date().getFullYear();
     const today = new Date().toISOString().split('T')[0];
     const startDate = `${year}-01-01`;
     const endDate = year === currentYear ? today : `${year}-12-31`;
 
-    const getMetricImage = (image: any) => {
-      if (metric === 'vegetation') {
-        const nir = image.select('SR_B5').multiply(0.0000275).add(-0.2);
-        const red = image.select('SR_B4').multiply(0.0000275).add(-0.2);
-        return nir.subtract(red).divide(nir.add(red)).rename('NDVI').copyProperties(image, image.propertyNames());
-      }
-
-      const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);
-      const celsius = kelvin.subtract(273.15);
-      return celsius.rename('LST').copyProperties(image, image.propertyNames());
+    const maskSentinel2 = (image: any) => {
+      const scl = image.select('SCL');
+      const clearMask = scl
+        .neq(0)
+        .and(scl.neq(1))
+        .and(scl.neq(3))
+        .and(scl.neq(8))
+        .and(scl.neq(9))
+        .and(scl.neq(10))
+        .and(scl.neq(11));
+      return image.updateMask(clearMask);
     };
 
-    const collection = ee.ImageCollection(collectionId)
-      .filterBounds(point)
-      .filterDate(startDate, endDate)
-      .filter(ee.Filter.lt('CLOUD_COVER', 20));
+    const getSentinelNdviImage = () => {
+      return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(point)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((image: any) => {
+          const nir = image.select('B8').divide(10000);
+          const red = image.select('B4').divide(10000);
+          return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+        })
+        .median();
+    };
+
+    const getLandsatLSTImage = () => {
+      const collectionId = year >= 2022 ? 'LANDSAT/LC09/C02/T1_L2' : 'LANDSAT/LC08/C02/T1_L2';
+      const collection = ee.ImageCollection(collectionId)
+        .filterBounds(point)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUD_COVER', 20));
+
+      const image = collection.median();
+      const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);
+      const celsius = kelvin.subtract(273.15);
+      return celsius.rename('LST');
+    };
+
+    const collection = metric === 'vegetation'
+      ? ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+          .filterBounds(point)
+          .filterDate(startDate, endDate)
+          .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+      : ee.ImageCollection(year >= 2022 ? 'LANDSAT/LC09/C02/T1_L2' : 'LANDSAT/LC08/C02/T1_L2')
+          .filterBounds(point)
+          .filterDate(startDate, endDate)
+          .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
     if (collection.size().getInfo() === 0) {
       return NextResponse.json({ error: 'No satellite data found for this location/year' }, { status: 404 });
     }
 
-    const metricImage = getMetricImage(collection.median());
+    const metricImage = metric === 'vegetation' ? getSentinelNdviImage() : getLandsatLSTImage();
 
     // 3. Sample the value at the point
     const result = metricImage.reduceRegion({
       reducer: ee.Reducer.first(),
       geometry: point,
-      scale: 30,
+      scale: metric === 'vegetation' ? 10 : 30,
     }).getInfo();
 
     const value = metric === 'vegetation' ? result.NDVI : result.LST;
@@ -62,7 +93,11 @@ export async function GET(request: Request) {
       metric,
       lat,
       lng,
-      year
+      year,
+      dataSource: metric === 'vegetation'
+        ? 'Sentinel-2 SR Harmonized yearly median NDVI'
+        : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+      resolutionMeters: metric === 'vegetation' ? 10 : 30
     });
 
   } catch (error: any) {

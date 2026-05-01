@@ -180,6 +180,9 @@ export default function GreenSpaceSidebar({
             <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
             <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
           </div>
+          <p className="mt-2 text-[9px] text-slate-500 leading-snug">
+            แนวโน้มใช้ค่ากลางรายปีช่วง 1 ม.ค.-31 ธ.ค. ของแต่ละปีจาก Sentinel-2 10m; ปีปัจจุบันเป็น YTD จึงอาจต่างจากปีเต็ม และค่าอาจแกว่งจากฤดูกาล/เมฆ/จำนวนภาพที่ผ่านการคัดกรอง
+          </p>
         </section>
 
         <div className="h-px bg-slate-800/60" />

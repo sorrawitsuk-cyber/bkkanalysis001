@@ -23,7 +23,7 @@ export default function GreenSpacePage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
-  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("green_area_rai");
+  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
 
   useEffect(() => {
     setLoading(true);
@@ -56,7 +56,7 @@ export default function GreenSpacePage() {
     setMapMode("idw");
     setOpacity(0.78);
     setBaseMap("dark");
-    setNdviLayer("green_area_rai");
+    setNdviLayer("ndvi_mean");
   };
 
   const ndviSummary = summary?.ndviSummary;
@@ -86,6 +86,9 @@ export default function GreenSpacePage() {
       value: ndviSummary?.worst_district?.district_name || ndviSummary?.worst_district?.name_th || "ไม่มีข้อมูล",
     },
   ];
+  const periodLabel = selectedYear === new Date().getFullYear()
+    ? `1 ม.ค. - ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+    : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -130,14 +133,12 @@ export default function GreenSpacePage() {
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
-            <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
+            <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
             <p>
-              <span className="text-white">Period:</span> Jan 01 - {selectedYear === new Date().getFullYear()
-                ? new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" })
-                : "Dec 31"}, {selectedYear}
-              {selectedYear === new Date().getFullYear() ? " (Year-to-Date)" : " (Yearly Median)"}
+              <span className="text-white">Period:</span> {periodLabel}
             </p>
-            <p><span className="text-white">Resolution:</span> 30m per pixel (NDVI vegetation index)</p>
+            <p><span className="text-white">Method:</span> yearly median NDVI from cloud-masked scenes</p>
+            <p><span className="text-white">Resolution:</span> 10m per pixel</p>
           </div>
         </div>
 
@@ -163,7 +164,10 @@ export default function GreenSpacePage() {
                 รายเขต (Districts)
               </button>
               <button
-                onClick={() => setMapMode("idw")}
+                onClick={() => {
+                  setMapMode("idw");
+                  setNdviLayer("ndvi_mean");
+                }}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
               >
                 ดาวเทียม (GEE)
@@ -177,19 +181,36 @@ export default function GreenSpacePage() {
                   ["green_area_rai", "ขนาดพื้นที่สีเขียว"],
                   ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"],
                   ["ndvi_mean", "ค่า NDVI เฉลี่ย"],
-                ].map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => {
-                      setNdviLayer(id as NdviLayer);
-                      setMapMode("district");
-                    }}
-                    className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
-                  >
-                    {label}
-                  </button>
-                ))}
+                ].map(([id, label]) => {
+                  const disabledInGee = mapMode === "idw" && id !== "ndvi_mean";
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => {
+                        if (disabledInGee) return;
+                        setNdviLayer(id as NdviLayer);
+                        if (id !== "ndvi_mean") setMapMode("district");
+                      }}
+                      disabled={disabledInGee}
+                      title={disabledInGee ? "ข้อมูลขนาดและสัดส่วนพื้นที่สีเขียวมีเฉพาะโหมดรายเขต" : undefined}
+                      className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${
+                        ndviLayer === id
+                          ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300"
+                          : disabledInGee
+                            ? "bg-slate-900/60 border-slate-800 text-slate-600 cursor-not-allowed"
+                            : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
+              {mapMode === "idw" && (
+                <p className="mt-2 text-[9px] text-slate-500 leading-snug">
+                  โหมด GEE แสดง raster ค่า NDVI เฉลี่ยเท่านั้น ขนาดและสัดส่วนพื้นที่สีเขียวเป็นข้อมูลสรุปรายเขต
+                </p>
+              )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-800/70">
@@ -295,6 +316,15 @@ export default function GreenSpacePage() {
                 />
               </div>
             )}
+          </div>
+
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ข้อมูลดาวเทียม</h4>
+            <div className="text-[10px] text-slate-400 leading-relaxed space-y-1">
+              <p><span className="text-slate-200">ดาวเทียม:</span> Sentinel-2 SR Harmonized</p>
+              <p><span className="text-slate-200">ช่วงเวลา:</span> {periodLabel}</p>
+              <p><span className="text-slate-200">หมายเหตุ:</span> GEE raster ใช้ Sentinel-2 10m; ค่าอาจเปลี่ยนจากฤดูกาล เมฆ และจำนวนภาพที่ผ่าน cloud mask</p>
+            </div>
           </div>
 
         </div>

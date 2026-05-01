@@ -20,17 +20,47 @@ export async function GET(request: Request) {
     // 1. Load BKK Boundary using direct import so Vercel bundles it
     const bkkBoundary = ee.FeatureCollection(bkkBoundaryData).geometry();
 
-    /**
-     * Helper to get LST image for a specific year
-     */
-    const getLandsatImage = (y: number) => {
-      // Use Landsat 9 for newer data, Landsat 8 for older
-      const collectionId = y >= 2022 ? "LANDSAT/LC09/C02/T1_L2" : "LANDSAT/LC08/C02/T1_L2";
-      
+    const getDateRange = (y: number) => {
       const currentYear = new Date().getFullYear();
       const today = new Date().toISOString().split('T')[0];
-      const startDate = `${y}-01-01`;
-      const endDate = y === currentYear ? today : `${y}-12-31`;
+      return {
+        startDate: `${y}-01-01`,
+        endDate: y === currentYear ? today : `${y}-12-31`,
+      };
+    };
+
+    const maskSentinel2 = (image: any) => {
+      const scl = image.select('SCL');
+      const clearMask = scl
+        .neq(0)
+        .and(scl.neq(1))
+        .and(scl.neq(3))
+        .and(scl.neq(8))
+        .and(scl.neq(9))
+        .and(scl.neq(10))
+        .and(scl.neq(11));
+      return image.updateMask(clearMask);
+    };
+
+    const getSentinelNdviImage = (y: number) => {
+      const { startDate, endDate } = getDateRange(y);
+      const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(bkkBoundary)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((image: any) => {
+          const nir = image.select('B8').divide(10000);
+          const red = image.select('B4').divide(10000);
+          return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+        });
+
+      return collection.median().clip(bkkBoundary);
+    };
+
+    const getLandsatImage = (y: number) => {
+      const collectionId = y >= 2022 ? "LANDSAT/LC09/C02/T1_L2" : "LANDSAT/LC08/C02/T1_L2";
+      const { startDate, endDate } = getDateRange(y);
 
       const collection = ee.ImageCollection(collectionId)
         .filterBounds(bkkBoundary)
@@ -42,16 +72,11 @@ export async function GET(request: Request) {
     };
 
     const getMetricImage = (y: number) => {
-      const image = getLandsatImage(y);
-
-      if (metric === 'vegetation') {
-        const nir = image.select('SR_B5').multiply(0.0000275).add(-0.2);
-        const red = image.select('SR_B4').multiply(0.0000275).add(-0.2);
-        return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
-      }
+      if (metric === 'vegetation') return getSentinelNdviImage(y);
 
       // ST_B10 is Surface Temperature band (Kelvin)
       // Scale: 0.00341802, Offset: 149.0
+      const image = getLandsatImage(y);
       return image.select('ST_B10').multiply(0.00341802).add(149.0).subtract(273.15);
     };
 
@@ -86,7 +111,11 @@ export async function GET(request: Request) {
     return NextResponse.json({
       urlFormat: mapIdData.urlFormat,
       mapid: mapIdData.mapid,
-      token: mapIdData.token
+      token: mapIdData.token,
+      dataSource: metric === 'vegetation'
+        ? 'Sentinel-2 SR Harmonized yearly median NDVI'
+        : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+      resolutionMeters: metric === 'vegetation' ? 10 : 30,
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'
