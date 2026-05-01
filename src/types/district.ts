@@ -24,6 +24,10 @@ export interface DistrictStatistic {
   low_green_ratio?: number | null;
   water_ratio?: number | null;
   ntl_mean?: number | null;
+  mean_lst?: number | null;
+  max_lst?: number | null;
+  monthly_lst?: number[] | null;
+  lst_data_source?: string | null;
   population?: number | null;
   density?: number | null;
   growth_rate?: number | null;

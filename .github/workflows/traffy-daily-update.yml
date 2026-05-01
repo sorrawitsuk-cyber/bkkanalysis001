@@ -1,0 +1,45 @@
+name: Traffy Daily Update
+
+on:
+  schedule:
+    # 01:00 UTC = 08:00 Bangkok (UTC+7) ทุกวัน
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Number of records to fetch (default 15000)'
+        required: false
+        default: '15000'
+
+jobs:
+  update:
+    name: Fetch & load latest Traffy data
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run setup (ensure ingested_at column + view exist)
+        env:
+          BQ_PROJECT_ID: ${{ secrets.BQ_PROJECT_ID }}
+          BQ_DATASET: ${{ secrets.BQ_DATASET }}
+          BQ_CREDENTIALS: ${{ secrets.BQ_CREDENTIALS }}
+        run: node scripts/setup-bigquery.mjs
+
+      - name: Fetch & load latest records
+        env:
+          BQ_PROJECT_ID: ${{ secrets.BQ_PROJECT_ID }}
+          BQ_DATASET: ${{ secrets.BQ_DATASET }}
+          BQ_CREDENTIALS: ${{ secrets.BQ_CREDENTIALS }}
+        run: node scripts/update-traffy-bq.mjs --count ${{ github.event.inputs.count || '15000' }}

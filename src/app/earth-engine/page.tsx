@@ -240,12 +240,21 @@ export default function EarthEnginePage() {
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
-            <p>
-              <span className="text-white">Period:</span> Jan 01 - {selectedYear === new Date().getFullYear() 
-                ? new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) 
-                : 'Dec 31'}, {selectedYear}
-              {selectedYear === new Date().getFullYear() ? ' (Year-to-Date)' : ' (Yearly Median)'}
-            </p>
+            {(() => {
+              const now = new Date();
+              const currentYear = now.getFullYear();
+              const todayStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+              const endLabel = (y: number) => y === currentYear ? todayStr : 'Dec 31';
+              const suffix = (y: number) => y === currentYear ? ' (YTD)' : '';
+              return compareMode ? (
+                <>
+                  <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
+                  <p><span className="text-white">Period {compareYear}:</span> Jan 01 – {endLabel(selectedYear)}, {compareYear} <span className="text-amber-400">(same window)</span></p>
+                </>
+              ) : (
+                <p><span className="text-white">Period:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
+              );
+            })()}
             <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temp)</p>
           </div>
         </div>

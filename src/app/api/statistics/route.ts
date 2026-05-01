@@ -1,9 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
+import * as turf from '@turf/turf';
 import { supabase } from '@/lib/supabase/client';
 import { normalizeNdviScore, getNdviClass } from '@/lib/ndvi';
+import geojson from '@/data/bkk_districts.json';
 import fs from 'fs';
 import path from 'path';
+
+// Actual district areas in rai, computed once from GeoJSON geometry
+const districtAreaRaiMap = new Map<number, number>(
+  (geojson.features as any[]).map((f: any) => [
+    f.properties.id,
+    Math.round(turf.area(f) / 1600),
+  ])
+);
 
 export const dynamic = 'force-dynamic';
 
@@ -87,7 +97,7 @@ function generateDummyStats(districtId: number) {
       ndvi_score: normalizeNdviScore(ndviMean),
       ndvi_class: getNdviClass(ndviMean),
       green_area_ratio: parseFloat(greenAreaRatio.toFixed(3)),
-      green_area_rai: Math.round(greenAreaRatio * 25000),
+      green_area_rai: Math.round(greenAreaRatio * (districtAreaRaiMap.get(districtId) ?? 19600)),
       low_green_ratio: parseFloat(Math.max(0.05, 0.6 - greenAreaRatio).toFixed(3)),
       water_ratio: 0,
       ntl_mean: parseFloat((baseNtl * factor).toFixed(2)),

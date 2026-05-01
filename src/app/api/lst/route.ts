@@ -18,6 +18,14 @@ export const dynamic = "force-dynamic";
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
+// Actual district areas in rai (1 rai = 1,600 m²), computed once from GeoJSON geometry
+const districtAreaRaiMap = new Map<number, number>(
+  (geojson.features as any[]).map((f: any) => [
+    f.properties.id,
+    Math.round(turf.area(f) / 1600),
+  ])
+);
+
 function valueFor(row: any, metric: "lst" | "vegetation"): number | null {
   if (!row) return null;
   if (metric === "vegetation") return resolveNdviMean(row);
@@ -27,6 +35,7 @@ function valueFor(row: any, metric: "lst" | "vegetation"): number | null {
 function toVegetationFallbackRow(row: any): DistrictStatistic {
   const ndviMean = typeof row.vegetation_index === "number" ? row.vegetation_index : null;
   const greenAreaRatio = ndviMean === null ? null : Math.max(0.03, Math.min(0.65, ndviMean - 0.08));
+  const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 19600; // ~BKK avg if unknown
   return {
     district_id: row.district_id,
     district_name: row.district_name,
@@ -38,7 +47,7 @@ function toVegetationFallbackRow(row: any): DistrictStatistic {
     ndvi_score: normalizeNdviScore(ndviMean),
     ndvi_class: getNdviClass(ndviMean),
     green_area_ratio: greenAreaRatio,
-    green_area_rai: greenAreaRatio === null ? null : Math.round(greenAreaRatio * 25000),
+    green_area_rai: greenAreaRatio === null ? null : Math.round(greenAreaRatio * districtAreaRai),
     low_green_ratio: greenAreaRatio === null ? null : Math.max(0.05, 0.62 - greenAreaRatio),
     water_ratio: 0,
     ntl_mean: null,
@@ -46,20 +55,19 @@ function toVegetationFallbackRow(row: any): DistrictStatistic {
   };
 }
 
-async function loadNdviRows(year: number, districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
+async function loadDbRows(year: number, districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase.from("district_statistics").select("*").eq("year", year);
   if (error || !data || data.length === 0) {
-    if (error) console.warn("district_statistics fetch failed, using local fallback:", error.message);
+    if (error) console.warn("district_statistics fetch failed:", error.message);
     return [];
   }
-
   return (data as DistrictStatistic[]).map((row) => ({
     ...row,
     district_name: districtNameById.get(row.district_id) || row.district_name || null,
   }));
 }
 
-async function loadAllNdviRows(districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
+async function loadAllDbRows(districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
     .select("*")
@@ -69,6 +77,14 @@ async function loadAllNdviRows(districtNameById: Map<number, string>): Promise<D
     ...row,
     district_name: districtNameById.get(row.district_id) || row.district_name || null,
   }));
+}
+
+function hasLstData(rows: DistrictStatistic[]): boolean {
+  return rows.some((r) => typeof r.mean_lst === "number");
+}
+
+function hasNdviData(rows: DistrictStatistic[]): boolean {
+  return rows.some((r) => typeof r.ndvi_mean === "number");
 }
 
 export async function GET(request: Request) {
@@ -96,16 +112,21 @@ export async function GET(request: Request) {
       districtNameById.set(feature.properties.id, feature.properties.name_th);
     });
 
-    const dbYearRows = metric === "vegetation" ? await loadNdviRows(year, districtNameById) : [];
-    const dbCompareRows = metric === "vegetation" && compareYear ? await loadNdviRows(compareYear, districtNameById) : [];
-    const dbAllRows = metric === "vegetation" && dbYearRows.length > 0 ? await loadAllNdviRows(districtNameById) : [];
+    const dbYearRows = await loadDbRows(year, districtNameById);
+    const dbCompareRows = compareYear ? await loadDbRows(compareYear, districtNameById) : [];
+    const dbAllRows = dbYearRows.length > 0 ? await loadAllDbRows(districtNameById) : [];
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
+
+    const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : hasLstData(dbYearRows);
+    const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : hasLstData(dbCompareRows);
+    const useDbAll = metric === "vegetation" ? dbAllRows.some(hasNdviData as any) : dbAllRows.some((r) => typeof r.mean_lst === "number");
+
     const yearData: any[] = metric === "vegetation"
-      ? (dbYearRows.length ? dbYearRows : localYearRows.map(toVegetationFallbackRow))
-      : localYearRows;
+      ? (useDbYear ? dbYearRows : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
+      : (useDbYear ? dbYearRows : localYearRows);
     const compareData: any[] = metric === "vegetation"
-      ? (dbCompareRows.length ? dbCompareRows : localCompareRows.map(toVegetationFallbackRow))
+      ? (useDbCompare ? dbCompareRows : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
       : localCompareRows;
 
     const lstMap = new Map<number, any>();
@@ -159,9 +180,10 @@ export async function GET(request: Request) {
       };
     });
 
+    const hasAnyDbLst = dbAllRows.some((r) => typeof r.mean_lst === "number");
     let summaryData: any[] = metric === "vegetation"
-      ? (dbAllRows.length ? dbAllRows : lstData.map(toVegetationFallbackRow))
-      : lstData;
+      ? (dbAllRows.length ? dbAllRows : lstData.map((r: any) => toVegetationFallbackRow(r)))
+      : (hasAnyDbLst ? dbAllRows : lstData);
     if (districtFilter && districtFilter !== ALL_DISTRICTS) {
       summaryData = summaryData.filter((row: any) => row.district_name === districtFilter || `เขต${row.district_name}` === districtFilter);
     }
@@ -345,7 +367,7 @@ export async function GET(request: Request) {
         ndviSummary,
         lowestNdviRanking,
         priorityRanking,
-        dataSource: metric === "vegetation" && dbYearRows.length > 0 ? "supabase district_statistics" : "local fallback",
+        dataSource: useDbYear ? "supabase district_statistics" : "local fallback (mock)",
       },
     }, {
       headers: {

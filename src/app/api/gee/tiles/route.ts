@@ -20,14 +20,15 @@ export async function GET(request: Request) {
     // 1. Load BKK Boundary using direct import so Vercel bundles it
     const bkkBoundary = ee.FeatureCollection(bkkBoundaryData).geometry();
 
-    const getDateRange = (y: number) => {
-      const currentYear = new Date().getFullYear();
-      const today = new Date().toISOString().split('T')[0];
-      return {
-        startDate: `${y}-01-01`,
-        endDate: y === currentYear ? today : `${y}-12-31`,
-      };
-    };
+    const today = new Date().toISOString().split('T')[0];
+    const todayMMDD = today.slice(5); // "MM-DD"
+    const currentYear = new Date().getFullYear();
+
+    // endMMDD lets compare mode cap both years to the same seasonal window
+    const getDateRange = (y: number, endMMDD = '12-31') => ({
+      startDate: `${y}-01-01`,
+      endDate: `${y}-${y >= currentYear ? todayMMDD : endMMDD}`,
+    });
 
     const maskSentinel2 = (image: any) => {
       const scl = image.select('SCL');
@@ -42,8 +43,8 @@ export async function GET(request: Request) {
       return image.updateMask(clearMask);
     };
 
-    const getSentinelNdviImage = (y: number) => {
-      const { startDate, endDate } = getDateRange(y);
+    const getSentinelNdviImage = (y: number, endMMDD = '12-31') => {
+      const { startDate, endDate } = getDateRange(y, endMMDD);
       const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
         .filterBounds(bkkBoundary)
         .filterDate(startDate, endDate)
@@ -58,25 +59,24 @@ export async function GET(request: Request) {
       return collection.median().clip(bkkBoundary);
     };
 
-    const getLandsatImage = (y: number) => {
-      const collectionId = y >= 2022 ? "LANDSAT/LC09/C02/T1_L2" : "LANDSAT/LC08/C02/T1_L2";
-      const { startDate, endDate } = getDateRange(y);
-
-      const collection = ee.ImageCollection(collectionId)
+    const getLandsatImage = (y: number, endMMDD = '12-31') => {
+      const { startDate, endDate } = getDateRange(y, endMMDD);
+      // From 2022 both LC08 and LC09 operate simultaneously — merge for better temporal coverage
+      const lc08 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2');
+      const collection = (y >= 2022 ? lc08.merge(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')) : lc08)
         .filterBounds(bkkBoundary)
         .filterDate(startDate, endDate)
         .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
-      // Use median to remove clouds/artifacts
       return collection.median().clip(bkkBoundary);
     };
 
-    const getMetricImage = (y: number) => {
-      if (metric === 'vegetation') return getSentinelNdviImage(y);
+    const getMetricImage = (y: number, endMMDD = '12-31') => {
+      if (metric === 'vegetation') return getSentinelNdviImage(y, endMMDD);
 
       // ST_B10 is Surface Temperature band (Kelvin)
       // Scale: 0.00341802, Offset: 149.0
-      const image = getLandsatImage(y);
+      const image = getLandsatImage(y, endMMDD);
       return image.select('ST_B10').multiply(0.00341802).add(149.0).subtract(273.15);
     };
 
@@ -84,9 +84,9 @@ export async function GET(request: Request) {
     let visParams;
 
     if (isCompare) {
-      // Anomaly Mode: current - baseline
-      const current = getMetricImage(year);
-      const baseline = getMetricImage(baselineYear);
+      // Both years use the same seasonal window (Jan 1 – today's MM-DD) for a fair comparison
+      const current = getMetricImage(year, todayMMDD);
+      const baseline = getMetricImage(baselineYear, todayMMDD);
       resultImage = current.subtract(baseline);
       
       visParams = metric === 'vegetation'
