@@ -135,6 +135,59 @@ export default function EarthEnginePage() {
       value: mapMode === "idw" ? "ดาวเทียม (GEE)" : "รายเขต",
     },
   ];
+  const legendConfig = (() => {
+    if (compareMode) {
+      return {
+        title: "การเปลี่ยนแปลงอุณหภูมิพื้นผิว",
+        description: `อุณหภูมิปี ${selectedYear} ลบปีฐาน ${compareYear}; สีแดงคือร้อนขึ้น สีฟ้าคือเย็นลง`,
+        unit: "°C",
+        items: [
+          { color: "#2166AC", label: "เย็นลงมาก", range: "< -1.5" },
+          { color: "#67A9CF", label: "เย็นลง", range: "-1.5 ถึง -0.5" },
+          { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.5 ถึง +0.5" },
+          { color: "#EF8A62", label: "ร้อนขึ้น", range: "+0.5 ถึง +1.5" },
+          { color: "#B2182B", label: "ร้อนขึ้นมาก", range: "> +1.5" },
+        ],
+      };
+    }
+
+    if (mapMode === "idw") {
+      return {
+        title: "อุณหภูมิพื้นผิวจากดาวเทียม",
+        description: "ค่า LST raster จาก Landsat 8/9 แบบ median รายปี หลังคัดกรองเมฆ",
+        unit: "°C",
+        items: [
+          { color: "#FFEDA0", label: "เย็นที่สุด", range: "25 - 29" },
+          { color: "#FED976", label: "ค่อนข้างเย็น", range: "29 - 33" },
+          { color: "#FD8D3C", label: "ร้อน", range: "33 - 37" },
+          { color: "#E31A1C", label: "ร้อนมาก", range: "37 - 41" },
+          { color: "#BD0026", label: "ร้อนจัด", range: "41 - 45" },
+          { color: "#800026", label: "ร้อนสูงสุด", range: "> 45" },
+        ],
+      };
+    }
+
+    const min = summary?.min_lst || 30;
+    const max = summary?.max_lst || 40;
+    const range = max - min;
+    const pct20 = min + range * 0.2;
+    const pct40 = min + range * 0.4;
+    const pct60 = min + range * 0.6;
+    const pct80 = min + range * 0.8;
+
+    return {
+      title: "อุณหภูมิพื้นผิวเฉลี่ยรายเขต",
+      description: "ช่วงสีคำนวณจากค่าต่ำสุดถึงสูงสุดของข้อมูลรายเขตในปีที่เลือก",
+      unit: "°C",
+      items: [
+        { color: "#FFEDA0", label: "เย็นที่สุด", range: `< ${pct20.toFixed(1)}` },
+        { color: "#FEB24C", label: "ปานกลาง", range: `${pct20.toFixed(1)} - ${pct40.toFixed(1)}` },
+        { color: "#FD8D3C", label: "ร้อน", range: `${pct40.toFixed(1)} - ${pct60.toFixed(1)}` },
+        { color: "#E31A1C", label: "ร้อนมาก", range: `${pct60.toFixed(1)} - ${pct80.toFixed(1)}` },
+        { color: "#800026", label: "ร้อนที่สุด", range: `> ${pct80.toFixed(1)}` },
+      ],
+    };
+  })();
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -194,6 +247,23 @@ export default function EarthEnginePage() {
               {selectedYear === new Date().getFullYear() ? ' (Year-to-Date)' : ' (Yearly Median)'}
             </p>
             <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temp)</p>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+          <div className="mb-3">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
+            <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
+            <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
+          </div>
+          <div className="space-y-2">
+            {legendConfig.items.map((item) => (
+              <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
+                <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
+                <span className="min-w-0 truncate text-slate-300">{item.label}</span>
+                <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -347,87 +417,6 @@ export default function EarthEnginePage() {
                 />
               </div>
             )}
-          </div>
-
-          {/* Legend */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-full">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3 leading-tight break-words">
-              {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง (Anomaly)' : 'อุณหภูมิเฉลี่ยพื้นผิว (Annual Median)'}
-            </h4>
-            
-            {(() => {
-              if (compareMode) {
-                return (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                      <span className="w-3 h-3 rounded-full bg-[#B2182B]" /> <span>&gt; +1.5°C (ร้อนขึ้นมาก)</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                      <span className="w-3 h-3 rounded-full bg-[#EF8A62]" /> <span>+0.5°C ถึง +1.5°C</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                      <span className="w-3 h-3 rounded-full bg-[#F7F7F7]" /> <span>-0.5°C ถึง +0.5°C (คงที่)</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                      <span className="w-3 h-3 rounded-full bg-[#67A9CF]" /> <span>-1.5°C ถึง -0.5°C</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-300">
-                      <span className="w-3 h-3 rounded-full bg-[#2166AC]" /> <span>&lt; -1.5°C (เย็นลงมาก)</span>
-                    </div>
-                  </div>
-                );
-              }
-
-              const min = summary?.min_lst || 30;
-              const max = summary?.max_lst || 40;
-              const range = max - min;
-              const pct80 = (min + range * 0.8).toFixed(1);
-              const pct60 = (min + range * 0.6).toFixed(1);
-              const pct40 = (min + range * 0.4).toFixed(1);
-              const pct20 = (min + range * 0.2).toFixed(1);
-
-              return (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-slate-300">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-[#800026]" /> <span>ร้อนที่สุด (Max)</span>
-                    </div>
-                    <span className="font-mono text-[9px] text-slate-400">&gt; {pct80}°C</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-300">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-[#E31A1C]" /> <span>ร้อนมาก</span>
-                    </div>
-                    <span className="font-mono text-[9px] text-slate-400">{pct60} - {pct80}°C</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-300">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-[#FD8D3C]" /> <span>ร้อน</span>
-                    </div>
-                    <span className="font-mono text-[9px] text-slate-400">{pct40} - {pct60}°C</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-300">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-[#FEB24C]" /> <span>ปานกลาง</span>
-                    </div>
-                    <span className="font-mono text-[9px] text-slate-400">{pct20} - {pct40}°C</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-300">
-                    <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full bg-[#FFEDA0]" /> <span>เย็นที่สุด (Min)</span>
-                    </div>
-                    <span className="font-mono text-[9px] text-slate-400">&lt; {pct20}°C</span>
-                  </div>
-                </div>
-              );
-            })()}
-            
-            <div className="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed break-words overflow-hidden">
-              {compareMode 
-                ? <><span className="text-indigo-400 font-bold">Temperature Anomaly</span> แสดงส่วนต่างอุณหภูมิเปรียบเทียบระหว่างปีปัจจุบันและปีฐาน สีแดงคือร้อนขึ้น สีฟ้าคือเย็นลง</>
-                : <><span className="text-yellow-500 font-bold">LST (Land Surface Temperature)</span> คืออุณหภูมิพื้นผิวที่วัดจากภาพถ่ายดาวเทียม สะท้อนความร้อนที่แผ่ออกจากพื้นดินและอาคาร</>
-              }
-            </div>
           </div>
 
         </div>

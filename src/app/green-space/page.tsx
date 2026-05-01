@@ -89,6 +89,81 @@ export default function GreenSpacePage() {
   const periodLabel = selectedYear === new Date().getFullYear()
     ? `1 ม.ค. - ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
     : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
+  const legendConfig = (() => {
+    if (compareMode) {
+      return {
+        title: "การเปลี่ยนแปลง NDVI รายปี",
+        description: `ค่า NDVI ปี ${selectedYear} ลบปีฐาน ${compareYear}; ค่าบวกหมายถึงพื้นที่เขียวเพิ่มขึ้น`,
+        unit: "NDVI",
+        items: [
+          { color: "#8B1E1E", label: "ลดลงมาก", range: "< -0.15" },
+          { color: "#F59E0B", label: "ลดลง", range: "-0.15 ถึง -0.05" },
+          { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" },
+          { color: "#86EFAC", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.15" },
+          { color: "#047857", label: "เพิ่มขึ้นมาก", range: "> +0.15" },
+        ],
+      };
+    }
+
+    if (mapMode === "idw") {
+      return {
+        title: "NDVI จากดาวเทียม Sentinel-2",
+        description: "ค่า NDVI raster จากภาพ Sentinel-2 แบบ median รายปี หลังคัดกรองเมฆ",
+        unit: "NDVI",
+        items: [
+          { color: "#7F1D1D", label: "เขียวน้อยมาก", range: "0.10 - 0.24" },
+          { color: "#B45309", label: "เขียวน้อย", range: "0.24 - 0.38" },
+          { color: "#FACC15", label: "ปานกลาง", range: "0.38 - 0.52" },
+          { color: "#84CC16", label: "ดี", range: "0.52 - 0.66" },
+          { color: "#16A34A", label: "ดีมาก", range: "0.66 - 0.80" },
+          { color: "#065F46", label: "หนาแน่นมาก", range: "> 0.80" },
+        ],
+      };
+    }
+
+    if (ndviLayer === "green_area_rai") {
+      return {
+        title: "ขนาดพื้นที่สีเขียวรายเขต",
+        description: "ประมาณพื้นที่ที่มี NDVI มากกว่า 0.30 แสดงเป็นไร่ต่อเขต",
+        unit: "ไร่",
+        items: [
+          { color: "#8c2d04", label: "น้อยมาก", range: "< 4,000" },
+          { color: "#d94801", label: "น้อย", range: "4,000 - 8,000" },
+          { color: "#f6e05e", label: "ปานกลาง", range: "8,000 - 12,000" },
+          { color: "#68d391", label: "มาก", range: "12,000 - 16,000" },
+          { color: "#238b45", label: "มากที่สุด", range: "> 16,000" },
+        ],
+      };
+    }
+
+    if (ndviLayer === "green_area_ratio") {
+      return {
+        title: "สัดส่วนพื้นที่สีเขียวรายเขต",
+        description: "สัดส่วนพื้นที่ที่มี NDVI มากกว่า 0.30 เมื่อเทียบกับพื้นที่เขต",
+        unit: "%",
+        items: [
+          { color: "#8c2d04", label: "น้อยมาก", range: "< 14%" },
+          { color: "#d94801", label: "น้อย", range: "14% - 28%" },
+          { color: "#f6e05e", label: "ปานกลาง", range: "28% - 42%" },
+          { color: "#68d391", label: "ดี", range: "42% - 56%" },
+          { color: "#238b45", label: "ดีมาก", range: "> 56%" },
+        ],
+      };
+    }
+
+    return {
+      title: "ค่า NDVI เฉลี่ยรายเขต",
+      description: "ค่า NDVI เฉลี่ยของแต่ละเขต ใช้แปลความหนาแน่นพืชพรรณในเมือง",
+      unit: "NDVI",
+      items: [
+        { color: "#8c2d04", label: "เขียวน้อยมาก", range: "< 0.20" },
+        { color: "#d94801", label: "เขียวน้อย", range: "0.20 - 0.30" },
+        { color: "#f6e05e", label: "ปานกลาง", range: "0.30 - 0.40" },
+        { color: "#68d391", label: "ดี", range: "0.40 - 0.50" },
+        { color: "#238b45", label: "ดีมาก", range: "> 0.50" },
+      ],
+    };
+  })();
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -139,6 +214,23 @@ export default function GreenSpacePage() {
             </p>
             <p><span className="text-white">Method:</span> yearly median NDVI from cloud-masked scenes</p>
             <p><span className="text-white">Resolution:</span> 10m per pixel</p>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+          <div className="mb-3">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
+            <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
+            <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
+          </div>
+          <div className="space-y-2">
+            {legendConfig.items.map((item) => (
+              <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
+                <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
+                <span className="min-w-0 truncate text-slate-300">{item.label}</span>
+                <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -205,23 +297,6 @@ export default function GreenSpacePage() {
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t border-slate-800/70">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">สัญลักษณ์แผนที่</h4>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[
-                  ["#8c2d04", "ต่ำมาก"],
-                  ["#d94801", "ต่ำ"],
-                  ["#f6e05e", "กลาง"],
-                  ["#68d391", "สูง"],
-                  ["#238b45", "สูงมาก"],
-                ].map(([color, label]) => (
-                  <div key={label} className="min-w-0">
-                    <span className="block h-2 rounded-sm mb-1" style={{ backgroundColor: color }} />
-                    <span className="block text-[8px] text-slate-400 truncate">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
           {mapMode === "idw" && (
