@@ -1,0 +1,272 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
+import { Calendar, Layers, RefreshCw } from "lucide-react";
+
+const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
+
+export default function GreenSpacePage() {
+  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareYear, setCompareYear] = useState(2018);
+  const [mapMode, setMapMode] = useState<"district" | "idw">("idw");
+  const [geojsonData, setGeojsonData] = useState<any>(null);
+  const [invertedMask, setInvertedMask] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [opacity, setOpacity] = useState(0.78);
+  const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      year: selectedYear.toString(),
+      metric: "vegetation",
+    });
+    if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
+    if (compareMode) params.append("compareYear", compareYear.toString());
+
+    fetch(`/api/lst?${params.toString()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setGeojsonData(data.geojson);
+        setInvertedMask(data.invertedMask);
+        setSummary(data.summary);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+
+  const handleReset = () => {
+    setActiveDistrict("ทั้งหมด");
+    setSelectedYear(2026);
+    setCompareMode(false);
+    setCompareYear(2018);
+    setMapMode("idw");
+    setOpacity(0.78);
+    setBaseMap("dark");
+  };
+
+  return (
+    <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
+      <GreenSpaceSidebar
+        onDistrictSelect={setActiveDistrict}
+        activeDistrict={activeDistrict}
+        summary={summary}
+        loading={loading}
+        compareMode={compareMode}
+      />
+
+      <main className="flex-1 relative">
+        <div className="absolute inset-0 z-0">
+          <LSTMapView
+            geojsonData={geojsonData}
+            invertedMask={invertedMask}
+            activeDistrict={activeDistrict}
+            mapMode={mapMode}
+            compareMode={compareMode}
+            summary={summary}
+            opacity={opacity}
+            baseMap={baseMap}
+            analysisType="green"
+          />
+        </div>
+
+        <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
+          </div>
+          <div className="text-[11px] text-slate-400 leading-relaxed">
+            <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
+            <p>
+              <span className="text-white">Period:</span> Jan 01 - {selectedYear === new Date().getFullYear()
+                ? new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" })
+                : "Dec 31"}, {selectedYear}
+              {selectedYear === new Date().getFullYear() ? " (Year-to-Date)" : " (Yearly Median)"}
+            </p>
+            <p><span className="text-white">Resolution:</span> 30m per pixel (NDVI vegetation index)</p>
+          </div>
+        </div>
+
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
+              </h4>
+              <button
+                onClick={handleReset}
+                className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
+              >
+                RESET
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 border border-slate-800">
+              <button
+                onClick={() => setMapMode("district")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายเขต (Districts)
+              </button>
+              <button
+                onClick={() => setMapMode("idw")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                ดาวเทียม (GEE)
+              </button>
+            </div>
+          </div>
+
+          {mapMode === "idw" && (
+            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
+                <span className="text-xs font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={opacity}
+                onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+            </div>
+          )}
+
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
+            </h4>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "dark", label: "Dark" },
+                { id: "light", label: "Light" },
+                { id: "satellite", label: "Satellite" },
+                { id: "streets", label: "Street" },
+                { id: "none", label: "None" },
+              ].map((map) => (
+                <button
+                  key={map.id}
+                  onClick={() => setBaseMap(map.id as any)}
+                  className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === map.id ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
+                >
+                  {map.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-80">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
+              </h4>
+              <button
+                onClick={() => setCompareMode(!compareMode)}
+                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
+              >
+                เปรียบเทียบปี
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-slate-400 font-mono">2018</span>
+              <span className="text-lg font-bold text-emerald-400 font-mono">{selectedYear}</span>
+              <span className="text-xs text-slate-400 font-mono">2026</span>
+            </div>
+            <input
+              type="range"
+              min="2018"
+              max="2026"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mb-2"
+            />
+
+            {compareMode && (
+              <div className="mt-4 pt-4 border-t border-slate-800/50">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">ปีฐานที่ใช้เทียบ (Baseline)</h4>
+                  <span className="text-sm font-bold text-emerald-400 font-mono">{compareYear}</span>
+                </div>
+                <input
+                  type="range"
+                  min="2018"
+                  max="2026"
+                  value={compareYear}
+                  onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-72 max-w-[calc(100vw-2rem)]">
+            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3 leading-tight break-words">
+              {compareMode ? "สัญลักษณ์การเปลี่ยนแปลง NDVI" : "ดัชนีพืชพรรณ NDVI (Annual Median)"}
+            </h4>
+
+            {compareMode ? (
+              <div className="space-y-2">
+                {[
+                  ["#047857", "> +0.15 (เขียวเพิ่มมาก)"],
+                  ["#86EFAC", "+0.05 ถึง +0.15"],
+                  ["#F7F7F7", "-0.05 ถึง +0.05 (คงที่)"],
+                  ["#F59E0B", "-0.15 ถึง -0.05"],
+                  ["#8B1E1E", "< -0.15 (เขียวลดมาก)"],
+                ].map(([color, label]) => (
+                  <div key={label} className="flex items-center gap-3 text-[11px] text-slate-300">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} /> <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[
+                  ["#065F46", "เขียวหนาแน่นมาก"],
+                  ["#16A34A", "เขียวหนาแน่น"],
+                  ["#84CC16", "เขียวปานกลาง"],
+                  ["#FACC15", "เขียวน้อย"],
+                  ["#B45309", "พื้นที่พืชน้อยมาก"],
+                ].map(([color, label]) => (
+                  <div key={label} className="flex items-center gap-3 text-[11px] text-slate-300">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} /> <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed break-words overflow-hidden">
+              {compareMode ? (
+                <>
+                  <span className="text-emerald-400 font-bold">NDVI Anomaly</span> แสดงการเปลี่ยนแปลงความเขียวของพืชพรรณ สีเขียวคือเพิ่มขึ้น สีน้ำตาลคือถดถอย
+                </>
+              ) : (
+                <>
+                  <span className="text-emerald-400 font-bold">NDVI</span> คือดัชนีพืชพรรณจากดาวเทียม ค่าสูงสะท้อนพื้นที่ที่มีพืชพรรณหนาแน่นหรือสุขภาพพืชดีกว่า
+                </>
+              )}
+            </div>
+
+            {loading && (
+              <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
+                <RefreshCw className="w-3 h-3 animate-spin" /> กำลังโหลดข้อมูลพื้นที่สีเขียว...
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const lat = parseFloat(searchParams.get('lat') || '0');
   const lng = parseFloat(searchParams.get('lng') || '0');
   const year = parseInt(searchParams.get('year') || '2024', 10);
+  const metric = searchParams.get('metric') === 'vegetation' ? 'vegetation' : 'lst';
 
   if (!lat || !lng) {
     return NextResponse.json({ error: 'Missing coordinates' }, { status: 400 });
@@ -24,7 +25,13 @@ export async function GET(request: Request) {
     const startDate = `${year}-01-01`;
     const endDate = year === currentYear ? today : `${year}-12-31`;
 
-    const getLST = (image: any) => {
+    const getMetricImage = (image: any) => {
+      if (metric === 'vegetation') {
+        const nir = image.select('SR_B5').multiply(0.0000275).add(-0.2);
+        const red = image.select('SR_B4').multiply(0.0000275).add(-0.2);
+        return nir.subtract(red).divide(nir.add(red)).rename('NDVI').copyProperties(image, image.propertyNames());
+      }
+
       const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);
       const celsius = kelvin.subtract(273.15);
       return celsius.rename('LST').copyProperties(image, image.propertyNames());
@@ -39,17 +46,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No satellite data found for this location/year' }, { status: 404 });
     }
 
-    const lstImage = getLST(collection.median());
+    const metricImage = getMetricImage(collection.median());
 
     // 3. Sample the value at the point
-    const result = lstImage.reduceRegion({
+    const result = metricImage.reduceRegion({
       reducer: ee.Reducer.first(),
       geometry: point,
       scale: 30,
     }).getInfo();
 
+    const value = metric === 'vegetation' ? result.NDVI : result.LST;
+
     return NextResponse.json({ 
-      temp: result.LST ? parseFloat(result.LST.toFixed(2)) : null,
+      temp: value ? parseFloat(value.toFixed(metric === 'vegetation' ? 3 : 2)) : null,
+      metric,
       lat,
       lng,
       year

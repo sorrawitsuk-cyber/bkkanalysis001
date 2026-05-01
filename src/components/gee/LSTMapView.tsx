@@ -15,9 +15,10 @@ interface LSTMapViewProps {
   summary?: any;
   opacity?: number;
   baseMap?: 'dark' | 'light' | 'satellite' | 'streets' | 'none';
+  analysisType?: 'heat' | 'green';
 }
 
-export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary, opacity = 0.8, baseMap = 'dark' }: LSTMapViewProps) {
+export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, mapMode, compareMode, summary, opacity = 0.8, baseMap = 'dark', analysisType = 'heat' }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
@@ -61,16 +62,20 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
           .openOn(mapRef.current);
 
         try {
-          const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}`);
+          const metricParam = analysisType === 'green' ? '&metric=vegetation' : '';
+          const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}`);
           const data = await res.json();
           
           if (data.temp !== undefined && data.temp !== null) {
+            const valueLabel = analysisType === 'green' ? 'พิกเซล (NDVI):' : 'พิกเซล (LST):';
+            const valueUnit = analysisType === 'green' ? '' : '°C';
+            const valueColor = analysisType === 'green' ? 'text-emerald-400' : 'text-orange-400';
             popup.setContent(`
               <div class="bg-slate-950 text-white p-3 rounded-lg border border-slate-800 shadow-2xl min-w-[140px]">
                 <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">Pixel Analysis</div>
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-[10px] text-slate-400">พิกเซล (LST):</span>
-                  <span class="text-orange-400 font-mono font-bold text-lg">${data.temp}°C</span>
+                  <span class="text-[10px] text-slate-400">${valueLabel}</span>
+                  <span class="${valueColor} font-mono font-bold text-lg">${data.temp}${valueUnit}</span>
                 </div>
                 <div class="text-[9px] text-slate-500 italic mt-1">
                   📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}
@@ -110,6 +115,13 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
   // Function to determine color based on temperature
   const getColor = (temp: number) => {
     if (compareMode) {
+      if (analysisType === 'green') {
+        return temp > 0.15 ? '#047857' :
+               temp > 0.05 ? '#86EFAC' :
+               temp > -0.05 ? '#F7F7F7' :
+               temp > -0.15 ? '#F59E0B' :
+                              '#8B1E1E';
+      }
       return temp > 1.5 ? '#B2182B' :
              temp > 0.5 ? '#EF8A62' :
              temp > -0.5 ? '#F7F7F7' :
@@ -122,6 +134,14 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
       const range = max - min;
       const pct = (temp - min) / range;
       
+      if (analysisType === 'green') {
+        return pct > 0.8 ? '#065F46' :
+               pct > 0.6 ? '#16A34A' :
+               pct > 0.4 ? '#84CC16' :
+               pct > 0.2 ? '#FACC15' :
+                            '#B45309';
+      }
+
       return pct > 0.8 ? '#800026' :
              pct > 0.6 ? '#E31A1C' :
              pct > 0.4 ? '#FD8D3C' :
@@ -146,7 +166,8 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
 
       if (mapMode === 'idw' && summary?.selectedYear) {
         try {
-          const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}`);
+          const metricParam = analysisType === 'green' ? '&metric=vegetation' : '';
+          const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}`);
           const data = await res.json();
           if (data.urlFormat) {
             geeLayerRef.current = L.tileLayer(data.urlFormat, {
@@ -161,7 +182,7 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
     };
 
     updateGeeLayer();
-  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear]);
+  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType]);
 
   // Update opacity when prop changes
   useEffect(() => {
@@ -185,7 +206,9 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
     if (mapMode === 'district' || activeDistrict !== 'ทั้งหมด') {
       geojsonLayerRef.current = L.geoJSON(geojsonData, {
         style: (feature) => {
-          const val = compareMode ? feature?.properties?.delta : feature?.properties?.mean_lst;
+          const val = compareMode
+            ? (analysisType === 'green' ? feature?.properties?.vegetation_delta : feature?.properties?.delta)
+            : (analysisType === 'green' ? feature?.properties?.ndvi : feature?.properties?.mean_lst);
           const temp = val || 0;
           const isSelected = activeDistrict !== 'ทั้งหมด' && 
                              (feature?.properties?.name_th === activeDistrict || `เขต${feature?.properties?.name_th}` === activeDistrict);
@@ -203,17 +226,22 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         },
         onEachFeature: (feature, layer) => {
           const name = feature.properties?.name_th || 'Unknown';
-          const val = compareMode ? feature.properties?.delta : feature.properties?.mean_lst;
-          const maxVal = feature.properties?.max_lst;
+          const val = compareMode
+            ? (analysisType === 'green' ? feature.properties?.vegetation_delta : feature.properties?.delta)
+            : (analysisType === 'green' ? feature.properties?.ndvi : feature.properties?.mean_lst);
+          const maxVal = analysisType === 'green' ? null : feature.properties?.max_lst;
           
           if (val !== undefined && val !== null) {
-            const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(2);
+            const decimals = analysisType === 'green' ? 3 : 2;
+            const unit = analysisType === 'green' ? '' : '°C';
+            const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(decimals)}` : val.toFixed(decimals)) : val.toFixed(decimals);
             const extraInfo = !compareMode && maxVal ? `<div class="text-[10px] text-slate-400 mt-1">สูงสุด: <span class="text-red-400 font-mono">${maxVal.toFixed(2)}°C</span></div>` : '';
+            const accentColor = analysisType === 'green' ? 'emerald' : (compareMode ? (val > 0 ? 'red' : 'blue') : 'orange');
             
             layer.bindTooltip(`
               <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[120px]">
                 <div class="font-bold mb-1 border-b border-slate-800 pb-1">${name}</div>
-                <div class="text-[10px] text-slate-400">${compareMode ? 'ส่วนต่าง:' : 'เฉลี่ย:'} <span class="text-${compareMode ? (val > 0 ? 'red' : 'blue') : 'orange'}-400 text-lg font-mono ml-1">${displayVal}°C</span></div>
+                <div class="text-[10px] text-slate-400">${compareMode ? 'ส่วนต่าง:' : 'เฉลี่ย:'} <span class="text-${accentColor}-400 text-lg font-mono ml-1">${displayVal}${unit}</span></div>
                 ${extraInfo}
               </div>
             `, { sticky: true, className: 'bg-transparent border-none shadow-none' });
@@ -226,17 +254,22 @@ export default function LSTMapView({ geojsonData, invertedMask, activeDistrict, 
         style: { fillOpacity: 0, weight: 1, color: 'rgba(255,255,255,0.1)' },
         onEachFeature: (feature, layer) => {
           const name = feature.properties?.name_th || 'Unknown';
-          const val = compareMode ? feature.properties?.delta : feature.properties?.mean_lst;
-          const maxVal = feature.properties?.max_lst;
+          const val = compareMode
+            ? (analysisType === 'green' ? feature.properties?.vegetation_delta : feature.properties?.delta)
+            : (analysisType === 'green' ? feature.properties?.ndvi : feature.properties?.mean_lst);
+          const maxVal = analysisType === 'green' ? null : feature.properties?.max_lst;
           
           if (val !== undefined && val !== null) {
-            const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(2);
+            const decimals = analysisType === 'green' ? 3 : 2;
+            const unit = analysisType === 'green' ? '' : '°C';
+            const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(decimals)}` : val.toFixed(decimals)) : val.toFixed(decimals);
             const extraInfo = !compareMode && maxVal ? `<div class="text-[10px] text-slate-400 mt-1">สูงสุด: <span class="text-red-400 font-mono">${maxVal.toFixed(2)}°C</span></div>` : '';
+            const accentColor = analysisType === 'green' ? 'emerald' : (compareMode ? (val > 0 ? 'red' : 'blue') : 'orange');
             
             layer.bindTooltip(`
               <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[120px]">
                 <div class="font-bold mb-1 border-b border-slate-800 pb-1">${name}</div>
-                <div class="text-[10px] text-slate-400">${compareMode ? 'ส่วนต่าง:' : 'เฉลี่ย:'} <span class="text-${compareMode ? (val > 0 ? 'red' : 'blue') : 'orange'}-400 text-lg font-mono ml-1">${displayVal}°C</span></div>
+                <div class="text-[10px] text-slate-400">${compareMode ? 'ส่วนต่าง:' : 'เฉลี่ย:'} <span class="text-${accentColor}-400 text-lg font-mono ml-1">${displayVal}${unit}</span></div>
                 ${extraInfo}
               </div>
             `, { sticky: true, className: 'bg-transparent border-none shadow-none' });

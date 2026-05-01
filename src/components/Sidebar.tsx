@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame, BarChart3, MapPin, Calendar, ChevronDown, ChevronUp, TrendingUp, Globe } from "lucide-react";
+import { Flame, BarChart3, MapPin, Calendar, ChevronDown, ChevronUp, TrendingUp, Globe, Trees } from "lucide-react";
 import Link from "next/link";
 
 interface SidebarProps {
@@ -358,6 +358,13 @@ export default function Sidebar({
         >
           <Globe className="w-4 h-4 text-emerald-400" />
           วิเคราะห์เชิงพื้นที่ (Google Earth Engine)
+        </Link>
+        <Link
+          href="/green-space"
+          className="flex items-center justify-center gap-2 w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 rounded-lg text-xs font-medium transition-colors border border-emerald-500/20"
+        >
+          <Trees className="w-4 h-4 text-emerald-400" />
+          วิเคราะห์พื้นที่สีเขียวใน กทม.
         </Link>
         <p className="text-[8px] text-slate-600 font-medium uppercase tracking-[0.2em] text-center mt-1">
           Powered by BMA Open Data & Traffy Fondue API · Live Data

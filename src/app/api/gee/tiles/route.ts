@@ -12,6 +12,7 @@ export async function GET(request: Request) {
   const year = yearParam && yearParam !== 'null' ? parseInt(yearParam, 10) : 2024;
   const baselineYear = baselineParam && baselineParam !== 'null' ? parseInt(baselineParam, 10) : 2018;
   const isCompare = searchParams.get('compare') === 'true';
+  const metric = searchParams.get('metric') === 'vegetation' ? 'vegetation' : 'lst';
 
   try {
     await initGEE();
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     /**
      * Helper to get LST image for a specific year
      */
-    const getLSTImage = (y: number) => {
+    const getLandsatImage = (y: number) => {
       // Use Landsat 9 for newer data, Landsat 8 for older
       const collectionId = y >= 2022 ? "LANDSAT/LC09/C02/T1_L2" : "LANDSAT/LC08/C02/T1_L2";
       
@@ -37,14 +38,21 @@ export async function GET(request: Request) {
         .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
       // Use median to remove clouds/artifacts
-      const image = collection.median().clip(bkkBoundary);
-      
+      return collection.median().clip(bkkBoundary);
+    };
+
+    const getMetricImage = (y: number) => {
+      const image = getLandsatImage(y);
+
+      if (metric === 'vegetation') {
+        const nir = image.select('SR_B5').multiply(0.0000275).add(-0.2);
+        const red = image.select('SR_B4').multiply(0.0000275).add(-0.2);
+        return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+      }
+
       // ST_B10 is Surface Temperature band (Kelvin)
       // Scale: 0.00341802, Offset: 149.0
-      return image.select('ST_B10')
-        .multiply(0.00341802)
-        .add(149.0)
-        .subtract(273.15);
+      return image.select('ST_B10').multiply(0.00341802).add(149.0).subtract(273.15);
     };
 
     let resultImage;
@@ -52,24 +60,19 @@ export async function GET(request: Request) {
 
     if (isCompare) {
       // Anomaly Mode: current - baseline
-      const current = getLSTImage(year);
-      const baseline = getLSTImage(baselineYear);
+      const current = getMetricImage(year);
+      const baseline = getMetricImage(baselineYear);
       resultImage = current.subtract(baseline);
       
-      visParams = {
-        min: -3,
-        max: 3,
-        palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B']
-      };
+      visParams = metric === 'vegetation'
+        ? { min: -0.2, max: 0.2, palette: ['#8B1E1E', '#F59E0B', '#F7F7F7', '#86EFAC', '#047857'] }
+        : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
     } else {
-      // Standard LST Mode
-      resultImage = getLSTImage(year);
+      resultImage = getMetricImage(year);
       
-      visParams = {
-        min: 25,
-        max: 45,
-        palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026']
-      };
+      visParams = metric === 'vegetation'
+        ? { min: 0.1, max: 0.8, palette: ['#7F1D1D', '#B45309', '#FACC15', '#84CC16', '#16A34A', '#065F46'] }
+        : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
     }
 
     // Get Map ID from GEE

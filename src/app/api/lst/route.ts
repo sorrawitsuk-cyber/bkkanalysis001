@@ -12,6 +12,9 @@ export async function GET(request: Request) {
     const yearStr = searchParams.get('year') || '2024';
     const year = parseInt(yearStr, 10);
     const districtFilter = searchParams.get('district');
+    const metric = searchParams.get('metric') === 'vegetation' ? 'vegetation' : 'lst';
+    const valueKey = metric === 'vegetation' ? 'vegetation_index' : 'mean_lst';
+    const maxKey = metric === 'vegetation' ? 'vegetation_index' : 'max_lst';
 
     // Read Data
     // Data is now imported statically
@@ -63,13 +66,13 @@ export async function GET(request: Request) {
       let delta = null;
 
       if (lstStats) {
-        min_lst = Math.min(min_lst, lstStats.mean_lst);
-        max_lst = Math.max(max_lst, lstStats.mean_lst);
+        min_lst = Math.min(min_lst, lstStats[valueKey]);
+        max_lst = Math.max(max_lst, lstStats[valueKey]);
         
         if (compareYear) {
           const compStats = compareMap.get(feature.properties.id);
           if (compStats) {
-            delta = lstStats.mean_lst - compStats.mean_lst;
+            delta = lstStats[valueKey] - compStats[valueKey];
             min_delta = Math.min(min_delta, delta);
             max_delta = Math.max(max_delta, delta);
           }
@@ -84,6 +87,8 @@ export async function GET(request: Request) {
           max_lst: lstStats ? lstStats.max_lst : null,
           delta: delta,
           vegetation_index: lstStats ? lstStats.vegetation_index : null,
+          ndvi: lstStats ? lstStats.vegetation_index : null,
+          vegetation_delta: delta,
         }
       };
     });
@@ -99,9 +104,9 @@ export async function GET(request: Request) {
       if (!acc[curr.year]) {
         acc[curr.year] = { sum: 0, count: 0, monthlyData: new Array(12).fill(0), monthlyCount: new Array(12).fill(0) };
       }
-      acc[curr.year].sum += curr.mean_lst;
+      acc[curr.year].sum += curr[valueKey];
       acc[curr.year].count += 1;
-      if (curr.monthly_lst) {
+      if (metric === 'lst' && curr.monthly_lst) {
         curr.monthly_lst.forEach((mTemp: number, idx: number) => {
           acc[curr.year].monthlyData[idx] += mTemp;
           acc[curr.year].monthlyCount[idx] += 1;
@@ -111,7 +116,7 @@ export async function GET(request: Request) {
     }, {});
     
     const yearlyTrend = Object.keys(trendData).sort().map(y => {
-      const avg = parseFloat((trendData[y].sum / trendData[y].count).toFixed(2));
+      const avg = parseFloat((trendData[y].sum / trendData[y].count).toFixed(metric === 'vegetation' ? 3 : 2));
       let maxMonthIdx = -1;
       let maxMonthTemp = -Infinity;
       trendData[y].monthlyData.forEach((sum: number, idx: number) => {
@@ -130,7 +135,7 @@ export async function GET(request: Request) {
     const yearlyDeltaTrend = compareYear && baselineTrendAvg !== null && baselineTrendAvg !== undefined
       ? yearlyTrend.map(([trendYear, avg, maxMonthIdx]) => [
           trendYear,
-          parseFloat((Number(avg) - baselineTrendAvg).toFixed(2)),
+          parseFloat((Number(avg) - baselineTrendAvg).toFixed(metric === 'vegetation' ? 3 : 2)),
           maxMonthIdx,
         ])
       : [];
@@ -145,23 +150,23 @@ export async function GET(request: Request) {
     let minIncreaseDelta = 0;
 
     if (currentYearData.length > 0) {
-      currentAvg = currentYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / currentYearData.length;
-      maxTemp = currentYearData.reduce((max: number, curr: any) => Math.max(max, curr.max_lst || curr.mean_lst), -Infinity);
+      currentAvg = currentYearData.reduce((sum: number, curr: any) => sum + curr[valueKey], 0) / currentYearData.length;
+      maxTemp = currentYearData.reduce((max: number, curr: any) => Math.max(max, curr[maxKey] || curr[valueKey]), -Infinity);
 
       if (compareYear) {
         // Calculate delta for each district
         const compYearData = summaryData.filter((d: any) => d.year === compareYear);
         baselineAvg = compYearData.length > 0
-          ? compYearData.reduce((sum: number, curr: any) => sum + curr.mean_lst, 0) / compYearData.length
+          ? compYearData.reduce((sum: number, curr: any) => sum + curr[valueKey], 0) / compYearData.length
           : 0;
-        const compMap = new Map(compYearData.map((d: any) => [d.district_id, d.mean_lst]));
+        const compMap = new Map(compYearData.map((d: any) => [d.district_id, d[valueKey]]));
         
         ranking = currentYearData
           .map((d: any) => {
             const baseline = compMap.get(d.district_id);
             return {
               name: d.district_name,
-              delta: baseline !== undefined ? d.mean_lst - baseline : 0
+              delta: baseline !== undefined ? d[valueKey] - baseline : 0
             };
           })
           .sort((a: any, b: any) => b.delta - a.delta)
@@ -172,8 +177,8 @@ export async function GET(request: Request) {
         }
       } else {
         ranking = currentYearData
-          .sort((a: any, b: any) => b.mean_lst - a.mean_lst)
-          .map((d: any) => [d.district_name, d.mean_lst]);
+          .sort((a: any, b: any) => b[valueKey] - a[valueKey])
+          .map((d: any) => [d.district_name, d[valueKey]]);
       }
     }
 
@@ -181,7 +186,7 @@ export async function GET(request: Request) {
     const monthlyData = new Array(12).fill(0);
     const monthlyCounts = new Array(12).fill(0);
     currentYearData.forEach((d: any) => {
-      if (d.monthly_lst) {
+      if (metric === 'lst' && d.monthly_lst) {
         d.monthly_lst.forEach((temp: number, monthIdx: number) => {
           monthlyData[monthIdx] += temp;
           monthlyCounts[monthIdx] += 1;
@@ -222,12 +227,13 @@ export async function GET(request: Request) {
       geojson: { type: "FeatureCollection", features },
       invertedMask: invertedMask,
       summary: {
+        metric,
         selectedYear: year,
         compareYear: compareYear,
-        averageTemp: parseFloat(currentAvg.toFixed(2)),
-        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed(2)) : null,
-        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed(2)) : 0,
-        maxTemp: maxTemp > -Infinity ? parseFloat(maxTemp.toFixed(2)) : null,
+        averageTemp: parseFloat(currentAvg.toFixed(metric === 'vegetation' ? 3 : 2)),
+        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed(metric === 'vegetation' ? 3 : 2)) : null,
+        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed(metric === 'vegetation' ? 3 : 2)) : 0,
+        maxTemp: maxTemp > -Infinity ? parseFloat(maxTemp.toFixed(metric === 'vegetation' ? 3 : 2)) : null,
         yearlyTrend,
         yearlyDeltaTrend,
         monthlyTrend,
@@ -238,8 +244,8 @@ export async function GET(request: Request) {
         max_lst: max_lst !== -Infinity ? max_lst : 40,
         min_delta: min_delta !== Infinity ? min_delta : -2,
         max_delta: max_delta !== -Infinity ? max_delta : 2,
-        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed(2)),
-        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed(2)),
+        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed(metric === 'vegetation' ? 3 : 2)),
+        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed(metric === 'vegetation' ? 3 : 2)),
       }
     }, {
       headers: {

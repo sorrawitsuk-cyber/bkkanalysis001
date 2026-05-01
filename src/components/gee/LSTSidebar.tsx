@@ -288,7 +288,10 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
       </div>
 
       {/* Footer Navigation */}
-      <div className="p-4 border-t border-slate-800/60 text-center">
+      <div className="p-4 border-t border-slate-800/60 text-center flex flex-col items-center gap-2">
+        <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
+          ไปหน้าพื้นที่สีเขียว <ChevronRight className="w-3 h-3" />
+        </Link>
         <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest">
           กลับไปหน้า Traffy Fondue <ChevronRight className="w-3 h-3" />
         </Link>
