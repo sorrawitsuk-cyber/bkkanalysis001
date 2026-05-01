@@ -270,7 +270,7 @@ export default function EarthEnginePage() {
       </main>
 
       <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-full flex-col gap-3">
           
           {/* Map Style & Main Controls */}
           <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
@@ -417,6 +417,21 @@ export default function EarthEnginePage() {
                 />
               </div>
             )}
+          </div>
+
+          <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-orange-500/20 shadow-2xl w-full">
+            <h4 className="text-[10px] font-bold text-orange-300 uppercase tracking-widest mb-2">LST คืออะไร</h4>
+            <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
+              <p>
+                <span className="text-slate-100 font-bold">LST</span> หรือ Land Surface Temperature คืออุณหภูมิของผิวพื้นดิน หลังคา ถนน และพื้นผิวเมืองที่ดาวเทียมตรวจจับได้ ไม่ใช่อุณหภูมิอากาศที่สถานีตรวจวัด
+              </p>
+              <p>
+                พื้นที่ที่มีอาคาร ถนนคอนกรีต หรือยางมะตอยมากมักสะสมความร้อนสูง ขณะที่พื้นที่สีเขียวและแหล่งน้ำช่วยลดอุณหภูมิพื้นผิวได้
+              </p>
+              <p>
+                แผนที่นี้ใช้ดูรูปแบบเกาะความร้อนเมืองและพื้นที่เสี่ยงเบื้องต้น ควรตีความร่วมกับช่วงเวลาถ่ายภาพ ฤดูกาล เมฆ ความชื้น และข้อมูลตรวจวัดภาคพื้นดิน
+              </p>
+            </div>
           </div>
 
         </div>

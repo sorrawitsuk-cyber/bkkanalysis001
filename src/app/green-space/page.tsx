@@ -237,7 +237,7 @@ export default function GreenSpacePage() {
       </main>
 
       <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-full flex-col gap-3">
           <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -391,6 +391,21 @@ export default function GreenSpacePage() {
               <p><span className="text-slate-200">ดาวเทียม:</span> Sentinel-2 SR Harmonized</p>
               <p><span className="text-slate-200">ช่วงเวลา:</span> {periodLabel}</p>
               <p><span className="text-slate-200">หมายเหตุ:</span> GEE raster ใช้ Sentinel-2 10m; ค่าอาจเปลี่ยนจากฤดูกาล เมฆ และจำนวนภาพที่ผ่าน cloud mask</p>
+            </div>
+          </div>
+
+          <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-emerald-500/20 shadow-2xl w-full">
+            <h4 className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest mb-2">NDVI คืออะไร</h4>
+            <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
+              <p>
+                <span className="text-slate-100 font-bold">NDVI</span> คือดัชนีจากภาพดาวเทียมที่ดูความต่างระหว่างแสงใกล้อินฟราเรดกับแสงสีแดง เพื่อประเมินความเขียวและความสมบูรณ์ของพืชพรรณ
+              </p>
+              <p>
+                ค่าใกล้ <span className="text-emerald-300 font-mono">1</span> มักหมายถึงพืชพรรณหนาแน่น ค่าใกล้ <span className="text-slate-200 font-mono">0</span> คือพื้นที่เมือง ดิน หรือพื้นผิวแข็ง และค่าติดลบมักสัมพันธ์กับน้ำหรือเงา
+              </p>
+              <p>
+                ควรใช้ NDVI ดูแนวโน้มและเปรียบเทียบพื้นที่ร่วมกับข้อมูลภาคสนาม เพราะฤดูกาล เมฆ เงาอาคาร และชนิดพื้นผิวเมืองมีผลต่อค่าได้
+              </p>
             </div>
           </div>
 
