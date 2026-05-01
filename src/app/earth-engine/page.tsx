@@ -104,6 +104,38 @@ export default function EarthEnginePage() {
     setIsExporting(false);
   };
 
+  const hottestDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
+  const kpiCards = [
+    {
+      label: compareMode ? "ส่วนต่างอุณหภูมิเฉลี่ย" : "อุณหภูมิพื้นผิวเฉลี่ย",
+      value: compareMode
+        ? `${summary?.avgDelta > 0 ? "+" : ""}${(summary?.avgDelta ?? 0).toFixed(2)}°C`
+        : summary?.averageTemp !== null && summary?.averageTemp !== undefined
+          ? `${Number(summary.averageTemp).toFixed(2)}°C`
+          : "ไม่มีข้อมูล",
+    },
+    {
+      label: compareMode ? "เขตร้อนขึ้นสูงสุด" : "อุณหภูมิสูงสุด",
+      value: compareMode
+        ? `${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0).toFixed(2)}°C`
+        : summary?.maxTemp !== null && summary?.maxTemp !== undefined
+          ? `${Number(summary.maxTemp).toFixed(2)}°C`
+          : "ไม่มีข้อมูล",
+    },
+    {
+      label: "ปีข้อมูล",
+      value: compareMode ? `${selectedYear} vs ${compareYear}` : `${selectedYear}`,
+    },
+    {
+      label: "เขตร้อนสูงสุด",
+      value: hottestDistrict,
+    },
+    {
+      label: "โหมดแผนที่",
+      value: mapMode === "idw" ? "ดาวเทียม (GEE)" : "รายเขต",
+    },
+  ];
+
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       <LSTSidebar
@@ -114,7 +146,7 @@ export default function EarthEnginePage() {
         compareMode={compareMode}
       />
 
-      <main className="flex-1 relative">
+      <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
             <LSTMapView 
               geojsonData={geojsonData} 
@@ -126,6 +158,15 @@ export default function EarthEnginePage() {
               opacity={opacity}
               baseMap={baseMap}
             />
+        </div>
+
+        <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-5 gap-2 max-w-5xl mx-auto">
+          {kpiCards.map((card) => (
+            <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
+              <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
+              <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
+            </div>
+          ))}
         </div>
 
         {/* Hidden Report Component for PDF Export */}
@@ -156,11 +197,13 @@ export default function EarthEnginePage() {
           </div>
         </div>
 
-        {/* Top-right floating panel: Year Slider & Legend */}
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
+      </main>
+
+      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+        <div className="flex flex-col gap-3">
           
           {/* Map Style & Main Controls */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
@@ -209,7 +252,7 @@ export default function EarthEnginePage() {
 
           {/* Opacity Slider (Only visible in GEE mode) */}
           {mapMode === 'idw' && (
-            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   ความโปร่งใส (Opacity)
@@ -229,7 +272,7 @@ export default function EarthEnginePage() {
           )}
 
           {/* Base Map Selector */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
@@ -259,7 +302,7 @@ export default function EarthEnginePage() {
           </div>
 
           {/* Year Filter */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-80">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
@@ -307,7 +350,7 @@ export default function EarthEnginePage() {
           </div>
 
           {/* Legend */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-72 max-w-[calc(100vw-2rem)]">
+          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-4 border border-slate-800 shadow-2xl w-full">
             <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3 leading-tight break-words">
               {compareMode ? 'สัญลักษณ์การเปลี่ยนแปลง (Anomaly)' : 'อุณหภูมิเฉลี่ยพื้นผิว (Annual Median)'}
             </h4>
@@ -388,7 +431,7 @@ export default function EarthEnginePage() {
           </div>
 
         </div>
-      </main>
+      </aside>
     </div>
   );
 }

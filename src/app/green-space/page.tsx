@@ -102,7 +102,7 @@ export default function GreenSpacePage() {
         compareMode={compareMode}
       />
 
-      <main className="flex-1 relative">
+      <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
           <LSTMapView
             geojsonData={geojsonData}
@@ -118,7 +118,7 @@ export default function GreenSpacePage() {
           />
         </div>
 
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] hidden lg:grid grid-cols-5 gap-2 w-[min(980px,calc(100vw-720px))] min-w-[620px]">
+        <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-5 gap-2 max-w-5xl mx-auto">
           {kpiCards.map((card) => (
             <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
               <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
@@ -142,8 +142,11 @@ export default function GreenSpacePage() {
           </div>
         </div>
 
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+      </main>
+
+      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+        <div className="flex flex-col gap-3">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
@@ -174,44 +177,33 @@ export default function GreenSpacePage() {
               </button>
             </div>
 
-            <div className="mt-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ชั้นข้อมูล NDVI</h4>
-              <div className="grid grid-cols-1 gap-1.5">
-                {[
-                  ["green_area_rai", "ขนาดพื้นที่สีเขียว"],
-                  ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"],
-                  ["ndvi_mean", "ค่า NDVI เฉลี่ย"],
-                ].map(([id, label]) => {
-                  const disabledInGee = mapMode === "idw" && id !== "ndvi_mean";
-                  return (
+            {mapMode === "district" ? (
+              <div className="mt-4">
+                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ชั้นข้อมูลรายเขต</h4>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {[
+                    ["green_area_rai", "ขนาดพื้นที่สีเขียว"],
+                    ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"],
+                    ["ndvi_mean", "ค่า NDVI เฉลี่ย"],
+                  ].map(([id, label]) => (
                     <button
                       key={id}
-                      onClick={() => {
-                        if (disabledInGee) return;
-                        setNdviLayer(id as NdviLayer);
-                        if (id !== "ndvi_mean") setMapMode("district");
-                      }}
-                      disabled={disabledInGee}
-                      title={disabledInGee ? "ข้อมูลขนาดและสัดส่วนพื้นที่สีเขียวมีเฉพาะโหมดรายเขต" : undefined}
-                      className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${
-                        ndviLayer === id
-                          ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300"
-                          : disabledInGee
-                            ? "bg-slate-900/60 border-slate-800 text-slate-600 cursor-not-allowed"
-                            : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"
-                      }`}
+                      onClick={() => setNdviLayer(id as NdviLayer)}
+                      className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
                     >
                       {label}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-              {mapMode === "idw" && (
-                <p className="mt-2 text-[9px] text-slate-500 leading-snug">
-                  โหมด GEE แสดง raster ค่า NDVI เฉลี่ยเท่านั้น ขนาดและสัดส่วนพื้นที่สีเขียวเป็นข้อมูลสรุปรายเขต
+            ) : (
+              <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+                <h4 className="text-[10px] font-bold text-slate-400 mb-1">GEE Raster</h4>
+                <p className="text-[9px] text-slate-500 leading-snug">
+                  แสดงค่า NDVI เฉลี่ยจาก Sentinel-2 เท่านั้น ส่วนขนาดและสัดส่วนพื้นที่สีเขียวดูได้ในโหมดรายเขต
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="mt-4 pt-4 border-t border-slate-800/70">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">สัญลักษณ์แผนที่</h4>
@@ -233,7 +225,7 @@ export default function GreenSpacePage() {
           </div>
 
           {mapMode === "idw" && (
-            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
                 <span className="text-xs font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
@@ -250,7 +242,7 @@ export default function GreenSpacePage() {
             </div>
           )}
 
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
             </h4>
@@ -273,7 +265,7 @@ export default function GreenSpacePage() {
             </div>
           </div>
 
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-80">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
@@ -318,7 +310,7 @@ export default function GreenSpacePage() {
             )}
           </div>
 
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-80">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ข้อมูลดาวเทียม</h4>
             <div className="text-[10px] text-slate-400 leading-relaxed space-y-1">
               <p><span className="text-slate-200">ดาวเทียม:</span> Sentinel-2 SR Harmonized</p>
@@ -328,7 +320,7 @@ export default function GreenSpacePage() {
           </div>
 
         </div>
-      </main>
+      </aside>
     </div>
   );
 }
