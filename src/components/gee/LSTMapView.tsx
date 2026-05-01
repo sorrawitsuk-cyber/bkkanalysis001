@@ -50,11 +50,69 @@ export default function LSTMapView({
   const baseLayerRef = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const geeLayerRef = useRef<L.TileLayer | null>(null);
+  const pointPopupRef = useRef<L.Popup | null>(null);
+  const pointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointRequestRef = useRef(0);
   const yearRef = useRef(summary?.selectedYear || 2024);
+  const baselineYearRef = useRef(summary?.compareYear || 2018);
+  const mapModeRef = useRef(mapMode);
+  const compareModeRef = useRef(compareMode);
+  const analysisTypeRef = useRef(analysisType);
 
   useEffect(() => {
     if (summary?.selectedYear) yearRef.current = summary.selectedYear;
   }, [summary?.selectedYear]);
+
+  useEffect(() => {
+    baselineYearRef.current = summary?.compareYear || 2018;
+  }, [summary?.compareYear]);
+
+  useEffect(() => {
+    mapModeRef.current = mapMode;
+    compareModeRef.current = compareMode;
+    analysisTypeRef.current = analysisType;
+  }, [analysisType, compareMode, mapMode]);
+
+  const pointPopupContent = useCallback((options: {
+    lat: number;
+    lng: number;
+    value?: number | null;
+    loading?: boolean;
+    error?: string;
+  }) => {
+    const currentAnalysis = analysisTypeRef.current;
+    const isGreen = currentAnalysis === "green";
+    const isCompare = compareModeRef.current;
+    const accent = isGreen ? "text-emerald-400" : "text-orange-400";
+    const label = isCompare
+      ? isGreen ? "ส่วนต่าง NDVI" : "ส่วนต่าง LST"
+      : isGreen ? "ค่า NDVI ณ พิกเซล" : "ค่า LST ณ พิกเซล";
+    const unit = isGreen ? "" : "°C";
+    const signedValue = typeof options.value === "number" && isCompare && options.value > 0 ? `+${options.value}` : options.value;
+    const valueText = options.loading
+      ? "กำลังอ่านค่า..."
+      : options.error
+        ? "ไม่มีข้อมูล"
+        : options.value === null || options.value === undefined
+          ? "ไม่มีข้อมูล"
+          : `${signedValue}${unit}`;
+
+    return `
+      <div class="bg-slate-950 text-white p-3 rounded-lg border border-slate-800 shadow-2xl min-w-[190px]">
+        <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">ค่าจริงจากพิกเซล GEE</div>
+        <div class="flex items-center justify-between gap-3 mb-1">
+          <span class="text-[10px] text-slate-400">${label}</span>
+          <span class="${accent} font-mono font-bold text-lg">${valueText}</span>
+        </div>
+        ${isCompare ? `<div class="text-[9px] text-slate-500 mb-1">ปี ${yearRef.current} เทียบกับ ${baselineYearRef.current}</div>` : `<div class="text-[9px] text-slate-500 mb-1">ปี ${yearRef.current}</div>`}
+        <div class="grid grid-cols-2 gap-2 text-[9px] text-slate-500 font-mono">
+          <div>lat ${options.lat.toFixed(6)}</div>
+          <div>lng ${options.lng.toFixed(6)}</div>
+        </div>
+        ${options.error ? `<div class="text-[9px] text-red-300 mt-2">${options.error}</div>` : ""}
+      </div>
+    `;
+  }, []);
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -71,33 +129,95 @@ export default function LSTMapView({
     }).addTo(mapRef.current);
 
     mapRef.current.on("click", async (e: L.LeafletMouseEvent) => {
+      if (mapModeRef.current !== "idw") return;
       if (!mapRef.current) return;
       const { lat, lng } = e.latlng;
       const popup = L.popup()
         .setLatLng(e.latlng)
-        .setContent('<div class="p-2 text-xs font-mono">กำลังวิเคราะห์พิกเซล...</div>')
+        .setContent(pointPopupContent({ lat, lng, loading: true }))
         .openOn(mapRef.current);
 
       try {
-        const metricParam = analysisType === "green" ? "&metric=vegetation" : "";
-        const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}`);
+        const currentAnalysis = analysisTypeRef.current;
+        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : "";
+        const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
+        const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}${compareParam}`);
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "No data");
         const value = data.temp;
-        popup.setContent(`
-          <div class="bg-slate-950 text-white p-3 rounded-lg border border-slate-800 shadow-2xl min-w-[150px]">
-            <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">Pixel Analysis</div>
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] text-slate-400">${analysisType === "green" ? "NDVI" : "LST"}</span>
-              <span class="${analysisType === "green" ? "text-emerald-400" : "text-orange-400"} font-mono font-bold text-lg">${value ?? "ไม่มีข้อมูล"}${analysisType === "green" ? "" : "°C"}</span>
-            </div>
-            <div class="text-[9px] text-slate-500 italic mt-1">${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
-          </div>
-        `);
-      } catch {
-        popup.setContent('<div class="p-2 text-xs text-red-400">ไม่สามารถดึงข้อมูลจุดนี้ได้</div>');
+        popup.setContent(pointPopupContent({ lat, lng, value }));
+      } catch (error: any) {
+        popup.setContent(pointPopupContent({ lat, lng, value: null, error: error?.message || "ไม่สามารถดึงข้อมูลจุดนี้ได้" }));
       }
     });
-  }, [analysisType]);
+  }, [pointPopupContent]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    const handleMove = (e: L.LeafletMouseEvent) => {
+      if (mapModeRef.current !== "idw") return;
+      const { lat, lng } = e.latlng;
+
+      if (pointTimerRef.current) clearTimeout(pointTimerRef.current);
+      pointPopupRef.current = (pointPopupRef.current || L.popup({
+        autoPan: false,
+        closeButton: false,
+        className: "bg-transparent border-none shadow-none",
+      }))
+        .setLatLng(e.latlng)
+        .setContent(pointPopupContent({ lat, lng, loading: true }));
+
+      if (!map.hasLayer(pointPopupRef.current)) pointPopupRef.current.openOn(map);
+      else pointPopupRef.current.update();
+
+      const requestId = pointRequestRef.current + 1;
+      pointRequestRef.current = requestId;
+
+      pointTimerRef.current = setTimeout(async () => {
+        try {
+          const currentAnalysis = analysisTypeRef.current;
+          const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : "";
+          const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
+          const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}${compareParam}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "No data");
+          if (requestId !== pointRequestRef.current) return;
+          pointPopupRef.current?.setLatLng(e.latlng).setContent(pointPopupContent({ lat, lng, value: data.temp })).update();
+        } catch (error: any) {
+          if (requestId !== pointRequestRef.current) return;
+          pointPopupRef.current?.setLatLng(e.latlng).setContent(pointPopupContent({
+            lat,
+            lng,
+            value: null,
+            error: error?.message || "ไม่สามารถดึงข้อมูลจุดนี้ได้",
+          })).update();
+        }
+      }, 500);
+    };
+
+    const handleOut = () => {
+      if (pointTimerRef.current) clearTimeout(pointTimerRef.current);
+      if (pointPopupRef.current) map.closePopup(pointPopupRef.current);
+    };
+
+    if (mapMode === "idw") {
+      map.on("mousemove", handleMove);
+      map.on("mouseout", handleOut);
+      map.getContainer().style.cursor = "crosshair";
+    } else {
+      handleOut();
+      map.getContainer().style.cursor = "";
+    }
+
+    return () => {
+      map.off("mousemove", handleMove);
+      map.off("mouseout", handleOut);
+      map.getContainer().style.cursor = "";
+      if (pointTimerRef.current) clearTimeout(pointTimerRef.current);
+    };
+  }, [mapMode, pointPopupContent]);
 
   useEffect(() => {
     if (!mapRef.current || !baseLayerRef.current) return;
@@ -201,6 +321,7 @@ export default function LSTMapView({
         };
       },
       onEachFeature: (feature, layer) => {
+        if (mapMode !== "district") return;
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : 2;
