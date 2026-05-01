@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
+import { normalizeNdviScore, getNdviClass } from '@/lib/ndvi';
 import fs from 'fs';
 import path from 'path';
 
@@ -67,6 +68,8 @@ function generateDummyStats(districtId: number) {
 
   return years.map((year, index) => {
     const factor = 1 + (index * 0.05); // slight increase over time
+    const ndviMean = parseFloat((baseNdvi * (1 - (index * 0.02))).toFixed(3));
+    const greenAreaRatio = Math.max(0.03, Math.min(0.65, ndviMean - 0.05));
     return {
       id: districtId * 100 + index,
       district_id: districtId,
@@ -76,8 +79,19 @@ function generateDummyStats(districtId: number) {
       density: Math.floor(baseDensity * factor),
       accessibility_index: parseFloat((baseAccess * factor).toFixed(2)),
       blind_spots: Math.max(0, Math.floor(baseBlind - (index * 0.2))),
-      ndvi: parseFloat((baseNdvi * (1 - (index * 0.02))).toFixed(3)),
-      ntl_mean: parseFloat((baseNtl * factor).toFixed(2))
+      ndvi: ndviMean,
+      ndvi_mean: ndviMean,
+      ndvi_median: ndviMean,
+      ndvi_min: parseFloat(Math.max(-0.1, ndviMean - 0.18).toFixed(3)),
+      ndvi_max: parseFloat(Math.min(0.85, ndviMean + 0.24).toFixed(3)),
+      ndvi_score: normalizeNdviScore(ndviMean),
+      ndvi_class: getNdviClass(ndviMean),
+      green_area_ratio: parseFloat(greenAreaRatio.toFixed(3)),
+      green_area_rai: Math.round(greenAreaRatio * 25000),
+      low_green_ratio: parseFloat(Math.max(0.05, 0.6 - greenAreaRatio).toFixed(3)),
+      water_ratio: 0,
+      ntl_mean: parseFloat((baseNtl * factor).toFixed(2)),
+      processing_note: 'Fallback demo statistics; population and density are not official values.'
     };
   });
 }

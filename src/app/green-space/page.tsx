@@ -4,9 +4,13 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
+import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
 import { Calendar, Layers, RefreshCw } from "lucide-react";
+import { formatPercent, formatRai } from "@/lib/ndvi";
 
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
+
+type NdviLayer = "ndvi_score" | "green_area_ratio" | "ndvi_mean" | "low_green_ratio" | "ntl_mean";
 
 export default function GreenSpacePage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
@@ -20,6 +24,7 @@ export default function GreenSpacePage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
+  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_score");
 
   useEffect(() => {
     setLoading(true);
@@ -52,7 +57,32 @@ export default function GreenSpacePage() {
     setMapMode("idw");
     setOpacity(0.78);
     setBaseMap("dark");
+    setNdviLayer("ndvi_score");
   };
+
+  const ndviSummary = summary?.ndviSummary;
+  const kpiCards = [
+    {
+      label: "ค่า NDVI เฉลี่ย กทม.",
+      value: ndviSummary?.avg_ndvi_mean !== null && ndviSummary?.avg_ndvi_mean !== undefined ? ndviSummary.avg_ndvi_mean.toFixed(3) : "ไม่มีข้อมูล",
+    },
+    {
+      label: "คะแนนพื้นที่สีเขียว",
+      value: ndviSummary?.avg_ndvi_score !== null && ndviSummary?.avg_ndvi_score !== undefined ? ndviSummary.avg_ndvi_score.toFixed(2) : "ไม่มีข้อมูล",
+    },
+    {
+      label: "พื้นที่สีเขียวโดยประมาณ",
+      value: formatRai(ndviSummary?.total_green_area_rai),
+    },
+    {
+      label: "เขตสีเขียวสูงสุด",
+      value: ndviSummary?.best_district?.district_name || ndviSummary?.best_district?.name_th || "ไม่มีข้อมูล",
+    },
+    {
+      label: "เขตเร่งด่วน",
+      value: ndviSummary?.worst_district?.district_name || ndviSummary?.worst_district?.name_th || "ไม่มีข้อมูล",
+    },
+  ];
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -76,7 +106,17 @@ export default function GreenSpacePage() {
             opacity={opacity}
             baseMap={baseMap}
             analysisType="green"
+            ndviLayer={ndviLayer}
           />
+        </div>
+
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] hidden lg:grid grid-cols-5 gap-2 w-[min(980px,calc(100vw-720px))] min-w-[620px]">
+          {kpiCards.map((card) => (
+            <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
+              <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
+              <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
+            </div>
+          ))}
         </div>
 
         <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
@@ -123,6 +163,27 @@ export default function GreenSpacePage() {
               >
                 ดาวเทียม (GEE)
               </button>
+            </div>
+
+            <div className="mt-4">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ชั้นข้อมูล NDVI</h4>
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  ["ndvi_score", "คะแนนพื้นที่สีเขียว"],
+                  ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"],
+                  ["ndvi_mean", "ค่า NDVI เฉลี่ย"],
+                  ["low_green_ratio", "สัดส่วนพื้นที่เขียวน้อย"],
+                  ["ntl_mean", "ความสว่างกลางคืนเฉลี่ย"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setNdviLayer(id as NdviLayer)}
+                    className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -259,6 +320,12 @@ export default function GreenSpacePage() {
               )}
             </div>
 
+            <div className="mt-3 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80 text-[10px] text-slate-400 leading-relaxed">
+              <div className="font-bold text-slate-300 mb-2">ตัวชี้วัดสรุป</div>
+              <div>สัดส่วนพื้นที่สีเขียวเฉลี่ย: <span className="text-emerald-300 font-mono">{formatPercent(ndviSummary?.avg_green_area_ratio)}</span></div>
+              <div>แหล่งข้อมูล: <span className="text-emerald-300">{summary?.dataSource || "ไม่มีข้อมูล"}</span></div>
+            </div>
+
             {loading && (
               <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
                 <RefreshCw className="w-3 h-3 animate-spin" /> กำลังโหลดข้อมูลพื้นที่สีเขียว...
@@ -266,6 +333,8 @@ export default function GreenSpacePage() {
             )}
           </div>
         </div>
+
+        <NdviInsightsPanel summary={summary} />
       </main>
     </div>
   );
