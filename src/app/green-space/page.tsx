@@ -384,16 +384,6 @@ export default function GreenSpacePage() {
               </div>
             )}
           </div>
-
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ข้อมูลดาวเทียม</h4>
-            <div className="text-[10px] text-slate-400 leading-relaxed space-y-1">
-              <p><span className="text-slate-200">ดาวเทียม:</span> Sentinel-2 SR Harmonized</p>
-              <p><span className="text-slate-200">ช่วงเวลา:</span> {periodLabel}</p>
-              <p><span className="text-slate-200">หมายเหตุ:</span> GEE raster ใช้ Sentinel-2 10m; ค่าอาจเปลี่ยนจากฤดูกาล เมฆ และจำนวนภาพที่ผ่าน cloud mask</p>
-            </div>
-          </div>
-
           <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-emerald-500/20 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest mb-2">NDVI คืออะไร</h4>
             <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
@@ -414,3 +404,4 @@ export default function GreenSpacePage() {
     </div>
   );
 }
+
