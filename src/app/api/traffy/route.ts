@@ -18,12 +18,8 @@ export async function GET(request: Request) {
     const bq      = getBQClient();
     const project = process.env.BQ_PROJECT_ID;
     const dataset = process.env.BQ_DATASET;
-    // Use dedup view so each ticket_id appears only once with its latest state
-    const tbl     = `\`${project}.${dataset}.traffy_complaints_current\``;
 
-    // Single-pass query: filter once, aggregate in parallel CTEs, return JSON payload.
-    // INTERVAL 30 DAY mirrors the original Supabase RPC '1 month' window.
-    const query = `
+    const buildQuery = (tbl: string) => `
       WITH filtered AS (
         SELECT *
         FROM ${tbl}
@@ -66,19 +62,34 @@ export async function GET(request: Request) {
         ) AS points
     `;
 
-    const [rows] = await bq.query({
-      query,
+    const queryParams = {
       params: {
         district:       districtFilter,
         problem_type:   categoryFilter,
         district_group: groupFilter,
       },
-      parameterMode: 'NAMED',
+      parameterMode: 'NAMED' as const,
       location: 'asia-southeast1',
-    });
+    };
 
-    if (!rows?.length) throw new Error('No results from BigQuery');
-    const r = rows[0];
+    // Try dedup view first; fall back to raw table if view not yet created.
+    // Run `node scripts/setup-bigquery.mjs` once to create the view.
+    let rows: any[];
+    try {
+      const viewTbl = `\`${project}.${dataset}.traffy_complaints_current\``;
+      [rows] = await bq.query({ query: buildQuery(viewTbl), ...queryParams });
+    } catch (err: any) {
+      if (err?.message?.includes('Not found')) {
+        console.warn('⚠️  traffy_complaints_current view not found — run setup-bigquery.mjs. Using raw table.');
+        const rawTbl = `\`${project}.${dataset}.traffy_complaints\``;
+        [rows] = await bq.query({ query: buildQuery(rawTbl), ...queryParams });
+      } else {
+        throw err;
+      }
+    }
+
+    if (!rows!?.length) throw new Error('No results from BigQuery');
+    const r = rows![0];
 
     const features = (r.points || [])
       .filter((p: any) => p.lon && p.lat)
