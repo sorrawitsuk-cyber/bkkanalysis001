@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame, BarChart3, MapPin, Calendar, ChevronDown, ChevronUp, TrendingUp, Globe, Trees } from "lucide-react";
+import { Flame, BarChart3, MapPin, Calendar, ChevronDown, ChevronUp, TrendingUp, Globe, Trees, Home } from "lucide-react";
 import Link from "next/link";
 
 interface SidebarProps {
@@ -352,6 +352,13 @@ export default function Sidebar({
 
       {/* Fixed Footer */}
       <div className="shrink-0 px-5 py-3 border-t border-slate-800/60 bg-[#0c1322] flex flex-col gap-2">
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"
+        >
+          <Home className="w-4 h-4 text-cyan-400" />
+          กลับหน้า Home
+        </Link>
         <Link 
           href="/earth-engine" 
           className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"

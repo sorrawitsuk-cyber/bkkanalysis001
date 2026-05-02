@@ -1,142 +1,180 @@
-"use client";
+import Link from "next/link";
+import {
+  Activity,
+  ArrowRight,
+  Building2,
+  Compass,
+  Database,
+  Flame,
+  Layers,
+  MapPinned,
+  Plus,
+  Satellite,
+  ShieldAlert,
+  Trees,
+} from "lucide-react";
 
-import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-import Sidebar from "@/components/Sidebar";
-import { Flame, Layers } from "lucide-react";
+const analysisModules = [
+  {
+    title: "วิเคราะห์ปัญหาเมือง",
+    eyebrow: "Urban Issues",
+    description: "ติดตามเรื่องร้องเรียน Traffy Fondue แยกตามเขต ประเภทปัญหา สถานะ และแนวโน้มรายวัน",
+    href: "/urban-issues",
+    icon: ShieldAlert,
+    accent: "from-orange-500 to-rose-500",
+    metric: "Traffy",
+    status: "พร้อมใช้งาน",
+  },
+  {
+    title: "วิเคราะห์เกาะความร้อนเมือง",
+    eyebrow: "Urban Heat Island",
+    description: "ดูอุณหภูมิพื้นผิวจาก Landsat, เปรียบเทียบรายปี, popup ค่า pixel และจัดอันดับเขตร้อน",
+    href: "/earth-engine",
+    icon: Flame,
+    accent: "from-amber-500 to-red-600",
+    metric: "LST",
+    status: "พร้อมใช้งาน",
+  },
+  {
+    title: "วิเคราะห์พื้นที่สีเขียวเมือง",
+    eyebrow: "Green Space",
+    description: "ประเมินพื้นที่สีเขียวจาก Sentinel-2, ความหนาแน่นรายเขต, ปริมาณไร่ และค่า NDVI ประกอบ",
+    href: "/green-space",
+    icon: Trees,
+    accent: "from-emerald-400 to-teal-600",
+    metric: "NDVI",
+    status: "พร้อมใช้งาน",
+  },
+];
 
-const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false });
+const futureModules = [
+  { title: "น้ำท่วมและจุดเสี่ยง", icon: MapPinned },
+  { title: "คุณภาพอากาศ", icon: Activity },
+  { title: "การเดินทางและการเข้าถึง", icon: Compass },
+];
+
+const platformStats = [
+  { label: "พื้นที่วิเคราะห์", value: "50 เขต", icon: Building2 },
+  { label: "แหล่งข้อมูลหลัก", value: "Open Data + GEE", icon: Database },
+  { label: "ภาพดาวเทียม", value: "Sentinel-2 / Landsat", icon: Satellite },
+];
 
 export default function Home() {
-  const [activeTag, setActiveTag] = useState("ทั้งหมด");
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
-  const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
-  const [activeDistrictGroup, setActiveDistrictGroup] = useState("ทั้งหมด");
-  const [traffyData, setTraffyData] = useState<any>(null);
-  const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [dataSource, setDataSource] = useState<string>('');
-  const [mapMode, setMapMode] = useState<'points' | 'heatmap'>('points');
-
-  useEffect(() => {
-    setLoading(true);
-    // Build query params dynamically
-    const params = new URLSearchParams({ limit: '5000' });
-    if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
-    if (activeCategory !== 'ทั้งหมด') params.append('category', activeCategory);
-    if (activeDistrictGroup !== 'ทั้งหมด') params.append('district_group', activeDistrictGroup);
-
-    fetch(`/api/traffy?${params.toString()}`)
-      .then(res => res.json())
-      .then(data => {
-        setTraffyData(data.geojson);
-        setSummary(data.summary);
-        setDataSource(data.source || 'unknown');
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, [activeDistrict, activeCategory, activeDistrictGroup]);
-
   return (
-    <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <Sidebar
-        onTagSelect={setActiveTag}
-        activeTag={activeTag}
-        onDistrictSelect={setActiveDistrict}
-        activeDistrict={activeDistrict}
-        onCategorySelect={setActiveCategory}
-        activeCategory={activeCategory}
-        onDistrictGroupSelect={setActiveDistrictGroup}
-        activeDistrictGroup={activeDistrictGroup}
-        traffyData={traffyData}
-        summary={summary}
-        loading={loading}
-      />
+    <main className="min-h-screen bg-[#08111f] text-slate-50">
+      <section className="relative min-h-screen overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-45"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(8,17,31,0.30), rgba(8,17,31,0.92)), url('https://a.basemaps.cartocdn.com/dark_all/12/3190/1856.png')",
+            backgroundSize: "256px 256px",
+            backgroundRepeat: "repeat",
+          }}
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,17,31,0.96)_0%,rgba(8,17,31,0.68)_48%,rgba(8,17,31,0.94)_100%)]" />
 
-      <main className="flex-1 relative">
-        <div className="absolute inset-0 z-0">
-          <MapView activeTag={activeTag} traffyData={traffyData} mapMode={mapMode} />
-        </div>
-
-        {/* Top-right floating panel: Legend + Controls */}
-        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
-          
-          {/* Map Mode Toggle */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
-              <Layers className="w-3 h-3" /> โหมดแผนที่
-            </h4>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setMapMode('points')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  mapMode === 'points'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                ● จุด (Points)
-              </button>
-              <button
-                onClick={() => setMapMode('heatmap')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  mapMode === 'heatmap'
-                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/30'
-                    : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                🔥 ความร้อน (Heat)
-              </button>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl w-56">
-            <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">สัญลักษณ์ (Legend)</h4>
-            {[
-              { label: "รอรับเรื่อง", color: "#ef4444", sub: "Waiting" },
-              { label: "กำลังดำเนินการ", color: "#eab308", sub: "In Progress" },
-              { label: "ส่งต่อ", color: "#f97316", sub: "Forwarded" },
-              { label: "เสร็จสิ้น", color: "#22c55e", sub: "Resolved" },
-            ].map(item => (
-              <div key={item.label} className="flex items-center gap-2 mb-1.5 last:mb-0">
-                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color, boxShadow: `0 0 6px ${item.color}60` }} />
-                <span className="text-[11px] text-slate-200">{item.label}</span>
-                <span className="text-[9px] text-slate-500">({item.sub})</span>
+        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-10">
+          <header className="flex items-center justify-between gap-4 rounded-xl border border-slate-700/60 bg-slate-950/55 px-4 py-3 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-400/25 bg-cyan-400/10 text-cyan-300">
+                <Layers className="h-5 w-5" />
               </div>
-            ))}
+              <div>
+                <div className="text-sm font-bold tracking-wide">Bangkok District Analytics</div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-slate-500">City Intelligence Dashboard</div>
+              </div>
+            </div>
+            <nav className="hidden items-center gap-2 text-xs text-slate-400 md:flex">
+              <a href="#modules" className="rounded-md px-3 py-2 hover:bg-slate-800/70 hover:text-slate-100">ชุดวิเคราะห์</a>
+              <a href="#future" className="rounded-md px-3 py-2 hover:bg-slate-800/70 hover:text-slate-100">ต่อยอดอนาคต</a>
+            </nav>
+          </header>
+
+          <div className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="max-w-2xl">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-200">
+                <MapPinned className="h-3.5 w-3.5" />
+                Bangkok Urban Analytics Hub
+              </div>
+              <h1 className="text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+                ศูนย์วิเคราะห์เมืองกรุงเทพฯ สำหรับตัดสินใจเชิงพื้นที่
+              </h1>
+              <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
+                รวมการวิเคราะห์ปัญหาเมือง เกาะความร้อน และพื้นที่สีเขียวไว้ในหน้าเริ่มต้นเดียว
+                เพื่อให้ผู้บริหารและนักวิเคราะห์เมืองเลือกดูข้อมูลที่ต้องการได้เร็วขึ้น และพร้อมเพิ่มโมดูลใหม่ในอนาคต
+              </p>
+
+              <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                {platformStats.map((stat) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div key={stat.label} className="rounded-xl border border-slate-700/70 bg-slate-950/55 p-4 backdrop-blur-md">
+                      <Icon className="mb-3 h-4 w-4 text-cyan-300" />
+                      <div className="text-lg font-black text-white">{stat.value}</div>
+                      <div className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-500">{stat.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div id="modules" className="grid gap-4">
+              {analysisModules.map((module) => {
+                const Icon = module.icon;
+                return (
+                  <Link
+                    key={module.href}
+                    href={module.href}
+                    className="group block rounded-xl border border-slate-700/70 bg-slate-950/70 p-4 shadow-2xl backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-slate-900/85"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${module.accent} shadow-lg`}>
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{module.eyebrow}</span>
+                          <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                            {module.status}
+                          </span>
+                        </div>
+                        <h2 className="mt-1 text-xl font-black text-white">{module.title}</h2>
+                        <p className="mt-2 text-sm leading-6 text-slate-400">{module.description}</p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-3">
+                        <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 font-mono text-xs text-cyan-300">{module.metric}</span>
+                        <ArrowRight className="h-5 w-5 text-slate-500 transition-transform group-hover:translate-x-1 group-hover:text-cyan-300" />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Data source badge */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl text-center">
-            <span className="text-[9px] text-slate-500">แสดงข้อมูล</span>
-            <div className="text-lg font-black text-indigo-400 leading-tight">
-              {summary?.totalFetched?.toLocaleString() || "..."}
-              <span className="text-[9px] text-slate-500 font-normal ml-1">
-                จุดบนแผนที่
-              </span>
+          <div id="future" className="mb-2 rounded-xl border border-slate-700/60 bg-slate-950/55 p-4 backdrop-blur-md">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-100">รองรับการวิเคราะห์อื่น ๆ ในอนาคต</h3>
+                <p className="mt-1 text-xs text-slate-500">ออกแบบเป็นโมดูล เพิ่มหน้าใหม่ได้โดยไม่รบกวนชุดวิเคราะห์เดิม</p>
+              </div>
+              <Plus className="h-5 w-5 text-cyan-300" />
             </div>
-            <div className="text-xl font-black text-amber-400 leading-tight mt-1">
-              {summary?.totalApi?.toLocaleString() || "..."}
-              <span className="text-[9px] text-slate-500 font-normal ml-1">
-                ข้อมูลในระบบ (charts)
-              </span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-800">
-              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                dataSource === 'supabase' 
-                  ? 'bg-green-500/20 text-green-400' 
-                  : 'bg-amber-500/20 text-amber-400'
-              }`}>
-                {dataSource === 'supabase' ? '⚡ SUPABASE' : '🌐 LIVE API'}
-              </span>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {futureModules.map((module) => {
+                const Icon = module.icon;
+                return (
+                  <div key={module.title} className="flex items-center gap-3 rounded-lg border border-dashed border-slate-700 bg-slate-900/40 px-3 py-3 text-sm text-slate-400">
+                    <Icon className="h-4 w-4 text-slate-500" />
+                    {module.title}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
