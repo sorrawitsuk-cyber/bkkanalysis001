@@ -20,17 +20,14 @@ interface GreenSpaceSidebarProps {
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
-const layerConfig: Record<NdviLayer, { label: string; shortLabel: string; digits: number; percent?: boolean; rai?: boolean }> = {
-  green_area_rai: { label: "ขนาดพื้นที่สีเขียว", shortLabel: "ขนาดสูงสุด", digits: 0, rai: true },
-  green_area_ratio: { label: "สัดส่วนพื้นที่สีเขียว", shortLabel: "เขียวสูงสุด", digits: 1, percent: true },
-  ndvi_mean: { label: "ค่า NDVI เฉลี่ย", shortLabel: "NDVI สูงสุด", digits: 3 },
-};
-
-function formatMetric(value: number | null | undefined, layer: NdviLayer) {
+function formatRai(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
-  const config = layerConfig[layer];
-  if (config.rai) return `${value.toLocaleString("th-TH", { maximumFractionDigits: config.digits })} ไร่`;
-  return config.percent ? `${(value * 100).toFixed(config.digits)}%` : value.toFixed(config.digits);
+  return `${value.toLocaleString("th-TH", { maximumFractionDigits: 0 })} ไร่`;
+}
+
+function formatSquareMetersFromRai(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
+  return `${(value * 1600).toLocaleString("th-TH", { maximumFractionDigits: 0 })} ตร.ม.`;
 }
 
 export default function GreenSpaceSidebar({
@@ -38,25 +35,25 @@ export default function GreenSpaceSidebar({
   activeDistrict,
   summary,
   geojsonData,
-  ndviLayer = "green_area_rai",
   loading,
   compareMode,
 }: GreenSpaceSidebarProps) {
   const [showAll, setShowAll] = useState(false);
-  const config = layerConfig[ndviLayer];
 
   const districtRows = useMemo(() => {
     return (geojsonData?.features || [])
       .map((feature: any) => {
         const props = feature.properties || {};
-        const value = Number(props[ndviLayer]);
+        const value = Number(props.green_area_rai);
         return {
           district: props.name_th,
           value,
+          ratio: Number(props.green_area_ratio),
+          ndvi: Number(props.ndvi_mean ?? props.ndvi),
         };
       })
       .filter((row: any) => row.district && Number.isFinite(row.value));
-  }, [geojsonData, ndviLayer]);
+  }, [geojsonData]);
 
   const rankingRows = useMemo(() => {
     if (districtRows.length) {
@@ -83,11 +80,12 @@ export default function GreenSpaceSidebar({
     : (summary.yearlyTrend || []);
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(0.05, ...trendValues);
-  const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
   const averageValue = rankingRows.length
     ? rankingRows.reduce((sum: number, row: any) => sum + row.value, 0) / rankingRows.length
     : (summary.averageTemp || 0);
-  const maxValue = rankingRows[0]?.value ?? summary.maxTemp ?? 0;
+  const totalGreenAreaRai = summary?.ndviSummary?.total_green_area_rai ?? (
+    districtRows.length ? districtRows.reduce((sum: number, row: any) => sum + row.value, 0) : null
+  );
   const rankingValues = rankingRows.map((row: any) => row.value);
   const rankingMin = rankingValues.length ? Math.min(...rankingValues) : (summary.min_lst || 0);
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : (summary.max_lst || 1);
@@ -125,26 +123,26 @@ export default function GreenSpaceSidebar({
         <div className="grid grid-cols-3 gap-2">
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Leaf className="w-3 h-3 text-emerald-400" /> {compareMode ? "ส่วนต่างเฉลี่ย" : config.label}
+              <Leaf className="w-3 h-3 text-emerald-400" /> พื้นที่สีเขียวรวม
             </div>
-            <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta >= 0 ? "text-emerald-400" : "text-amber-400") : "text-slate-100"}`}>
-              {compareMode ? (summary.avgDelta >= 0 ? `+${summary.avgDelta.toFixed(3)}` : summary.avgDelta.toFixed(3)) : formatMetric(averageValue, ndviLayer)}
-            </div>
-          </div>
-          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Trees className="w-3 h-3 text-green-500" /> {compareMode ? "เพิ่มสูงสุด" : config.shortLabel}
-            </div>
-            <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode && maxIncreaseValue < 0 ? "text-amber-400" : "text-emerald-400"}`}>
-              {compareMode ? `${maxIncreaseValue > 0 ? "+" : ""}${maxIncreaseValue.toFixed(3)}` : formatMetric(maxValue, ndviLayer)}
+            <div className="text-base font-bold font-mono whitespace-nowrap text-slate-100">
+              {formatRai(totalGreenAreaRai)}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Calendar className="w-3 h-3 text-cyan-400" /> ข้อมูลปี
+              <Trees className="w-3 h-3 text-green-500" /> เฉลี่ยต่อเขต
             </div>
-            <div className="text-sm font-bold text-cyan-400 font-mono leading-tight break-words">
-              {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : summary.selectedYear}
+            <div className="text-base font-bold font-mono whitespace-nowrap text-emerald-400">
+              {formatRai(averageValue)}
+            </div>
+          </div>
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
+              <Calendar className="w-3 h-3 text-cyan-400" /> คิดเป็น ตร.ม.
+            </div>
+            <div className="text-xs font-bold text-cyan-400 font-mono leading-tight break-words">
+              {formatSquareMetersFromRai(totalGreenAreaRai)}
             </div>
           </div>
         </div>
@@ -187,14 +185,14 @@ export default function GreenSpaceSidebar({
 
         <div className="h-px bg-slate-800/60" />
 
-        <NdviInsightsPanel summary={summary} />
+        <NdviInsightsPanel summary={summary} areaRows={districtRows} />
 
         <div className="h-px bg-slate-800/60" />
 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? "อันดับพื้นที่เขียวเพิ่ม · Top Gains" : `${config.label} · Ranking`}
+              <MapPin className="w-3 h-3" /> ปริมาณพื้นที่สีเขียว · Ranking
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
@@ -208,7 +206,7 @@ export default function GreenSpaceSidebar({
             {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, index: number) => {
               const isSelected = activeDistrict === row.district;
               const pct = ((row.value - rankingMin) / Math.max(0.01, rankingMax - rankingMin)) * 100;
-              const displayValue = formatMetric(row.value, ndviLayer);
+              const displayValue = formatRai(row.value);
 
               return (
                 <button

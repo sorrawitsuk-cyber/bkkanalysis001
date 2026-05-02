@@ -50,9 +50,6 @@ export default function LSTMapView({
   const baseLayerRef = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const geeLayerRef = useRef<L.TileLayer | null>(null);
-  const pointPopupRef = useRef<L.Popup | null>(null);
-  const pointTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pointRequestRef = useRef(0);
   const yearRef = useRef(summary?.selectedYear || 2024);
   const baselineYearRef = useRef(summary?.compareYear || 2018);
   const mapModeRef = useRef(mapMode);
@@ -154,70 +151,11 @@ export default function LSTMapView({
 
   useEffect(() => {
     if (!mapRef.current) return;
-    const map = mapRef.current;
-
-    const handleMove = (e: L.LeafletMouseEvent) => {
-      if (mapModeRef.current !== "idw") return;
-      const { lat, lng } = e.latlng;
-
-      if (pointTimerRef.current) clearTimeout(pointTimerRef.current);
-      pointPopupRef.current = (pointPopupRef.current || L.popup({
-        autoPan: false,
-        closeButton: false,
-        className: "bg-transparent border-none shadow-none",
-      }))
-        .setLatLng(e.latlng)
-        .setContent(pointPopupContent({ lat, lng, loading: true }));
-
-      if (!map.hasLayer(pointPopupRef.current)) pointPopupRef.current.openOn(map);
-      else pointPopupRef.current.update();
-
-      const requestId = pointRequestRef.current + 1;
-      pointRequestRef.current = requestId;
-
-      pointTimerRef.current = setTimeout(async () => {
-        try {
-          const currentAnalysis = analysisTypeRef.current;
-          const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : "";
-          const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
-          const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}${compareParam}`);
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "No data");
-          if (requestId !== pointRequestRef.current) return;
-          pointPopupRef.current?.setLatLng(e.latlng).setContent(pointPopupContent({ lat, lng, value: data.temp })).update();
-        } catch (error: any) {
-          if (requestId !== pointRequestRef.current) return;
-          pointPopupRef.current?.setLatLng(e.latlng).setContent(pointPopupContent({
-            lat,
-            lng,
-            value: null,
-            error: error?.message || "ไม่สามารถดึงข้อมูลจุดนี้ได้",
-          })).update();
-        }
-      }, 500);
-    };
-
-    const handleOut = () => {
-      if (pointTimerRef.current) clearTimeout(pointTimerRef.current);
-      if (pointPopupRef.current) map.closePopup(pointPopupRef.current);
-    };
-
-    if (mapMode === "idw") {
-      map.on("mousemove", handleMove);
-      map.on("mouseout", handleOut);
-      map.getContainer().style.cursor = "crosshair";
-    } else {
-      handleOut();
-      map.getContainer().style.cursor = "";
-    }
-
+    mapRef.current.getContainer().style.cursor = mapMode === "idw" ? "crosshair" : "";
     return () => {
-      map.off("mousemove", handleMove);
-      map.off("mouseout", handleOut);
-      map.getContainer().style.cursor = "";
-      if (pointTimerRef.current) clearTimeout(pointTimerRef.current);
+      if (mapRef.current) mapRef.current.getContainer().style.cursor = "";
     };
-  }, [mapMode, pointPopupContent]);
+  }, [mapMode]);
 
   useEffect(() => {
     if (!mapRef.current || !baseLayerRef.current) return;
