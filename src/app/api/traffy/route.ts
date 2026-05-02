@@ -9,10 +9,9 @@ export async function GET(request: Request) {
   const categoryFilter = searchParams.get('category')       || null;
   const groupFilter    = searchParams.get('district_group') || null;
 
-  // Guard: validate required env vars
   if (!process.env.BQ_PROJECT_ID || !process.env.BQ_DATASET || !process.env.BQ_CREDENTIALS) {
     return NextResponse.json(
-      { error: 'BigQuery env vars not set (BQ_PROJECT_ID, BQ_DATASET, BQ_CREDENTIALS). Add them in Vercel → Settings → Environment Variables.' },
+      { error: 'BigQuery env vars not set. Add BQ_PROJECT_ID, BQ_DATASET, BQ_CREDENTIALS in Vercel → Settings → Environment Variables.' },
       { status: 503 }
     );
   }
@@ -28,19 +27,18 @@ export async function GET(request: Request) {
     const bq      = new BigQuery({ projectId: process.env.BQ_PROJECT_ID, credentials });
     const project = process.env.BQ_PROJECT_ID;
     const dataset = process.env.BQ_DATASET;
+    const tbl     = `\`${project}.${dataset}.traffy_complaints\``;
 
-    // Try dedup view first, fall back to raw table
-    let tbl = `\`${project}.${dataset}.traffy_complaints_current\``;
-    try {
-      await bq.query({ query: `SELECT 1 FROM ${tbl} LIMIT 1`, location: 'asia-southeast1' });
-    } catch {
-      tbl = `\`${project}.${dataset}.traffy_complaints\``;
-    }
-
+    // Dedup inline using QUALIFY — handles multiple ingests without needing a view
     const query = `
-      WITH filtered AS (
+      WITH deduped AS (
         SELECT *
         FROM ${tbl}
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY created_at DESC) = 1
+      ),
+      filtered AS (
+        SELECT *
+        FROM deduped
         WHERE (@district       IS NULL OR district       = @district)
           AND (@problem_type   IS NULL OR problem_type   = @problem_type)
           AND (@district_group IS NULL OR district_group = @district_group)
@@ -97,7 +95,7 @@ export async function GET(request: Request) {
       location: 'asia-southeast1',
     });
 
-    if (!rows?.length) throw new Error('No results from BigQuery');
+    if (!rows?.length) throw new Error('BigQuery returned no results');
     const r = rows[0];
 
     const features = (r.points || [])

@@ -198,7 +198,7 @@ while (true) {
   // Fetch one batch from Traffy API
   let data;
   try {
-    data = await fetchWithRetry(`${TRAFFY_API}?limit=${FETCH_BATCH}&start=${offset}`);
+    data = await fetchWithRetry(`${TRAFFY_API}?limit=${FETCH_BATCH}&offset=${offset}`);
   } catch (err) {
     // Flush what we have before exiting
     await flushBuffer(true);
