@@ -4,22 +4,26 @@
  */
 
 import { BigQuery } from '@google-cloud/bigquery';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-// Load .env.local
+// Load .env.local if present (local dev); in CI use process.env directly
 const envVars = {};
-for (const line of readFileSync(resolve(process.cwd(), '.env.local'), 'utf-8').split('\n')) {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#')) continue;
-  const eq = trimmed.indexOf('=');
-  if (eq < 0) continue;
-  envVars[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+const envPath = resolve(process.cwd(), '.env.local');
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 0) continue;
+    envVars[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+  }
 }
 
-const PROJECT_ID = envVars.BQ_PROJECT_ID;
-const DATASET_ID = envVars.BQ_DATASET;
-const credentials = JSON.parse(envVars.BQ_CREDENTIALS);
+const PROJECT_ID = process.env.BQ_PROJECT_ID  || envVars.BQ_PROJECT_ID;
+const DATASET_ID = process.env.BQ_DATASET      || envVars.BQ_DATASET;
+const rawCreds   = process.env.BQ_CREDENTIALS  || envVars.BQ_CREDENTIALS || '{}';
+const credentials = JSON.parse(rawCreds);
 
 const bq = new BigQuery({ projectId: PROJECT_ID, credentials });
 
