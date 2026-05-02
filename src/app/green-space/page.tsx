@@ -9,8 +9,9 @@ import { formatRai } from "@/lib/ndvi";
 import {
   fetchCacheIndex,
   fetchCacheMetadata,
-  getNdviPreviewUrl,
+  getCacheLayerPreviewUrl,
   formatPeriodThai,
+  CACHE_LAYER_LABELS,
   type SatelliteCacheIndex,
   type SatelliteCacheMetadata,
 } from "@/lib/satellite-cache";
@@ -38,6 +39,7 @@ export default function GreenSpacePage() {
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
+  const [cacheLayer, setCacheLayer] = useState("ndvi_mean");
 
   useEffect(() => {
     setLoading(true);
@@ -96,9 +98,10 @@ export default function GreenSpacePage() {
     setNdviLayer("ndvi_mean");
     setCacheMeta(null);
     setCacheLoading(false);
+    setCacheLayer("ndvi_mean");
   };
 
-  const cachePreviewUrl = getNdviPreviewUrl(cacheMeta);
+  const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, cacheLayer);
 
   const ndviSummary = summary?.ndviSummary;
   const districtCount = geojsonData?.features?.length || 50;
@@ -368,11 +371,22 @@ export default function GreenSpacePage() {
                         <span className="text-amber-400 ml-1">(fallback range)</span>
                       )}
                     </p>
-                    <p className="text-[9px] text-slate-400">
-                      <span className="text-slate-200 font-bold">Layer:</span> NDVI mean preview
-                    </p>
+                    <div className="mt-1">
+                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {Object.entries(CACHE_LAYER_LABELS).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => setCacheLayer(key)}
+                            className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     {!cachePreviewUrl && (
-                      <p className="text-[9px] text-amber-400">ยังไม่มี preview image ใน cache</p>
+                      <p className="text-[9px] text-amber-400">ยังไม่มี preview สำหรับ layer นี้</p>
                     )}
                   </>
                 ) : cacheMeta?.status === "insufficient_data" || cacheMeta?.status === "pending" ? (

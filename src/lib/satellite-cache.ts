@@ -76,10 +76,27 @@ export async function fetchCacheMetadata(
   }
 }
 
-/** Return the preview_url for the ndvi_mean layer of a metadata object, or null. */
-export function getNdviPreviewUrl(meta: SatelliteCacheMetadata | null): string | null {
-  return meta?.layers?.ndvi_mean?.preview_url ?? null;
+/** Return the preview_url for a specific layer of a metadata object, or null. */
+export function getCacheLayerPreviewUrl(
+  meta: SatelliteCacheMetadata | null,
+  layerKey: string,
+): string | null {
+  return meta?.layers?.[layerKey]?.preview_url ?? null;
 }
+
+/** @deprecated Use getCacheLayerPreviewUrl instead. */
+export function getNdviPreviewUrl(meta: SatelliteCacheMetadata | null): string | null {
+  return getCacheLayerPreviewUrl(meta, "ndvi_mean");
+}
+
+export const CACHE_LAYER_LABELS: Record<string, string> = {
+  ndvi_mean:   "NDVI mean",
+  ndvi_max:    "NDVI max",
+  ndwi_mean:   "NDWI mean",
+  ndwi_max:    "NDWI max",
+  mndwi_mean:  "MNDWI mean",
+  ndbi_mean:   "NDBI mean",
+};
 
 /** Format a YYYY-MM period string to a human-readable Thai month label. */
 export function formatPeriodThai(period: string): string {
