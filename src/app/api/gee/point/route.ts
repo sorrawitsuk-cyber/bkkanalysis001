@@ -38,6 +38,12 @@ export async function GET(request: Request) {
       endDate: `${targetYear}-${targetYear >= currentYear ? todayMMDD : endMMDD}`,
     });
 
+    const waterMask = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+      .select("occurrence")
+      .gte(50)
+      .not()
+      .unmask(1);
+
     const maskSentinel2 = (image: any) => {
       const scl = image.select('SCL');
       const clearMask = scl
@@ -63,7 +69,8 @@ export async function GET(request: Request) {
           const red = image.select('B4').divide(10000);
           return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
         })
-        .median();
+        .median()
+        .updateMask(waterMask);
     };
 
     const getLandsatLSTImage = (targetYear: number, endMMDD = '12-31') => {
@@ -76,7 +83,7 @@ export async function GET(request: Request) {
 
       const image = collection.median();
       const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);
-      const celsius = kelvin.subtract(273.15);
+      const celsius = kelvin.subtract(273.15).updateMask(waterMask);
       return celsius.rename('LST');
     };
 

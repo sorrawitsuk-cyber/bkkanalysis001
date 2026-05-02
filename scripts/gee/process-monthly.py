@@ -211,6 +211,19 @@ def add_indices(image):
     return image.addBands([ndvi, ndwi, mndwi, ndbi])
 
 
+def get_land_mask(geometry):
+    """Return a binary mask: 1 = land, 0 = water (JRC GSW occurrence >= 50%).
+    unmask(1) treats no-data areas (outside JRC coverage) as land."""
+    return (
+        ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+        .select("occurrence")
+        .gte(50)
+        .Not()
+        .unmask(1)
+        .clip(geometry)
+    )
+
+
 def build_collection(date_start: str, date_end: str, geometry) -> tuple:
     """Return (collection, image_count) filtered to date range and BKK."""
     col = (
@@ -225,15 +238,18 @@ def build_collection(date_start: str, date_end: str, geometry) -> tuple:
     return col, count
 
 
-def compute_composites(collection) -> dict[str, any]:
-    """Return dict of named single-band images for each index/statistic."""
+def compute_composites(collection, geometry) -> dict[str, any]:
+    """Return dict of named single-band images for each index/statistic.
+    NDVI and NDBI are masked to land-only (JRC water mask).
+    NDWI/MNDWI are left unmasked — they are water-detection indices."""
+    land = get_land_mask(geometry)
     return {
-        "ndvi_mean":  collection.select("NDVI").mean().rename("value"),
-        "ndvi_max":   collection.select("NDVI").max().rename("value"),
+        "ndvi_mean":  collection.select("NDVI").mean().updateMask(land).rename("value"),
+        "ndvi_max":   collection.select("NDVI").max().updateMask(land).rename("value"),
         "ndwi_mean":  collection.select("NDWI").mean().rename("value"),
         "ndwi_max":   collection.select("NDWI").max().rename("value"),
         "mndwi_mean": collection.select("MNDWI").mean().rename("value"),
-        "ndbi_mean":  collection.select("NDBI").mean().rename("value"),
+        "ndbi_mean":  collection.select("NDBI").mean().updateMask(land).rename("value"),
     }
 
 
@@ -397,7 +413,7 @@ def process_period(
         upload_bytes(s3, bucket, meta_key, json.dumps(meta, indent=2).encode(), "application/json")
         return
 
-    composites = compute_composites(collection)
+    composites = compute_composites(collection, bkk)
     base_key   = f"{CACHE_PREFIX}/monthly/{period}"
     layers     = {}
 

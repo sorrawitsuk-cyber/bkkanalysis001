@@ -30,6 +30,12 @@ export async function GET(request: Request) {
       endDate: `${y}-${y >= currentYear ? todayMMDD : endMMDD}`,
     });
 
+    const waterMask = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+      .select("occurrence")
+      .gte(50)
+      .not()
+      .unmask(1);
+
     const maskSentinel2 = (image: any) => {
       const scl = image.select('SCL');
       const clearMask = scl
@@ -56,7 +62,7 @@ export async function GET(request: Request) {
           return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
         });
 
-      return collection.median().clip(bkkBoundary);
+      return collection.median().updateMask(waterMask).clip(bkkBoundary);
     };
 
     const getLandsatImage = (y: number, endMMDD = '12-31') => {
@@ -68,7 +74,7 @@ export async function GET(request: Request) {
         .filterDate(startDate, endDate)
         .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
-      return collection.median().clip(bkkBoundary);
+      return collection.median().updateMask(waterMask).clip(bkkBoundary);
     };
 
     const getMetricImage = (y: number, endMMDD = '12-31') => {

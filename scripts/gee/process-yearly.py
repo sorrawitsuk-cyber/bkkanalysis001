@@ -177,6 +177,18 @@ def add_indices(image):
     return image.addBands([ndvi, ndwi, mndwi, ndbi])
 
 
+def get_land_mask(geometry):
+    """Return a binary mask: 1 = land, 0 = water (JRC GSW occurrence >= 50%)."""
+    return (
+        ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+        .select("occurrence")
+        .gte(50)
+        .Not()
+        .unmask(1)
+        .clip(geometry)
+    )
+
+
 def compute_yearly_composites(year: int, date_start: str, date_end: str, geometry) -> tuple[dict, int]:
     """Return (composites_dict, scene_count)."""
     collection = (
@@ -190,13 +202,14 @@ def compute_yearly_composites(year: int, date_start: str, date_end: str, geometr
     count = collection.size().getInfo()
     log.info("Scene count for %s (%s → %s): %d", year, date_start, date_end, count)
 
+    land = get_land_mask(geometry)
     composites = {
-        "ndvi_mean":  collection.select("NDVI").mean().rename("value"),
-        "ndvi_max":   collection.select("NDVI").max().rename("value"),
+        "ndvi_mean":  collection.select("NDVI").mean().updateMask(land).rename("value"),
+        "ndvi_max":   collection.select("NDVI").max().updateMask(land).rename("value"),
         "ndwi_mean":  collection.select("NDWI").mean().rename("value"),
         "ndwi_max":   collection.select("NDWI").max().rename("value"),
         "mndwi_mean": collection.select("MNDWI").mean().rename("value"),
-        "ndbi_mean":  collection.select("NDBI").mean().rename("value"),
+        "ndbi_mean":  collection.select("NDBI").mean().updateMask(land).rename("value"),
     }
     return composites, count
 
