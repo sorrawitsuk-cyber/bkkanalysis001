@@ -220,6 +220,16 @@ export async function GET(request: Request) {
       });
       return [trendYear, avg, maxMonthIdx];
     });
+    const greenAreaTrend = metric === "vegetation"
+      ? Object.entries(summaryData.reduce((acc: any, row: any) => {
+          const greenAreaRai = typeof row.green_area_rai === "number" ? row.green_area_rai : null;
+          if (greenAreaRai === null || row.year === null || row.year === undefined) return acc;
+          acc[row.year] = (acc[row.year] || 0) + greenAreaRai;
+          return acc;
+        }, {}))
+          .sort(([yearA], [yearB]) => Number(yearA) - Number(yearB))
+          .map(([trendYear, totalRai]) => [trendYear, Math.round(Number(totalRai))])
+      : [];
 
     const yearlyAverageMap = new Map<number, number>(yearlyTrend.map(([trendYear, avg]) => [Number(trendYear), Number(avg)]));
     const baselineTrendAvg = compareYear ? yearlyAverageMap.get(compareYear) : null;
@@ -353,6 +363,7 @@ export async function GET(request: Request) {
         avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed(metric === "vegetation" ? 3 : 2)) : 0,
         maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(metric === "vegetation" ? 3 : 2)) : null,
         yearlyTrend,
+        greenAreaTrend,
         yearlyDeltaTrend,
         monthlyTrend,
         baselineMonthlyTrend,

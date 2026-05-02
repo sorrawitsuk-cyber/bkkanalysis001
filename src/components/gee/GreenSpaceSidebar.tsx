@@ -71,6 +71,15 @@ function estimateGreenAreaRai(props: any, geometry: any) {
   return estimatedRatio === null ? null : Math.round(districtAreaRai * estimatedRatio);
 }
 
+function estimateGreenRatio(props: any, greenAreaRai: number | null, geometry: any) {
+  const explicitRatio = Number(props.green_area_ratio);
+  if (Number.isFinite(explicitRatio)) return explicitRatio;
+  const districtAreaRai = geometryAreaRai(geometry);
+  if (districtAreaRai && greenAreaRai !== null) return greenAreaRai / districtAreaRai;
+  const ndviMean = Number(props.ndvi_mean ?? props.ndvi ?? props.vegetation_index);
+  return Number.isFinite(ndviMean) ? Math.max(0.03, Math.min(0.65, ndviMean - 0.08)) : null;
+}
+
 export default function GreenSpaceSidebar({
   onDistrictSelect,
   activeDistrict,
@@ -86,10 +95,11 @@ export default function GreenSpaceSidebar({
       .map((feature: any) => {
         const props = feature.properties || {};
         const value = estimateGreenAreaRai(props, feature.geometry);
+        const ratio = estimateGreenRatio(props, value, feature.geometry);
         return {
           district: props.name_th,
           value,
-          ratio: Number(props.green_area_ratio),
+          ratio,
           ndvi: Number(props.ndvi_mean ?? props.ndvi),
         };
       })
@@ -116,11 +126,9 @@ export default function GreenSpaceSidebar({
     );
   }
 
-  const yearlyDisplayTrend = compareMode && summary.yearlyDeltaTrend?.length
-    ? summary.yearlyDeltaTrend
-    : (summary.yearlyTrend || []);
-  const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
-  const maxAbsTrend = Math.max(0.05, ...trendValues);
+  const yearlyDisplayTrend = summary.greenAreaTrend?.length ? summary.greenAreaTrend : [];
+  const trendValues = yearlyDisplayTrend.map((item: any) => Number(item[1]) || 0);
+  const maxTrendValue = Math.max(1, ...trendValues);
   const averageValue = rankingRows.length
     ? rankingRows.reduce((sum: number, row: any) => sum + row.value, 0) / rankingRows.length
     : (summary.averageTemp || 0);
@@ -192,24 +200,20 @@ export default function GreenSpaceSidebar({
 
         <section>
           <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5 leading-tight">
-            <Activity className="w-3 h-3" /> แนวโน้มดัชนีพืชพรรณประกอบ
+            <Activity className="w-3 h-3" /> Trend ปริมาณพื้นที่สีเขียว
           </h3>
           <div className="flex items-end gap-[3px] h-20 mb-2">
             {yearlyDisplayTrend.map((item: any, index: number) => {
               const year = item[0];
               const value = Number(item[1]) || 0;
-              const pct = compareMode
-                ? Math.max(4, Math.min(100, (Math.abs(value) / maxAbsTrend) * 100))
-                : Math.max(4, Math.min(100, ((value - 0.2) / 0.5) * 100));
-              const trendColor = compareMode
-                ? (value >= 0 ? "from-lime-500 to-emerald-500" : "from-amber-500 to-red-600")
-                : "from-lime-500 to-emerald-600";
+              const pct = Math.max(4, Math.min(100, (value / maxTrendValue) * 100));
+              const trendColor = "from-lime-500 to-emerald-600";
 
               return (
                 <div key={`${year}-${index}`} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                   <div className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${pct}%` }} />
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
-                    {year}: {value.toFixed(3)}
+                    {year}: {formatRai(value)}
                   </div>
                 </div>
               );
@@ -220,7 +224,7 @@ export default function GreenSpaceSidebar({
             <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
           </div>
           <p className="mt-2 text-[9px] text-slate-500 leading-snug">
-            แนวโน้มใช้ค่ากลางรายปีช่วง 1 ม.ค.-31 ธ.ค. ของแต่ละปีจาก Sentinel-2 10m; ปีปัจจุบันเป็น YTD จึงอาจต่างจากปีเต็ม และค่าอาจแกว่งจากฤดูกาล/เมฆ/จำนวนภาพที่ผ่านการคัดกรอง
+            แสดงปริมาณพื้นที่สีเขียวรวมรายปี หน่วยไร่ โดยปีปัจจุบันเป็นข้อมูลสะสมถึงวันที่มีภาพดาวเทียมล่าสุด จึงอาจยังไม่เทียบเท่าปีเต็ม
           </p>
         </section>
 
