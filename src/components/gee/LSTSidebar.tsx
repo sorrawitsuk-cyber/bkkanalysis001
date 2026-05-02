@@ -39,10 +39,12 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(1, ...trendValues);
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
-  const monthlyDisplayTrend = !compareMode && trendMode === "max" && summary.monthlyMaxTrend?.length
+  const isMaxMode = !compareMode && trendMode === "max";
+  const statModeLabel = isMaxMode ? "LST สูงสุด" : "LST เฉลี่ย";
+  const monthlyDisplayTrend = isMaxMode && summary.monthlyMaxTrend?.length
     ? summary.monthlyMaxTrend
     : (summary.monthlyTrend || []);
-  const rankingDisplayRows = !compareMode && trendMode === "max" && summary.maxRanking?.length
+  const rankingDisplayRows = isMaxMode && summary.maxRanking?.length
     ? summary.maxRanking
     : (summary.ranking || []);
   const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
@@ -205,9 +207,14 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
             
             {/* Monthly Trend Chart */}
             <section>
-              <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
-                <Calendar className="w-3 h-3" /> {trendMode === "max" ? "ค่าสูงสุดรายเดือน" : "แนวโน้มรายเดือน"} ปี {summary.selectedYear}
-              </h3>
+              <div className="mb-3 flex items-start justify-between gap-2">
+                <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] flex items-center gap-1.5 leading-tight">
+                  <Calendar className="w-3 h-3" /> {isMaxMode ? "LST สูงสุดรายเดือน" : "LST เฉลี่ยรายเดือน"} ปี {summary.selectedYear}
+                </h3>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold ${isMaxMode ? "bg-red-500/15 text-red-300" : "bg-orange-500/10 text-orange-300"}`}>
+                  {statModeLabel}
+                </span>
+              </div>
               <div className="flex items-end gap-[2px] h-16 mb-2">
                 {monthlyDisplayTrend.map((temp: number, i: number) => {
                   const currentYear = new Date().getFullYear();
@@ -268,14 +275,21 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ LST เพิ่มขึ้น · Top Increases' : trendMode === "max" ? "LST สูงสุดรายเขต · Max Ranking" : "อันดับ LST เฉลี่ย · Ranking"}
+              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ LST เพิ่มขึ้น · Top Increases' : isMaxMode ? "LST สูงสุดรายเขต · Max Ranking" : "LST เฉลี่ยรายเขต · Ranking"}
             </h3>
-            <button 
-              onClick={() => setShowAll(!showAll)}
-              className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-orange-500 hover:text-orange-400 font-bold uppercase tracking-wide transition-colors"
-            >
-              {showAll ? 'แสดงแค่ Top 10' : 'แสดงทั้ง 50 เขต'}
-            </button>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {!compareMode && (
+                <span className={`rounded-full px-2 py-0.5 text-[8px] font-bold ${isMaxMode ? "bg-red-500/15 text-red-300" : "bg-orange-500/10 text-orange-300"}`}>
+                  {statModeLabel}
+                </span>
+              )}
+              <button 
+                onClick={() => setShowAll(!showAll)}
+                className="max-w-[74px] text-right text-[9px] leading-tight text-orange-500 hover:text-orange-400 font-bold uppercase tracking-wide transition-colors"
+              >
+                {showAll ? 'แสดงแค่ Top 10' : 'แสดงทั้ง 50 เขต'}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
