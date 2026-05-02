@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, Calendar, ChevronRight, Leaf, MapPin, Trees } from "lucide-react";
+import { Activity, Calendar, ChevronRight, Flame, Home, Leaf, MapPin, ShieldAlert, Trees } from "lucide-react";
 import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
@@ -278,9 +278,15 @@ export default function GreenSpaceSidebar({
         </section>
       </div>
 
-      <div className="p-4 border-t border-slate-800/60 text-center">
-        <Link href="/earth-engine" className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest">
-          กลับไปหน้าเกาะความร้อน <ChevronRight className="w-3 h-3" />
+      <div className="p-4 border-t border-slate-800/60 text-center flex flex-col items-center gap-2">
+        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest">
+          <Home className="w-3 h-3" /> หน้า Home ศูนย์วิเคราะห์เมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/urban-issues" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors uppercase tracking-widest">
+          <ShieldAlert className="w-3 h-3" /> วิเคราะห์ปัญหาเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/earth-engine" className="inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest">
+          <Flame className="w-3 h-3" /> วิเคราะห์เกาะความร้อนเมือง <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
     </div>

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees } from "lucide-react";
+import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
 interface LSTSidebarProps {
@@ -289,11 +289,14 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
 
       {/* Footer Navigation */}
       <div className="p-4 border-t border-slate-800/60 text-center flex flex-col items-center gap-2">
-        <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
-          ไปหน้าพื้นที่สีเขียว <ChevronRight className="w-3 h-3" />
+        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest">
+          <Home className="w-3 h-3" /> หน้า Home ศูนย์วิเคราะห์เมือง <ChevronRight className="w-3 h-3" />
         </Link>
-        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest">
-          กลับไปหน้า Traffy Fondue <ChevronRight className="w-3 h-3" />
+        <Link href="/urban-issues" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors uppercase tracking-widest">
+          <ShieldAlert className="w-3 h-3" /> วิเคราะห์ปัญหาเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
+          <Trees className="w-3 h-3" /> วิเคราะห์พื้นที่สีเขียวเมือง <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
 

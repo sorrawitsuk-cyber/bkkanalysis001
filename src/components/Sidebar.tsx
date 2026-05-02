@@ -357,21 +357,21 @@ export default function Sidebar({
           className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"
         >
           <Home className="w-4 h-4 text-cyan-400" />
-          กลับหน้า Home
+          หน้า Home ศูนย์วิเคราะห์เมือง
         </Link>
         <Link 
           href="/earth-engine" 
           className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"
         >
           <Globe className="w-4 h-4 text-emerald-400" />
-          วิเคราะห์เชิงพื้นที่ (Google Earth Engine)
+          วิเคราะห์เกาะความร้อนเมือง
         </Link>
         <Link
           href="/green-space"
           className="flex items-center justify-center gap-2 w-full py-2 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 rounded-lg text-xs font-medium transition-colors border border-emerald-500/20"
         >
           <Trees className="w-4 h-4 text-emerald-400" />
-          วิเคราะห์พื้นที่สีเขียวใน กทม.
+          วิเคราะห์พื้นที่สีเขียวเมือง
         </Link>
         <p className="text-[8px] text-slate-600 font-medium uppercase tracking-[0.2em] text-center mt-1">
           Powered by BMA Open Data & Traffy Fondue API · Live Data
