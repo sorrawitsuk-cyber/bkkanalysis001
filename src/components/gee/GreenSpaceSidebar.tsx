@@ -30,6 +30,47 @@ function formatSquareMetersFromRai(value: number | null | undefined) {
   return `${(value * 1600).toLocaleString("th-TH", { maximumFractionDigits: 0 })} ตร.ม.`;
 }
 
+function ringAreaSquareMeters(ring: number[][]) {
+  if (!ring?.length) return 0;
+  const radius = 6378137;
+  let area = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [lon1, lat1] = ring[i];
+    const [lon2, lat2] = ring[(i + 1) % ring.length];
+    area += ((lon2 - lon1) * Math.PI / 180) * (2 + Math.sin(lat1 * Math.PI / 180) + Math.sin(lat2 * Math.PI / 180));
+  }
+  return Math.abs((area * radius * radius) / 2);
+}
+
+function geometryAreaRai(geometry: any) {
+  if (!geometry?.coordinates) return null;
+  const polygons = geometry.type === "MultiPolygon" ? geometry.coordinates : [geometry.coordinates];
+  const squareMeters = polygons.reduce((sum: number, polygon: number[][][]) => {
+    const [outer, ...holes] = polygon;
+    const holeArea = holes.reduce((holeSum, ring) => holeSum + ringAreaSquareMeters(ring), 0);
+    return sum + Math.max(0, ringAreaSquareMeters(outer) - holeArea);
+  }, 0);
+  return squareMeters > 0 ? squareMeters / 1600 : null;
+}
+
+function estimateGreenAreaRai(props: any, geometry: any) {
+  const explicitArea = Number(props.green_area_rai);
+  if (Number.isFinite(explicitArea) && explicitArea > 0) return explicitArea;
+
+  const districtAreaRai = geometryAreaRai(geometry);
+  if (!districtAreaRai) return null;
+
+  const explicitRatio = Number(props.green_area_ratio);
+  const ndviMean = Number(props.ndvi_mean ?? props.ndvi ?? props.vegetation_index);
+  const estimatedRatio = Number.isFinite(explicitRatio)
+    ? explicitRatio
+    : Number.isFinite(ndviMean)
+      ? Math.max(0.03, Math.min(0.65, ndviMean - 0.08))
+      : null;
+
+  return estimatedRatio === null ? null : Math.round(districtAreaRai * estimatedRatio);
+}
+
 export default function GreenSpaceSidebar({
   onDistrictSelect,
   activeDistrict,
@@ -44,7 +85,7 @@ export default function GreenSpaceSidebar({
     return (geojsonData?.features || [])
       .map((feature: any) => {
         const props = feature.properties || {};
-        const value = Number(props.green_area_rai);
+        const value = estimateGreenAreaRai(props, feature.geometry);
         return {
           district: props.name_th,
           value,
@@ -100,7 +141,7 @@ export default function GreenSpaceSidebar({
           </div>
           <div>
             <h1 className="text-base font-bold text-slate-100 leading-none">พื้นที่สีเขียวเมือง</h1>
-            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Bangkok Green Space (NDVI)</p>
+            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Bangkok Green Space Area</p>
           </div>
         </div>
 
@@ -151,7 +192,7 @@ export default function GreenSpaceSidebar({
 
         <section>
           <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5 leading-tight">
-            <Activity className="w-3 h-3" /> แนวโน้มพื้นที่สีเขียว (Trend)
+            <Activity className="w-3 h-3" /> แนวโน้มดัชนีพืชพรรณประกอบ
           </h3>
           <div className="flex items-end gap-[3px] h-20 mb-2">
             {yearlyDisplayTrend.map((item: any, index: number) => {

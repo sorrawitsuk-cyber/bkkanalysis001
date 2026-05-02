@@ -16,9 +16,11 @@ export default function NdviInsightsPanel({ summary, areaRows = [] }: NdviInsigh
         .sort((a, b) => a.value - b.value)
         .slice(0, 10)
         .map((item) => ({ name: item.district, greenArea: item.value ?? 0 }))
-    : (summary.lowestNdviRanking || []).map((item: any) => ({
+    : (summary.lowestNdviRanking || [])
+      .filter((item: any) => Number.isFinite(Number(item.green_area_rai)))
+      .map((item: any) => ({
         name: item.district_name,
-        greenArea: item.green_area_rai ?? 0,
+        greenArea: Number(item.green_area_rai),
       }));
 
   return (
