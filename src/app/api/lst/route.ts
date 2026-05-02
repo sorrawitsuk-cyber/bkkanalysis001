@@ -252,6 +252,7 @@ export async function GET(request: Request) {
 
     const currentYearData = summaryData.filter((row: any) => row.year === year);
     let ranking: any[] = [];
+    let maxRanking: any[] = [];
     let currentAvg = 0;
     let maxCurrentValue = -Infinity;
     let baselineAvg = 0;
@@ -284,22 +285,38 @@ export async function GET(request: Request) {
         ranking = currentYearData
           .sort((a: any, b: any) => (valueFor(b, metric) ?? -Infinity) - (valueFor(a, metric) ?? -Infinity))
           .map((row: any) => [row.district_name, valueFor(row, metric)]);
+
+        if (metric === "lst") {
+          maxRanking = currentYearData
+            .map((row: any) => [
+              row.district_name,
+              typeof row.max_lst === "number" ? row.max_lst : valueFor(row, metric),
+            ])
+            .sort((a: any, b: any) => (b[1] ?? -Infinity) - (a[1] ?? -Infinity));
+        }
       }
     }
 
     const monthlyData = new Array(12).fill(0);
     const monthlyCounts = new Array(12).fill(0);
+    const monthlyMaxData = new Array(12).fill(-Infinity);
     currentYearData.forEach((row: any) => {
       if (metric === "lst" && row.monthly_lst) {
         row.monthly_lst.forEach((temp: number, monthIdx: number) => {
           monthlyData[monthIdx] += temp;
           monthlyCounts[monthIdx] += 1;
+          if (typeof temp === "number" && Number.isFinite(temp)) {
+            monthlyMaxData[monthIdx] = Math.max(monthlyMaxData[monthIdx], temp);
+          }
         });
       }
     });
     const monthlyTrend = monthlyData.map((sum, idx) =>
       monthlyCounts[idx] > 0 ? parseFloat((sum / monthlyCounts[idx]).toFixed(2)) : 0,
     );
+    const monthlyMaxTrend = metric === "lst"
+      ? monthlyMaxData.map((temp) => temp > -Infinity ? parseFloat(temp.toFixed(2)) : 0)
+      : [];
 
     let baselineMonthlyTrend: number[] = [];
     const monthlyDeltaTrend = compareYear ? (() => {
@@ -376,9 +393,11 @@ export async function GET(request: Request) {
         greenAreaTrend,
         yearlyDeltaTrend,
         monthlyTrend,
+        monthlyMaxTrend,
         baselineMonthlyTrend,
         monthlyDeltaTrend,
         ranking,
+        maxRanking,
         min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : 30,
         max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : 40,
         min_delta: minDelta !== Infinity ? minDelta : metric === "vegetation" ? -0.2 : -2,

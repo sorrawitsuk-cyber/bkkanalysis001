@@ -39,6 +39,15 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(1, ...trendValues);
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
+  const monthlyDisplayTrend = !compareMode && trendMode === "max" && summary.monthlyMaxTrend?.length
+    ? summary.monthlyMaxTrend
+    : (summary.monthlyTrend || []);
+  const rankingDisplayRows = !compareMode && trendMode === "max" && summary.maxRanking?.length
+    ? summary.maxRanking
+    : (summary.ranking || []);
+  const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
+  const rankingMin = rankingValues.length ? Math.min(...rankingValues) : (summary.min_lst || 30);
+  const rankingMax = rankingValues.length ? Math.max(...rankingValues) : (summary.max_lst || 40);
 
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
@@ -67,7 +76,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               className="w-full bg-slate-900/50 border border-slate-800 text-slate-300 text-xs rounded-md px-3 py-2 appearance-none focus:outline-none focus:border-orange-500/50 transition-colors cursor-pointer"
             >
               <option value="ทั้งหมด">กรุงเทพมหานคร (ทั้งหมด)</option>
-              {summary.ranking?.map(([d]: any) => (
+              {rankingDisplayRows?.map(([d]: any) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
@@ -180,24 +189,24 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           </div>
         </section>
 
-        {!compareMode && summary.monthlyTrend && (
+        {!compareMode && monthlyDisplayTrend.length > 0 && (
           <>
             <div className="h-px bg-slate-800/60" />
             
             {/* Monthly Trend Chart */}
             <section>
               <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-3 flex items-center gap-1.5">
-                <Calendar className="w-3 h-3" /> แนวโน้มรายเดือน ปี {summary.selectedYear}
+                <Calendar className="w-3 h-3" /> {trendMode === "max" ? "ค่าสูงสุดรายเดือน" : "แนวโน้มรายเดือน"} ปี {summary.selectedYear}
               </h3>
               <div className="flex items-end gap-[2px] h-16 mb-2">
-                {summary.monthlyTrend.map((temp: number, i: number) => {
+                {monthlyDisplayTrend.map((temp: number, i: number) => {
                   const currentYear = new Date().getFullYear();
                   const currentMonth = new Date().getMonth();
                   const isFutureMonth = summary.selectedYear === currentYear && i > currentMonth;
                   
                   // Normalize the height between 30C and 40C
-                  const minT = 30;
-                  const maxT = 40;
+                  const minT = trendMode === "max" ? 34 : 30;
+                  const maxT = trendMode === "max" ? 46 : 40;
                   const pct = Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
                   
                   const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -249,7 +258,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : 'อันดับความร้อน · Ranking'}
+              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : trendMode === "max" ? "ค่าสูงสุดรายเขต · Max Ranking" : "อันดับความร้อนเฉลี่ย · Ranking"}
             </h3>
             <button 
               onClick={() => setShowAll(!showAll)}
@@ -260,7 +269,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           </div>
 
           <div className="space-y-1.5">
-            {(summary.ranking || []).slice(0, showAll ? 50 : 10).map(([district, val]: [string, number], i: number) => {
+            {rankingDisplayRows.slice(0, showAll ? 50 : 10).map(([district, val]: [string, number], i: number) => {
               // Normalize for progress bar
               let pct = 0;
               const isSelected = activeDistrict === district;
@@ -269,9 +278,9 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                 const maxD = Math.abs(summary.max_delta || 2);
                 pct = Math.min(100, (Math.abs(val) / maxD) * 100);
               } else {
-                const min = summary.min_lst || 30;
-                const max = summary.max_lst || 40;
-                pct = ((val - min) / (max - min)) * 100;
+                const min = rankingMin;
+                const max = rankingMax;
+                pct = max > min ? ((val - min) / (max - min)) * 100 : 100;
               }
 
               const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(1);
