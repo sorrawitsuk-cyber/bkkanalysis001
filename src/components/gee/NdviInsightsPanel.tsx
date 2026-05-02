@@ -27,9 +27,9 @@ export default function NdviInsightsPanel({ summary }: NdviInsightsPanelProps) {
         </span>
       </div>
 
-      <div className="h-48 min-w-0">
+      <div className="h-48 min-h-48 min-w-[1px]">
         <div className="text-[10px] text-slate-400 mb-2">10 เขต NDVI ต่ำสุด</div>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={192} minWidth={1} minHeight={1}>
           <BarChart data={lowRanking} layout="vertical" margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
             <XAxis type="number" domain={[0, "dataMax"]} stroke="#64748b" tick={{ fontSize: 9 }} />

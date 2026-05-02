@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import ee, { initGEE } from '@/lib/gee';
 
+function evaluateEe<T>(eeObject: any): Promise<T> {
+  return new Promise((resolve, reject) => {
+    eeObject.evaluate((value: T, error: any) => {
+      if (error) reject(error);
+      else resolve(value);
+    });
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get('lat') || '0');
@@ -84,7 +93,8 @@ export async function GET(request: Request) {
           .filterDate(startDate, endDate)
           .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
-    if (collection.size().getInfo() === 0) {
+    const imageCount = await evaluateEe<number>(collection.size());
+    if (!imageCount) {
       return NextResponse.json({ error: 'No satellite data found for this location/year' }, { status: 404 });
     }
 
@@ -94,11 +104,12 @@ export async function GET(request: Request) {
       : currentImage;
 
     // 3. Sample the value at the point
-    const result = metricImage.reduceRegion({
+    const result = await evaluateEe<Record<string, number | null>>(metricImage.reduceRegion({
       reducer: ee.Reducer.first(),
       geometry: point,
       scale: metric === 'vegetation' ? 10 : 30,
-    }).getInfo();
+      bestEffort: true,
+    }));
 
     const value = metric === 'vegetation' ? result.NDVI : result.LST;
 
