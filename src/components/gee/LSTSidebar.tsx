@@ -15,6 +15,7 @@ interface LSTSidebarProps {
 
 export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: LSTSidebarProps) {
   const [showAll, setShowAll] = useState(false);
+  const [trendMode, setTrendMode] = useState<"average" | "max">("average");
   
   // Skeleton Loader
   if (loading || !summary) {
@@ -32,6 +33,8 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
 
   const yearlyDisplayTrend = compareMode && summary.yearlyDeltaTrend?.length
     ? summary.yearlyDeltaTrend
+    : trendMode === "max" && summary.yearlyMaxTrend?.length
+      ? summary.yearlyMaxTrend
     : (summary.yearlyTrend || []);
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(1, ...trendValues);
@@ -108,9 +111,32 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
 
         {/* Historical Trend Chart */}
         <section>
-          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5 leading-tight">
-            <Activity className="w-3 h-3" /> แนวโน้มความร้อน (Trend)
-          </h3>
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
+              <Activity className="w-3 h-3" /> แนวโน้มความร้อน (Trend)
+            </h3>
+            {!compareMode && (
+              <div className="grid grid-cols-2 rounded-lg border border-slate-800 bg-slate-900/70 p-0.5">
+                {[
+                  ["average", "เฉลี่ย"],
+                  ["max", "สูงสุด"],
+                ].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setTrendMode(mode as "average" | "max")}
+                    className={`rounded-md px-2 py-1 text-[9px] font-bold transition-colors ${trendMode === mode ? "bg-orange-500 text-white" : "text-slate-500 hover:text-slate-300"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {!compareMode && (
+            <p className="text-[9px] text-slate-500 leading-snug mb-3">
+              {trendMode === "max" ? "แสดงค่าสูงสุดของอุณหภูมิพื้นผิวในแต่ละปี" : "แสดงค่าเฉลี่ยอุณหภูมิพื้นผิวรายปี"}
+            </p>
+          )}
           {compareMode && (
             <p className="text-[9px] text-slate-500 leading-snug mb-3">
               Yearly anomaly against {summary.compareYear}; red is warmer, blue is cooler.
@@ -122,9 +148,8 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               const temp = item[1];
               const maxMonthIdx = item[2];
               
-              // Normalize the height between 30C and 40C
-              const minT = 30;
-              const maxT = 40;
+              const minT = trendMode === "max" && !compareMode ? 34 : 30;
+              const maxT = trendMode === "max" && !compareMode ? 46 : 40;
               const pct = compareMode
                 ? Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100))
                 : Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));

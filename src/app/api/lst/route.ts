@@ -192,10 +192,12 @@ export async function GET(request: Request) {
       const trendValue = valueFor(row, metric);
       if (trendValue === null) return acc;
       if (!acc[row.year]) {
-        acc[row.year] = { sum: 0, count: 0, monthlyData: new Array(12).fill(0), monthlyCount: new Array(12).fill(0) };
+        acc[row.year] = { sum: 0, count: 0, max: -Infinity, monthlyData: new Array(12).fill(0), monthlyCount: new Array(12).fill(0) };
       }
       acc[row.year].sum += trendValue;
       acc[row.year].count += 1;
+      const maxTrendValue = metric === "lst" && typeof row.max_lst === "number" ? row.max_lst : trendValue;
+      acc[row.year].max = Math.max(acc[row.year].max, maxTrendValue);
       if (metric === "lst" && row.monthly_lst) {
         row.monthly_lst.forEach((temp: number, idx: number) => {
           acc[row.year].monthlyData[idx] += temp;
@@ -220,6 +222,13 @@ export async function GET(request: Request) {
       });
       return [trendYear, avg, maxMonthIdx];
     });
+    const yearlyMaxTrend = metric === "lst"
+      ? Object.keys(trendData).sort().map((trendYear) => [
+          trendYear,
+          parseFloat((trendData[trendYear].max > -Infinity ? trendData[trendYear].max : trendData[trendYear].sum / trendData[trendYear].count).toFixed(2)),
+          -1,
+        ])
+      : [];
     const greenAreaTrend = metric === "vegetation"
       ? Object.entries(summaryData.reduce((acc: any, row: any) => {
           const greenAreaRai = typeof row.green_area_rai === "number" ? row.green_area_rai : null;
@@ -363,6 +372,7 @@ export async function GET(request: Request) {
         avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed(metric === "vegetation" ? 3 : 2)) : 0,
         maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(metric === "vegetation" ? 3 : 2)) : null,
         yearlyTrend,
+        yearlyMaxTrend,
         greenAreaTrend,
         yearlyDeltaTrend,
         monthlyTrend,
