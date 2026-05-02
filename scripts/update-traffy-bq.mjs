@@ -153,7 +153,7 @@ async function fetchRange(startOffset, count, label, ingestedAt) {
   process.stdout.write(`  [${label}] offset ${startOffset.toLocaleString()} → +${count.toLocaleString()} `);
   while (records.length < count) {
     const limit = Math.min(BATCH, count - records.length);
-    const data  = await fetchWithRetry(`${TRAFFY_API}?limit=${limit}&start=${offset}`);
+    const data  = await fetchWithRetry(`${TRAFFY_API}?limit=${limit}&offset=${offset}`);
     const results = data.results ?? [];
     if (results.length === 0) break;
     records.push(...results.map(r => transform(r, ingestedAt)).filter(r => r.ticket_id));
@@ -208,7 +208,7 @@ else console.log('');
 
 // ── Tier 1: newest records ────────────────────────────────────────────────────
 // Also grab total count from first API call
-const firstPage = await fetchWithRetry(`${TRAFFY_API}?limit=1&start=0`);
+const firstPage = await fetchWithRetry(`${TRAFFY_API}?limit=1&offset=0`);
 const apiTotal  = firstPage.total ?? firstPage.count ?? 1_300_000;
 
 const { records: tier1 } = await fetchRange(0, NEW_COUNT, 'Tier1 new', ingestedAt);
