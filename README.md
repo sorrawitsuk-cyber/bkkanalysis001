@@ -117,3 +117,101 @@ npm run dev
 - ค่า NTL จาก VIIRS ใช้เป็น proxy ของกิจกรรมเมืองเท่านั้น ไม่ใช่ข้อมูลประชากรจริง
 - population, density, growth และ accessibility ที่สร้างจาก pipeline นี้เป็นค่า proxy/demo เพื่อ compatibility กับระบบเดิม ไม่ใช่สถิติราชการ
 - ผลลัพธ์ remote sensing ควรตรวจสอบร่วมกับข้อมูลภาคสนามและฐานข้อมูลพื้นที่สีเขียวจริงของกรุงเทพมหานครก่อนใช้ตัดสินใจเชิงนโยบาย
+
+---
+
+## Satellite Data Product Cache (R2)
+
+ระบบ cache ภาพดาวเทียม — ประมวลผล Sentinel-2 ล่วงหน้าผ่าน GEE แล้วเก็บไฟล์ไว้ใน Cloudflare R2 เพื่อให้ frontend โหลดได้เร็วโดยไม่ต้องรอ GEE ทุกครั้ง
+
+### Architecture
+
+```
+GitHub Actions (cron)
+  ├── scripts/gee/process-monthly.py  →  GEE → R2
+  └── scripts/gee/process-yearly.py   →  GEE → R2
+
+Cloudflare R2 (static serving)
+  satellite-cache/
+    index.json
+    monthly/YYYY-MM/
+      metadata.json  ndvi_mean.tif  ndvi_mean.webp  ...
+    yearly/YYYY/
+      metadata.json  ndvi_mean.tif  ...
+
+Next.js API (proxy)
+  /api/satellite-cache/index         ← index.json
+  /api/satellite-cache/metadata      ← metadata.json for a given period
+
+Frontend (green-space page)
+  "Cache" mode  →  ImageOverlay จาก R2 preview URL
+```
+
+### ตั้งค่า secrets
+
+**GitHub repository secrets** (Settings → Secrets → Actions):
+
+| Secret | คำอธิบาย |
+|---|---|
+| `GEE_SERVICE_ACCOUNT_JSON` | JSON key file ของ service account (ทั้งไฟล์ เป็น string) |
+| `R2_ACCOUNT_ID` | Cloudflare account ID |
+| `R2_ACCESS_KEY_ID` | R2 API token — Access Key ID |
+| `R2_SECRET_ACCESS_KEY` | R2 API token — Secret |
+| `R2_BUCKET` | ชื่อ R2 bucket |
+| `R2_PUBLIC_BASE_URL` | Public URL ของ bucket เช่น `https://pub-xxx.r2.dev` |
+
+**สำหรับ Next.js / Vercel** — ใส่ใน `.env.local` หรือ Vercel environment variables:  
+`R2_PUBLIC_BASE_URL`, `SATELLITE_CACHE_PREFIX` (default: `satellite-cache`)
+
+### รัน script ด้วยตนเอง
+
+```bash
+# ติดตั้ง Python dependencies (ครั้งแรก)
+pip install -r scripts/gee/requirements.txt
+
+# ตั้งค่า env vars
+export GEE_SERVICE_ACCOUNT_JSON=$(cat path/to/key.json)
+export R2_ACCOUNT_ID=...
+export R2_ACCESS_KEY_ID=...
+export R2_SECRET_ACCESS_KEY=...
+export R2_BUCKET=your-bucket
+export R2_PUBLIC_BASE_URL=https://pub-xxx.r2.dev
+
+# ประมวลผลเดือนก่อนหน้า (default)
+python scripts/gee/process-monthly.py
+
+# ระบุเดือนเอง
+python scripts/gee/process-monthly.py --period 2024-03
+
+# บังคับประมวลผลซ้ำ
+python scripts/gee/process-monthly.py --period 2024-03 --force
+
+# ประมวลผลรายปี
+python scripts/gee/process-yearly.py --year 2023
+
+# Rebuild index.json จาก R2 listing
+node scripts/storage/update-index.mjs
+```
+
+### GitHub Actions schedule
+
+| Workflow | ไฟล์ | กำหนดการ |
+|---|---|---|
+| Monthly | `process-satellite-monthly.yml` | วันที่ 5 และ 10 ของทุกเดือน 05:00 BKK |
+| Yearly | `process-satellite-yearly.yml` | 15 ม.ค. ของทุกปี 06:00 BKK |
+
+trigger ด้วยมือได้ที่ **Actions → เลือก workflow → Run workflow**
+
+### R2 object paths
+
+```
+satellite-cache/index.json
+satellite-cache/monthly/{YYYY-MM}/metadata.json
+satellite-cache/monthly/{YYYY-MM}/{layer}.tif
+satellite-cache/monthly/{YYYY-MM}/{layer}.webp
+satellite-cache/yearly/{YYYY}/metadata.json
+satellite-cache/yearly/{YYYY}/{layer}.tif
+satellite-cache/yearly/{YYYY}/{layer}.webp
+```
+
+Layers: `ndvi_mean`, `ndvi_max`, `ndwi_mean`, `ndwi_max`, `mndwi_mean`, `ndbi_mean`

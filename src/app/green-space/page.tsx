@@ -4,19 +4,28 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
-import { Calendar, Layers } from "lucide-react";
+import { Calendar, Database, Layers } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
+import {
+  fetchCacheIndex,
+  fetchCacheMetadata,
+  getNdviPreviewUrl,
+  formatPeriodThai,
+  type SatelliteCacheIndex,
+  type SatelliteCacheMetadata,
+} from "@/lib/satellite-cache";
 
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
+type MapMode  = "district" | "idw" | "satellite-cache";
 
 export default function GreenSpacePage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [selectedYear, setSelectedYear] = useState(2026);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2018);
-  const [mapMode, setMapMode] = useState<"district" | "idw">("idw");
+  const [mapMode, setMapMode] = useState<MapMode>("idw");
   const [geojsonData, setGeojsonData] = useState<any>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
@@ -24,6 +33,11 @@ export default function GreenSpacePage() {
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
+
+  // Satellite cache state
+  const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
+  const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
+  const [cacheLoading, setCacheLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -48,6 +62,29 @@ export default function GreenSpacePage() {
       });
   }, [activeDistrict, selectedYear, compareMode, compareYear]);
 
+  // Load satellite cache index once on mount
+  useEffect(() => {
+    fetchCacheIndex().then(setCacheIndex);
+  }, []);
+
+  // Load cache metadata when entering satellite-cache mode
+  useEffect(() => {
+    if (mapMode !== "satellite-cache") return;
+    setCacheLoading(true);
+    fetchCacheIndex()
+      .then((idx) => {
+        setCacheIndex(idx);
+        const period = idx?.latest_month;
+        if (!period) { setCacheLoading(false); return; }
+        return fetchCacheMetadata("monthly", period);
+      })
+      .then((meta) => {
+        setCacheMeta(meta ?? null);
+        setCacheLoading(false);
+      })
+      .catch(() => setCacheLoading(false));
+  }, [mapMode]);
+
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setSelectedYear(2026);
@@ -57,7 +94,11 @@ export default function GreenSpacePage() {
     setOpacity(0.78);
     setBaseMap("dark");
     setNdviLayer("ndvi_mean");
+    setCacheMeta(null);
+    setCacheLoading(false);
   };
+
+  const cachePreviewUrl = getNdviPreviewUrl(cacheMeta);
 
   const ndviSummary = summary?.ndviSummary;
   const districtCount = geojsonData?.features?.length || 50;
@@ -190,6 +231,7 @@ export default function GreenSpacePage() {
             baseMap={baseMap}
             analysisType="green"
             ndviLayer={ndviLayer}
+            satelliteCachePreviewUrl={cachePreviewUrl}
           />
         </div>
 
@@ -251,25 +293,32 @@ export default function GreenSpacePage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 border border-slate-800">
+            <div className="grid grid-cols-3 bg-slate-900/80 rounded-xl p-1 border border-slate-800">
               <button
                 onClick={() => setMapMode("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                รายเขต (Districts)
+                รายเขต
               </button>
               <button
                 onClick={() => {
                   setMapMode("idw");
                   setNdviLayer("ndvi_mean");
                 }}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                ดาวเทียม (GEE)
+                GEE Live
+              </button>
+              <button
+                onClick={() => setMapMode("satellite-cache")}
+                className={`text-[9px] py-2 rounded-lg transition-all font-bold flex items-center justify-center gap-1 ${mapMode === "satellite-cache" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                <Database className="w-2.5 h-2.5" />
+                Cache
               </button>
             </div>
 
-            {mapMode === "district" ? (
+            {mapMode === "district" && (
               <div className="mt-4">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ชั้นข้อมูลรายเขต</h4>
                 <div className="grid grid-cols-1 gap-1.5">
@@ -288,12 +337,53 @@ export default function GreenSpacePage() {
                   ))}
                 </div>
               </div>
-            ) : (
+            )}
+
+            {mapMode === "idw" && (
               <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-                <h4 className="text-[10px] font-bold text-slate-400 mb-1">GEE Raster</h4>
+                <h4 className="text-[10px] font-bold text-slate-400 mb-1">GEE Raster (Live)</h4>
                 <p className="text-[9px] text-slate-500 leading-snug">
-                  แสดงค่า NDVI เฉลี่ยจาก Sentinel-2 เท่านั้น ส่วนขนาดและสัดส่วนพื้นที่สีเขียวดูได้ในโหมดรายเขต
+                  แสดงค่า NDVI เฉลี่ยจาก Sentinel-2 คำนวณสด ส่วนขนาดและสัดส่วนดูได้ในโหมดรายเขต
                 </p>
+              </div>
+            )}
+
+            {mapMode === "satellite-cache" && (
+              <div className="mt-4 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
+                <h4 className="text-[10px] font-bold text-sky-300 mb-1 flex items-center gap-1">
+                  <Database className="w-3 h-3" /> Satellite Cache (R2)
+                </h4>
+                {cacheLoading ? (
+                  <p className="text-[9px] text-slate-500">กำลังโหลดข้อมูล cache...</p>
+                ) : cacheMeta?.status === "ok" ? (
+                  <>
+                    <p className="text-[9px] text-slate-400">
+                      <span className="text-slate-200 font-bold">ช่วงเวลา:</span>{" "}
+                      {formatPeriodThai(cacheMeta.period)}
+                    </p>
+                    <p className="text-[9px] text-slate-400">
+                      <span className="text-slate-200 font-bold">จำนวนภาพ:</span>{" "}
+                      {cacheMeta.image_count} scenes
+                      {cacheMeta.fallback_used && (
+                        <span className="text-amber-400 ml-1">(fallback range)</span>
+                      )}
+                    </p>
+                    <p className="text-[9px] text-slate-400">
+                      <span className="text-slate-200 font-bold">Layer:</span> NDVI mean preview
+                    </p>
+                    {!cachePreviewUrl && (
+                      <p className="text-[9px] text-amber-400">ยังไม่มี preview image ใน cache</p>
+                    )}
+                  </>
+                ) : cacheMeta?.status === "insufficient_data" || cacheMeta?.status === "pending" ? (
+                  <p className="text-[9px] text-amber-400">
+                    ข้อมูลช่วงนี้ยังไม่พร้อม (ภาพถ่ายน้อยเกินไป)
+                  </p>
+                ) : (
+                  <p className="text-[9px] text-slate-500">
+                    ยังไม่มีข้อมูล cache — รัน GitHub Action เพื่อประมวลผลครั้งแรก
+                  </p>
+                )}
               </div>
             )}
 

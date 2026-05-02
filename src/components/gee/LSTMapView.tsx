@@ -11,7 +11,7 @@ interface LSTMapViewProps {
   geojsonData: any;
   invertedMask?: any;
   activeDistrict: string;
-  mapMode: "district" | "idw";
+  mapMode: "district" | "idw" | "satellite-cache";
   compareMode?: boolean;
   summary?: any;
   opacity?: number;
@@ -19,6 +19,10 @@ interface LSTMapViewProps {
   analysisType?: "heat" | "green";
   ndviLayer?: "green_area_rai" | "green_area_ratio" | "ndvi_mean";
   dataPeriodLabel?: string;
+  /** WebP preview URL from R2 cache — rendered as an image overlay in satellite-cache mode. */
+  satelliteCachePreviewUrl?: string | null;
+  /** Bounds for the cache overlay: [[south, west], [north, east]]. Defaults to Bangkok extent. */
+  satelliteCacheBounds?: [[number, number], [number, number]];
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -37,6 +41,9 @@ function formatValue(value: number | null | undefined, digits = 2, suffix = "") 
   return `${value.toFixed(digits)}${suffix}`;
 }
 
+// Bangkok bounding box used as default for the R2 cache image overlay
+const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13.956, 100.935]];
+
 export default function LSTMapView({
   geojsonData,
   activeDistrict,
@@ -48,11 +55,14 @@ export default function LSTMapView({
   analysisType = "heat",
   ndviLayer = "green_area_rai",
   dataPeriodLabel,
+  satelliteCachePreviewUrl,
+  satelliteCacheBounds,
 }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const geeLayerRef = useRef<L.TileLayer | null>(null);
+  const cacheLayerRef = useRef<L.ImageOverlay | null>(null);
   const yearRef = useRef(summary?.selectedYear || 2024);
   const baselineYearRef = useRef(summary?.compareYear || 2018);
   const mapModeRef = useRef(mapMode);
@@ -231,6 +241,11 @@ export default function LSTMapView({
         mapRef.current.removeLayer(geeLayerRef.current);
         geeLayerRef.current = null;
       }
+      // Remove cache overlay when switching to idw/district
+      if (mapMode !== "satellite-cache" && cacheLayerRef.current) {
+        mapRef.current.removeLayer(cacheLayerRef.current);
+        cacheLayerRef.current = null;
+      }
       if (mapMode === "idw" && summary?.selectedYear) {
         try {
           const metricParam = analysisType === "green" ? "&metric=vegetation" : "";
@@ -249,7 +264,26 @@ export default function LSTMapView({
 
   useEffect(() => {
     if (geeLayerRef.current) geeLayerRef.current.setOpacity(opacity);
+    if (cacheLayerRef.current) cacheLayerRef.current.setOpacity(opacity);
   }, [opacity]);
+
+  // Satellite-cache image overlay — rendered when mapMode === "satellite-cache"
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (cacheLayerRef.current) {
+      mapRef.current.removeLayer(cacheLayerRef.current);
+      cacheLayerRef.current = null;
+    }
+    if (mapMode === "satellite-cache" && satelliteCachePreviewUrl) {
+      const bounds = satelliteCacheBounds ?? BKK_BOUNDS;
+      cacheLayerRef.current = L.imageOverlay(satelliteCachePreviewUrl, bounds, {
+        opacity,
+        interactive: false,
+        className: "satellite-cache-overlay",
+      }).addTo(mapRef.current);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapMode, satelliteCachePreviewUrl, satelliteCacheBounds]);
 
   useEffect(() => {
     if (!mapRef.current || !geojsonData) return;
