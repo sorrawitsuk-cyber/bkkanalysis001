@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
+import { formatLST, getLSTClassThai, getLSTColor } from "@/lib/lst";
 
 interface LSTMapViewProps {
   geojsonData: any;
@@ -17,6 +18,7 @@ interface LSTMapViewProps {
   baseMap?: "dark" | "light" | "satellite" | "streets" | "none";
   analysisType?: "heat" | "green";
   ndviLayer?: "green_area_rai" | "green_area_ratio" | "ndvi_mean";
+  dataPeriodLabel?: string;
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -45,6 +47,7 @@ export default function LSTMapView({
   baseMap = "dark",
   analysisType = "heat",
   ndviLayer = "green_area_rai",
+  dataPeriodLabel,
 }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
@@ -55,6 +58,8 @@ export default function LSTMapView({
   const mapModeRef = useRef(mapMode);
   const compareModeRef = useRef(compareMode);
   const analysisTypeRef = useRef(analysisType);
+  const dataPeriodRef = useRef(dataPeriodLabel || "");
+  const activeDistrictRef = useRef(activeDistrict);
 
   useEffect(() => {
     if (summary?.selectedYear) yearRef.current = summary.selectedYear;
@@ -68,7 +73,9 @@ export default function LSTMapView({
     mapModeRef.current = mapMode;
     compareModeRef.current = compareMode;
     analysisTypeRef.current = analysisType;
-  }, [analysisType, compareMode, mapMode]);
+    dataPeriodRef.current = dataPeriodLabel || "";
+    activeDistrictRef.current = activeDistrict;
+  }, [activeDistrict, analysisType, compareMode, dataPeriodLabel, mapMode]);
 
   const pointPopupContent = useCallback((options: {
     lat: number;
@@ -92,20 +99,29 @@ export default function LSTMapView({
         ? "ไม่มีข้อมูล"
         : options.value === null || options.value === undefined
           ? "ไม่มีข้อมูล"
-          : `${signedValue}${unit}`;
+          : isGreen
+            ? `${signedValue}${unit}`
+            : isCompare
+              ? `${signedValue}${unit}`
+              : formatLST(Number(options.value));
+    const lstClass = !isGreen && typeof options.value === "number" ? getLSTClassThai(options.value) : "";
+    const locationLabel = activeDistrictRef.current !== ALL_DISTRICTS ? activeDistrictRef.current : "ตำแหน่งที่คลิกบนแผนที่";
 
     return `
       <div class="bg-slate-950 text-white p-3 rounded-lg border border-slate-800 shadow-2xl min-w-[190px]">
         <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">ค่าจริงจากพิกเซล GEE</div>
+        <div class="text-[10px] text-slate-400 mb-1">พื้นที่/เขต: <span class="text-slate-100 font-bold">${locationLabel}</span></div>
         <div class="flex items-center justify-between gap-3 mb-1">
           <span class="text-[10px] text-slate-400">${label}</span>
           <span class="${accent} font-mono font-bold text-lg">${valueText}</span>
         </div>
-        ${isCompare ? `<div class="text-[9px] text-slate-500 mb-1">ปี ${yearRef.current} เทียบกับ ${baselineYearRef.current}</div>` : `<div class="text-[9px] text-slate-500 mb-1">ปี ${yearRef.current}</div>`}
+        ${!isGreen && lstClass ? `<div class="text-[10px] text-slate-400 mb-1">ระดับอุณหภูมิพื้นผิว: <span class="text-orange-300 font-bold">${lstClass}</span></div>` : ""}
+        ${isCompare ? `<div class="text-[9px] text-slate-500 mb-1">ปี ${yearRef.current} เทียบกับ ${baselineYearRef.current}</div>` : `<div class="text-[9px] text-slate-500 mb-1">ช่วงข้อมูล: ${dataPeriodRef.current || `ปี ${yearRef.current}`}</div>`}
         <div class="grid grid-cols-2 gap-2 text-[9px] text-slate-500 font-mono">
           <div>lat ${options.lat.toFixed(6)}</div>
           <div>lng ${options.lng.toFixed(6)}</div>
         </div>
+        ${!isGreen && !isCompare && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div><div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>` : ""}
         ${options.error ? `<div class="text-[9px] text-red-300 mt-2">${options.error}</div>` : ""}
       </div>
     `;
@@ -205,11 +221,8 @@ export default function LSTMapView({
       return pct > 0.8 ? "#238b45" : pct > 0.6 ? "#68d391" : pct > 0.4 ? "#f6e05e" : pct > 0.2 ? "#d94801" : "#8c2d04";
     }
 
-    const min = summary?.min_lst || 30;
-    const max = summary?.max_lst || 40;
-    const pct = (value - min) / Math.max(0.01, max - min);
-    return pct > 0.8 ? "#800026" : pct > 0.6 ? "#E31A1C" : pct > 0.4 ? "#FD8D3C" : pct > 0.2 ? "#FEB24C" : "#FFEDA0";
-  }, [analysisType, compareMode, ndviLayer, summary?.max_lst, summary?.min_lst]);
+    return getLSTColor(value);
+  }, [analysisType, compareMode, ndviLayer]);
 
   useEffect(() => {
     const updateGeeLayer = async () => {
@@ -264,18 +277,28 @@ export default function LSTMapView({
         const value = getFeatureValue(feature);
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : 2;
         const unit = analysisType === "heat" ? "°C" : ndviLayer === "green_area_rai" ? " ไร่" : "";
-        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : "อุณหภูมิพื้นผิว";
+        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : "ค่า LST";
         const selectedDisplay = ndviLayer === "green_area_ratio" && typeof value === "number"
           ? `${(value * 100).toFixed(1)}%`
           : formatValue(value, decimals, unit);
         const deltaLine = props.vegetation_delta !== null && props.vegetation_delta !== undefined
           ? `<div class="text-[10px] text-slate-400 mt-1">แนวโน้ม: <span class="${props.vegetation_delta >= 0 ? "text-emerald-300" : "text-amber-300"} font-mono">${props.vegetation_delta >= 0 ? "+" : ""}${props.vegetation_delta.toFixed(3)}</span></div>`
           : "";
+        const heatDetails = analysisType === "heat" && !compareMode ? `
+              <div class="text-[10px] text-slate-400 mt-1">ระดับอุณหภูมิพื้นผิว: <span class="text-orange-300 font-bold">${getLSTClassThai(value)}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">ช่วงข้อมูล: <span class="text-slate-200">${dataPeriodLabel || `ปี ${summary?.selectedYear || ""}`}</span></div>
+              <div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div>
+              <div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>
+            ` : analysisType === "heat" ? `
+              <div class="text-[10px] text-slate-400 mt-1">ผลต่าง LST ระหว่างปี: <span class="text-orange-300 font-bold">${selectedDisplay}</span></div>
+              <div class="text-[9px] text-slate-400 mt-2">เป็นการเปรียบเทียบอุณหภูมิพื้นผิวจากดาวเทียมระหว่างปี ยังไม่ใช่ค่า SUHI Intensity อย่างเป็นทางการ</div>
+            ` : "";
 
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[190px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}</div>
-            <div class="text-[10px] text-slate-400">${title}: <span class="text-emerald-300 text-lg font-mono ml-1">${selectedDisplay}</span></div>
+            <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
+            ${heatDetails}
             ${analysisType === "green" ? `
               <div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">ระดับ: <span class="text-emerald-300">${props.ndvi_class || "ไม่มีข้อมูล"}</span></div>

@@ -26,9 +26,9 @@ const analysisModules = [
     status: "พร้อมใช้งาน",
   },
   {
-    title: "วิเคราะห์เกาะความร้อนเมือง",
-    eyebrow: "Urban Heat Island",
-    description: "ดูอุณหภูมิพื้นผิวจาก Landsat, เปรียบเทียบรายปี, popup ค่า pixel และจัดอันดับเขตร้อน",
+    title: "Land Surface Temperature (LST)",
+    eyebrow: "อุณหภูมิพื้นผิวเมืองจากข้อมูลดาวเทียม",
+    description: "ดูค่า LST จาก Landsat เพื่อวิเคราะห์พื้นที่สะสมความร้อนเชิงพื้นที่ โดยไม่ตีความเป็นอุณหภูมิอากาศ",
     href: "/earth-engine",
     icon: Flame,
     accent: "from-amber-500 to-red-600",

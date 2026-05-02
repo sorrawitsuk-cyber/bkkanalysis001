@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import LSTSidebar from "@/components/gee/LSTSidebar";
 import ExecutiveReport from "@/components/gee/ExecutiveReport";
 import { Layers, FileDown, RefreshCw, Calendar } from "lucide-react";
+import { formatLST, getLSTLegendItems } from "@/lib/lst";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
@@ -105,41 +106,54 @@ export default function EarthEnginePage() {
   };
 
   const hottestDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
+  const periodLabel = (() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const endLabel = selectedYear === currentYear
+      ? now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
+      : "31 ธ.ค.";
+    return `1 ม.ค. - ${endLabel} ${selectedYear}`;
+  })();
+  const highLstDistrictCount = (geojsonData?.features || []).filter((feature: any) => {
+    const value = feature?.properties?.mean_lst;
+    return typeof value === "number" && value >= 36;
+  }).length;
   const kpiCards = [
     {
-      label: compareMode ? "ส่วนต่างอุณหภูมิเฉลี่ย" : "อุณหภูมิพื้นผิวเฉลี่ย",
+      label: compareMode ? "ส่วนต่าง LST เฉลี่ย" : "LST เฉลี่ย",
       value: compareMode
         ? `${summary?.avgDelta > 0 ? "+" : ""}${(summary?.avgDelta ?? 0).toFixed(2)}°C`
         : summary?.averageTemp !== null && summary?.averageTemp !== undefined
-          ? `${Number(summary.averageTemp).toFixed(2)}°C`
+          ? formatLST(Number(summary.averageTemp))
           : "ไม่มีข้อมูล",
     },
     {
-      label: compareMode ? "เขตร้อนขึ้นสูงสุด" : "อุณหภูมิสูงสุด",
+      label: compareMode ? "ส่วนต่าง LST สูงสุด" : "LST สูงสุด",
       value: compareMode
         ? `${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0).toFixed(2)}°C`
         : summary?.maxTemp !== null && summary?.maxTemp !== undefined
-          ? `${Number(summary.maxTemp).toFixed(2)}°C`
+          ? formatLST(Number(summary.maxTemp))
           : "ไม่มีข้อมูล",
     },
     {
-      label: "ปีข้อมูล",
-      value: compareMode ? `${selectedYear} vs ${compareYear}` : `${selectedYear}`,
+      label: "พื้นที่ LST สูง",
+      value: highLstDistrictCount > 0 ? `${highLstDistrictCount} เขต` : "ไม่มีข้อมูล",
     },
     {
-      label: "เขตร้อนสูงสุด",
+      label: "เขตที่มี LST เฉลี่ยสูงสุด",
       value: hottestDistrict,
     },
     {
-      label: "โหมดแผนที่",
-      value: mapMode === "idw" ? "ดาวเทียม (GEE)" : "รายเขต",
+      label: "วันที่/ช่วงข้อมูลดาวเทียม",
+      value: compareMode ? `${selectedYear} vs ${compareYear}` : periodLabel,
     },
   ];
   const legendConfig = (() => {
     if (compareMode) {
       return {
-        title: "การเปลี่ยนแปลงอุณหภูมิพื้นผิว",
-        description: `อุณหภูมิปี ${selectedYear} ลบปีฐาน ${compareYear}; สีแดงคือร้อนขึ้น สีฟ้าคือเย็นลง`,
+        title: "การเปลี่ยนแปลงอุณหภูมิพื้นผิว (LST)",
+        description: `ค่า LST ปี ${selectedYear} ลบปีฐาน ${compareYear}; สีแดงคือพื้นผิวร้อนขึ้น สีฟ้าคือพื้นผิวเย็นลง`,
+        note: "การเปรียบเทียบนี้เป็นผลต่าง LST ระหว่างปี ยังไม่ใช่ SUHI Intensity อย่างเป็นทางการ",
         unit: "°C",
         items: [
           { color: "#2166AC", label: "เย็นลงมาก", range: "< -1.5" },
@@ -151,41 +165,14 @@ export default function EarthEnginePage() {
       };
     }
 
-    if (mapMode === "idw") {
-      return {
-        title: "อุณหภูมิพื้นผิวจากดาวเทียม",
-        description: "ค่า LST raster จาก Landsat 8/9 แบบ median รายปี หลังคัดกรองเมฆ",
-        unit: "°C",
-        items: [
-          { color: "#FFEDA0", label: "เย็นที่สุด", range: "25 - 29" },
-          { color: "#FED976", label: "ค่อนข้างเย็น", range: "29 - 33" },
-          { color: "#FD8D3C", label: "ร้อน", range: "33 - 37" },
-          { color: "#E31A1C", label: "ร้อนมาก", range: "37 - 41" },
-          { color: "#BD0026", label: "ร้อนจัด", range: "41 - 45" },
-          { color: "#800026", label: "ร้อนสูงสุด", range: "> 45" },
-        ],
-      };
-    }
-
-    const min = summary?.min_lst || 30;
-    const max = summary?.max_lst || 40;
-    const range = max - min;
-    const pct20 = min + range * 0.2;
-    const pct40 = min + range * 0.4;
-    const pct60 = min + range * 0.6;
-    const pct80 = min + range * 0.8;
-
     return {
-      title: "อุณหภูมิพื้นผิวเฉลี่ยรายเขต",
-      description: "ช่วงสีคำนวณจากค่าต่ำสุดถึงสูงสุดของข้อมูลรายเขตในปีที่เลือก",
+      title: "ระดับอุณหภูมิพื้นผิว (LST)",
+      description: mapMode === "idw"
+        ? "ค่า LST raster จาก Landsat 8/9 แบบ median รายปี หลังคัดกรองเมฆ"
+        : "ค่า LST เฉลี่ยรายเขตจากข้อมูลดาวเทียมในปีที่เลือก",
+      note: "เกณฑ์นี้ใช้เพื่อจัดกลุ่มอุณหภูมิพื้นผิวเชิงพื้นที่ ไม่ใช่เกณฑ์เตือนภัยสุขภาพหรืออุณหภูมิอากาศ",
       unit: "°C",
-      items: [
-        { color: "#FFEDA0", label: "เย็นที่สุด", range: `< ${pct20.toFixed(1)}` },
-        { color: "#FEB24C", label: "ปานกลาง", range: `${pct20.toFixed(1)} - ${pct40.toFixed(1)}` },
-        { color: "#FD8D3C", label: "ร้อน", range: `${pct40.toFixed(1)} - ${pct60.toFixed(1)}` },
-        { color: "#E31A1C", label: "ร้อนมาก", range: `${pct60.toFixed(1)} - ${pct80.toFixed(1)}` },
-        { color: "#800026", label: "ร้อนที่สุด", range: `> ${pct80.toFixed(1)}` },
-      ],
+      items: getLSTLegendItems(),
     };
   })();
 
@@ -210,6 +197,7 @@ export default function EarthEnginePage() {
               summary={summary}
               opacity={opacity}
               baseMap={baseMap}
+              dataPeriodLabel={periodLabel}
             />
         </div>
 
@@ -255,7 +243,7 @@ export default function EarthEnginePage() {
                 <p><span className="text-white">Period:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
               );
             })()}
-            <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temp)</p>
+            <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temperature)</p>
           </div>
         </div>
 
@@ -274,6 +262,7 @@ export default function EarthEnginePage() {
               </div>
             ))}
           </div>
+          <p className="mt-3 border-t border-slate-800 pt-2 text-[9px] leading-snug text-slate-500">{legendConfig.note}</p>
         </div>
 
       </main>
@@ -428,19 +417,30 @@ export default function EarthEnginePage() {
             )}
           </div>
 
-          <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-orange-500/20 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-orange-300 uppercase tracking-widest mb-2">LST คืออะไร</h4>
-            <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
-              <p>
-                <span className="text-slate-100 font-bold">LST</span> หรือ Land Surface Temperature คืออุณหภูมิของผิวพื้นดิน หลังคา ถนน และพื้นผิวเมืองที่ดาวเทียมตรวจจับได้ ไม่ใช่อุณหภูมิอากาศที่สถานีตรวจวัด
-              </p>
-              <p>
-                พื้นที่ที่มีอาคาร ถนนคอนกรีต หรือยางมะตอยมากมักสะสมความร้อนสูง ขณะที่พื้นที่สีเขียวและแหล่งน้ำช่วยลดอุณหภูมิพื้นผิวได้
-              </p>
-              <p>
-                แผนที่นี้ใช้ดูรูปแบบเกาะความร้อนเมืองและพื้นที่เสี่ยงเบื้องต้น ควรตีความร่วมกับช่วงเวลาถ่ายภาพ ฤดูกาล เมฆ ความชื้น และข้อมูลตรวจวัดภาคพื้นดิน
-              </p>
-            </div>
+          <div className="mt-auto space-y-3">
+            {[
+              {
+                title: "LST คืออะไร?",
+                body: "Land Surface Temperature (LST) คืออุณหภูมิของพื้นผิวโลกที่ประมวลผลจากข้อมูลดาวเทียมในช่วงคลื่นอินฟราเรดความร้อน ค่า LST สะท้อนความร้อนของพื้นผิว เช่น ถนน อาคาร หลังคา พื้นดิน พื้นที่สีเขียว และแหล่งน้ำ ไม่ใช่อุณหภูมิอากาศที่วัดจากสถานีอุตุนิยมวิทยา",
+              },
+              {
+                title: "ใช้ข้อมูลนี้เพื่ออะไร?",
+                body: "ข้อมูล LST เหมาะสำหรับวิเคราะห์รูปแบบความร้อนเชิงพื้นที่ ระบุบริเวณที่พื้นผิวเมืองสะสมความร้อนสูง เปรียบเทียบความแตกต่างระหว่างเขต และใช้ประกอบการวางแผนเพิ่มพื้นที่สีเขียว ร่มเงา หรือปรับวัสดุพื้นผิวเมือง",
+              },
+              {
+                title: "ข้อจำกัดของข้อมูล",
+                body: "ค่า LST ไม่ใช่อุณหภูมิอากาศ ไม่ใช่ Heat Index และไม่ใช่ค่าความร้อนที่ประชาชนรู้สึกโดยตรง ข้อมูลอาจได้รับผลจากเมฆ เงาเมฆ ฤดูกาล เวลาดาวเทียมผ่าน และความชื้นของพื้นผิว จึงควรใช้เพื่อวิเคราะห์เชิงพื้นที่ร่วมกับข้อมูลเมืองอื่น ๆ ไม่ควรใช้แทนการพยากรณ์อากาศหรือการแจ้งเตือนสุขภาพรายชั่วโมง",
+              },
+              {
+                title: "ต่อยอดสู่ SUHI",
+                body: "ข้อมูล LST ในหน้านี้สามารถใช้เป็นฐานสำหรับการวิเคราะห์ Surface Urban Heat Island (SUHI) ได้ในอนาคต โดย SUHI ต้องคำนวณจากผลต่างระหว่างอุณหภูมิพื้นผิวของพื้นที่เมืองกับพื้นที่อ้างอิง เช่น พื้นที่สีเขียว แหล่งน้ำ หรือพื้นที่รอบนอกเมือง ในเวอร์ชันปัจจุบัน ระบบแสดงค่า LST เพื่อระบุพื้นที่ที่มีแนวโน้มสะสมความร้อนสูง แต่ยังไม่แสดงค่า SUHI Intensity อย่างเป็นทางการ หากยังไม่มีการกำหนดพื้นที่อ้างอิงและคำนวณผลต่างตามหลักวิชาการ",
+              },
+            ].map((card) => (
+              <div key={card.title} className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-orange-500/20 shadow-2xl w-full">
+                <h4 className="text-[10px] font-bold text-orange-300 uppercase tracking-widest mb-2">{card.title}</h4>
+                <p className="text-[10px] text-slate-400 leading-relaxed">{card.body}</p>
+              </div>
+            ))}
           </div>
 
         </div>

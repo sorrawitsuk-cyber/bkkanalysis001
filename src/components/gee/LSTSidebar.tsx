@@ -58,10 +58,20 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center border border-orange-500/30">
             <ThermometerSun className="w-5 h-5" />
           </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-100 leading-none">เกาะความร้อนเมือง</h1>
-            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">{compareMode ? 'Temperature Anomaly' : 'Urban Heat Island (LST)'}</p>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-slate-100 leading-tight">Land Surface Temperature (LST)</h1>
+            <p className="text-[10px] text-orange-200 mt-1 font-bold leading-snug">อุณหภูมิพื้นผิวเมืองจากข้อมูลดาวเทียม</p>
           </div>
+        </div>
+        <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
+          แสดงอุณหภูมิของพื้นผิวเมือง เช่น ถนน อาคาร หลังคา พื้นดิน พื้นที่สีเขียว และแหล่งน้ำ จากข้อมูลดาวเทียม เพื่อใช้วิเคราะห์พื้นที่สะสมความร้อนในกรุงเทพมหานคร
+        </p>
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {["Satellite-derived LST", "ไม่ใช่อุณหภูมิอากาศ", "ใช้วิเคราะห์เชิงพื้นที่"].map((badge) => (
+            <span key={badge} className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[9px] font-bold text-orange-200">
+              {badge}
+            </span>
+          ))}
         </div>
 
         {/* District Filter */}
@@ -90,7 +100,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <div className="grid grid-cols-3 gap-2">
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'ส่วนต่างเฉลี่ย' : 'เฉลี่ย'}
+              <ThermometerSun className="w-3 h-3 text-orange-400"/> {compareMode ? 'ส่วนต่าง LST' : 'LST เฉลี่ย'}
             </div>
             <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta > 0 ? 'text-red-400' : 'text-blue-400') : 'text-slate-100'}`}>
               {compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(2)}` : summary.avgDelta.toFixed(2)) : summary.averageTemp}
@@ -99,7 +109,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Activity className="w-3 h-3 text-red-500"/> {compareMode ? 'พุ่งสูงสุด' : 'สูงสุดของปี'}
+              <Activity className="w-3 h-3 text-red-500"/> {compareMode ? 'ต่างสูงสุด' : 'LST สูงสุด'}
             </div>
             <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode && maxIncreaseValue < 0 ? 'text-blue-400' : 'text-red-500'}`}>
               {compareMode ? `${maxIncreaseValue > 0 ? '+' : ''}${maxIncreaseValue.toFixed(1)}` : (summary.maxTemp || 0).toFixed(1)}
@@ -122,7 +132,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <section>
           <div className="mb-2 flex items-start justify-between gap-2">
             <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
-              <Activity className="w-3 h-3" /> แนวโน้มความร้อน (Trend)
+              <Activity className="w-3 h-3" /> แนวโน้ม LST (Trend)
             </h3>
             {!compareMode && (
               <div className="grid grid-cols-2 rounded-lg border border-slate-800 bg-slate-900/70 p-0.5">
@@ -143,12 +153,12 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           </div>
           {!compareMode && (
             <p className="text-[9px] text-slate-500 leading-snug mb-3">
-              {trendMode === "max" ? "แสดงค่าสูงสุดของอุณหภูมิพื้นผิวในแต่ละปี" : "แสดงค่าเฉลี่ยอุณหภูมิพื้นผิวรายปี"}
+              {trendMode === "max" ? "แสดงค่า LST สูงสุดในแต่ละปี" : "แสดงค่า LST เฉลี่ยรายปี"}
             </p>
           )}
           {compareMode && (
             <p className="text-[9px] text-slate-500 leading-snug mb-3">
-              Yearly anomaly against {summary.compareYear}; red is warmer, blue is cooler.
+              ผลต่าง LST เทียบกับปี {summary.compareYear}; สีแดงคือพื้นผิวร้อนขึ้น สีฟ้าคือพื้นผิวเย็นลง
             </p>
           )}
           <div className="flex items-end gap-[3px] h-20 mb-2">
@@ -258,7 +268,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับอุณหภูมิพุ่งสูง · Top Increases' : trendMode === "max" ? "ค่าสูงสุดรายเขต · Max Ranking" : "อันดับความร้อนเฉลี่ย · Ranking"}
+              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ LST เพิ่มขึ้น · Top Increases' : trendMode === "max" ? "LST สูงสุดรายเขต · Max Ranking" : "อันดับ LST เฉลี่ย · Ranking"}
             </h3>
             <button 
               onClick={() => setShowAll(!showAll)}
