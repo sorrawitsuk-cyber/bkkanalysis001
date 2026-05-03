@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import LSTSidebar from "@/components/gee/LSTSidebar";
-import ExecutiveReport from "@/components/gee/ExecutiveReport";
+import A4Report from "@/components/gee/A4Report";
 import { Layers, FileDown, RefreshCw, Calendar } from "lucide-react";
 import { formatLST, getLSTLegendItems } from "@/lib/lst";
 import html2canvas from "html2canvas";
@@ -80,7 +80,7 @@ export default function EarthEnginePage() {
     // Wait for react to render the image in the hidden report
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const element = document.getElementById("executive-report");
+    const element = document.getElementById("a4-report");
     if (element) {
       try {
         const canvas = await html2canvas(element, { scale: 2, useCORS: true });
@@ -211,11 +211,14 @@ export default function EarthEnginePage() {
         </div>
 
         {/* Hidden Report Component for PDF Export */}
-        <ExecutiveReport 
-          summary={summary} 
-          activeDistrict={activeDistrict} 
-          compareMode={compareMode} 
-          compareYear={compareYear} 
+        <A4Report
+          type="lst"
+          summary={summary}
+          geojsonData={geojsonData}
+          activeDistrict={activeDistrict}
+          selectedYear={selectedYear}
+          compareMode={compareMode}
+          compareYear={compareYear}
           mapSnapshot={mapSnapshot}
           mapMode={mapMode}
         />

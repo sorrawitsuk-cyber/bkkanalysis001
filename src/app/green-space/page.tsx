@@ -4,8 +4,11 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
-import { Calendar, Database, Layers } from "lucide-react";
+import A4Report from "@/components/gee/A4Report";
+import { Calendar, Database, FileDown, Layers, RefreshCw } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import {
   fetchCacheIndex,
   fetchCacheMetadata,
@@ -41,6 +44,8 @@ export default function GreenSpacePage() {
   const [cacheLoading, setCacheLoading] = useState(false);
   const [cacheLayer, setCacheLayer] = useState("ndvi_mean");
   const [cachePeriod, setCachePeriod] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [mapSnapshot, setMapSnapshot] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -99,6 +104,42 @@ export default function GreenSpacePage() {
     setCacheLoading(false);
     setCacheLayer("ndvi_mean");
     setCachePeriod(null);
+  };
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+
+    const mapContainer = document.querySelector(".leaflet-container") as HTMLElement;
+    let imgDataUrl: string | null = null;
+    if (mapContainer) {
+      try {
+        const mapCanvas = await html2canvas(mapContainer, { useCORS: true, allowTaint: true, scale: 2 });
+        imgDataUrl = mapCanvas.toDataURL("image/png");
+      } catch (err) {
+        console.warn("Map capture failed", err);
+      }
+    }
+    setMapSnapshot(imgDataUrl);
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const element = document.getElementById("a4-report");
+    if (element) {
+      try {
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`BKK_Green_Space_Report_${selectedYear}_${activeDistrict}.pdf`);
+      } catch (err) {
+        console.error("Error generating PDF", err);
+        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+      }
+    }
+    setMapSnapshot(null);
+    setIsExporting(false);
   };
 
   const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, cacheLayer);
@@ -347,6 +388,19 @@ export default function GreenSpacePage() {
           </div>
         </div>
 
+        {/* Hidden A4 Report for PDF export */}
+        <A4Report
+          type="ndvi"
+          summary={summary}
+          geojsonData={geojsonData}
+          activeDistrict={activeDistrict}
+          selectedYear={selectedYear}
+          compareMode={compareMode}
+          compareYear={compareYear}
+          mapSnapshot={mapSnapshot}
+          mapMode={mapMode}
+        />
+
       </main>
 
       <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
@@ -388,6 +442,23 @@ export default function GreenSpacePage() {
                 Cache
               </button>
             </div>
+
+            {/* Export Button */}
+            <button
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className={`mt-3 w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border flex items-center justify-center gap-2
+                ${isExporting
+                  ? "bg-slate-800 border-slate-700 text-slate-500 cursor-wait"
+                  : "bg-emerald-600/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-600 hover:text-white shadow-lg shadow-emerald-500/5"
+                }`}
+            >
+              {isExporting ? (
+                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังสร้างรายงาน...</>
+              ) : (
+                <><FileDown className="w-3.5 h-3.5" /> นำออกรายงานสรุป (PDF)</>
+              )}
+            </button>
 
             {mapMode === "district" && (
               <div className="mt-4">
