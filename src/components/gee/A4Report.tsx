@@ -131,7 +131,6 @@ export default function A4Report({
           { color: "#EF8A62", label: "+0.5 ถึง +1.5°C" },
           { color: "#B2182B", label: "ร้อนขึ้นมาก > +1.5°C" },
         ]
-        ]
       : getLSTLegendItems().map((i) => ({ color: i.color, label: `${i.label} ${i.range}°C` }))
     : isBuiltup
       ? compareMode
