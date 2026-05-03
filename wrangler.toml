@@ -1,8 +1,11 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "bkkanalysis001"
+main = ".open-next/worker.js"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+
+[assets]
+directory = ".open-next/assets"
 
 [build]
-command = "npx @cloudflare/next-on-pages"
+command = "npx @opennextjs/cloudflare build"

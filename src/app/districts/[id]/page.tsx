@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Leaf, Target } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -17,7 +18,8 @@ import {
 } from "@/lib/ndvi";
 import type { DistrictStatistic } from "@/types/district";
 
-export default function DistrictDetailPage({ params }: { params: { id: string } }) {
+export default function DistrictDetailPage() {
+  const params = useParams<{ id: string }>();
   const [rows, setRows] = useState<DistrictStatistic[]>([]);
   const [rankInfo, setRankInfo] = useState<{ ndviRank?: number; priorityRank?: number; total?: number } | null>(null);
   const [loading, setLoading] = useState(true);
