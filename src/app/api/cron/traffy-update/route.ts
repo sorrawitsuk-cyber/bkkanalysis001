@@ -5,11 +5,11 @@ import { tmpdir } from 'os';
 import { resolve } from 'path';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+export const maxDuration = 10;
 
 const TRAFFY_API  = 'https://publicapi.traffy.in.th/share/teamchadchart/search';
-const NEW_COUNT   = 5_000;
-const DEEP_COUNT  = 10_000;
+const NEW_COUNT   = 1_000;   // ~4s fetch
+const DEEP_COUNT  = 1_000;   // ~4s fetch  → total ~8-9s within Hobby 10s limit
 const BATCH       = 500;
 const ANCHOR_MS   = Date.UTC(2026, 0, 1);
 

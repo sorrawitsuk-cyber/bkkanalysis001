@@ -28,7 +28,7 @@ const credentials = JSON.parse(envVars.BQ_CREDENTIALS);
 const TRAFFY_API    = 'https://publicapi.traffy.in.th/share/teamchadchart/search';
 const FETCH_BATCH   = 500;    // records per Traffy API call
 const LOAD_EVERY    = 5000;   // flush to BigQuery every N records
-const MAX_RETRIES   = 5;
+const MAX_RETRIES   = 8;
 
 // ── District / classification helpers ────────────────────────────────────────
 const DISTRICT_NAMES = [
@@ -119,7 +119,7 @@ function fmtEta(rem, rps) {
 async function fetchWithRetry(url) {
   for (let i = 1; i <= MAX_RETRIES; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
       if (res.ok) return res.json();
       if (res.status < 500) throw new Error(`HTTP ${res.status} (fatal)`);
       throw new Error(`HTTP ${res.status}`);
@@ -200,11 +200,11 @@ while (true) {
   try {
     data = await fetchWithRetry(`${TRAFFY_API}?limit=${FETCH_BATCH}&offset=${offset}`);
   } catch (err) {
-    // Flush what we have before exiting
     await flushBuffer(true);
-    console.error(`\n❌ Traffy API error at offset ${fmt(offset)}: ${err.message}`);
-    console.error(`   รันใหม่: node scripts/ingest-traffy-bq.mjs ${offset}`);
-    process.exit(1);
+    const waitSec = 60;
+    process.stdout.write(`\n⏳ API error at offset ${fmt(offset)}: ${err.message} — รอ ${waitSec}s แล้วลองใหม่...\n`);
+    await new Promise(r => setTimeout(r, waitSec * 1000));
+    continue;
   }
 
   const total   = data.total ?? data.count ?? 0;
