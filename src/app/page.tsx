@@ -45,6 +45,16 @@ const analysisModules = [
     metric: "NDVI",
     status: "พร้อมใช้งาน",
   },
+  {
+    title: "วิเคราะห์การขยายตัวของเมือง",
+    eyebrow: "Urban Expansion",
+    description: "ประเมินความหนาแน่นสิ่งปลูกสร้างด้วยค่า NDBI จาก Sentinel-2 เพื่อดูแนวโน้มการขยายตัวของเมือง",
+    href: "/urban-expansion",
+    icon: Building2,
+    accent: "from-indigo-500 to-purple-600",
+    metric: "NDBI",
+    status: "พร้อมใช้งาน",
+  },
 ];
 
 const futureModules = [

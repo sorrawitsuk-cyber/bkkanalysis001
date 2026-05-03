@@ -26,9 +26,10 @@ const districtAreaRaiMap = new Map<number, number>(
   ])
 );
 
-function valueFor(row: any, metric: "lst" | "vegetation"): number | null {
+function valueFor(row: any, metric: "lst" | "vegetation" | "builtup"): number | null {
   if (!row) return null;
   if (metric === "vegetation") return resolveNdviMean(row);
+  if (metric === "builtup") return typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
   return typeof row.mean_lst === "number" ? row.mean_lst : null;
 }
 
@@ -87,12 +88,17 @@ function hasNdviData(rows: DistrictStatistic[]): boolean {
   return rows.some((r) => typeof r.ndvi_mean === "number");
 }
 
+function hasNdbiData(rows: any[]): boolean {
+  return rows.some((r) => typeof r.ndbi_mean === "number");
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get("year") || "2024", 10);
     const districtFilter = searchParams.get("district");
-    const metric = searchParams.get("metric") === "vegetation" ? "vegetation" : "lst";
+    const metricParam = searchParams.get("metric");
+    const metric = metricParam === "vegetation" ? "vegetation" : metricParam === "builtup" ? "builtup" : "lst";
     const compareYearStr = searchParams.get("compareYear");
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
 
@@ -118,16 +124,16 @@ export async function GET(request: Request) {
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 
-    const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : hasLstData(dbYearRows);
-    const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : hasLstData(dbCompareRows);
-    const useDbAll = metric === "vegetation" ? dbAllRows.some(hasNdviData as any) : dbAllRows.some((r) => typeof r.mean_lst === "number");
+    const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : metric === "builtup" ? hasNdbiData(dbYearRows) : hasLstData(dbYearRows);
+    const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : metric === "builtup" ? hasNdbiData(dbCompareRows) : hasLstData(dbCompareRows);
+    const useDbAll = metric === "vegetation" ? dbAllRows.some(hasNdviData as any) : metric === "builtup" ? hasNdbiData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
 
     const yearData: any[] = metric === "vegetation"
       ? (useDbYear ? dbYearRows : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
       : (useDbYear ? dbYearRows : localYearRows);
     const compareData: any[] = metric === "vegetation"
       ? (useDbCompare ? dbCompareRows : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
-      : localCompareRows;
+      : (useDbCompare ? dbCompareRows : localCompareRows);
 
     const lstMap = new Map<number, any>();
     yearData.forEach((row) => lstMap.set(row.district_id, row));
@@ -162,6 +168,8 @@ export async function GET(request: Request) {
           ...feature.properties,
           mean_lst: row?.mean_lst ?? null,
           max_lst: row?.max_lst ?? null,
+          ndbi_mean: row?.ndbi_mean ?? null,
+          ndbi_max: row?.ndbi_max ?? null,
           delta,
           vegetation_index: ndviMean,
           ndvi: ndviMean,
@@ -181,9 +189,12 @@ export async function GET(request: Request) {
     });
 
     const hasAnyDbLst = dbAllRows.some((r) => typeof r.mean_lst === "number");
+    const hasAnyDbNdbi = dbAllRows.some((r) => typeof r.ndbi_mean === "number");
     let summaryData: any[] = metric === "vegetation"
       ? (dbAllRows.length ? dbAllRows : lstData.map((r: any) => toVegetationFallbackRow(r)))
-      : (hasAnyDbLst ? dbAllRows : lstData);
+      : metric === "builtup"
+        ? (hasAnyDbNdbi ? dbAllRows : [])
+        : (hasAnyDbLst ? dbAllRows : lstData);
     if (districtFilter && districtFilter !== ALL_DISTRICTS) {
       summaryData = summaryData.filter((row: any) => row.district_name === districtFilter || `เขต${row.district_name}` === districtFilter);
     }
@@ -208,7 +219,8 @@ export async function GET(request: Request) {
     }, {});
 
     const yearlyTrend = Object.keys(trendData).sort().map((trendYear) => {
-      const avg = parseFloat((trendData[trendYear].sum / trendData[trendYear].count).toFixed(metric === "vegetation" ? 3 : 2));
+      const isNdviOrNdbi = metric === "vegetation" || metric === "builtup";
+      const avg = parseFloat((trendData[trendYear].sum / trendData[trendYear].count).toFixed(isNdviOrNdbi ? 3 : 2));
       let maxMonthIdx = -1;
       let maxMonthTemp = -Infinity;
       trendData[trendYear].monthlyData.forEach((sum: number, idx: number) => {
@@ -245,7 +257,7 @@ export async function GET(request: Request) {
     const yearlyDeltaTrend = compareYear && baselineTrendAvg !== null && baselineTrendAvg !== undefined
       ? yearlyTrend.map(([trendYear, avg, maxMonthIdx]) => [
           trendYear,
-          parseFloat((Number(avg) - baselineTrendAvg).toFixed(metric === "vegetation" ? 3 : 2)),
+          parseFloat((Number(avg) - baselineTrendAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
           maxMonthIdx,
         ])
       : [];
@@ -258,6 +270,7 @@ export async function GET(request: Request) {
     let baselineAvg = 0;
     let maxIncreaseDelta = 0;
     let minIncreaseDelta = 0;
+    let encroachmentRanking: any[] = [];
 
     if (currentYearData.length > 0) {
       currentAvg = currentYearData.reduce((sum: number, row: any) => sum + (valueFor(row, metric) || 0), 0) / currentYearData.length;
@@ -268,18 +281,51 @@ export async function GET(request: Request) {
         baselineAvg = compYearData.length > 0
           ? compYearData.reduce((sum: number, row: any) => sum + (valueFor(row, metric) || 0), 0) / compYearData.length
           : 0;
-        const compMap = new Map(compYearData.map((row: any) => [row.district_id, valueFor(row, metric)]));
+        const compMap = new Map(compYearData.map((row: any) => [row.district_id, row]));
         ranking = currentYearData
           .map((row: any) => {
-            const baseline = compMap.get(row.district_id);
+            const baselineRow = compMap.get(row.district_id);
             const current = valueFor(row, metric);
-            return { name: row.district_name, delta: baseline !== null && baseline !== undefined && current !== null ? current - Number(baseline) : 0 };
+            const baselineVal = baselineRow ? valueFor(baselineRow, metric) : null;
+            return { name: row.district_name, delta: baselineVal !== null && current !== null ? current - Number(baselineVal) : 0 };
           })
           .sort((a: any, b: any) => b.delta - a.delta)
           .map((row: any) => [row.name, row.delta]);
         if (ranking.length > 0) {
           maxIncreaseDelta = Math.max(...ranking.map(([, deltaValue]) => deltaValue));
           minIncreaseDelta = Math.min(...ranking.map(([, deltaValue]) => deltaValue));
+        }
+
+        if (metric === "builtup") {
+          encroachmentRanking = currentYearData
+            .map((row: any) => {
+              const baselineRow = compMap.get(row.district_id);
+              if (!baselineRow) return null;
+              
+              const currentNdbi = typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
+              const baseNdbi = typeof baselineRow.ndbi_mean === "number" ? baselineRow.ndbi_mean : null;
+              const currentNdvi = typeof row.ndvi_mean === "number" ? row.ndvi_mean : null;
+              const baseNdvi = typeof baselineRow.ndvi_mean === "number" ? baselineRow.ndvi_mean : null;
+              
+              if (currentNdbi !== null && baseNdbi !== null && currentNdvi !== null && baseNdbi !== null) {
+                const ndbiDelta = currentNdbi - baseNdbi;
+                const ndviDelta = currentNdvi - baseNdvi;
+                
+                if (ndbiDelta > 0 && ndviDelta < 0) {
+                  const score = ndbiDelta + Math.abs(ndviDelta);
+                  return {
+                    district_name: row.district_name,
+                    ndbiDelta: parseFloat(ndbiDelta.toFixed(3)),
+                    ndviDelta: parseFloat(ndviDelta.toFixed(3)),
+                    score: parseFloat(score.toFixed(3))
+                  };
+                }
+              }
+              return null;
+            })
+            .filter((r: any) => r !== null)
+            .sort((a: any, b: any) => b.score - a.score)
+            .slice(0, 5);
         }
       } else {
         ranking = currentYearData
@@ -384,10 +430,10 @@ export async function GET(request: Request) {
         metric,
         selectedYear: year,
         compareYear,
-        averageTemp: parseFloat(currentAvg.toFixed(metric === "vegetation" ? 3 : 2)),
-        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed(metric === "vegetation" ? 3 : 2)) : null,
-        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed(metric === "vegetation" ? 3 : 2)) : 0,
-        maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(metric === "vegetation" ? 3 : 2)) : null,
+        averageTemp: parseFloat(currentAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
+        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)) : null,
+        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)) : 0,
+        maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)) : null,
         yearlyTrend,
         yearlyMaxTrend,
         greenAreaTrend,
@@ -398,15 +444,16 @@ export async function GET(request: Request) {
         monthlyDeltaTrend,
         ranking,
         maxRanking,
-        min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : 30,
-        max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : 40,
-        min_delta: minDelta !== Infinity ? minDelta : metric === "vegetation" ? -0.2 : -2,
-        max_delta: maxDelta !== -Infinity ? maxDelta : metric === "vegetation" ? 0.2 : 2,
-        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed(metric === "vegetation" ? 3 : 2)),
-        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed(metric === "vegetation" ? 3 : 2)),
+        min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : metric === "builtup" ? -0.2 : 30,
+        max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : metric === "builtup" ? 0.4 : 40,
+        min_delta: minDelta !== Infinity ? minDelta : metric === "vegetation" ? -0.2 : metric === "builtup" ? -0.2 : -2,
+        max_delta: maxDelta !== -Infinity ? maxDelta : metric === "vegetation" ? 0.2 : metric === "builtup" ? 0.2 : 2,
+        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
+        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
         ndviSummary,
         lowestNdviRanking,
         priorityRanking,
+        encroachmentRanking,
         dataSource: useDbYear ? "supabase district_statistics" : "local fallback (mock)",
       },
     }, {

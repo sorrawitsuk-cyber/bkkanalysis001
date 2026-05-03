@@ -6,7 +6,7 @@ import { getLSTLegendItems } from "@/lib/lst";
 const MONTHS_TH = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
 export interface A4ReportProps {
-  type: "lst" | "ndvi";
+  type: "lst" | "ndvi" | "builtup";
   summary: any;
   geojsonData?: any;
   activeDistrict: string;
@@ -28,10 +28,11 @@ export default function A4Report({
   if (!summary) return null;
 
   const isLST = type === "lst";
-  const accent      = isLST ? "#ea580c" : "#16a34a";
-  const accentLight = isLST ? "#fff7ed" : "#f0fdf4";
-  const accentBorder= isLST ? "#fed7aa" : "#bbf7d0";
-  const accentText  = isLST ? "#c2410c" : "#15803d";
+  const isBuiltup = type === "builtup";
+  const accent      = isLST ? "#ea580c" : isBuiltup ? "#4f46e5" : "#16a34a";
+  const accentLight = isLST ? "#fff7ed" : isBuiltup ? "#e0e7ff" : "#f0fdf4";
+  const accentBorder= isLST ? "#fed7aa" : isBuiltup ? "#c7d2fe" : "#bbf7d0";
+  const accentText  = isLST ? "#c2410c" : isBuiltup ? "#4338ca" : "#15803d";
 
   const now         = new Date();
   const currentYear = now.getFullYear();
@@ -82,8 +83,22 @@ export default function A4Report({
           { label: "เขต LST > 36°C", value: `${highLstCount} เขต` },
           { label: "ช่วงข้อมูล", value: periodLabel },
         ]
+    : isBuiltup
+      ? compareMode
+        ? [
+            { label: "เปรียบเทียบ", value: `${compareYear} vs ${selectedYear}` },
+            { label: "ส่วนต่าง NDBI เฉลี่ย", value: `${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(3)}`, hi: true },
+            { label: "NDBI ปัจจุบัน", value: `${avgTemp.toFixed(3)}`, hi: true },
+            { label: "NDBI ปีฐาน", value: `${baselineAvg.toFixed(3)}` },
+          ]
+        : [
+            { label: "NDBI เฉลี่ย กทม.", value: `${avgTemp.toFixed(3)}`, hi: true },
+            { label: "NDBI สูงสุด", value: `${maxTemp.toFixed(3)}`, hi: true },
+            { label: "เขตที่มี NDBI สูงสุด", value: lstRanking[0]?.[0] || "ไม่มีข้อมูล" },
+            { label: "ช่วงข้อมูล", value: periodLabel },
+          ]
     : [
-        { label: "NDVI เฉลี่ย กทม.", value: avgNdvi !== null ? avgNdvi.toFixed(3) : "—", hi: true },
+        { label: "NDBI เฉลี่ย กทม.", value: avgNdvi !== null ? avgNdvi.toFixed(3) : "—", hi: true },
         { label: "พื้นที่สีเขียวรวม", value: formatRai(totalGreen), hi: true },
         { label: "เขตสีเขียวสูงสุด", value: bestDistrict },
         { label: "เขตเร่งด่วน", value: worstDistrict },
@@ -95,8 +110,8 @@ export default function A4Report({
   const mMax = Math.ceil(Math.max(40, ...allMonthly) + 1);
 
   const yearlyVals = yearlyTrend.map(([, v]) => v);
-  const yMin = Math.floor(Math.min(32, ...yearlyVals) - 1);
-  const yMax = Math.ceil(Math.max(40, ...yearlyVals) + 1);
+  const yMin = isBuiltup ? -0.2 : Math.floor(Math.min(32, ...yearlyVals) - 1);
+  const yMax = isBuiltup ? 0.3 : Math.ceil(Math.max(40, ...yearlyVals) + 1);
 
   const ndviYearlyVals = yearlyTrend.map(([, v]) => v);
   const ndviChartMin = Math.min(0.15, ...ndviYearlyVals) - 0.01;
@@ -116,14 +131,31 @@ export default function A4Report({
           { color: "#EF8A62", label: "+0.5 ถึง +1.5°C" },
           { color: "#B2182B", label: "ร้อนขึ้นมาก > +1.5°C" },
         ]
+        ]
       : getLSTLegendItems().map((i) => ({ color: i.color, label: `${i.label} ${i.range}°C` }))
-    : [
-        { color: "#8c2d04", label: "เขียวน้อยมาก < 0.20" },
-        { color: "#d94801", label: "เขียวน้อย 0.20–0.30" },
-        { color: "#f6e05e", label: "ปานกลาง 0.30–0.40" },
-        { color: "#68d391", label: "ดี 0.40–0.50" },
-        { color: "#238b45", label: "ดีมาก > 0.50" },
-      ];
+    : isBuiltup
+      ? compareMode
+        ? [
+            { color: "#16A34A", label: "ลดลงมาก" },
+            { color: "#84CC16", label: "ลดลง" },
+            { color: "#F7F7F7", label: "ใกล้เดิม" },
+            { color: "#F59E0B", label: "เพิ่มขึ้น" },
+            { color: "#EF4444", label: "เพิ่มขึ้นมาก" },
+          ]
+        : [
+            { color: "#16A34A", label: "หนาแน่นต่ำมาก" },
+            { color: "#84CC16", label: "หนาแน่นต่ำ" },
+            { color: "#F59E0B", label: "ปานกลาง" },
+            { color: "#EF4444", label: "หนาแน่นสูง" },
+            { color: "#7F1D1D", label: "หนาแน่นสูงมาก" },
+          ]
+      : [
+          { color: "#8c2d04", label: "เขียวน้อยมาก < 0.20" },
+          { color: "#d94801", label: "เขียวน้อย 0.20–0.30" },
+          { color: "#f6e05e", label: "ปานกลาง 0.30–0.40" },
+          { color: "#68d391", label: "ดี 0.40–0.50" },
+          { color: "#238b45", label: "ดีมาก > 0.50" },
+        ];
 
   // ── Detailed insight text ─────────────────────────────────────────────────
   const top3LST = lstRanking.slice(0, 3).map(([d, v]) => `${d} (${v.toFixed(2)}°C)`).join(", ");
@@ -146,14 +178,23 @@ export default function A4Report({
             : "",
           `ข้อเสนอแนะเชิงนโยบาย: ควรเร่งเพิ่มพื้นที่สีเขียวและร่มเงาในเขตที่มีค่า LST สูง โดยการปลูกต้นไม้ริมถนน พัฒนาสวนสาธารณะขนาดเล็กในระดับชุมชน ส่งเสริมหลังคาสีเขียว (Green Roof) ในอาคารพาณิชย์ และการใช้วัสดุพื้นถนนที่สะท้อนความร้อน (Cool Pavement) เพื่อลดอุณหภูมิพื้นผิวอย่างยั่งยืน`,
         ].filter(Boolean).join(" ")
-    : [
-        `ปี ${selectedYear}: ${activeDistrict} มีค่า NDVI เฉลี่ย ${avgNdvi !== null ? avgNdvi.toFixed(3) : "—"} และพื้นที่สีเขียวรวมประมาณ ${formatRai(totalGreen)} ข้อมูลจากดาวเทียม Sentinel-2 SR Harmonized ผ่านการคัดกรองเมฆและตัดพื้นที่น้ำออกด้วย JRC water mask เพื่อให้สะท้อนพื้นที่ดินจริง`,
-        `เขตที่มีพื้นที่สีเขียวสูงสุดคือ ${bestDistrict} ส่วนเขตที่มีความเร่งด่วนในการพัฒนาพื้นที่สีเขียวมากที่สุดคือ ${worstDistrict} ซึ่งมีค่า NDVI ต่ำกว่าเกณฑ์ บ่งชี้ว่าประชาชนในเขตดังกล่าวมีการเข้าถึงพื้นที่สีเขียวไม่เพียงพอตามมาตรฐานสุขภาวะเมือง`,
-        greenTrend.length >= 2
-          ? `แนวโน้มพื้นที่สีเขียวรวมในช่วงปี ${greenTrend[0]?.[0]}–${greenTrend[greenTrend.length - 1]?.[0]} แสดงการเปลี่ยนแปลงที่ควรติดตามอย่างใกล้ชิด เพื่อประเมินประสิทธิผลของนโยบายเพิ่มพื้นที่สีเขียวของกรุงเทพมหานคร`
-          : "",
-        `ข้อเสนอแนะ: ควรกำหนดเป้าหมายพื้นที่สีเขียวต่อหัวประชากรตามมาตรฐาน WHO ที่ 9 ตร.ม./คน โดยเร่งพัฒนาในเขตที่มี NDVI ต่ำ ผ่านการสร้างสวนสาธารณะชุมชน ขยายพื้นที่ริมคลองสีเขียว และส่งเสริมการปลูกต้นไม้ในพื้นที่เอกชนและอาคารสาธารณะ`,
-      ].filter(Boolean).join(" ");
+    : isBuiltup
+      ? compareMode
+        ? `เมื่อเปรียบเทียบปี ${selectedYear} กับปีฐาน ${compareYear}: ${activeDistrict} มีค่า NDBI เฉลี่ยเปลี่ยนแปลง ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(3)} เขตที่มีการขยายตัวของสิ่งปลูกสร้างมากที่สุดคือ ${lstRanking[0]?.[0] ?? "—"} รองลงมาคือ ${lstRanking[1]?.[0] ?? "—"} และ ${lstRanking[2]?.[0] ?? "—"} แสดงถึงพื้นที่ที่มีการก่อสร้างใหม่หรือเปลี่ยนแปลงการใช้ประโยชน์ที่ดินอย่างรวดเร็ว ${summary?.encroachmentRanking?.length > 0 ? `ที่น่ากังวลที่สุดคือการขยายตัวของเมืองที่รุกล้ำพื้นที่สีเขียวหรือพื้นที่เกษตรกรรม (Urban Encroachment) ซึ่งพบอัตราเร่งสูงสุดในเขต ${summary.encroachmentRanking[0].district_name} (สิ่งปลูกสร้างเพิ่ม +${summary.encroachmentRanking[0].ndbiDelta.toFixed(3)}, สีเขียวลด ${summary.encroachmentRanking[0].ndviDelta.toFixed(3)}) ` : ""}ข้อเสนอแนะ: ควรมีการวางผังเมืองและควบคุมการก่อสร้างเพื่อรักษาสมดุลของพื้นที่เปิดโล่งและพื้นที่สีเขียว`
+        : [
+            `ปี ${selectedYear}: ${activeDistrict} มีค่า NDBI เฉลี่ย ${avgTemp.toFixed(3)} ซึ่งเป็นดัชนีสะท้อนความหนาแน่นของสิ่งปลูกสร้างและพื้นผิวคอนกรีต`,
+            top3LST ? `เขตที่มีความหนาแน่นของสิ่งปลูกสร้างสูงที่สุด ได้แก่ ${top3LST} ซึ่งมักเป็นศูนย์กลางพาณิชยกรรมหรือย่านอุตสาหกรรม` : "",
+            yearStart && yearEnd && tempDelta !== null ? `แนวโน้มรายปีในช่วงปี ${yearStart}–${yearEnd} ชี้ว่ามีการเปลี่ยนแปลง NDBI สุทธิ ${tempDelta >= 0 ? "+" : ""}${tempDelta.toFixed(3)} สะท้อนอัตราการขยายตัวของเมือง (Urban Sprawl) ในระยะยาว` : "",
+            `ข้อเสนอแนะเชิงนโยบาย: ควรควบคุมการขยายตัวของเมืองอย่างไร้ทิศทาง ส่งเสริมการกระจายความเจริญและจัดสรรพื้นที่สีเขียวแทรกซึมในเขตที่มีความหนาแน่นสูง`
+          ].filter(Boolean).join(" ")
+      : [
+          `ปี ${selectedYear}: ${activeDistrict} มีค่า NDVI เฉลี่ย ${avgNdvi !== null ? avgNdvi.toFixed(3) : "—"} และพื้นที่สีเขียวรวมประมาณ ${formatRai(totalGreen)} ข้อมูลจากดาวเทียม Sentinel-2 SR Harmonized ผ่านการคัดกรองเมฆและตัดพื้นที่น้ำออกด้วย JRC water mask เพื่อให้สะท้อนพื้นที่ดินจริง`,
+          `เขตที่มีพื้นที่สีเขียวสูงสุดคือ ${bestDistrict} ส่วนเขตที่มีความเร่งด่วนในการพัฒนาพื้นที่สีเขียวมากที่สุดคือ ${worstDistrict} ซึ่งมีค่า NDVI ต่ำกว่าเกณฑ์ บ่งชี้ว่าประชาชนในเขตดังกล่าวมีการเข้าถึงพื้นที่สีเขียวไม่เพียงพอตามมาตรฐานสุขภาวะเมือง`,
+          greenTrend.length >= 2
+            ? `แนวโน้มพื้นที่สีเขียวรวมในช่วงปี ${greenTrend[0]?.[0]}–${greenTrend[greenTrend.length - 1]?.[0]} แสดงการเปลี่ยนแปลงที่ควรติดตามอย่างใกล้ชิด เพื่อประเมินประสิทธิผลของนโยบายเพิ่มพื้นที่สีเขียวของกรุงเทพมหานคร`
+            : "",
+          `ข้อเสนอแนะ: ควรกำหนดเป้าหมายพื้นที่สีเขียวต่อหัวประชากรตามมาตรฐาน WHO ที่ 9 ตร.ม./คน โดยเร่งพัฒนาในเขตที่มี NDVI ต่ำ ผ่านการสร้างสวนสาธารณะชุมชน ขยายพื้นที่ริมคลองสีเขียว และส่งเสริมการปลูกต้นไม้ในพื้นที่เอกชนและอาคารสาธารณะ`,
+        ].filter(Boolean).join(" ");
 
   // ── Styles ────────────────────────────────────────────────────────────────
   const bar = (color: string, h: number) => ({
@@ -178,12 +219,12 @@ export default function A4Report({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 900, lineHeight: 1.2 }}>
-              {isLST ? "รายงานสรุปสถานการณ์เกาะความร้อนเมือง" : "รายงานสรุปพื้นที่สีเขียวเมือง"} · {activeDistrict}
+              {isLST ? "รายงานสรุปสถานการณ์เกาะความร้อนเมือง" : isBuiltup ? "รายงานสรุปการขยายตัวของเมืองและสิ่งปลูกสร้าง" : "รายงานสรุปพื้นที่สีเขียวเมือง"} · {activeDistrict}
             </div>
             <div style={{ fontSize: 8, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 3 }}>
               {isLST
                 ? "Bangkok Urban Heat Island · Land Surface Temperature (LST) · Landsat 8/9 C2 L2"
-                : "Bangkok Urban Green Space · NDVI · Sentinel-2 SR Harmonized"}
+                : isBuiltup ? "Bangkok Urban Expansion · NDBI · Sentinel-2 SR Harmonized" : "Bangkok Urban Green Space · NDVI · Sentinel-2 SR Harmonized"}
               {compareMode ? `  ·  เปรียบเทียบปี ${compareYear} vs ${selectedYear}` : `  ·  ปี ${selectedYear}`}
             </div>
           </div>
@@ -237,24 +278,24 @@ export default function A4Report({
       {/* ── RANKING (full width) ── */}
       <div style={{ flexShrink: 0, marginBottom: 10 }}>
         <div style={{ fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1e293b", borderLeft: `4px solid ${accent}`, paddingLeft: 7, marginBottom: 6 }}>
-          {isLST ? (compareMode ? "เขตอุณหภูมิเพิ่มขึ้นมากสุด" : "อันดับเขตที่ร้อนสุด") : "อันดับพื้นที่สีเขียวรายเขต"}
+          {isLST ? (compareMode ? "เขตอุณหภูมิเพิ่มขึ้นมากสุด" : "อันดับเขตที่ร้อนสุด") : isBuiltup ? (compareMode ? "เขตสิ่งปลูกสร้างเพิ่มขึ้นมากสุด" : "อันดับเขตสิ่งปลูกสร้างหนาแน่นสุด") : "อันดับพื้นที่สีเขียวรายเขต"}
         </div>
         <table style={{ width: "100%", fontSize: 9, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
               <th style={{ textAlign: "left", padding: "3px 0", color: "#94a3b8", fontWeight: 700, width: 24 }}>#</th>
               <th style={{ textAlign: "left", padding: "3px 0", color: "#94a3b8", fontWeight: 700 }}>เขต</th>
-              <th style={{ textAlign: "right", padding: "3px 0", color: "#94a3b8", fontWeight: 700 }}>{isLST ? (compareMode ? "Δ°C" : "LST (°C)") : "ไร่"}</th>
+              <th style={{ textAlign: "right", padding: "3px 0", color: "#94a3b8", fontWeight: 700 }}>{isLST ? (compareMode ? "Δ°C" : "LST (°C)") : isBuiltup ? (compareMode ? "Δ NDBI" : "NDBI") : "ไร่"}</th>
             </tr>
           </thead>
           <tbody>
-            {isLST
+            {(isLST || isBuiltup)
               ? lstRanking.map(([d, v], i) => (
                   <tr key={d} style={{ borderBottom: "1px solid #f1f5f9" }}>
                     <td style={{ padding: "3px 0", color: "#94a3b8", fontFamily: "monospace" }}>{i + 1}</td>
                     <td style={{ padding: "3px 0", fontWeight: 500 }}>{d}</td>
                     <td style={{ padding: "3px 0", textAlign: "right", fontFamily: "monospace", fontWeight: 700 }}>
-                      {compareMode ? (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2)) : v.toFixed(2)}
+                      {compareMode ? (v >= 0 ? `+${v.toFixed(isBuiltup ? 3 : 2)}` : v.toFixed(isBuiltup ? 3 : 2)) : v.toFixed(isBuiltup ? 3 : 2)}
                     </td>
                   </tr>
                 ))
@@ -273,7 +314,7 @@ export default function A4Report({
       {/* ── CHART 1: Monthly LST / NDVI yearly avg ── */}
       <div style={{ flexShrink: 0, marginBottom: 10 }}>
         <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
-          {isLST ? `แนวโน้ม LST รายเดือน ปี ${selectedYear}` : "แนวโน้ม NDVI เฉลี่ยรายปี"}
+          {isLST ? `แนวโน้ม LST รายเดือน ปี ${selectedYear}` : isBuiltup ? "แนวโน้ม NDBI เฉลี่ยรายปี" : "แนวโน้ม NDVI เฉลี่ยรายปี"}
         </div>
         <div style={{ height: 100, display: "flex", alignItems: "flex-end", gap: 3, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
           {isLST
@@ -314,15 +355,16 @@ export default function A4Report({
         </div>
       </div>
 
-      {/* ── CHART 2: Yearly LST / Green area rai ── */}
+      {/* ── CHART 2: Yearly LST / Green area rai / NDBI ── */}
       <div style={{ flexShrink: 0, marginBottom: 10 }}>
         <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
           {isLST
             ? (compareMode ? `LST เฉลี่ย: ${compareYear} vs ${selectedYear}` : "แนวโน้มรายปี (YEARLY)")
+            : isBuiltup ? (compareMode ? `NDBI เฉลี่ย: ${compareYear} vs ${selectedYear}` : "แนวโน้มรายปี (YEARLY)")
             : "พื้นที่สีเขียวรวม (ไร่)"}
         </div>
         <div style={{ height: 100, display: "flex", alignItems: "flex-end", gap: 3, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
-          {isLST
+          {(isLST || isBuiltup)
             ? (compareMode
                 ? [
                     { year: compareYear, temp: baselineAvg, color: "#94a3b8" },
@@ -331,7 +373,7 @@ export default function A4Report({
                     const p = pct(item.temp, yMin, yMax);
                     return (
                       <div key={item.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{item.temp.toFixed(1)}</div>
+                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{item.temp.toFixed(isBuiltup ? 3 : 1)}</div>
                         <div style={{ ...bar(item.color, p), width: "60%" }} />
                         <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>{item.year}</div>
                       </div>
@@ -341,7 +383,7 @@ export default function A4Report({
                     const p = pct(temp, yMin, yMax);
                     return (
                       <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{Number(temp).toFixed(1)}</div>
+                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{Number(temp).toFixed(isBuiltup ? 3 : 1)}</div>
                         <div style={{ ...bar(accent, p), width: "100%" }} />
                         <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
                       </div>
@@ -382,7 +424,7 @@ export default function A4Report({
 
       {/* ── FOOTER ── */}
       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 5, display: "flex", justifyContent: "space-between", fontSize: 7.5, color: "#94a3b8", flexShrink: 0 }}>
-        <span>{isLST ? "Landsat 8/9 C2 L2 · LST · JRC water mask" : "Sentinel-2 SR Harmonized · NDVI · JRC water mask"} · Bangkok Urban Analytics Dashboard</span>
+        <span>{isLST ? "Landsat 8/9 C2 L2 · LST · JRC water mask" : isBuiltup ? "Sentinel-2 SR Harmonized · NDBI · JRC water mask" : "Sentinel-2 SR Harmonized · NDVI · JRC water mask"} · Bangkok Urban Analytics Dashboard</span>
         <span>ค่าจากดาวเทียมเพื่อเปรียบเทียบเชิงพื้นที่ ไม่ใช่ข้อมูลราชการ</span>
       </div>
 

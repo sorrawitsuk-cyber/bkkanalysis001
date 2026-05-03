@@ -12,7 +12,8 @@ export async function GET(request: Request) {
   const year = yearParam && yearParam !== 'null' ? parseInt(yearParam, 10) : 2024;
   const baselineYear = baselineParam && baselineParam !== 'null' ? parseInt(baselineParam, 10) : 2018;
   const isCompare = searchParams.get('compare') === 'true';
-  const metric = searchParams.get('metric') === 'vegetation' ? 'vegetation' : 'lst';
+  const metricParam = searchParams.get('metric');
+  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : 'lst';
 
   try {
     await initGEE();
@@ -65,6 +66,22 @@ export async function GET(request: Request) {
       return collection.median().updateMask(waterMask).clip(bkkBoundary);
     };
 
+    const getSentinelNdbiImage = (y: number, endMMDD = '12-31') => {
+      const { startDate, endDate } = getDateRange(y, endMMDD);
+      const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(bkkBoundary)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((image: any) => {
+          const swir = image.select('B11').divide(10000);
+          const nir = image.select('B8').divide(10000);
+          return swir.subtract(nir).divide(swir.add(nir)).rename('NDBI');
+        });
+
+      return collection.median().updateMask(waterMask).clip(bkkBoundary);
+    };
+
     const getLandsatImage = (y: number, endMMDD = '12-31') => {
       const { startDate, endDate } = getDateRange(y, endMMDD);
       // From 2022 both LC08 and LC09 operate simultaneously — merge for better temporal coverage
@@ -79,6 +96,7 @@ export async function GET(request: Request) {
 
     const getMetricImage = (y: number, endMMDD = '12-31') => {
       if (metric === 'vegetation') return getSentinelNdviImage(y, endMMDD);
+      if (metric === 'builtup') return getSentinelNdbiImage(y, endMMDD);
 
       // ST_B10 is Surface Temperature band (Kelvin)
       // Scale: 0.00341802, Offset: 149.0
@@ -97,13 +115,17 @@ export async function GET(request: Request) {
       
       visParams = metric === 'vegetation'
         ? { min: -0.2, max: 0.2, palette: ['#8B1E1E', '#F59E0B', '#F7F7F7', '#86EFAC', '#047857'] }
-        : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
+        : metric === 'builtup'
+          ? { min: -0.2, max: 0.2, palette: ['#047857', '#86EFAC', '#F7F7F7', '#F59E0B', '#8B1E1E'] }
+          : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
     } else {
       resultImage = getMetricImage(year);
       
       visParams = metric === 'vegetation'
         ? { min: 0.1, max: 0.8, palette: ['#7F1D1D', '#B45309', '#FACC15', '#84CC16', '#16A34A', '#065F46'] }
-        : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
+        : metric === 'builtup'
+          ? { min: -0.2, max: 0.4, palette: ['#16A34A', '#84CC16', '#FACC15', '#F59E0B', '#EF4444', '#7F1D1D'] }
+          : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
     }
 
     // Get Map ID from GEE
@@ -120,8 +142,10 @@ export async function GET(request: Request) {
       token: mapIdData.token,
       dataSource: metric === 'vegetation'
         ? 'Sentinel-2 SR Harmonized yearly median NDVI'
-        : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
-      resolutionMeters: metric === 'vegetation' ? 10 : 30,
+        : metric === 'builtup'
+          ? 'Sentinel-2 SR Harmonized yearly median NDBI'
+          : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : 30,
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'
