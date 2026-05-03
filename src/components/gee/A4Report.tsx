@@ -98,8 +98,15 @@ export default function A4Report({
   const yMin = Math.floor(Math.min(32, ...yearlyVals) - 1);
   const yMax = Math.ceil(Math.max(40, ...yearlyVals) + 1);
 
+  // NDVI yearly avg (Chart 1 for NDVI type — shows real year-over-year variation)
+  const ndviYearlyVals = yearlyTrend.map(([, v]) => v);
+  const ndviChartMin = Math.min(0.15, ...ndviYearlyVals) - 0.01;
+  const ndviChartMax = Math.max(0.40, ...ndviYearlyVals) + 0.01;
+
+  // Green area total rai (Chart 2 for NDVI type — dynamic scale to expose small deltas)
   const greenVals = greenTrend.map(([, v]) => v);
-  const gMax = Math.max(1, ...greenVals) * 1.05;
+  const gMin = greenVals.length > 0 ? Math.floor(Math.min(...greenVals) * 0.97) : 0;
+  const gMax = greenVals.length > 0 ? Math.ceil(Math.max(...greenVals) * 1.03) : 1;
 
   // ── Legend items ──────────────────────────────────────────────────────────
   const legendItems = isLST
@@ -129,7 +136,7 @@ export default function A4Report({
 
   // ── Styles ────────────────────────────────────────────────────────────────
   const s = {
-    root: { width: 794, height: 1123, padding: 28, fontFamily: "'Inter', 'Noto Sans Thai', sans-serif", background: "#fff", color: "#0f172a", display: "flex", flexDirection: "column" as const, overflow: "hidden", position: "absolute" as const, top: 0, left: -9999, zIndex: -1 },
+    root: { width: 794, padding: 28, fontFamily: "'Inter', 'Noto Sans Thai', sans-serif", background: "#fff", color: "#0f172a", display: "flex", flexDirection: "column" as const, position: "absolute" as const, top: 0, left: -9999, zIndex: -1 },
     cell: (hi: boolean) => ({
       background: hi ? accentLight : "#f8fafc",
       border: `1px solid ${hi ? accentBorder : "#e2e8f0"}`,
@@ -245,7 +252,7 @@ export default function A4Report({
         {/* Chart 1 */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
-            {isLST ? `แนวโน้ม LST รายเดือน ปี ${selectedYear}` : "แนวโน้มพื้นที่สีเขียวรายปี (ไร่)"}
+            {isLST ? `แนวโน้ม LST รายเดือน ปี ${selectedYear}` : "แนวโน้ม NDVI เฉลี่ยรายปี"}
           </div>
           <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 2, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
             {isLST
@@ -272,11 +279,12 @@ export default function A4Report({
                     </div>
                   );
                 })
-              : greenTrend.map(([yr, val], i) => {
-                  const p = pct(val, 0, gMax);
+              /* NDVI: show avg NDVI per year — uses yearlyTrend which reflects real GEE annual computation */
+              : yearlyTrend.map(([yr, val], i) => {
+                  const p = pct(val, ndviChartMin, ndviChartMax);
                   return (
                     <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                      <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{(val / 1000).toFixed(0)}k</div>
+                      <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{Number(val).toFixed(3)}</div>
                       <div style={{ ...s.bar(accent, p), width: "80%" }} />
                       <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
                     </div>
@@ -286,45 +294,56 @@ export default function A4Report({
           </div>
         </div>
 
-        {/* Chart 2: yearly LST trend (LST page only) */}
-        {isLST && (
-          <div style={{ width: 190, display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
-              {compareMode ? `LST เฉลี่ย: ${compareYear} vs ${selectedYear}` : "แนวโน้มรายปี (Yearly)"}
-            </div>
-            <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 2, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
-              {compareMode
-                ? [
-                    { year: compareYear, temp: baselineAvg, color: "#94a3b8" },
-                    { year: selectedYear, temp: avgTemp,    color: accent },
-                  ].map((item) => {
-                    const p = pct(item.temp, yMin, yMax);
-                    return (
-                      <div key={item.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{item.temp.toFixed(1)}</div>
-                        <div style={{ ...s.bar(item.color, p), width: "60%" }} />
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>{item.year}</div>
-                      </div>
-                    );
-                  })
-                : yearlyTrend.map(([yr, temp], i) => {
-                    const p = pct(temp, yMin, yMax);
-                    return (
-                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{temp.toFixed(1)}</div>
-                        <div style={{ ...s.bar(accent, p), width: "100%" }} />
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
-                      </div>
-                    );
-                  })
-              }
-            </div>
+        {/* Chart 2 — LST: yearly avg trend  |  NDVI: green area rai (dynamic scale to expose δ) */}
+        <div style={{ width: 190, display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
+            {isLST
+              ? (compareMode ? `LST เฉลี่ย: ${compareYear} vs ${selectedYear}` : "แนวโน้มรายปี (Yearly)")
+              : "พื้นที่สีเขียวรวม (ไร่)"}
           </div>
-        )}
+          <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 2, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
+            {isLST
+              ? (compareMode
+                  ? [
+                      { year: compareYear, temp: baselineAvg, color: "#94a3b8" },
+                      { year: selectedYear, temp: avgTemp,    color: accent },
+                    ].map((item) => {
+                      const p = pct(item.temp, yMin, yMax);
+                      return (
+                        <div key={item.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                          <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{item.temp.toFixed(1)}</div>
+                          <div style={{ ...s.bar(item.color, p), width: "60%" }} />
+                          <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>{item.year}</div>
+                        </div>
+                      );
+                    })
+                  : yearlyTrend.map(([yr, temp], i) => {
+                      const p = pct(temp, yMin, yMax);
+                      return (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                          <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{Number(temp).toFixed(1)}</div>
+                          <div style={{ ...s.bar(accent, p), width: "100%" }} />
+                          <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
+                        </div>
+                      );
+                    }))
+              : greenTrend.map(([yr, val], i) => {
+                  const p = pct(val, gMin, gMax);
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                      <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{(Number(val) / 1000).toFixed(1)}k</div>
+                      <div style={{ ...s.bar(accent, p), width: "80%" }} />
+                      <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
+                    </div>
+                  );
+                })
+            }
+          </div>
+        </div>
       </div>
 
       {/* ── INSIGHT ── */}
-      <div style={{ flex: 1, background: accentLight, border: `1px solid ${accentBorder}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10, overflow: "hidden" }}>
+      <div style={{ flexShrink: 0, background: accentLight, border: `1px solid ${accentBorder}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10 }}>
         <div style={{ fontSize: 7.5, fontWeight: 900, color: accentText, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
           บทสรุปผู้บริหาร (Executive Insight)
         </div>
