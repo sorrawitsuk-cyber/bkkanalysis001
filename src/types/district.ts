@@ -26,6 +26,8 @@ export interface DistrictStatistic {
   ntl_mean?: number | null;
   mean_lst?: number | null;
   max_lst?: number | null;
+  ndbi_mean?: number | null;
+  ndbi_max?: number | null;
   monthly_lst?: number[] | null;
   lst_data_source?: string | null;
   population?: number | null;
