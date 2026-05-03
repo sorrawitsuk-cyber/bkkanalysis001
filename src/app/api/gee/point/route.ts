@@ -83,7 +83,7 @@ export async function GET(request: Request) {
 
       const image = collection.median();
       const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);
-      const celsius = kelvin.subtract(273.15).updateMask(waterMask);
+      const celsius = kelvin.subtract(273.15);
       return celsius.rename('LST');
     };
 

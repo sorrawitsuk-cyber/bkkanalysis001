@@ -74,7 +74,7 @@ export async function GET(request: Request) {
         .filterDate(startDate, endDate)
         .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
-      return collection.median().updateMask(waterMask).clip(bkkBoundary);
+      return collection.median().clip(bkkBoundary);
     };
 
     const getMetricImage = (y: number, endMMDD = '12-31') => {
