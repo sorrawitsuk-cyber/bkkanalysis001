@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert } from "lucide-react";
+import { Building2, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert, ThermometerSun } from "lucide-react";
 import Link from "next/link";
 
 interface BuiltUpSidebarProps {
