@@ -47,7 +47,7 @@ const args = process.argv.slice(2);
 const argYear = args.includes('--year') ? parseInt(args[args.indexOf('--year') + 1], 10) : null;
 const DRY_RUN = args.includes('--dry-run');
 
-const YEARS = argYear ? [argYear] : [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
+const YEARS = argYear ? [argYear] : [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
 // ── GEE init ─────────────────────────────────────────────────────────────────
 function initGEE(clientEmail, privateKey, projectId) {
