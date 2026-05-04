@@ -114,13 +114,37 @@ export async function GET(request: Request) {
     }
 
     const districtNameById = new Map<number, string>();
+    const geoJsonIdByName = new Map<string, number>();
     geojson.features.forEach((feature: any) => {
       districtNameById.set(feature.properties.id, feature.properties.name_th);
+      geoJsonIdByName.set(feature.properties.name_th, feature.properties.id);
     });
 
-    const dbYearRows = await loadDbRows(year, districtNameById);
-    const dbCompareRows = compareYear ? await loadDbRows(compareYear, districtNameById) : [];
-    const dbAllRows = dbYearRows.length > 0 ? await loadAllDbRows(districtNameById) : [];
+    // Build supabase district_id → GeoJSON feature id mapping (they differ by a constant offset)
+    const geoJsonIdBySupabaseId = new Map<number, number>();
+    try {
+      const { data: supabaseDistricts } = await supabase.from("districts").select("id, name_th");
+      if (supabaseDistricts) {
+        supabaseDistricts.forEach((d: any) => {
+          const geoId = geoJsonIdByName.get(d.name_th);
+          if (geoId !== undefined) geoJsonIdBySupabaseId.set(d.id, geoId);
+        });
+      }
+    } catch (_e) { /* fall through — lstMap will just miss matches */ }
+
+    // Remap district_id in DB rows to use GeoJSON feature IDs so lstMap lookups work
+    function normalizeRows(rows: any[]): any[] {
+      if (geoJsonIdBySupabaseId.size === 0) return rows;
+      return rows.map((row) => {
+        const geoId = geoJsonIdBySupabaseId.get(row.district_id);
+        if (geoId === undefined) return row;
+        return { ...row, district_id: geoId, district_name: districtNameById.get(geoId) ?? row.district_name };
+      });
+    }
+
+    const dbYearRows = normalizeRows(await loadDbRows(year, districtNameById));
+    const dbCompareRows = compareYear ? normalizeRows(await loadDbRows(compareYear, districtNameById)) : [];
+    const dbAllRows = dbYearRows.length > 0 ? normalizeRows(await loadAllDbRows(districtNameById)) : [];
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 
