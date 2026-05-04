@@ -104,6 +104,7 @@ export default function UrbanExpansionPage() {
     setIsExporting(false);
   };
 
+  const hasNdbiData = (summary?.yearlyTrend?.length ?? 0) > 0 || (summary?.ranking?.length ?? 0) > 0;
   const highestDensityDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
   const periodLabel = (() => {
     const now = new Date();
@@ -117,19 +118,17 @@ export default function UrbanExpansionPage() {
   const kpiCards = [
     {
       label: compareMode ? "ส่วนต่าง NDBI เฉลี่ย" : "NDBI เฉลี่ย",
-      value: compareMode
-        ? `${summary?.avgDelta >= 0 ? "+" : ""}${(summary?.avgDelta ?? 0).toFixed(3)}`
-        : summary?.averageTemp !== null && summary?.averageTemp !== undefined
-          ? summary.averageTemp.toFixed(3)
-          : "ไม่มีข้อมูล",
+      value: !hasNdbiData ? "--"
+        : compareMode
+          ? `${summary?.avgDelta >= 0 ? "+" : ""}${(summary?.avgDelta ?? 0).toFixed(3)}`
+          : (summary?.averageTemp ?? null) !== null ? summary.averageTemp.toFixed(3) : "--",
     },
     {
       label: compareMode ? "การเพิ่มขึ้นสูงสุด" : "สิ่งปลูกสร้างหนาแน่นสุด",
-      value: compareMode
-        ? `${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0).toFixed(3)}`
-        : summary?.maxTemp !== null && summary?.maxTemp !== undefined
-          ? summary.maxTemp.toFixed(3)
-          : "ไม่มีข้อมูล",
+      value: !hasNdbiData ? "--"
+        : compareMode
+          ? `${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0).toFixed(3)}`
+          : (summary?.maxTemp ?? null) !== null ? summary.maxTemp.toFixed(3) : "--",
     },
     {
       label: "เขตที่มี NDBI เฉลี่ยสูงสุด",

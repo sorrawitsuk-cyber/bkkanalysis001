@@ -30,6 +30,8 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
     );
   }
 
+  const hasNdbiData = (summary.yearlyTrend?.length ?? 0) > 0 || (summary.ranking?.length ?? 0) > 0;
+
   const yearlyDisplayTrend = compareMode && summary.yearlyDeltaTrend?.length
     ? summary.yearlyDeltaTrend
     : (summary.yearlyTrend || []);
@@ -96,7 +98,9 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               <Building2 className="w-3 h-3 text-indigo-400"/> {compareMode ? 'ส่วนต่าง NDBI' : 'NDBI เฉลี่ย'}
             </div>
             <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta > 0 ? 'text-indigo-400' : 'text-slate-400') : 'text-slate-100'}`}>
-              {compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(3)}` : summary.avgDelta.toFixed(3)) : summary.averageTemp?.toFixed(3)}
+              {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>
+                : compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(3)}` : summary.avgDelta.toFixed(3))
+                : summary.averageTemp?.toFixed(3)}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
@@ -104,7 +108,9 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               <Activity className="w-3 h-3 text-red-400"/> {compareMode ? 'เพิ่มขึ้นสูงสุด' : 'สิ่งปลูกสร้างหนาแน่นสุด'}
             </div>
             <div className={`text-lg font-bold font-mono whitespace-nowrap ${compareMode && maxIncreaseValue <= 0 ? 'text-slate-400' : 'text-red-400'}`}>
-              {compareMode ? `${maxIncreaseValue > 0 ? '+' : ''}${maxIncreaseValue.toFixed(3)}` : (summary.maxTemp || 0).toFixed(3)}
+              {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>
+                : compareMode ? `${maxIncreaseValue > 0 ? '+' : ''}${maxIncreaseValue.toFixed(3)}`
+                : (summary.maxTemp ?? null) !== null ? summary.maxTemp.toFixed(3) : '--'}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
@@ -136,37 +142,43 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               ผลต่าง NDBI เทียบกับปี {summary.compareYear}; สีม่วง/แดงคือเมืองขยายตัว สีเขียวคือเมืองลดลงหรือพื้นที่สีเขียวเพิ่ม
             </p>
           )}
-          <div className="flex items-end gap-[3px] h-20 mb-2">
-            {yearlyDisplayTrend.map((item: any, i: number) => {
-              const year = item[0];
-              const temp = item[1];
-              
-              const minT = -0.1;
-              const maxT = 0.3;
-              const pct = compareMode
-                ? Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100))
-                : Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
-              const trendColor = compareMode
-                ? (temp >= 0 ? 'from-indigo-600 to-red-500' : 'from-emerald-300 to-emerald-600')
-                : 'from-slate-600 to-indigo-400';
-
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                  <div
-                    className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
-                    style={{ height: `${pct}%` }}
-                  />
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
-                    <span>{year}: {temp.toFixed(3)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-            <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
-            <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
-          </div>
+          {!hasNdbiData ? (
+            <div className="h-20 flex items-center justify-center border border-dashed border-slate-800 rounded-lg">
+              <span className="text-[10px] text-slate-600">กำลังประมวลผลข้อมูลดาวเทียม…</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-end gap-[3px] h-20 mb-2">
+                {yearlyDisplayTrend.map((item: any, i: number) => {
+                  const year = item[0];
+                  const temp = item[1];
+                  const minT = -0.1;
+                  const maxT = 0.3;
+                  const pct = compareMode
+                    ? Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100))
+                    : Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+                  const trendColor = compareMode
+                    ? (temp >= 0 ? 'from-indigo-600 to-red-500' : 'from-emerald-300 to-emerald-600')
+                    : 'from-slate-600 to-indigo-400';
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                      <div
+                        className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
+                        style={{ height: `${pct}%` }}
+                      />
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
+                        <span>{year}: {temp.toFixed(3)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+                <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
+                <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
+              </div>
+            </>
+          )}
         </section>
 
         <div className="h-px bg-slate-800/60" />
@@ -216,6 +228,12 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             </div>
           </div>
 
+          {!hasNdbiData && (
+            <div className="py-6 flex flex-col items-center gap-2 border border-dashed border-slate-800 rounded-lg">
+              <Building2 className="w-6 h-6 text-slate-700" />
+              <span className="text-[10px] text-slate-600 text-center leading-relaxed">ยังไม่มีข้อมูล NDBI<br/>กำลังประมวลผลข้อมูลดาวเทียม</span>
+            </div>
+          )}
           <div className="space-y-1.5">
             {rankingDisplayRows.slice(0, showAll ? 50 : 10).map(([district, val]: [string, number], i: number) => {
               let pct = 0;
