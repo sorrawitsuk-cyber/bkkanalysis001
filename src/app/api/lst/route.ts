@@ -185,6 +185,11 @@ export async function GET(request: Request) {
 
       const ndviMean = metric === "vegetation" ? currentValue : null;
       const ndviScore = metric === "vegetation" ? (row?.ndvi_score ?? normalizeNdviScore(ndviMean)) : null;
+      const districtAreaRai = districtAreaRaiMap.get(feature.properties.id) ?? 0;
+      const ndbiMeanVal = row?.ndbi_mean ?? null;
+      const builtupAreaRai = typeof ndbiMeanVal === "number" && districtAreaRai > 0
+        ? Math.round(Math.max(0, Math.min(1, (ndbiMeanVal + 0.2) / 0.6)) * districtAreaRai)
+        : null;
 
       return {
         ...feature,
@@ -192,8 +197,9 @@ export async function GET(request: Request) {
           ...feature.properties,
           mean_lst: row?.mean_lst ?? null,
           max_lst: row?.max_lst ?? null,
-          ndbi_mean: row?.ndbi_mean ?? null,
+          ndbi_mean: ndbiMeanVal,
           ndbi_max: row?.ndbi_max ?? null,
+          builtup_area_rai: builtupAreaRai,
           delta,
           vegetation_index: ndviMean,
           ndvi: ndviMean,
@@ -276,6 +282,19 @@ export async function GET(request: Request) {
           .map(([trendYear, totalRai]) => [trendYear, Math.round(Number(totalRai))])
       : [];
 
+    const builtupAreaTrend = metric === "builtup"
+      ? Object.entries(summaryData.reduce((acc: any, row: any) => {
+          const ndbi = typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
+          if (ndbi === null || row.year == null) return acc;
+          const areaRai = districtAreaRaiMap.get(row.district_id) ?? 0;
+          const builtupRai = Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai);
+          acc[row.year] = (acc[row.year] || 0) + builtupRai;
+          return acc;
+        }, {}))
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([trendYear, totalRai]) => [trendYear, Math.round(Number(totalRai))])
+      : [];
+
     const yearlyAverageMap = new Map<number, number>(yearlyTrend.map(([trendYear, avg]) => [Number(trendYear), Number(avg)]));
     const baselineTrendAvg = compareYear ? yearlyAverageMap.get(compareYear) : null;
     const yearlyDeltaTrend = compareYear && baselineTrendAvg !== null && baselineTrendAvg !== undefined
@@ -352,9 +371,20 @@ export async function GET(request: Request) {
             .slice(0, 5);
         }
       } else {
+        if (metric === "builtup") {
+          ranking = currentYearData
+            .map((row: any) => {
+              const ndbi = typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
+              const areaRai = districtAreaRaiMap.get(row.district_id) ?? 0;
+              const builtupRai = ndbi !== null ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai) : 0;
+              return [row.district_name, builtupRai];
+            })
+            .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
+        } else {
         ranking = currentYearData
           .sort((a: any, b: any) => (valueFor(b, metric) ?? -Infinity) - (valueFor(a, metric) ?? -Infinity))
           .map((row: any) => [row.district_name, valueFor(row, metric)]);
+        }
 
         if (metric === "lst") {
           maxRanking = currentYearData
@@ -461,6 +491,7 @@ export async function GET(request: Request) {
         yearlyTrend,
         yearlyMaxTrend,
         greenAreaTrend,
+        builtupAreaTrend,
         yearlyDeltaTrend,
         monthlyTrend,
         monthlyMaxTrend,
