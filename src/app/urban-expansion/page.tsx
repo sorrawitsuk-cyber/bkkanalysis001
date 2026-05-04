@@ -14,7 +14,7 @@ const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: f
 
 export default function UrbanExpansionPage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
-  const [selectedYear, setSelectedYear] = useState(2024);
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2018);
   const [mapMode, setMapMode] = useState<'district' | 'idw'>('idw');
@@ -52,7 +52,7 @@ export default function UrbanExpansionPage() {
 
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
-    setSelectedYear(2024);
+    setSelectedYear(2026);
     setCompareMode(false);
     setCompareYear(2018);
     setMapMode('idw');
