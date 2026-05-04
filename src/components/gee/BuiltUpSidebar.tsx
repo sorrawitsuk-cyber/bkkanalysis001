@@ -44,7 +44,10 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
   const maxAbsTrend = Math.max(1, ...trendValues);
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
 
-  const rankingDisplayRows = summary.ranking || [];
+  const ndbiRankingRows = summary.ndbiRanking || [];
+  const rankingDisplayRows = (!compareMode && displayMode === 'ndbi' && ndbiRankingRows.length)
+    ? ndbiRankingRows
+    : (summary.ranking || []);
   const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
   const rankingMin = 0;
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : 1;
@@ -107,7 +110,11 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <div className={`text-sm font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta > 0 ? 'text-indigo-400' : 'text-slate-400') : 'text-slate-100'}`}>
               {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>
                 : compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(3)}` : summary.avgDelta.toFixed(3))
-                : rankingValues.length ? formatRai(Math.round(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length)) : '--'}
+                : rankingValues.length
+                  ? (displayMode === 'ndbi'
+                    ? (rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length).toFixed(3)
+                    : formatRai(Math.round(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length)))
+                  : '--'}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
@@ -117,7 +124,11 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <div className={`text-sm font-bold font-mono whitespace-nowrap ${compareMode && maxIncreaseValue <= 0 ? 'text-slate-400' : 'text-red-400'}`}>
               {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>
                 : compareMode ? `${maxIncreaseValue > 0 ? '+' : ''}${maxIncreaseValue.toFixed(3)}`
-                : rankingValues.length ? formatRai(Math.max(...rankingValues)) : '--'}
+                : rankingValues.length
+                  ? (displayMode === 'ndbi'
+                    ? Math.max(...rankingValues).toFixed(3)
+                    : formatRai(Math.max(...rankingValues)))
+                  : '--'}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
@@ -248,7 +259,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ NDBI เพิ่มขึ้น · Urban Growth' : "พื้นที่สิ่งปลูกสร้างรายเขต (ไร่)"}
+              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ NDBI เพิ่มขึ้น · Urban Growth' : displayMode === 'ndbi' ? 'อันดับค่าดัชนี NDBI รายเขต' : 'พื้นที่สิ่งปลูกสร้างรายเขต (ไร่)'}
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
               <button 
@@ -281,6 +292,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
 
               const displayVal = compareMode
                 ? (val > 0 ? `+${val.toFixed(3)}` : val.toFixed(3))
+                : displayMode === 'ndbi' ? val.toFixed(3)
                 : formatRai(Math.round(val));
               const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-emerald-400') : 'text-indigo-400';
               const barGradient = compareMode 

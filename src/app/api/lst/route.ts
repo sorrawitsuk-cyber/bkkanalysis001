@@ -307,6 +307,7 @@ export async function GET(request: Request) {
 
     const currentYearData = summaryData.filter((row: any) => row.year === year);
     let ranking: any[] = [];
+    let ndbiRanking: any[] = [];
     let maxRanking: any[] = [];
     let currentAvg = 0;
     let maxCurrentValue = -Infinity;
@@ -380,6 +381,10 @@ export async function GET(request: Request) {
               return [row.district_name, builtupRai];
             })
             .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
+          ndbiRanking = currentYearData
+            .filter((row: any) => typeof row.ndbi_mean === "number")
+            .map((row: any) => [row.district_name, parseFloat(row.ndbi_mean.toFixed(3))])
+            .sort((a: any, b: any) => (b[1] ?? -Infinity) - (a[1] ?? -Infinity));
         } else {
         ranking = currentYearData
           .sort((a: any, b: any) => (valueFor(b, metric) ?? -Infinity) - (valueFor(a, metric) ?? -Infinity))
@@ -498,6 +503,7 @@ export async function GET(request: Request) {
         baselineMonthlyTrend,
         monthlyDeltaTrend,
         ranking,
+        ndbiRanking,
         maxRanking,
         min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : metric === "builtup" ? -0.2 : 30,
         max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : metric === "builtup" ? 0.4 : 40,
