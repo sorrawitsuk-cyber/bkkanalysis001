@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { MapPin } from "lucide-react";
+import { BarChart3, MapPin } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
 import { getLSTLegendItems } from "@/lib/lst";
 
-const MONTHS_TH = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const MONTHS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 export interface A4ReportProps {
   type: "lst" | "ndvi" | "builtup";
@@ -17,416 +17,386 @@ export interface A4ReportProps {
   mapMode?: string;
 }
 
-function pct(value: number, min: number, max: number) {
-  return Math.max(4, Math.min(100, ((value - min) / Math.max(0.001, max - min)) * 100));
+type RankRow = { name: string; value: number; display: string };
+
+function clampPct(value: number, min: number, max: number) {
+  return Math.max(5, Math.min(100, ((value - min) / Math.max(0.001, max - min)) * 100));
+}
+
+function formatSigned(value: number, digits: number, suffix = "") {
+  return `${value > 0 ? "+" : ""}${value.toFixed(digits)}${suffix}`;
+}
+
+function safeNumber(value: unknown, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
 export default function A4Report({
-  type, summary, geojsonData, activeDistrict, selectedYear,
-  compareMode, compareYear, mapSnapshot, mapMode,
+  type,
+  summary,
+  geojsonData,
+  activeDistrict,
+  selectedYear,
+  compareMode,
+  compareYear,
+  mapSnapshot,
+  mapMode,
 }: A4ReportProps) {
   if (!summary) return null;
 
   const isLST = type === "lst";
   const isBuiltup = type === "builtup";
-  const accent      = isLST ? "#ea580c" : isBuiltup ? "#4f46e5" : "#16a34a";
-  const accentLight = isLST ? "#fff7ed" : isBuiltup ? "#e0e7ff" : "#f0fdf4";
-  const accentBorder= isLST ? "#fed7aa" : isBuiltup ? "#c7d2fe" : "#bbf7d0";
-  const accentText  = isLST ? "#c2410c" : isBuiltup ? "#4338ca" : "#15803d";
+  const isNDVI = type === "ndvi";
+  const accent = isLST ? "#ea580c" : isBuiltup ? "#4f46e5" : "#16a34a";
+  const accentSoft = isLST ? "#fff7ed" : isBuiltup ? "#eef2ff" : "#f0fdf4";
+  const accentBorder = isLST ? "#fed7aa" : isBuiltup ? "#c7d2fe" : "#bbf7d0";
+  const accentText = isLST ? "#c2410c" : isBuiltup ? "#4338ca" : "#15803d";
+  const danger = isLST ? "#dc2626" : isBuiltup ? "#ef4444" : "#b45309";
 
-  const now         = new Date();
-  const currentYear = now.getFullYear();
+  const now = new Date();
   const currentDate = now.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" });
-  const periodLabel = selectedYear === currentYear
-    ? `1 ม.ค. – ${now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
-    : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+  const periodLabel = selectedYear === now.getFullYear()
+    ? `1 ม.ค. - ${now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+    : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
 
-  // ── LST data ──────────────────────────────────────────────────────────────
-  const avgTemp      = Number(summary.averageTemp  ?? 0);
-  const maxTemp      = Number(summary.maxTemp      ?? 0);
-  const avgDelta     = Number(summary.avgDelta     ?? 0);
-  const baselineAvg  = Number(summary.baselineAverageTemp ?? 0);
-  const lstRanking   = (summary.ranking ?? []).slice(0, 8) as [string, number][];
-  const monthlyTrend = (summary.monthlyTrend        ?? []) as number[];
-  const baselineMo   = (summary.baselineMonthlyTrend ?? []) as number[];
-  const yearlyTrend  = (summary.yearlyTrend          ?? []) as [number, number][];
-  const highLstCount = (geojsonData?.features ?? []).filter(
-    (f: any) => Number(f?.properties?.mean_lst) >= 36
-  ).length;
+  const avg = safeNumber(summary.averageTemp);
+  const max = safeNumber(summary.maxTemp);
+  const avgDelta = safeNumber(summary.avgDelta);
+  const baselineAvg = safeNumber(summary.baselineAverageTemp);
+  const rankingRaw = (summary.ranking ?? []) as [string, number][];
+  const yearlyTrend = ((summary.yearlyTrend ?? []) as [number, number][]).map(([y, v]) => [Number(y), safeNumber(v)] as [number, number]);
+  const monthlyTrend = ((summary.monthlyTrend ?? []) as number[]).map((v) => safeNumber(v));
+  const baselineMonthlyTrend = ((summary.baselineMonthlyTrend ?? []) as number[]).map((v) => safeNumber(v));
+  const greenTrend = ((summary.greenAreaTrend ?? []) as [number, number][]).map(([y, v]) => [Number(y), safeNumber(v)] as [number, number]);
+  const builtupAreaTrend = ((summary.builtupAreaTrend ?? []) as [number, number][]).map(([y, v]) => [Number(y), safeNumber(v)] as [number, number]);
 
-  // ── NDVI data ─────────────────────────────────────────────────────────────
-  const ns           = summary.ndviSummary ?? {};
-  const avgNdvi      = ns.avg_ndvi_mean != null ? Number(ns.avg_ndvi_mean) : null;
-  const totalGreen   = ns.total_green_area_rai != null ? Number(ns.total_green_area_rai) : null;
-  const bestDistrict = ns.best_district?.district_name  ?? ns.best_district?.name_th  ?? "ไม่มีข้อมูล";
-  const worstDistrict= ns.worst_district?.district_name ?? ns.worst_district?.name_th ?? "ไม่มีข้อมูล";
-  const greenTrend   = (summary.greenAreaTrend ?? []).map(([y, v]: any) => [Number(y), Number(v)]) as [number, number][];
+  const ndviSummary = summary.ndviSummary ?? {};
+  const avgNdvi = ndviSummary.avg_ndvi_mean != null ? safeNumber(ndviSummary.avg_ndvi_mean) : null;
+  const totalGreen = ndviSummary.total_green_area_rai != null ? safeNumber(ndviSummary.total_green_area_rai) : null;
+  const bestGreen = ndviSummary.best_district?.district_name ?? ndviSummary.best_district?.name_th ?? "ไม่มีข้อมูล";
+  const worstGreen = ndviSummary.worst_district?.district_name ?? ndviSummary.worst_district?.name_th ?? "ไม่มีข้อมูล";
+  const highLstCount = (geojsonData?.features ?? []).filter((f: any) => safeNumber(f?.properties?.mean_lst) >= 36).length;
 
-  const ndviRanking  = (geojsonData?.features ?? [])
-    .map((f: any) => ({ name: f.properties?.name_th ?? "", rai: Number(f.properties?.green_area_rai ?? 0) }))
-    .filter((r: any) => r.name && r.rai > 0)
-    .sort((a: any, b: any) => b.rai - a.rai)
-    .slice(0, 8) as { name: string; rai: number }[];
+  const title = isLST
+    ? "รายงานวิเคราะห์เกาะความร้อนเมือง"
+    : isBuiltup
+      ? "รายงานวิเคราะห์การขยายตัวของเมือง"
+      : "รายงานวิเคราะห์พื้นที่สีเขียวเมือง";
+  const subtitle = isLST
+    ? "Land Surface Temperature (LST) · Landsat 8/9 Collection 2 Level 2"
+    : isBuiltup
+      ? "Built-up Area · NDBI · Sentinel-2 SR Harmonized"
+      : "Urban Green Space · NDVI · Sentinel-2 SR Harmonized";
 
-  // ── KPI cards ─────────────────────────────────────────────────────────────
+  const ndviRanking: RankRow[] = (geojsonData?.features ?? [])
+    .map((f: any) => ({
+      name: f.properties?.name_th ?? "",
+      value: safeNumber(f.properties?.green_area_rai),
+      display: formatRai(safeNumber(f.properties?.green_area_rai)),
+    }))
+    .filter((row: RankRow) => row.name && row.value > 0)
+    .sort((a: RankRow, b: RankRow) => b.value - a.value)
+    .slice(0, 8);
+
+  const metricDigits = isBuiltup ? 3 : 2;
+  const metricSuffix = isLST ? "°C" : "";
+  const rankRows: RankRow[] = isNDVI
+    ? ndviRanking
+    : rankingRaw.slice(0, 8).map(([name, value]) => {
+        const num = safeNumber(value);
+        return {
+          name,
+          value: num,
+          display: compareMode ? formatSigned(num, metricDigits, metricSuffix) : `${num.toFixed(metricDigits)}${metricSuffix}`,
+        };
+      });
+
+  const topNames = rankRows.slice(0, 3).map((row) => row.name).filter(Boolean).join(", ") || "ไม่มีข้อมูล";
+  const yearStart = yearlyTrend[0]?.[0];
+  const yearEnd = yearlyTrend[yearlyTrend.length - 1]?.[0];
+  const longDelta = yearlyTrend.length >= 2 ? yearlyTrend[yearlyTrend.length - 1][1] - yearlyTrend[0][1] : null;
+  const builtupAreaLatest = builtupAreaTrend[builtupAreaTrend.length - 1]?.[1] ?? null;
+
   const kpis = isLST
     ? compareMode
       ? [
-          { label: "เปรียบเทียบ", value: `${compareYear} vs ${selectedYear}` },
-          { label: "ส่วนต่าง LST เฉลี่ย", value: `${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(2)}°C`, hi: true },
-          { label: "LST ปัจจุบัน", value: `${avgTemp.toFixed(2)}°C`, hi: true },
-          { label: "LST ปีฐาน", value: `${baselineAvg.toFixed(2)}°C` },
+          ["ช่วงเปรียบเทียบ", `${compareYear} vs ${selectedYear}`],
+          ["LST เฉลี่ย", `${avg.toFixed(2)}°C`],
+          ["ส่วนต่างเฉลี่ย", formatSigned(avgDelta, 2, "°C")],
+          ["เขตที่เพิ่มสูงสุด", rankRows[0]?.name ?? "ไม่มีข้อมูล"],
         ]
       : [
-          { label: "LST เฉลี่ย กทม.", value: `${avgTemp.toFixed(2)}°C`, hi: true },
-          { label: "LST สูงสุด", value: `${maxTemp.toFixed(2)}°C`, hi: true },
-          { label: "เขต LST > 36°C", value: `${highLstCount} เขต` },
-          { label: "ช่วงข้อมูล", value: periodLabel },
+          ["LST เฉลี่ย", `${avg.toFixed(2)}°C`],
+          ["LST สูงสุด", `${max.toFixed(2)}°C`],
+          ["เขต LST > 36°C", `${highLstCount} เขต`],
+          ["ช่วงข้อมูล", periodLabel],
         ]
     : isBuiltup
       ? compareMode
         ? [
-            { label: "เปรียบเทียบ", value: `${compareYear} vs ${selectedYear}` },
-            { label: "ส่วนต่าง NDBI เฉลี่ย", value: `${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(3)}`, hi: true },
-            { label: "NDBI ปัจจุบัน", value: `${avgTemp.toFixed(3)}`, hi: true },
-            { label: "NDBI ปีฐาน", value: `${baselineAvg.toFixed(3)}` },
+            ["ช่วงเปรียบเทียบ", `${compareYear} vs ${selectedYear}`],
+            ["NDBI เฉลี่ย", avg.toFixed(3)],
+            ["ส่วนต่างเฉลี่ย", formatSigned(avgDelta, 3)],
+            ["เขตขยายตัวสูงสุด", rankRows[0]?.name ?? "ไม่มีข้อมูล"],
           ]
         : [
-            { label: "NDBI เฉลี่ย กทม.", value: `${avgTemp.toFixed(3)}`, hi: true },
-            { label: "NDBI สูงสุด", value: `${maxTemp.toFixed(3)}`, hi: true },
-            { label: "เขตที่มี NDBI สูงสุด", value: lstRanking[0]?.[0] || "ไม่มีข้อมูล" },
-            { label: "ช่วงข้อมูล", value: periodLabel },
-          ]
-    : [
-        { label: "NDBI เฉลี่ย กทม.", value: avgNdvi !== null ? avgNdvi.toFixed(3) : "—", hi: true },
-        { label: "พื้นที่สีเขียวรวม", value: formatRai(totalGreen), hi: true },
-        { label: "เขตสีเขียวสูงสุด", value: bestDistrict },
-        { label: "เขตเร่งด่วน", value: worstDistrict },
-      ];
-
-  // ── Chart scales ──────────────────────────────────────────────────────────
-  const allMonthly = [...monthlyTrend, ...baselineMo].filter(Boolean).map(Number);
-  const mMin = Math.floor(Math.min(30, ...allMonthly) - 1);
-  const mMax = Math.ceil(Math.max(40, ...allMonthly) + 1);
-
-  const yearlyVals = yearlyTrend.map(([, v]) => v);
-  const yMin = isBuiltup ? -0.2 : Math.floor(Math.min(32, ...yearlyVals) - 1);
-  const yMax = isBuiltup ? 0.3 : Math.ceil(Math.max(40, ...yearlyVals) + 1);
-
-  const ndviYearlyVals = yearlyTrend.map(([, v]) => v);
-  const ndviChartMin = Math.min(0.15, ...ndviYearlyVals) - 0.01;
-  const ndviChartMax = Math.max(0.40, ...ndviYearlyVals) + 0.01;
-
-  const greenVals = greenTrend.map(([, v]) => v);
-  const gMin = greenVals.length > 0 ? Math.floor(Math.min(...greenVals) * 0.97) : 0;
-  const gMax = greenVals.length > 0 ? Math.ceil(Math.max(...greenVals) * 1.03) : 1;
-
-  // ── Legend items ──────────────────────────────────────────────────────────
-  const legendItems = isLST
-    ? compareMode
-      ? [
-          { color: "#2166AC", label: "เย็นลงมาก < -1.5°C" },
-          { color: "#67A9CF", label: "-1.5 ถึง -0.5°C" },
-          { color: "#E8E8E8", label: "ใกล้เดิม" },
-          { color: "#EF8A62", label: "+0.5 ถึง +1.5°C" },
-          { color: "#B2182B", label: "ร้อนขึ้นมาก > +1.5°C" },
-        ]
-      : getLSTLegendItems().map((i) => ({ color: i.color, label: `${i.label} ${i.range}°C` }))
-    : isBuiltup
-      ? compareMode
-        ? [
-            { color: "#16A34A", label: "ลดลงมาก" },
-            { color: "#84CC16", label: "ลดลง" },
-            { color: "#F7F7F7", label: "ใกล้เดิม" },
-            { color: "#F59E0B", label: "เพิ่มขึ้น" },
-            { color: "#EF4444", label: "เพิ่มขึ้นมาก" },
-          ]
-        : [
-            { color: "#16A34A", label: "หนาแน่นต่ำมาก" },
-            { color: "#84CC16", label: "หนาแน่นต่ำ" },
-            { color: "#F59E0B", label: "ปานกลาง" },
-            { color: "#EF4444", label: "หนาแน่นสูง" },
-            { color: "#7F1D1D", label: "หนาแน่นสูงมาก" },
+            ["NDBI เฉลี่ย", avg.toFixed(3)],
+            ["NDBI สูงสุด", max.toFixed(3)],
+            ["พื้นที่สิ่งปลูกสร้าง", builtupAreaLatest != null ? formatRai(builtupAreaLatest) : "ไม่มีข้อมูล"],
+            ["ช่วงข้อมูล", periodLabel],
           ]
       : [
-          { color: "#8c2d04", label: "เขียวน้อยมาก < 0.20" },
-          { color: "#d94801", label: "เขียวน้อย 0.20–0.30" },
-          { color: "#f6e05e", label: "ปานกลาง 0.30–0.40" },
-          { color: "#68d391", label: "ดี 0.40–0.50" },
-          { color: "#238b45", label: "ดีมาก > 0.50" },
+          ["NDVI เฉลี่ย", avgNdvi != null ? avgNdvi.toFixed(3) : "ไม่มีข้อมูล"],
+          ["พื้นที่สีเขียวรวม", formatRai(totalGreen)],
+          ["เขตสีเขียวสูงสุด", bestGreen],
+          ["เขตเร่งด่วน", worstGreen],
         ];
-
-  // ── Detailed insight text ─────────────────────────────────────────────────
-  const top3LST = lstRanking.slice(0, 3).map(([d, v]) => `${d} (${v.toFixed(2)}°C)`).join(", ");
-  const yearStart = yearlyTrend[0]?.[0];
-  const yearEnd   = yearlyTrend[yearlyTrend.length - 1]?.[0];
-  const tempDelta = yearlyTrend.length >= 2
-    ? (yearlyTrend[yearlyTrend.length - 1][1] - yearlyTrend[0][1])
-    : null;
 
   const insight = isLST
     ? compareMode
-      ? `เมื่อเปรียบเทียบปี ${selectedYear} กับปีฐาน ${compareYear}: ${activeDistrict} มีอุณหภูมิพื้นผิวเฉลี่ยเปลี่ยนแปลง ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(2)}°C เขตที่น่ากังวลมากที่สุดคือ ${lstRanking[0]?.[0] ?? "—"} (${lstRanking[0]?.[1] >= 0 ? "+" : ""}${lstRanking[0]?.[1].toFixed(2)}°C) รองลงมาคือ ${lstRanking[1]?.[0] ?? "—"} และ ${lstRanking[2]?.[0] ?? "—"} ซึ่งล้วนเป็นพื้นที่ที่มีกิจกรรมเมืองหนาแน่นและพื้นที่สีเขียวน้อย แนวโน้มนี้สะท้อนทิศทางการขยายตัวของเกาะความร้อนเมือง (UHI) ในระยะยาว ข้อเสนอแนะ: ควรเร่งเพิ่มพืชพรรณ พัฒนาหลังคาสีเขียว และปรับวัสดุพื้นผิวเป็น Cool Pavement ในเขตที่มีค่าสูงขึ้นต่อเนื่อง`
-      : [
-          `ปี ${selectedYear}: ${activeDistrict} มีค่า LST เฉลี่ย ${avgTemp.toFixed(2)}°C สูงสุด ${maxTemp.toFixed(2)}°C มีจำนวน ${highLstCount} เขตที่มี LST เกิน 36°C ซึ่งเป็นระดับอุณหภูมิที่ส่งผลกระทบต่อสุขภาพและความเป็นอยู่ที่ดีของประชาชนอย่างมีนัยสำคัญ`,
-          top3LST
-            ? `เขตที่มีอุณหภูมิพื้นผิวสูงที่สุด ได้แก่ ${top3LST} ซึ่งล้วนเป็นพื้นที่ที่มีความหนาแน่นของอาคารและกิจกรรมเชิงพาณิชย์สูง ขณะที่พื้นที่สีเขียวและแหล่งน้ำมีสัดส่วนน้อย ก่อให้เกิดปรากฏการณ์เกาะความร้อนเมือง (Urban Heat Island: UHI) อย่างชัดเจน`
-            : "",
-          yearStart && yearEnd && tempDelta !== null
-            ? `แนวโน้มรายปีในช่วงปี ${yearStart}–${yearEnd} ชี้ว่าอุณหภูมิพื้นผิวมีการเปลี่ยนแปลงสุทธิ ${tempDelta >= 0 ? "+" : ""}${tempDelta.toFixed(2)}°C สะท้อนผลสะสมจากการขยายตัวของเมืองและภาวะโลกร้อนในระยะยาว`
-            : "",
-          `ข้อเสนอแนะเชิงนโยบาย: ควรเร่งเพิ่มพื้นที่สีเขียวและร่มเงาในเขตที่มีค่า LST สูง โดยการปลูกต้นไม้ริมถนน พัฒนาสวนสาธารณะขนาดเล็กในระดับชุมชน ส่งเสริมหลังคาสีเขียว (Green Roof) ในอาคารพาณิชย์ และการใช้วัสดุพื้นถนนที่สะท้อนความร้อน (Cool Pavement) เพื่อลดอุณหภูมิพื้นผิวอย่างยั่งยืน`,
-        ].filter(Boolean).join(" ")
+      ? `ปี ${selectedYear} มีค่า LST เฉลี่ยเปลี่ยนจากปีฐาน ${compareYear} ${formatSigned(avgDelta, 2, "°C")} พื้นที่ที่ควรติดตามคือ ${topNames} เพราะเป็นกลุ่มเขตที่ความร้อนเพิ่มขึ้นเด่นกว่าพื้นที่อื่น ควรใช้มาตรการเพิ่มร่มเงา พื้นที่สีเขียว และวัสดุพื้นผิวที่สะท้อนความร้อนในแนวถนนและย่านกิจกรรมเมืองหนาแน่น`
+      : `ปี ${selectedYear} พื้นที่ ${activeDistrict} มี LST เฉลี่ย ${avg.toFixed(2)}°C และค่าสูงสุด ${max.toFixed(2)}°C โดยมี ${highLstCount} เขตที่ LST เกิน 36°C เขตเด่นคือ ${topNames} สะท้อนรูปแบบพื้นผิวเมืองที่สะสมความร้อนสูงและควรเชื่อมโยงกับแผนเพิ่มต้นไม้ ร่มเงา และสวนระดับชุมชน`
     : isBuiltup
       ? compareMode
-        ? `เมื่อเปรียบเทียบปี ${selectedYear} กับปีฐาน ${compareYear}: ${activeDistrict} มีค่า NDBI เฉลี่ยเปลี่ยนแปลง ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(3)} เขตที่มีการขยายตัวของสิ่งปลูกสร้างมากที่สุดคือ ${lstRanking[0]?.[0] ?? "—"} รองลงมาคือ ${lstRanking[1]?.[0] ?? "—"} และ ${lstRanking[2]?.[0] ?? "—"} แสดงถึงพื้นที่ที่มีการก่อสร้างใหม่หรือเปลี่ยนแปลงการใช้ประโยชน์ที่ดินอย่างรวดเร็ว ${summary?.encroachmentRanking?.length > 0 ? `ที่น่ากังวลที่สุดคือการขยายตัวของเมืองที่รุกล้ำพื้นที่สีเขียวหรือพื้นที่เกษตรกรรม (Urban Encroachment) ซึ่งพบอัตราเร่งสูงสุดในเขต ${summary.encroachmentRanking[0].district_name} (สิ่งปลูกสร้างเพิ่ม +${summary.encroachmentRanking[0].ndbiDelta.toFixed(3)}, สีเขียวลด ${summary.encroachmentRanking[0].ndviDelta.toFixed(3)}) ` : ""}ข้อเสนอแนะ: ควรมีการวางผังเมืองและควบคุมการก่อสร้างเพื่อรักษาสมดุลของพื้นที่เปิดโล่งและพื้นที่สีเขียว`
-        : [
-            `ปี ${selectedYear}: ${activeDistrict} มีค่า NDBI เฉลี่ย ${avgTemp.toFixed(3)} ซึ่งเป็นดัชนีสะท้อนความหนาแน่นของสิ่งปลูกสร้างและพื้นผิวคอนกรีต`,
-            top3LST ? `เขตที่มีความหนาแน่นของสิ่งปลูกสร้างสูงที่สุด ได้แก่ ${top3LST} ซึ่งมักเป็นศูนย์กลางพาณิชยกรรมหรือย่านอุตสาหกรรม` : "",
-            yearStart && yearEnd && tempDelta !== null ? `แนวโน้มรายปีในช่วงปี ${yearStart}–${yearEnd} ชี้ว่ามีการเปลี่ยนแปลง NDBI สุทธิ ${tempDelta >= 0 ? "+" : ""}${tempDelta.toFixed(3)} สะท้อนอัตราการขยายตัวของเมือง (Urban Sprawl) ในระยะยาว` : "",
-            `ข้อเสนอแนะเชิงนโยบาย: ควรควบคุมการขยายตัวของเมืองอย่างไร้ทิศทาง ส่งเสริมการกระจายความเจริญและจัดสรรพื้นที่สีเขียวแทรกซึมในเขตที่มีความหนาแน่นสูง`
-          ].filter(Boolean).join(" ")
-      : [
-          `ปี ${selectedYear}: ${activeDistrict} มีค่า NDVI เฉลี่ย ${avgNdvi !== null ? avgNdvi.toFixed(3) : "—"} และพื้นที่สีเขียวรวมประมาณ ${formatRai(totalGreen)} ข้อมูลจากดาวเทียม Sentinel-2 SR Harmonized ผ่านการคัดกรองเมฆและตัดพื้นที่น้ำออกด้วย JRC water mask เพื่อให้สะท้อนพื้นที่ดินจริง`,
-          `เขตที่มีพื้นที่สีเขียวสูงสุดคือ ${bestDistrict} ส่วนเขตที่มีความเร่งด่วนในการพัฒนาพื้นที่สีเขียวมากที่สุดคือ ${worstDistrict} ซึ่งมีค่า NDVI ต่ำกว่าเกณฑ์ บ่งชี้ว่าประชาชนในเขตดังกล่าวมีการเข้าถึงพื้นที่สีเขียวไม่เพียงพอตามมาตรฐานสุขภาวะเมือง`,
-          greenTrend.length >= 2
-            ? `แนวโน้มพื้นที่สีเขียวรวมในช่วงปี ${greenTrend[0]?.[0]}–${greenTrend[greenTrend.length - 1]?.[0]} แสดงการเปลี่ยนแปลงที่ควรติดตามอย่างใกล้ชิด เพื่อประเมินประสิทธิผลของนโยบายเพิ่มพื้นที่สีเขียวของกรุงเทพมหานคร`
-            : "",
-          `ข้อเสนอแนะ: ควรกำหนดเป้าหมายพื้นที่สีเขียวต่อหัวประชากรตามมาตรฐาน WHO ที่ 9 ตร.ม./คน โดยเร่งพัฒนาในเขตที่มี NDVI ต่ำ ผ่านการสร้างสวนสาธารณะชุมชน ขยายพื้นที่ริมคลองสีเขียว และส่งเสริมการปลูกต้นไม้ในพื้นที่เอกชนและอาคารสาธารณะ`,
-        ].filter(Boolean).join(" ");
+        ? `ผลต่าง NDBI ปี ${selectedYear} เทียบกับ ${compareYear} อยู่ที่ ${formatSigned(avgDelta, 3)} โดยเขตที่ขยายตัวสูงคือ ${topNames} ควรอ่านร่วมกับพื้นที่สีเขียวและโครงสร้างพื้นฐานเดิม เพื่อแยกพื้นที่ก่อสร้างใหม่ออกจากพื้นที่ที่เปลี่ยนการใช้ประโยชน์ที่ดินอย่างรวดเร็ว`
+        : `ปี ${selectedYear} พื้นที่ ${activeDistrict} มีค่า NDBI เฉลี่ย ${avg.toFixed(3)} เขตที่มีความหนาแน่นสิ่งปลูกสร้างสูงคือ ${topNames}${longDelta != null && yearStart && yearEnd ? ` แนวโน้ม ${yearStart}-${yearEnd} เปลี่ยน ${formatSigned(longDelta, 3)}` : ""} ควรควบคุมการขยายตัวแบบกระจัดกระจายและกันพื้นที่เปิดโล่งหรือพื้นที่สีเขียวไว้ในเขตหนาแน่น`
+      : `ปี ${selectedYear} พื้นที่ ${activeDistrict} มี NDVI เฉลี่ย ${avgNdvi != null ? avgNdvi.toFixed(3) : "ไม่มีข้อมูล"} และพื้นที่สีเขียวรวมประมาณ ${formatRai(totalGreen)} เขตที่มีพื้นที่สีเขียวสูงสุดคือ ${bestGreen} ส่วนเขตเร่งด่วนคือ ${worstGreen} ควรใช้ข้อมูลนี้จัดลำดับการเพิ่มสวนชุมชน แนวต้นไม้ริมถนน และพื้นที่สีเขียวริมคลอง`;
 
-  // ── Styles ────────────────────────────────────────────────────────────────
-  const bar = (color: string, h: number) => ({
-    width: "100%", borderRadius: "2px 2px 0 0", background: color, height: `${h}%`, minHeight: 2,
-  });
+  const legendItems = isLST
+    ? compareMode
+      ? [
+          ["#2166AC", "เย็นลงมาก < -1.5°C"],
+          ["#67A9CF", "เย็นลง -1.5 ถึง -0.5°C"],
+          ["#F7F7F7", "ใกล้เดิม"],
+          ["#EF8A62", "ร้อนขึ้น +0.5 ถึง +1.5°C"],
+          ["#B2182B", "ร้อนขึ้นมาก > +1.5°C"],
+        ]
+      : getLSTLegendItems().map((item) => [item.color, `${item.label} ${item.range}°C`])
+    : isBuiltup
+      ? compareMode
+        ? [
+            ["#16A34A", "ลดลงมาก"],
+            ["#84CC16", "ลดลง"],
+            ["#F7F7F7", "ใกล้เดิม"],
+            ["#F59E0B", "เพิ่มขึ้น"],
+            ["#EF4444", "เพิ่มขึ้นมาก"],
+          ]
+        : [
+            ["#16A34A", "ต่ำมาก"],
+            ["#84CC16", "ต่ำ"],
+            ["#F59E0B", "ปานกลาง"],
+            ["#EF4444", "สูง"],
+            ["#7F1D1D", "สูงมาก"],
+          ]
+      : [
+          ["#8c2d04", "เขียวน้อยมาก < 0.20"],
+          ["#d94801", "เขียวน้อย 0.20-0.30"],
+          ["#f6e05e", "ปานกลาง 0.30-0.40"],
+          ["#68d391", "ดี 0.40-0.50"],
+          ["#238b45", "ดีมาก > 0.50"],
+        ];
+
+  const chartSeries = isLST ? monthlyTrend : isBuiltup && builtupAreaTrend.length ? builtupAreaTrend.map(([, v]) => v) : isNDVI && greenTrend.length ? greenTrend.map(([, v]) => v) : yearlyTrend.map(([, v]) => v);
+  const compareSeries = isLST && compareMode ? baselineMonthlyTrend : [];
+  const scaleValues = [...chartSeries, ...compareSeries].filter((v) => Number.isFinite(v) && v !== 0);
+  const chartMin = isLST ? Math.floor(Math.min(30, ...scaleValues) - 1) : Math.min(...scaleValues, 0);
+  const chartMax = isLST ? Math.ceil(Math.max(40, ...scaleValues) + 1) : Math.max(...scaleValues, 1);
+  const chartLabels = isLST
+    ? MONTHS_TH
+    : (isBuiltup && builtupAreaTrend.length ? builtupAreaTrend : isNDVI && greenTrend.length ? greenTrend : yearlyTrend).map(([year]) => String(year).slice(-2));
+
+  const source = isLST
+    ? "Landsat 8/9 C2 L2, 30m, cloud masked"
+    : "Sentinel-2 SR Harmonized, 10m, cloud and water masked";
+  const mapModeLabel = mapMode === "district" ? "District summary" : mapMode === "satellite-cache" ? "Satellite cache" : "GEE raster";
 
   return (
     <div
       id="a4-report"
       style={{
-        width: 794, height: 1123, padding: 28,
-        fontFamily: "'Inter', 'Noto Sans Thai', sans-serif",
-        background: "#fff", color: "#0f172a",
-        display: "flex", flexDirection: "column",
-        position: "absolute", top: 0, left: -9999, zIndex: -1,
-        boxSizing: "border-box", overflow: "hidden",
+        width: 794,
+        height: 1123,
+        padding: 30,
+        fontFamily: "'Noto Sans Thai', 'Inter', 'Arial', sans-serif",
+        background: "#ffffff",
+        color: "#0f172a",
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: 0,
+        left: -10000,
+        zIndex: -1,
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
-
-      {/* ── HEADER ── */}
-      <div style={{ borderBottom: "2.5px solid #0f172a", paddingBottom: 8, marginBottom: 10, flexShrink: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 900, lineHeight: 1.2 }}>
-              {isLST ? "รายงานสรุปสถานการณ์เกาะความร้อนเมือง" : isBuiltup ? "รายงานสรุปการขยายตัวของเมืองและสิ่งปลูกสร้าง" : "รายงานสรุปพื้นที่สีเขียวเมือง"} · {activeDistrict}
+      <header style={{ borderBottom: "3px solid #111827", paddingBottom: 10, marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: accentText, fontSize: 9, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase" }}>
+              Bangkok Urban Analytics Report
             </div>
-            <div style={{ fontSize: 8, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 3 }}>
-              {isLST
-                ? "Bangkok Urban Heat Island · Land Surface Temperature (LST) · Landsat 8/9 C2 L2"
-                : isBuiltup ? "Bangkok Urban Expansion · NDBI · Sentinel-2 SR Harmonized" : "Bangkok Urban Green Space · NDVI · Sentinel-2 SR Harmonized"}
-              {compareMode ? `  ·  เปรียบเทียบปี ${compareYear} vs ${selectedYear}` : `  ·  ปี ${selectedYear}`}
-            </div>
+            <h1 style={{ fontSize: 20, lineHeight: 1.2, margin: "4px 0 2px", fontWeight: 900 }}>
+              {title}
+            </h1>
+            <div style={{ color: "#64748b", fontSize: 9, lineHeight: 1.45 }}>{subtitle}</div>
           </div>
-          <div style={{ fontSize: 8, color: "#64748b", textAlign: "right", flexShrink: 0, lineHeight: 1.6 }}>
-            <div>วันที่ออกรายงาน: {currentDate}</div>
-            <div>พื้นที่วิเคราะห์: {activeDistrict}</div>
+          <div style={{ textAlign: "right", color: "#475569", fontSize: 9, lineHeight: 1.65, flexShrink: 0 }}>
+            <div><b>พื้นที่:</b> {activeDistrict}</div>
+            <div><b>ปีข้อมูล:</b> {compareMode ? `${compareYear} vs ${selectedYear}` : selectedYear}</div>
+            <div><b>วันที่ออกรายงาน:</b> {currentDate}</div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* ── KPI CARDS ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 10, flexShrink: 0 }}>
-        {kpis.map((k, i) => (
-          <div key={i} style={{
-            background: k.hi ? accentLight : "#f8fafc",
-            border: `1px solid ${k.hi ? accentBorder : "#e2e8f0"}`,
-            borderRadius: 8, padding: "8px 10px",
-          }}>
-            <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{k.label}</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: k.hi ? accentText : "#1e293b", lineHeight: 1.1 }}>{k.value}</div>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+        {kpis.map(([label, value], index) => (
+          <div
+            key={label}
+            style={{
+              minHeight: 56,
+              border: `1px solid ${index === 0 || index === 1 ? accentBorder : "#e2e8f0"}`,
+              background: index === 0 || index === 1 ? accentSoft : "#f8fafc",
+              borderRadius: 7,
+              padding: "8px 9px",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ fontSize: 7.5, color: "#64748b", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
+              {label}
+            </div>
+            <div style={{ fontSize: String(value).length > 18 ? 10 : 15, lineHeight: 1.15, color: index === 0 || index === 1 ? accentText : "#111827", fontWeight: 900 }}>
+              {value}
+            </div>
           </div>
         ))}
-      </div>
+      </section>
 
-      {/* ── MAP (full width) ── */}
-      <div style={{
-        width: "100%", height: 310, flexShrink: 0,
-        background: "#0f172a", borderRadius: 10, overflow: "hidden",
-        border: "1px solid #cbd5e1", position: "relative", marginBottom: 10,
-      }}>
-        {mapSnapshot ? (
-          <img src={mapSnapshot} alt="map" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block" }} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
-            <MapPin style={{ width: 28, height: 28, opacity: 0.4 }} />
-            <div style={{ fontSize: 9, marginTop: 6 }}>ไม่สามารถจับภาพแผนที่ได้</div>
+      <section style={{ display: "grid", gridTemplateColumns: "1.46fr 0.92fr", gap: 12, marginBottom: 12 }}>
+        <div style={{ height: 318, border: "1px solid #cbd5e1", background: "#0b1120", borderRadius: 8, overflow: "hidden", position: "relative" }}>
+          {mapSnapshot ? (
+            <img
+              src={mapSnapshot}
+              alt="map"
+              style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block", background: "#0b1120" }}
+            />
+          ) : (
+            <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "#94a3b8" }}>
+              <MapPin style={{ width: 30, height: 30, opacity: 0.45 }} />
+              <div style={{ fontSize: 10, marginTop: 8 }}>ไม่สามารถจับภาพแผนที่ได้</div>
+            </div>
+          )}
+          <div style={{ position: "absolute", top: 9, right: 9, background: "rgba(255,255,255,0.92)", color: "#0f172a", borderRadius: 5, padding: "4px 6px", fontSize: 8, fontWeight: 900 }}>
+            N
           </div>
-        )}
-        <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(255,255,255,0.92)", borderRadius: 4, padding: "3px 5px", display: "flex", flexDirection: "column", alignItems: "center", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="#0f172a"><polygon points="12 2 16 22 12 17 8 22 12 2" /></svg>
-          <span style={{ fontSize: 7, fontWeight: 900, color: "#0f172a" }}>N</span>
+          <div style={{ position: "absolute", left: 9, bottom: 9, background: "rgba(15,23,42,0.78)", color: "#fff", borderRadius: 5, padding: "4px 7px", fontSize: 8 }}>
+            {mapModeLabel}
+          </div>
+          <div style={{ position: "absolute", right: 9, bottom: 9, background: "rgba(255,255,255,0.9)", color: "#334155", borderRadius: 5, padding: "4px 7px", fontSize: 8, display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 28, height: 3, background: "#334155", display: "inline-block" }} /> 10 km
+          </div>
         </div>
-        <div style={{ position: "absolute", bottom: 7, left: 8, background: "rgba(0,0,0,0.65)", color: "#fff", borderRadius: 3, padding: "2px 6px", fontSize: 7 }}>
-          {mapMode === "idw" || mapMode === "satellite-cache" ? "Satellite / GEE Mode" : "District Mode"}
-        </div>
-        <div style={{ position: "absolute", bottom: 7, right: 8, background: "rgba(255,255,255,0.9)", borderRadius: 3, padding: "2px 5px", fontSize: 7, color: "#334155", display: "flex", alignItems: "center", gap: 4 }}>
-          <div style={{ width: 22, height: 2, background: "#334155" }} /> 10 km
-        </div>
-      </div>
 
-      {/* ── RANKING (full width) ── */}
-      <div style={{ flexShrink: 0, marginBottom: 10 }}>
-        <div style={{ fontSize: 9, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1e293b", borderLeft: `4px solid ${accent}`, paddingLeft: 7, marginBottom: 6 }}>
-          {isLST ? (compareMode ? "เขตอุณหภูมิเพิ่มขึ้นมากสุด" : "อันดับเขตที่ร้อนสุด") : isBuiltup ? (compareMode ? "เขตสิ่งปลูกสร้างเพิ่มขึ้นมากสุด" : "อันดับเขตสิ่งปลูกสร้างหนาแน่นสุด") : "อันดับพื้นที่สีเขียวรายเขต"}
-        </div>
-        <table style={{ width: "100%", fontSize: 9, borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-              <th style={{ textAlign: "left", padding: "3px 0", color: "#94a3b8", fontWeight: 700, width: 24 }}>#</th>
-              <th style={{ textAlign: "left", padding: "3px 0", color: "#94a3b8", fontWeight: 700 }}>เขต</th>
-              <th style={{ textAlign: "right", padding: "3px 0", color: "#94a3b8", fontWeight: 700 }}>{isLST ? (compareMode ? "Δ°C" : "LST (°C)") : isBuiltup ? (compareMode ? "Δ NDBI" : "NDBI") : "ไร่"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(isLST || isBuiltup)
-              ? lstRanking.map(([d, v], i) => (
-                  <tr key={d} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "3px 0", color: "#94a3b8", fontFamily: "monospace" }}>{i + 1}</td>
-                    <td style={{ padding: "3px 0", fontWeight: 500 }}>{d}</td>
-                    <td style={{ padding: "3px 0", textAlign: "right", fontFamily: "monospace", fontWeight: 700 }}>
-                      {compareMode ? (v >= 0 ? `+${v.toFixed(isBuiltup ? 3 : 2)}` : v.toFixed(isBuiltup ? 3 : 2)) : v.toFixed(isBuiltup ? 3 : 2)}
-                    </td>
-                  </tr>
-                ))
-              : ndviRanking.map((r, i) => (
-                  <tr key={r.name} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "3px 0", color: "#94a3b8", fontFamily: "monospace" }}>{i + 1}</td>
-                    <td style={{ padding: "3px 0", fontWeight: 500 }}>{r.name}</td>
-                    <td style={{ padding: "3px 0", textAlign: "right", fontFamily: "monospace", fontWeight: 700 }}>{r.rai.toLocaleString("th-TH", { maximumFractionDigits: 0 })}</td>
-                  </tr>
-                ))
-            }
-          </tbody>
-        </table>
-      </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ border: `1px solid ${accentBorder}`, background: accentSoft, borderRadius: 8, padding: 12, minHeight: 154 }}>
+            <div style={{ fontSize: 9, fontWeight: 900, color: accentText, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 7 }}>
+              Executive Insight
+            </div>
+            <p style={{ margin: 0, fontSize: 10.2, lineHeight: 1.62, color: "#334155" }}>{insight}</p>
+          </div>
 
-      {/* ── CHART 1: Monthly LST / NDVI yearly avg ── */}
-      <div style={{ flexShrink: 0, marginBottom: 10 }}>
-        <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
-          {isLST ? `แนวโน้ม LST รายเดือน ปี ${selectedYear}` : isBuiltup ? "แนวโน้ม NDBI เฉลี่ยรายปี" : "แนวโน้ม NDVI เฉลี่ยรายปี"}
+          <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 900, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+              สัญลักษณ์แผนที่
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              {legendItems.map(([color, label]) => (
+                <div key={`${color}-${label}`} style={{ display: "grid", gridTemplateColumns: "13px 1fr", gap: 7, alignItems: "center" }}>
+                  <span style={{ width: 13, height: 13, borderRadius: 3, background: color, border: "1px solid rgba(0,0,0,0.12)" }} />
+                  <span style={{ fontSize: 8.3, color: "#475569", lineHeight: 1.25 }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div style={{ height: 100, display: "flex", alignItems: "flex-end", gap: 3, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
-          {isLST
-            ? monthlyTrend.map((temp, i) => {
-                const isFuture = selectedYear === currentYear && i > now.getMonth();
-                const p  = pct(temp, mMin, mMax);
-                const bp = pct(baselineMo[i] ?? 0, mMin, mMax);
-                return (
-                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                    {!isFuture && (
-                      <>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{temp.toFixed(0)}</div>
-                        {compareMode ? (
-                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 1 }}>
-                            <div style={{ ...bar("#94a3b8", bp), width: "42%" }} />
-                            <div style={{ ...bar(accent, p), width: "42%" }} />
-                          </div>
-                        ) : (
-                          <div style={{ ...bar(accent, p), width: "100%" }} />
-                        )}
-                      </>
-                    )}
-                    <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>{MONTHS_TH[i]}</div>
-                  </div>
-                );
-              })
-            : yearlyTrend.map(([yr, val], i) => {
-                const p = pct(val, ndviChartMin, ndviChartMax);
-                return (
-                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                    <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{Number(val).toFixed(3)}</div>
-                    <div style={{ ...bar(accent, p), width: "80%" }} />
-                    <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
-                  </div>
-                );
-              })
-          }
-        </div>
-      </div>
+      </section>
 
-      {/* ── CHART 2: Yearly LST / Green area rai / NDBI ── */}
-      <div style={{ flexShrink: 0, marginBottom: 10 }}>
-        <div style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>
-          {isLST
-            ? (compareMode ? `LST เฉลี่ย: ${compareYear} vs ${selectedYear}` : "แนวโน้มรายปี (YEARLY)")
-            : isBuiltup ? (compareMode ? `NDBI เฉลี่ย: ${compareYear} vs ${selectedYear}` : "แนวโน้มรายปี (YEARLY)")
-            : "พื้นที่สีเขียวรวม (ไร่)"}
-        </div>
-        <div style={{ height: 100, display: "flex", alignItems: "flex-end", gap: 3, borderBottom: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", paddingBottom: 2, paddingLeft: 2 }}>
-          {(isLST || isBuiltup)
-            ? (compareMode
-                ? [
-                    { year: compareYear, temp: baselineAvg, color: "#94a3b8" },
-                    { year: selectedYear, temp: avgTemp,    color: accent },
-                  ].map((item) => {
-                    const p = pct(item.temp, yMin, yMax);
-                    return (
-                      <div key={item.year} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{item.temp.toFixed(isBuiltup ? 3 : 1)}</div>
-                        <div style={{ ...bar(item.color, p), width: "60%" }} />
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>{item.year}</div>
+      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 9 }}>
+            <BarChart3 style={{ width: 13, height: 13, color: accent }} />
+            <div style={{ fontSize: 9, fontWeight: 900, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              {isLST ? "แนวโน้มรายเดือน" : isBuiltup && builtupAreaTrend.length ? "พื้นที่สิ่งปลูกสร้างรายปี" : isNDVI && greenTrend.length ? "พื้นที่สีเขียวรายปี" : "แนวโน้มรายปี"}
+            </div>
+          </div>
+          <div style={{ height: 132, display: "flex", alignItems: "flex-end", gap: 4, borderBottom: "1px solid #cbd5e1", borderLeft: "1px solid #cbd5e1", padding: "0 0 3px 4px" }}>
+            {chartSeries.map((value, index) => {
+              const futureMonth = isLST && selectedYear === now.getFullYear() && index > now.getMonth();
+              const currentPct = clampPct(value, chartMin, chartMax);
+              const comparePct = clampPct(compareSeries[index] ?? 0, chartMin, chartMax);
+              return (
+                <div key={`${chartLabels[index]}-${index}`} style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", minWidth: 0 }}>
+                  {!futureMonth && (
+                    <>
+                      <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 2 }}>
+                        {compareMode && isLST && <div style={{ width: "40%", height: `${comparePct}%`, minHeight: 2, background: "#94a3b8", borderRadius: "2px 2px 0 0" }} />}
+                        <div style={{ width: compareMode && isLST ? "40%" : "70%", height: `${currentPct}%`, minHeight: 2, background: accent, borderRadius: "2px 2px 0 0" }} />
                       </div>
-                    );
-                  })
-                : yearlyTrend.map(([yr, temp], i) => {
-                    const p = pct(temp, yMin, yMax);
-                    return (
-                      <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{Number(temp).toFixed(isBuiltup ? 3 : 1)}</div>
-                        <div style={{ ...bar(accent, p), width: "100%" }} />
-                        <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
+                      <div style={{ color: "#64748b", fontSize: 6.5, lineHeight: 1.1, marginTop: 2 }}>
+                        {isLST ? value.toFixed(0) : value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toFixed(isBuiltup ? 3 : 0)}
                       </div>
-                    );
-                  }))
-            : greenTrend.map(([yr, val], i) => {
-                const p = pct(val, gMin, gMax);
-                return (
-                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
-                    <div style={{ fontSize: 6, color: "#94a3b8", marginBottom: 1 }}>{(Number(val) / 1000).toFixed(1)}k</div>
-                    <div style={{ ...bar(accent, p), width: "80%" }} />
-                    <div style={{ fontSize: 6, color: "#94a3b8", marginTop: 1 }}>&apos;{String(yr).slice(-2)}</div>
-                  </div>
-                );
-              })
-          }
+                    </>
+                  )}
+                  <div style={{ color: "#94a3b8", fontSize: 6.5, lineHeight: 1.1, marginTop: 2 }}>{chartLabels[index]}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* ── INSIGHT (flex:1 fills remaining A4 space) ── */}
-      <div style={{ flex: 1, minHeight: 0, background: accentLight, border: `1px solid ${accentBorder}`, borderRadius: 8, padding: "10px 12px", marginBottom: 8, overflow: "hidden" }}>
-        <div style={{ fontSize: 7.5, fontWeight: 900, color: accentText, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-          บทสรุปผู้บริหาร (Executive Insight)
+        <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12 }}>
+          <div style={{ fontSize: 9, fontWeight: 900, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
+            {isNDVI ? "อันดับพื้นที่สีเขียวรายเขต" : compareMode ? "อันดับการเปลี่ยนแปลงรายเขต" : "อันดับพื้นที่เสี่ยง/หนาแน่นรายเขต"}
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 8.8 }}>
+            <thead>
+              <tr style={{ color: "#94a3b8", borderBottom: "1px solid #e2e8f0" }}>
+                <th style={{ textAlign: "left", paddingBottom: 5, width: 24 }}>#</th>
+                <th style={{ textAlign: "left", paddingBottom: 5 }}>เขต</th>
+                <th style={{ textAlign: "right", paddingBottom: 5 }}>{isLST ? (compareMode ? "Δ LST" : "LST") : isBuiltup ? (compareMode ? "Δ NDBI" : "NDBI/ไร่") : "พื้นที่"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rankRows.map((row, index) => (
+                <tr key={`${row.name}-${index}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "4px 0", color: "#94a3b8", fontFamily: "monospace" }}>{index + 1}</td>
+                  <td style={{ padding: "4px 0", color: "#1e293b", fontWeight: 700 }}>{row.name}</td>
+                  <td style={{ padding: "4px 0", textAlign: "right", color: compareMode && row.value > 0 ? danger : "#0f172a", fontFamily: "monospace", fontWeight: 900 }}>{row.display}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <p style={{ fontSize: 10, color: "#374151", lineHeight: 1.7, margin: 0 }}>{insight}</p>
-      </div>
+      </section>
 
-      {/* ── LEGEND ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6, flexShrink: 0 }}>
-        <span style={{ fontSize: 7.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>สัญลักษณ์:</span>
-        {legendItems.map((item, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 12, height: 12, borderRadius: 2, background: item.color, border: "1px solid rgba(0,0,0,0.1)", flexShrink: 0 }} />
-            <span style={{ fontSize: 8, color: "#475569" }}>{item.label}</span>
+      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+        {[
+          ["วิธีอ่านข้อมูล", isLST ? "LST คืออุณหภูมิพื้นผิว ไม่ใช่อุณหภูมิอากาศหรือ Heat Index" : isBuiltup ? "NDBI ใช้ชี้พื้นที่สิ่งปลูกสร้างและพื้นผิวคอนกรีต ควรอ่านร่วมกับข้อมูลภาคสนาม" : "NDVI ใช้ชี้ความเขียวของพืชพรรณ ค่าขึ้นกับฤดูกาล เมฆ และเงาอาคาร"],
+          ["ข้อค้นพบหลัก", isLST ? `พื้นที่เด่น: ${topNames}` : isBuiltup ? `พื้นที่ขยายตัว/หนาแน่นเด่น: ${topNames}` : `เขตสีเขียวสูงสุด: ${bestGreen}`],
+          ["ข้อเสนอแนะ", isLST ? "เพิ่มร่มเงา ต้นไม้ริมถนน พื้นผิวเย็น และสวนชุมชนในเขตร้อนสูง" : isBuiltup ? "ควบคุม urban sprawl กันพื้นที่เปิดโล่ง และผูกแผนก่อสร้างกับพื้นที่สีเขียว" : "เพิ่มสวนใกล้บ้าน พื้นที่สีเขียวริมคลอง และเป้าหมายพื้นที่สีเขียวต่อหัว"],
+        ].map(([heading, body]) => (
+          <div key={heading} style={{ border: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: 8, padding: 10, minHeight: 78 }}>
+            <div style={{ fontSize: 8, color: accentText, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>{heading}</div>
+            <div style={{ color: "#475569", fontSize: 9.2, lineHeight: 1.45 }}>{body}</div>
           </div>
         ))}
-      </div>
+      </section>
 
-      {/* ── FOOTER ── */}
-      <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 5, display: "flex", justifyContent: "space-between", fontSize: 7.5, color: "#94a3b8", flexShrink: 0 }}>
-        <span>{isLST ? "Landsat 8/9 C2 L2 · LST · JRC water mask" : isBuiltup ? "Sentinel-2 SR Harmonized · NDBI · JRC water mask" : "Sentinel-2 SR Harmonized · NDVI · JRC water mask"} · Bangkok Urban Analytics Dashboard</span>
-        <span>ค่าจากดาวเทียมเพื่อเปรียบเทียบเชิงพื้นที่ ไม่ใช่ข้อมูลราชการ</span>
-      </div>
-
+      <footer style={{ marginTop: "auto", borderTop: "1px solid #e2e8f0", paddingTop: 7, display: "flex", justifyContent: "space-between", gap: 16, color: "#94a3b8", fontSize: 7.5, lineHeight: 1.35 }}>
+        <span>{source} · {periodLabel} · Bangkok Urban Analytics Dashboard</span>
+        <span>ค่าจากดาวเทียมเพื่อการวิเคราะห์เชิงพื้นที่ ไม่ใช่ข้อมูลราชการ</span>
+      </footer>
     </div>
   );
 }

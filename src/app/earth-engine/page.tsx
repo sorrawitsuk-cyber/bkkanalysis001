@@ -83,17 +83,25 @@ export default function EarthEnginePage() {
     const element = document.getElementById("a4-report");
     if (element) {
       try {
-        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          width: 794,
+          height: 1123,
+          windowWidth: 794,
+          windowHeight: 1123,
+        });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF({
           orientation: "portrait",
           unit: "mm",
           format: "a4",
         });
-        
+
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
         pdf.save(`BKK_Heat_Report_${selectedYear}_${activeDistrict}.pdf`);
       } catch (err) {
