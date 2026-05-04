@@ -15,6 +15,7 @@ interface BuiltUpSidebarProps {
 
 export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: BuiltUpSidebarProps) {
   const [showAll, setShowAll] = useState(false);
+  const [displayMode, setDisplayMode] = useState<'area' | 'ndbi'>('area');
   
   // Skeleton Loader
   if (loading || !summary) {
@@ -32,11 +33,13 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
 
   const hasNdbiData = (summary.yearlyTrend?.length ?? 0) > 0 || (summary.ranking?.length ?? 0) > 0;
 
-  // For trend: use builtupAreaTrend (rai) in non-compare mode, yearlyDeltaTrend in compare mode
   const builtupAreaTrend: [string, number][] = summary.builtupAreaTrend || [];
+  const isAreaMode = !compareMode && displayMode === 'area' && builtupAreaTrend.length > 0;
+
   const yearlyDisplayTrend = compareMode && summary.yearlyDeltaTrend?.length
     ? summary.yearlyDeltaTrend
-    : (!compareMode && builtupAreaTrend.length ? builtupAreaTrend : (summary.yearlyTrend || []));
+    : isAreaMode ? builtupAreaTrend
+    : (summary.yearlyTrend || []);
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(1, ...trendValues);
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
@@ -47,7 +50,6 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : 1;
 
   const formatRai = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k ไร่` : `${v} ไร่`;
-  const isAreaMode = !compareMode && builtupAreaTrend.length > 0;
 
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
@@ -105,7 +107,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <div className={`text-sm font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta > 0 ? 'text-indigo-400' : 'text-slate-400') : 'text-slate-100'}`}>
               {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>
                 : compareMode ? (summary.avgDelta > 0 ? `+${summary.avgDelta.toFixed(3)}` : summary.avgDelta.toFixed(3))
-                : rankingValues.length ? formatRai(Math.round(rankingValues.reduce((a, b) => a + b, 0) / rankingValues.length)) : '--'}
+                : rankingValues.length ? formatRai(Math.round(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length)) : '--'}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
@@ -136,10 +138,26 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
               <Activity className="w-3 h-3" /> แนวโน้มการขยายตัว (Trend)
             </h3>
+            {!compareMode && builtupAreaTrend.length > 0 && (
+              <div className="flex shrink-0 bg-slate-900/60 border border-slate-700/60 rounded-md overflow-hidden text-[9px] font-bold">
+                <button
+                  onClick={() => setDisplayMode('area')}
+                  className={`px-2 py-1 transition-colors ${displayMode === 'area' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  พื้นที่
+                </button>
+                <button
+                  onClick={() => setDisplayMode('ndbi')}
+                  className={`px-2 py-1 transition-colors ${displayMode === 'ndbi' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  NDBI
+                </button>
+              </div>
+            )}
           </div>
           {!compareMode && (
             <p className="text-[9px] text-slate-500 leading-snug mb-3">
-              {isAreaMode ? 'รวมพื้นที่สิ่งปลูกสร้างทั้งกรุงเทพฯ (ไร่) ประมาณการจาก NDBI รายปี' : 'แสดงค่า NDBI เฉลี่ยรายปี'}
+              {isAreaMode ? 'รวมพื้นที่สิ่งปลูกสร้างทั้งกรุงเทพฯ (ไร่) ประมาณการจาก NDBI รายปี' : 'ค่า NDBI เฉลี่ยรายปีของกรุงเทพฯ'}
             </p>
           )}
           {compareMode && (
@@ -157,14 +175,23 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                 {yearlyDisplayTrend.map((item: any, i: number) => {
                   const year = item[0];
                   const temp = item[1];
-                  const minT = -0.1;
-                  const maxT = 0.3;
-                  const pct = compareMode
-                    ? Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100))
-                    : Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+                  let pct: number;
+                  if (compareMode) {
+                    pct = Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100));
+                  } else if (isAreaMode) {
+                    pct = Math.max(4, Math.min(100, (temp / maxAbsTrend) * 100));
+                  } else {
+                    const minT = -0.1;
+                    const maxT = 0.3;
+                    pct = Math.max(4, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+                  }
                   const trendColor = compareMode
                     ? (temp >= 0 ? 'from-indigo-600 to-red-500' : 'from-emerald-300 to-emerald-600')
-                    : 'from-slate-600 to-indigo-400';
+                    : isAreaMode ? 'from-slate-600 to-violet-400' : 'from-slate-600 to-indigo-400';
+                  const tooltip = compareMode
+                    ? temp.toFixed(3)
+                    : isAreaMode ? formatRai(Math.round(temp))
+                    : temp.toFixed(3);
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                       <div
@@ -172,7 +199,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                         style={{ height: `${pct}%` }}
                       />
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
-                        <span>{year}: {isAreaMode ? formatRai(Math.round(temp)) : compareMode ? temp.toFixed(3) : temp.toFixed(3)}</span>
+                        <span>{year}: {tooltip}</span>
                       </div>
                     </div>
                   );
