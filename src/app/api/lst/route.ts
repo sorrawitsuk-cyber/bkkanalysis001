@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import geojson from "@/data/bkk_districts.json";
 import lstData from "@/data/lst_data.json";
-import { supabase } from "@/lib/supabase/client";
+import { supabaseServer as supabase } from "@/lib/supabase/server";
 import {
   calculatePriorityScore,
   getNdviClass,
