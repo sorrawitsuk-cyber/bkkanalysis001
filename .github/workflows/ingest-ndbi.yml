@@ -1,0 +1,65 @@
+name: Ingest NDBI District Statistics
+
+# Populate district_statistics.ndbi_mean / ndbi_max in Supabase via GEE.
+# Runs per-year in parallel (max 3 concurrent).
+# Trigger manually from the GitHub UI, or automatically when the script changes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'Single year to process (leave blank for all years 2018-2026)'
+        required: false
+        default: ''
+  push:
+    paths:
+      - 'scripts/ingest-ndbi-gee.mjs'
+
+jobs:
+  # ── Step 1: Build year list ───────────────────────────────────────────────
+  build-matrix:
+    name: Build year matrix
+    runs-on: ubuntu-latest
+    outputs:
+      years: ${{ steps.years.outputs.years }}
+    steps:
+      - name: Determine years to process
+        id: years
+        run: |
+          if [ -n "${{ github.event.inputs.year }}" ]; then
+            YEARS="[${{ github.event.inputs.year }}]"
+          else
+            YEARS="[2018,2019,2020,2021,2022,2023,2024,2025,2026]"
+          fi
+          echo "years=$YEARS" >> "$GITHUB_OUTPUT"
+          echo "Will process years: $YEARS"
+
+  # ── Step 2: Compute + upsert NDBI per year ───────────────────────────────
+  ingest:
+    name: NDBI ${{ matrix.year }}
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        year: ${{ fromJson(needs.build-matrix.outputs.years) }}
+      max-parallel: 3
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ingest NDBI for ${{ matrix.year }}
+        env:
+          GEE_SERVICE_ACCOUNT_JSON: ${{ secrets.GEE_SERVICE_ACCOUNT_JSON }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/ingest-ndbi-gee.mjs --year ${{ matrix.year }}

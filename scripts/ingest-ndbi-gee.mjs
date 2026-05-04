@@ -24,20 +24,34 @@ const ROOT = resolve(__dirname, '..');
 
 // ── env ──────────────────────────────────────────────────────────────────────
 function loadEnv() {
+  // In CI, env vars come from process.env (GitHub Actions secrets).
+  // Locally, fall back to .env.local if present.
+  const env = { ...process.env };
   const envPath = resolve(ROOT, '.env.local');
-  if (!existsSync(envPath)) { console.error('.env.local not found'); process.exit(1); }
-  const env = {};
-  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) continue;
-    const eq = t.indexOf('=');
-    if (eq < 0) continue;
-    const key = t.slice(0, eq).trim();
-    let val = t.slice(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
+  if (existsSync(envPath)) {
+    for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const eq = t.indexOf('=');
+      if (eq < 0) continue;
+      const key = t.slice(0, eq).trim();
+      let val = t.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      env[key] = val;
     }
-    env[key] = val;
+  }
+  // Support GEE_SERVICE_ACCOUNT_JSON (JSON blob used in GitHub Actions)
+  if (env.GEE_SERVICE_ACCOUNT_JSON && (!env.GEE_CLIENT_EMAIL || !env.GEE_PRIVATE_KEY)) {
+    try {
+      const sa = JSON.parse(env.GEE_SERVICE_ACCOUNT_JSON);
+      env.GEE_CLIENT_EMAIL = env.GEE_CLIENT_EMAIL || sa.client_email;
+      env.GEE_PRIVATE_KEY  = env.GEE_PRIVATE_KEY  || sa.private_key;
+      env.GEE_PROJECT_ID   = env.GEE_PROJECT_ID   || sa.project_id;
+    } catch (e) {
+      console.error('Failed to parse GEE_SERVICE_ACCOUNT_JSON:', e.message);
+    }
   }
   return env;
 }
