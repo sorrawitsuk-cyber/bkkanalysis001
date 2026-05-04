@@ -308,6 +308,7 @@ export async function GET(request: Request) {
     const currentYearData = summaryData.filter((row: any) => row.year === year);
     let ranking: any[] = [];
     let ndbiRanking: any[] = [];
+    let areaRanking: any[] = [];
     let maxRanking: any[] = [];
     let currentAvg = 0;
     let maxCurrentValue = -Infinity;
@@ -341,6 +342,18 @@ export async function GET(request: Request) {
         }
 
         if (metric === "builtup") {
+          areaRanking = currentYearData
+            .map((row: any) => {
+              const baselineRow = compMap.get(row.district_id);
+              const ndbi = typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
+              const baseNdbi = baselineRow && typeof baselineRow.ndbi_mean === "number" ? baselineRow.ndbi_mean : null;
+              const distRai = districtAreaRaiMap.get(row.district_id) ?? 0;
+              const currAreaRai = ndbi !== null ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * distRai) : 0;
+              const baseAreaRai = baseNdbi !== null ? Math.round(Math.max(0, Math.min(1, (baseNdbi + 0.2) / 0.6)) * distRai) : 0;
+              return [row.district_name, currAreaRai - baseAreaRai];
+            })
+            .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
+
           encroachmentRanking = currentYearData
             .map((row: any) => {
               const baselineRow = compMap.get(row.district_id);
@@ -504,6 +517,7 @@ export async function GET(request: Request) {
         monthlyDeltaTrend,
         ranking,
         ndbiRanking,
+        areaRanking,
         maxRanking,
         min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : metric === "builtup" ? -0.2 : 30,
         max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : metric === "builtup" ? 0.4 : 40,

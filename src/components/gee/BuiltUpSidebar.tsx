@@ -34,22 +34,25 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
   const hasNdbiData = (summary.yearlyTrend?.length ?? 0) > 0 || (summary.ranking?.length ?? 0) > 0;
 
   const builtupAreaTrend: [string, number][] = summary.builtupAreaTrend || [];
-  const isAreaMode = !compareMode && displayMode === 'area' && builtupAreaTrend.length > 0;
+  const isAreaMode = displayMode === 'area' && builtupAreaTrend.length > 0;
 
-  const yearlyDisplayTrend = compareMode && summary.yearlyDeltaTrend?.length
-    ? summary.yearlyDeltaTrend
-    : isAreaMode ? builtupAreaTrend
-    : (summary.yearlyTrend || []);
+  const yearlyDisplayTrend = isAreaMode
+    ? builtupAreaTrend
+    : compareMode && summary.yearlyDeltaTrend?.length
+      ? summary.yearlyDeltaTrend
+      : (summary.yearlyTrend || []);
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(1, ...trendValues);
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
 
-  const ndbiRankingRows = summary.ndbiRanking || [];
-  const rankingDisplayRows = (!compareMode && displayMode === 'ndbi' && ndbiRankingRows.length)
-    ? ndbiRankingRows
-    : (summary.ranking || []);
+  const ndbiRankingRows: [string, number][] = summary.ndbiRanking || [];
+  const areaRankingRows: [string, number][] = summary.areaRanking || [];
+  const rankingDisplayRows = compareMode
+    ? (isAreaMode && areaRankingRows.length ? areaRankingRows : (summary.ranking || []))
+    : (displayMode === 'ndbi' && ndbiRankingRows.length ? ndbiRankingRows : (summary.ranking || []));
   const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
   const rankingMin = 0;
+  const rankingMaxAbs = rankingValues.length ? Math.max(...rankingValues.map((v: number) => Math.abs(v))) : 1;
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : 1;
 
   const formatRai = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k ไร่` : `${v} ไร่`;
@@ -149,7 +152,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
               <Activity className="w-3 h-3" /> แนวโน้มการขยายตัว (Trend)
             </h3>
-            {!compareMode && builtupAreaTrend.length > 0 && (
+            {builtupAreaTrend.length > 0 && (
               <div className="flex shrink-0 bg-slate-900/60 border border-slate-700/60 rounded-md overflow-hidden text-[9px] font-bold">
                 <button
                   onClick={() => setDisplayMode('area')}
@@ -166,16 +169,15 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               </div>
             )}
           </div>
-          {!compareMode && (
-            <p className="text-[9px] text-slate-500 leading-snug mb-3">
-              {isAreaMode ? 'รวมพื้นที่สิ่งปลูกสร้างทั้งกรุงเทพฯ (ไร่) ประมาณการจาก NDBI รายปี' : 'ค่า NDBI เฉลี่ยรายปีของกรุงเทพฯ'}
-            </p>
-          )}
-          {compareMode && (
-            <p className="text-[9px] text-slate-500 leading-snug mb-3">
-              ผลต่าง NDBI เทียบกับปี {summary.compareYear}; สีม่วง/แดงคือเมืองขยายตัว สีเขียวคือเมืองลดลงหรือพื้นที่สีเขียวเพิ่ม
-            </p>
-          )}
+          <p className="text-[9px] text-slate-500 leading-snug mb-3">
+            {isAreaMode
+              ? (compareMode
+                ? `รวมพื้นที่สิ่งปลูกสร้างทั้งกรุงเทพฯ (ไร่) แต่ละปี`
+                : 'รวมพื้นที่สิ่งปลูกสร้างทั้งกรุงเทพฯ (ไร่) ประมาณการจาก NDBI รายปี')
+              : (compareMode
+                ? `ผลต่าง NDBI เทียบกับปี ${summary.compareYear}; สีม่วง/แดงคือเมืองขยายตัว สีเขียวคือพื้นที่ลดลง`
+                : 'ค่า NDBI เฉลี่ยรายปีของกรุงเทพฯ')}
+          </p>
           {!hasNdbiData ? (
             <div className="h-20 flex items-center justify-center border border-dashed border-slate-800 rounded-lg">
               <span className="text-[10px] text-slate-600">กำลังประมวลผลข้อมูลดาวเทียม…</span>
@@ -259,7 +261,11 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ NDBI เพิ่มขึ้น · Urban Growth' : displayMode === 'ndbi' ? 'อันดับค่าดัชนี NDBI รายเขต' : 'พื้นที่สิ่งปลูกสร้างรายเขต (ไร่)'}
+              <MapPin className="w-3 h-3" /> {
+                compareMode
+                  ? (isAreaMode ? 'พื้นที่เปลี่ยนแปลงรายเขต (ไร่)' : 'อันดับ NDBI เพิ่มขึ้น · Urban Growth')
+                  : displayMode === 'ndbi' ? 'อันดับค่าดัชนี NDBI รายเขต' : 'พื้นที่สิ่งปลูกสร้างรายเขต (ไร่)'
+              }
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
               <button 
@@ -282,7 +288,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               let pct = 0;
               const isSelected = activeDistrict === district;
               if (compareMode) {
-                const maxD = Math.abs(summary.max_delta || 0.1);
+                const maxD = isAreaMode ? (rankingMaxAbs || 1) : Math.abs(summary.max_delta || 0.1);
                 pct = Math.min(100, (Math.abs(val) / maxD) * 100);
               } else {
                 const min = rankingMin;
@@ -291,7 +297,9 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               }
 
               const displayVal = compareMode
-                ? (val > 0 ? `+${val.toFixed(3)}` : val.toFixed(3))
+                ? (isAreaMode
+                  ? (val > 0 ? `+${formatRai(val)}` : val < 0 ? `-${formatRai(Math.abs(val))}` : `0 ไร่`)
+                  : (val > 0 ? `+${val.toFixed(3)}` : val.toFixed(3)))
                 : displayMode === 'ndbi' ? val.toFixed(3)
                 : formatRai(Math.round(val));
               const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-emerald-400') : 'text-indigo-400';
