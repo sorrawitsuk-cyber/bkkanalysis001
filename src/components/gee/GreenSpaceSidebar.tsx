@@ -89,6 +89,7 @@ export default function GreenSpaceSidebar({
   compareMode,
 }: GreenSpaceSidebarProps) {
   const [showAll, setShowAll] = useState(false);
+  const [displayMode, setDisplayMode] = useState<"area" | "ndvi">("area");
 
   const districtRows = useMemo(() => {
     return (geojsonData?.features || [])
@@ -108,10 +109,12 @@ export default function GreenSpaceSidebar({
 
   const rankingRows = useMemo(() => {
     if (districtRows.length) {
-      return [...districtRows].sort((a, b) => b.value - a.value);
+      return displayMode === "ndvi"
+        ? [...districtRows].sort((a, b) => (b.ndvi || 0) - (a.ndvi || 0))
+        : [...districtRows].sort((a, b) => b.value - a.value);
     }
     return (summary?.ranking || []).map(([district, value]: [string, number]) => ({ district, value }));
-  }, [districtRows, summary?.ranking]);
+  }, [districtRows, summary?.ranking, displayMode]);
 
   if (loading || !summary) {
     return (
@@ -126,8 +129,11 @@ export default function GreenSpaceSidebar({
     );
   }
 
-  const yearlyDisplayTrend = summary.greenAreaTrend?.length ? summary.greenAreaTrend : [];
-  const trendValues = yearlyDisplayTrend.map((item: any) => Number(item[1]) || 0);
+  const isAreaMode = displayMode === "area";
+  const yearlyDisplayTrend = isAreaMode
+    ? (summary.greenAreaTrend?.length ? summary.greenAreaTrend : [])
+    : (summary.yearlyTrend?.length ? summary.yearlyTrend : []);
+  const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxTrendValue = Math.max(1, ...trendValues);
   const averageValue = rankingRows.length
     ? rankingRows.reduce((sum: number, row: any) => sum + row.value, 0) / rankingRows.length
@@ -199,21 +205,40 @@ export default function GreenSpaceSidebar({
         <div className="h-px bg-slate-800/60" />
 
         <section>
-          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] mb-2 flex items-center gap-1.5 leading-tight">
-            <Activity className="w-3 h-3" /> Trend ปริมาณพื้นที่สีเขียว
-          </h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
+              <Activity className="w-3 h-3" /> Trend ปริมาณพื้นที่สีเขียว
+            </h3>
+            <div className="flex shrink-0 bg-slate-900/60 border border-slate-700/60 rounded-md overflow-hidden text-[9px] font-bold">
+              <button
+                onClick={() => setDisplayMode("area")}
+                className={`px-2 py-1 transition-colors ${displayMode === "area" ? "bg-emerald-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                พื้นที่
+              </button>
+              <button
+                onClick={() => setDisplayMode("ndvi")}
+                className={`px-2 py-1 transition-colors ${displayMode === "ndvi" ? "bg-emerald-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                NDVI
+              </button>
+            </div>
+          </div>
           <div className="flex items-end gap-[3px] h-20 mb-2">
             {yearlyDisplayTrend.map((item: any, index: number) => {
               const year = item[0];
               const value = Number(item[1]) || 0;
-              const pct = Math.max(4, Math.min(100, (value / maxTrendValue) * 100));
-              const trendColor = "from-lime-500 to-emerald-600";
-
+              const pct = Math.max(4, Math.min(100, isAreaMode
+                ? (value / maxTrendValue) * 100
+                : Math.max(0, Math.min(100, (value / 0.6) * 100))
+              ));
+              const trendColor = isAreaMode ? "from-lime-500 to-emerald-600" : "from-teal-600 to-emerald-400";
+              const tooltip = isAreaMode ? formatRai(value) : value.toFixed(3);
               return (
                 <div key={`${year}-${index}`} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                   <div className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${pct}%` }} />
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
-                    {year}: {formatRai(value)}
+                    {year}: {tooltip}
                   </div>
                 </div>
               );
@@ -224,20 +249,22 @@ export default function GreenSpaceSidebar({
             <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
           </div>
           <p className="mt-2 text-[9px] text-slate-500 leading-snug">
-            แสดงปริมาณพื้นที่สีเขียวรวมรายปี หน่วยไร่ โดยปีปัจจุบันเป็นข้อมูลสะสมถึงวันที่มีภาพดาวเทียมล่าสุด จึงอาจยังไม่เทียบเท่าปีเต็ม
+            {isAreaMode
+              ? "รวมพื้นที่สีเขียวทั้งกรุงเทพฯ (ไร่) รายปี"
+              : "ค่า NDVI เฉลี่ยทั้งกรุงเทพฯ รายปี (0.0–1.0)"}
           </p>
         </section>
 
         <div className="h-px bg-slate-800/60" />
 
-        <NdviInsightsPanel summary={summary} areaRows={districtRows} />
+        <NdviInsightsPanel summary={summary} areaRows={districtRows} displayMode={displayMode} />
 
         <div className="h-px bg-slate-800/60" />
 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> ปริมาณพื้นที่สีเขียว · Ranking
+              <MapPin className="w-3 h-3" /> {isAreaMode ? "ปริมาณพื้นที่สีเขียว (ไร่)" : "ค่าดัชนี NDVI รายเขต"}
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
@@ -250,8 +277,11 @@ export default function GreenSpaceSidebar({
           <div className="space-y-1.5">
             {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, index: number) => {
               const isSelected = activeDistrict === row.district;
-              const pct = ((row.value - rankingMin) / Math.max(0.01, rankingMax - rankingMin)) * 100;
-              const displayValue = formatRai(row.value);
+              const rankVal = isAreaMode ? row.value : (Number.isFinite(row.ndvi) ? row.ndvi : 0);
+              const rankMin = 0;
+              const rankMax = isAreaMode ? rankingMax : 0.6;
+              const pct = ((rankVal - rankMin) / Math.max(0.01, rankMax - rankMin)) * 100;
+              const displayValue = isAreaMode ? formatRai(row.value) : (Number.isFinite(row.ndvi) ? row.ndvi.toFixed(3) : "N/A");
 
               return (
                 <button

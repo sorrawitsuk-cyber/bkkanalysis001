@@ -221,7 +221,7 @@ export async function GET(request: Request) {
     const hasAnyDbLst = dbAllRows.some((r) => typeof r.mean_lst === "number");
     const hasAnyDbNdbi = dbAllRows.some((r) => typeof r.ndbi_mean === "number");
     let summaryData: any[] = metric === "vegetation"
-      ? (dbAllRows.length ? dbAllRows : lstData.map((r: any) => toVegetationFallbackRow(r)))
+      ? (useDbAll ? dbAllRows : lstData.map((r: any) => toVegetationFallbackRow(r)))
       : metric === "builtup"
         ? (hasAnyDbNdbi ? dbAllRows : [])
         : (hasAnyDbLst ? dbAllRows : lstData);
