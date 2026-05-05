@@ -150,7 +150,7 @@ export async function GET(request: Request) {
 
     const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : metric === "builtup" ? hasNdbiData(dbYearRows) : hasLstData(dbYearRows);
     const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : metric === "builtup" ? hasNdbiData(dbCompareRows) : hasLstData(dbCompareRows);
-    const useDbAll = metric === "vegetation" ? dbAllRows.some(hasNdviData as any) : metric === "builtup" ? hasNdbiData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
+    const useDbAll = metric === "vegetation" ? hasNdviData(dbAllRows) : metric === "builtup" ? hasNdbiData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
 
     const yearData: any[] = metric === "vegetation"
       ? (useDbYear ? dbYearRows : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
