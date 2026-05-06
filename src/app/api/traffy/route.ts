@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   const districtFilter = searchParams.get('district')       || null;
   const categoryFilter = searchParams.get('category')       || null;
   const groupFilter    = searchParams.get('district_group') || null;
+  const yearFilter     = searchParams.get('year')  ? parseInt(searchParams.get('year')!)  : null;
+  const monthFilter    = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null;
 
   if (!process.env.BQ_PROJECT_ID || !process.env.BQ_DATASET || !process.env.BQ_CREDENTIALS) {
     return NextResponse.json(
@@ -29,19 +31,27 @@ export async function GET(request: Request) {
     const dataset = process.env.BQ_DATASET;
     const tbl     = `\`${project}.${dataset}.traffy_complaints\``;
 
-    // Dedup inline using QUALIFY — handles multiple ingests without needing a view
+    // base_filtered = district/category/group only (no date) → used for byMonth/byYear so the charts always
+    // show the full timeline regardless of which month/year the user has selected.
+    // filtered      = adds year + month on top → used for KPIs, maps, trend charts.
     const query = `
       WITH deduped AS (
         SELECT *
         FROM ${tbl}
         QUALIFY ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY created_at DESC) = 1
       ),
-      filtered AS (
+      base_filtered AS (
         SELECT *
         FROM deduped
         WHERE (@district       IS NULL OR district       = @district)
           AND (@problem_type   IS NULL OR problem_type   = @problem_type)
           AND (@district_group IS NULL OR district_group = @district_group)
+      ),
+      filtered AS (
+        SELECT *
+        FROM base_filtered
+        WHERE (@year  IS NULL OR EXTRACT(YEAR  FROM created_at AT TIME ZONE 'Asia/Bangkok') = @year)
+          AND (@month IS NULL OR EXTRACT(MONTH FROM created_at AT TIME ZONE 'Asia/Bangkok') = @month)
       )
       SELECT
         (SELECT COUNT(*) FROM filtered) AS total,
@@ -62,14 +72,36 @@ export async function GET(request: Request) {
          FROM (SELECT district_group, COUNT(*) AS cnt FROM filtered GROUP BY district_group ORDER BY cnt DESC)
         ) AS by_group,
 
+        -- When month is set: show every day of that filtered month.
+        -- When month is not set: show last 30 days.
         (SELECT ARRAY_AGG(STRUCT(day, cnt AS count) ORDER BY day)
          FROM (
            SELECT FORMAT_TIMESTAMP('%m/%d', created_at, 'Asia/Bangkok') AS day, COUNT(*) AS cnt
            FROM filtered
-           WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+           WHERE (@month IS NOT NULL
+               OR created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY))
            GROUP BY 1
          )
         ) AS daily_trend,
+
+        -- Full monthly timeline (from base_filtered, ignoring year/month params) for the nav chart.
+        (SELECT ARRAY_AGG(STRUCT(mo, cnt AS count) ORDER BY mo)
+         FROM (
+           SELECT FORMAT_TIMESTAMP('%Y-%m', created_at, 'Asia/Bangkok') AS mo, COUNT(*) AS cnt
+           FROM base_filtered
+           GROUP BY 1
+         )
+        ) AS by_month,
+
+        -- Yearly summary (from base_filtered).
+        (SELECT ARRAY_AGG(STRUCT(yr, cnt AS count) ORDER BY yr)
+         FROM (
+           SELECT CAST(EXTRACT(YEAR FROM created_at AT TIME ZONE 'Asia/Bangkok') AS STRING) AS yr,
+                  COUNT(*) AS cnt
+           FROM base_filtered
+           GROUP BY 1
+         )
+        ) AS by_year,
 
         (SELECT ARRAY_AGG(
            STRUCT(ticket_id, district, problem_type, state, lon, lat, description, address, photo_url, org, created_at)
@@ -85,11 +117,15 @@ export async function GET(request: Request) {
         district:       districtFilter,
         problem_type:   categoryFilter,
         district_group: groupFilter,
+        year:           yearFilter,
+        month:          monthFilter,
       },
       types: {
         district:       'STRING',
         problem_type:   'STRING',
         district_group: 'STRING',
+        year:           'INT64',
+        month:          'INT64',
       },
       parameterMode: 'NAMED',
       location: 'asia-southeast1',
@@ -130,6 +166,8 @@ export async function GET(request: Request) {
         byDistrict:      (r.by_district  || []).map((x: any) => [x.district,       Number(x.total)]),
         byDistrictGroup: (r.by_group     || []).map((x: any) => [x.district_group, Number(x.total)]),
         dailyTrend:      (r.daily_trend  || []).map((x: any) => [x.day,            Number(x.count)]),
+        byMonth:         (r.by_month     || []).map((x: any) => [x.mo,             Number(x.count)]),
+        byYear:          (r.by_year      || []).map((x: any) => [x.yr,             Number(x.count)]),
       },
     }, {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120' },

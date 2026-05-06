@@ -12,6 +12,8 @@ export default function Home() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
   const [activeDistrictGroup, setActiveDistrictGroup] = useState("ทั้งหมด");
+  const [activeYear, setActiveYear] = useState<string | null>(null);
+  const [activeMonth, setActiveMonth] = useState<number | null>(null);
   const [traffyData, setTraffyData] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -20,11 +22,12 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-    // Build query params dynamically
     const params = new URLSearchParams({ limit: '5000' });
     if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
     if (activeCategory !== 'ทั้งหมด') params.append('category', activeCategory);
     if (activeDistrictGroup !== 'ทั้งหมด') params.append('district_group', activeDistrictGroup);
+    if (activeYear) params.append('year', activeYear);
+    if (activeMonth !== null) params.append('month', String(activeMonth));
 
     fetch(`/api/traffy?${params.toString()}`)
       .then(res => res.json())
@@ -38,7 +41,17 @@ export default function Home() {
         console.error(err);
         setLoading(false);
       });
-  }, [activeDistrict, activeCategory, activeDistrictGroup]);
+  }, [activeDistrict, activeCategory, activeDistrictGroup, activeYear, activeMonth]);
+
+  const handleYearSelect = (year: string | null) => {
+    setActiveYear(year);
+    setActiveMonth(null);
+  };
+
+  const handleMonthSelect = (year: string, month: number | null) => {
+    setActiveYear(year);
+    setActiveMonth(month);
+  };
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -51,6 +64,10 @@ export default function Home() {
         activeCategory={activeCategory}
         onDistrictGroupSelect={setActiveDistrictGroup}
         activeDistrictGroup={activeDistrictGroup}
+        activeYear={activeYear}
+        activeMonth={activeMonth}
+        onYearSelect={handleYearSelect}
+        onMonthSelect={handleMonthSelect}
         traffyData={traffyData}
         summary={summary}
         loading={loading}
@@ -63,7 +80,7 @@ export default function Home() {
 
         {/* Top-right floating panel: Legend + Controls */}
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
-          
+
           {/* Map Mode Toggle */}
           <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl">
             <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -127,8 +144,8 @@ export default function Home() {
             </div>
             <div className="mt-2 pt-2 border-t border-slate-800">
               <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                dataSource === 'supabase' 
-                  ? 'bg-green-500/20 text-green-400' 
+                dataSource === 'supabase'
+                  ? 'bg-green-500/20 text-green-400'
                   : 'bg-amber-500/20 text-amber-400'
               }`}>
                 {dataSource === 'supabase' ? '⚡ SUPABASE' : '🌐 LIVE API'}
