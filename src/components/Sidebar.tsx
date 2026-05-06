@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame, BarChart3, MapPin, Calendar, ChevronDown, ChevronUp, TrendingUp, Globe, Trees, Home, X } from "lucide-react";
+import { Flame, BarChart3, MapPin, Calendar, ChevronDown, ChevronUp, TrendingUp, Globe, Trees, Home, X, Building2, Droplets } from "lucide-react";
 import Link from "next/link";
 
 interface SidebarProps {
@@ -485,6 +485,20 @@ export default function Sidebar({
         >
           <Trees className="w-4 h-4 text-emerald-400" />
           วิเคราะห์พื้นที่สีเขียวเมือง
+        </Link>
+        <Link
+          href="/urban-expansion"
+          className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"
+        >
+          <Building2 className="w-4 h-4 text-indigo-400" />
+          วิเคราะห์การขยายตัวเมือง
+        </Link>
+        <Link
+          href="/flood-risk"
+          className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"
+        >
+          <Droplets className="w-4 h-4 text-sky-400" />
+          วิเคราะห์น้ำท่วม/แหล่งน้ำ
         </Link>
         <p className="text-[8px] text-slate-600 font-medium uppercase tracking-[0.2em] text-center mt-1">
           Powered by BMA Open Data & Traffy Fondue API · Live Data

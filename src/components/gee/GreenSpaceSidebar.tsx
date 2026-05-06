@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, Calendar, ChevronRight, Flame, Home, Leaf, MapPin, ShieldAlert, Trees } from "lucide-react";
+import { Activity, Calendar, ChevronRight, Flame, Home, Leaf, MapPin, ShieldAlert, Trees, Building2, Droplets } from "lucide-react";
 import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
@@ -317,6 +317,12 @@ export default function GreenSpaceSidebar({
         </Link>
         <Link href="/heat-island" className="inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest">
           <Flame className="w-3 h-3" /> วิเคราะห์เกาะความร้อนเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/urban-expansion" className="inline-flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">
+          <Building2 className="w-3 h-3" /> วิเคราะห์การขยายตัวเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/flood-risk" className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 transition-colors uppercase tracking-widest">
+          <Droplets className="w-3 h-3" /> วิเคราะห์น้ำท่วม/แหล่งน้ำ <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
     </div>

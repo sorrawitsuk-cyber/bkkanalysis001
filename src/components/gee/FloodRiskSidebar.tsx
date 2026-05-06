@@ -1,0 +1,261 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Activity, ChevronRight, Flame, Home, MapPin, ShieldAlert, Droplets, Trees, Building2 } from "lucide-react";
+
+interface FloodRiskSidebarProps {
+  onDistrictSelect: (district: string) => void;
+  activeDistrict: string;
+  summary: any;
+  geojsonData?: any;
+  loading: boolean;
+  compareMode?: boolean;
+}
+
+const ALL_DISTRICTS = "ทั้งหมด";
+
+function formatPct(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatRai(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
+  return `${Math.round(value).toLocaleString("th-TH")} ไร่`;
+}
+
+export default function FloodRiskSidebar({
+  onDistrictSelect,
+  activeDistrict,
+  summary,
+  geojsonData,
+  loading,
+  compareMode,
+}: FloodRiskSidebarProps) {
+  const [showAll, setShowAll] = useState(false);
+
+  // Build ranking rows from GeoJSON features (most accurate for current year)
+  const rankingRows = useMemo(() => {
+    const features = geojsonData?.features || [];
+    if (features.length > 0) {
+      return features
+        .map((f: any) => ({
+          district: f.properties?.name_th,
+          waterRatio: f.properties?.water_ratio as number | null,
+          waterAreaRai: f.properties?.water_area_rai as number | null,
+          delta: f.properties?.delta as number | null,
+        }))
+        .filter((r: any) => r.district && r.waterRatio !== null && Number.isFinite(r.waterRatio))
+        .sort((a: any, b: any) => b.waterRatio - a.waterRatio);
+    }
+    // Fallback to API summary ranking
+    return (summary?.ranking || []).map(([district, waterRatio, waterAreaRai]: any) => ({
+      district,
+      waterRatio,
+      waterAreaRai,
+      delta: null,
+    }));
+  }, [geojsonData, summary?.ranking]);
+
+  const districtOptions = rankingRows.map((r: any) => r.district).filter(Boolean);
+  const maxRankingValue = rankingRows.length ? rankingRows[0]?.waterRatio || 0.5 : 0.5;
+
+  // Trend data: prefer waterAreaTrend (total rai), fallback to yearlyTrend (avg ratio)
+  const trendData: [string, number][] = useMemo(() => {
+    if (summary?.waterAreaTrend?.length) return summary.waterAreaTrend;
+    return (summary?.yearlyTrend || []).map(([y, v]: [string, number]) => [y, +(v * 100).toFixed(2)]);
+  }, [summary?.waterAreaTrend, summary?.yearlyTrend]);
+  const isAreaTrend = !!(summary?.waterAreaTrend?.length);
+  const maxTrend = Math.max(1, ...trendData.map((d) => d[1]));
+
+  if (loading || !summary) {
+    return (
+      <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 p-5 flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto hidden md:flex">
+        <div className="animate-pulse space-y-6">
+          <div className="h-10 bg-slate-800/50 rounded w-3/4" />
+          <div className="h-24 bg-slate-800/50 rounded" />
+          <div className="h-40 bg-slate-800/50 rounded" />
+          <div className="h-64 bg-slate-800/50 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
+      {/* Header */}
+      <div className="p-5 border-b border-slate-800/60 sticky top-0 bg-[#0f172a]/95 backdrop-blur z-20">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30">
+            <Droplets className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-100 leading-none">น้ำท่วม / แหล่งน้ำ</h1>
+            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Flood Risk · Water Analysis</p>
+          </div>
+        </div>
+
+        <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+          <MapPin className="w-3 h-3" /> พื้นที่ (District)
+        </label>
+        <select
+          value={activeDistrict}
+          onChange={(e) => onDistrictSelect(e.target.value)}
+          className="w-full bg-slate-900/50 border border-slate-800 text-slate-300 text-xs rounded-md px-3 py-2 appearance-none focus:outline-none focus:border-sky-500/50 transition-colors cursor-pointer"
+        >
+          <option value={ALL_DISTRICTS}>กรุงเทพมหานคร (ทั้งหมด)</option>
+          {districtOptions.map((d: string) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="p-5 flex-1 flex flex-col gap-6">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
+              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่น้ำรวม
+            </div>
+            <div className="text-sm font-bold font-mono text-slate-100 leading-tight">
+              {formatRai(summary.totalWaterAreaRai)}
+            </div>
+          </div>
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
+              <Droplets className="w-3 h-3 text-cyan-400 shrink-0" /> สัดส่วนเฉลี่ย
+            </div>
+            <div className="text-base font-bold font-mono text-sky-400">
+              {formatPct(summary.avgWaterRatio)}
+            </div>
+          </div>
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
+              <Activity className="w-3 h-3 text-indigo-400 shrink-0" />
+              {compareMode ? "เปลี่ยนแปลง" : "เขตน้ำมาก"}
+            </div>
+            {compareMode ? (
+              <div className={`text-base font-bold font-mono ${(summary.avgDelta ?? 0) >= 0 ? "text-sky-400" : "text-amber-400"}`}>
+                {summary.avgDelta !== null ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(1)}%` : "–"}
+              </div>
+            ) : (
+              <div className="text-[11px] font-bold text-sky-300 truncate">
+                {summary.topWet?.[0]?.[0] ?? "–"}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="h-px bg-slate-800/60" />
+
+        {/* Yearly Trend Chart */}
+        <section>
+          <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 mb-2">
+            <Activity className="w-3 h-3" />
+            {isAreaTrend ? "Trend พื้นที่น้ำ (ไร่)" : "Trend สัดส่วนน้ำ (%)"}
+          </h3>
+          <div className="flex items-end gap-[3px] h-20 mb-2">
+            {trendData.map(([yr, val], idx) => {
+              const pct = Math.max(4, Math.min(100, (val / maxTrend) * 100));
+              return (
+                <div key={`${yr}-${idx}`} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                  <div
+                    className="w-full rounded-t-sm bg-gradient-to-t from-sky-600 to-cyan-400 min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110"
+                    style={{ height: `${pct}%` }}
+                  />
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
+                    {yr}: {isAreaTrend ? `${val.toLocaleString("th-TH")} ไร่` : `${val}%`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+            <span>{trendData[0]?.[0]}</span>
+            <span>{trendData[trendData.length - 1]?.[0]}</span>
+          </div>
+          <p className="mt-2 text-[9px] text-slate-500 leading-snug">
+            {isAreaTrend
+              ? "รวมพื้นที่น้ำทั้งกรุงเทพฯ (ไร่) รายปี"
+              : "สัดส่วนพื้นที่น้ำเฉลี่ยทั้งกรุงเทพฯ (%) รายปี"}
+          </p>
+        </section>
+
+        <div className="h-px bg-slate-800/60" />
+
+        {/* District Ranking */}
+        <section className="flex-1 pb-10">
+          <div className="flex justify-between items-start gap-2 mb-3">
+            <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
+              <MapPin className="w-3 h-3 shrink-0" />
+              {compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ" : "สัดส่วนพื้นที่น้ำรายเขต"}
+            </h3>
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-sky-400 hover:text-sky-300 font-bold uppercase tracking-wide transition-colors"
+            >
+              {showAll ? "แสดงแค่ Top 10" : "แสดงทั้งหมด"}
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, idx: number) => {
+              const isSelected = activeDistrict === row.district;
+              const displayVal = compareMode && row.delta !== null
+                ? `${row.delta >= 0 ? "+" : ""}${(row.delta * 100).toFixed(1)}%`
+                : formatPct(row.waterRatio);
+              const barPct = compareMode && row.delta !== null
+                ? Math.min(100, Math.abs(row.delta) / 0.1 * 100)
+                : ((row.waterRatio ?? 0) / maxRankingValue) * 100;
+              const barColor = compareMode
+                ? (row.delta ?? 0) >= 0 ? "from-sky-600 to-sky-400" : "from-amber-600 to-amber-400"
+                : "from-sky-600 to-cyan-400";
+
+              return (
+                <button
+                  key={row.district}
+                  onClick={() => onDistrictSelect(isSelected ? ALL_DISTRICTS : row.district)}
+                  className={`w-full group transition-all duration-200 ${activeDistrict !== ALL_DISTRICTS && !isSelected ? "opacity-40 grayscale-[50%]" : "opacity-100 hover:scale-[1.02]"}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-600 w-4 text-right font-mono shrink-0">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-[11px] mb-0.5">
+                        <span className={`truncate pr-1 ${isSelected ? "text-sky-400 font-bold" : "text-slate-300 group-hover:text-white"}`}>{row.district}</span>
+                        <span className="text-sky-400 font-mono tabular-nums font-bold">{displayVal}</span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
+                        <div className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all duration-700`} style={{ width: `${Math.max(4, Math.min(100, barPct))}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      {/* Footer navigation */}
+      <div className="p-4 border-t border-slate-800/60 text-center flex flex-col items-center gap-2">
+        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest">
+          <Home className="w-3 h-3" /> หน้า Home ศูนย์วิเคราะห์เมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/traffy" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors uppercase tracking-widest">
+          <ShieldAlert className="w-3 h-3" /> วิเคราะห์ปัญหาเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/heat-island" className="inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest">
+          <Flame className="w-3 h-3" /> วิเคราะห์เกาะความร้อนเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
+          <Trees className="w-3 h-3" /> วิเคราะห์พื้นที่สีเขียวเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/urban-expansion" className="inline-flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">
+          <Building2 className="w-3 h-3" /> วิเคราะห์การขยายตัวเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+    </div>
+  );
+}

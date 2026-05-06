@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert, ThermometerSun } from "lucide-react";
+import { Building2, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert, ThermometerSun, Droplets } from "lucide-react";
 import Link from "next/link";
 
 interface BuiltUpSidebarProps {
@@ -344,8 +344,17 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
         <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest">
           <Home className="w-3 h-3" /> หน้า Home ศูนย์วิเคราะห์เมือง <ChevronRight className="w-3 h-3" />
         </Link>
-        <Link href="/heat-island" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors uppercase tracking-widest">
+        <Link href="/traffy" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors uppercase tracking-widest">
+          <ShieldAlert className="w-3 h-3" /> วิเคราะห์ปัญหาเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/heat-island" className="inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest">
           <ThermometerSun className="w-3 h-3" /> วิเคราะห์ความร้อนเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
+          <Trees className="w-3 h-3" /> วิเคราะห์พื้นที่สีเขียวเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/flood-risk" className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 transition-colors uppercase tracking-widest">
+          <Droplets className="w-3 h-3" /> วิเคราะห์น้ำท่วม/แหล่งน้ำ <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
 

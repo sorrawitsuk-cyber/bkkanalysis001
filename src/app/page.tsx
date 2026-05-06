@@ -5,6 +5,7 @@ import {
   Building2,
   Compass,
   Database,
+  Droplets,
   Flame,
   Layers,
   MapPinned,
@@ -55,10 +56,19 @@ const analysisModules = [
     metric: "NDBI",
     status: "พร้อมใช้งาน",
   },
+  {
+    title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
+    eyebrow: "Flood Risk",
+    description: "ติดตามพื้นที่น้ำท่วม แหล่งน้ำ และความเสี่ยงรายเขต ด้วย NDWI/MNDWI จาก Sentinel-2",
+    href: "/flood-risk",
+    icon: Droplets,
+    accent: "from-blue-500 to-cyan-500",
+    metric: "NDWI",
+    status: "พร้อมใช้งาน",
+  },
 ];
 
 const futureModules = [
-  { title: "น้ำท่วมและจุดเสี่ยง", icon: MapPinned },
   { title: "คุณภาพอากาศ", icon: Activity },
   { title: "การเดินทางและการเข้าถึง", icon: Compass },
 ];

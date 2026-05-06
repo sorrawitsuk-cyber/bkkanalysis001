@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert } from "lucide-react";
+import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert, Droplets, Building2 } from "lucide-react";
 import Link from "next/link";
 
 interface LSTSidebarProps {
@@ -355,6 +355,12 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         </Link>
         <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
           <Trees className="w-3 h-3" /> วิเคราะห์พื้นที่สีเขียวเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/urban-expansion" className="inline-flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">
+          <Building2 className="w-3 h-3" /> วิเคราะห์การขยายตัวเมือง <ChevronRight className="w-3 h-3" />
+        </Link>
+        <Link href="/flood-risk" className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 transition-colors uppercase tracking-widest">
+          <Droplets className="w-3 h-3" /> วิเคราะห์น้ำท่วม/แหล่งน้ำ <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
 
