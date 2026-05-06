@@ -473,7 +473,7 @@ export default function Sidebar({
           หน้า Home ศูนย์วิเคราะห์เมือง
         </Link>
         <Link
-          href="/earth-engine"
+          href="/heat-island"
           className="flex items-center justify-center gap-2 w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors border border-slate-700/50"
         >
           <Globe className="w-4 h-4 text-emerald-400" />
