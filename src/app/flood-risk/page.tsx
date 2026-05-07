@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { AlertTriangle, Calendar, Database, Layers, RefreshCw } from "lucide-react";
+import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
   fetchCacheMetadata,
@@ -45,6 +46,85 @@ function confidenceLabel(hasTraffy: boolean, waterScore: number, status?: string
   return "ต่ำ: หลักฐานเชิงพื้นที่ยังจำกัด";
 }
 
+function buildFloodRiskView(
+  meta: SatelliteCacheMetadata | null,
+  baselineMeta: SatelliteCacheMetadata | null,
+  selectedYear: number,
+  compareYearVal: number | null,
+) {
+  const rows = (meta?.district_stats ?? []) as any[];
+  const baselineRows = (baselineMeta?.district_stats ?? []) as any[];
+  const rowById = new Map(rows.map((r: any) => [Number(r.district_id), r]));
+  const baselineById = new Map(baselineRows.map((r: any) => [Number(r.district_id), r]));
+
+  let minValue = Infinity;
+  let maxValue = -Infinity;
+
+  const features = (bkkDistricts.features as any[]).map((feature: any) => {
+    const row = rowById.get(Number(feature.properties.id));
+    const waterRatio: number | null = row?.water_ratio ?? null;
+    const baselineRow = compareYearVal !== null ? baselineById.get(Number(feature.properties.id)) : null;
+    const compareRatio: number | null = baselineRow?.water_ratio ?? null;
+    const delta = waterRatio !== null && compareRatio !== null
+      ? +(waterRatio - compareRatio).toFixed(4) : null;
+
+    if (waterRatio !== null) {
+      minValue = Math.min(minValue, waterRatio);
+      maxValue = Math.max(maxValue, waterRatio);
+    }
+
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        water_ratio: waterRatio,
+        water_area_rai: null,          // not available in cache path (no area table)
+        district_area_rai: null,
+        delta,
+        compare_water_ratio: compareRatio,
+        ndwi_mean: row?.ndwi_mean ?? null,
+        mndwi_mean: row?.mndwi_mean ?? null,
+      },
+    };
+  });
+
+  const validRows = rows.filter((r: any) => typeof r.water_ratio === "number");
+  const avgWaterRatio = validRows.length
+    ? parseFloat((validRows.reduce((s: number, r: any) => s + r.water_ratio, 0) / validRows.length).toFixed(4))
+    : null;
+  const baselineValidRows = baselineRows.filter((r: any) => typeof r.water_ratio === "number");
+  const baselineAvg = baselineValidRows.length
+    ? parseFloat((baselineValidRows.reduce((s: number, r: any) => s + r.water_ratio, 0) / baselineValidRows.length).toFixed(4))
+    : null;
+  const avgDelta = avgWaterRatio !== null && baselineAvg !== null
+    ? parseFloat((avgWaterRatio - baselineAvg).toFixed(4)) : null;
+
+  const ranking = [...validRows]
+    .sort((a: any, b: any) => (b.water_ratio ?? 0) - (a.water_ratio ?? 0))
+    .map((r: any) => [r.district_name ?? "ไม่ระบุ", r.water_ratio, null]);
+
+  return {
+    geojson: { type: "FeatureCollection", features },
+    summary: {
+      selectedYear,
+      compareYear: compareYearVal,
+      avgWaterRatio,
+      totalWaterAreaRai: 0,
+      baselineAvg,
+      avgDelta,
+      topWet: ranking.slice(0, 5),
+      topDry: [...ranking].reverse().slice(0, 5),
+      ranking,
+      yearlyTrend: [],
+      waterAreaTrend: [],
+      min_value: minValue !== Infinity ? minValue : 0,
+      max_value: maxValue !== -Infinity ? maxValue : 0.5,
+      dataSource: "R2 cache (Sentinel-2)",
+      cacheStatus: meta?.status ?? "pending",
+    },
+  };
+}
+
 export default function FloodRiskPage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [selectedYear, setSelectedYear] = useState(2026);
@@ -68,22 +148,44 @@ export default function FloodRiskPage() {
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
   const [cachePeriod, setCachePeriod] = useState<string | null>(null);
 
-  // Fetch district data
+  // Fetch district data — try R2 cache first, fall back to Supabase API
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ year: selectedYear.toString() });
-    if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
-    if (compareMode) params.append("compareYear", compareYear.toString());
+    const yearStr        = selectedYear.toString();
+    const compareYearStr = compareYear.toString();
 
-    fetch(`/api/flood-risk?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
+    Promise.all([
+      fetchCacheMetadata("yearly", yearStr),
+      compareMode ? fetchCacheMetadata("yearly", compareYearStr) : Promise.resolve(null),
+    ])
+      .then(async ([meta, baselineMeta]) => {
+        const stats = (meta?.district_stats ?? []) as any[];
+        const hasWaterCache = stats.some((r: any) => typeof r.water_ratio === "number");
+
+        if (hasWaterCache) {
+          // R2 fast path — district_stats already in cache
+          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null);
+          setGeojsonData(built.geojson);
+          setSummary(built.summary);
+          setLoading(false);
+          return;
+        }
+
+        // Cache empty — fall back to Supabase API
+        const params = new URLSearchParams({ year: yearStr });
+        if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
+        if (compareMode) params.append("compareYear", compareYearStr);
+
+        const res = await fetch(`/api/flood-risk?${params}`);
+        if (!res.ok) throw new Error(`Flood Risk API error ${res.status}`);
+        const data = await res.json();
+        setInvertedMask(data.invertedMask ?? null);
         setGeojsonData(data.geojson);
-        setInvertedMask(data.invertedMask);
-        setSummary(data.summary);
+        setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
         setLoading(false);
       })
       .catch((err) => { console.error(err); setLoading(false); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDistrict, selectedYear, compareMode, compareYear]);
 
   // Fetch human-reported flood/drainage incident evidence from Traffy.
@@ -108,8 +210,35 @@ export default function FloodRiskPage() {
       });
   }, [mapMode, selectedYear]);
 
-  // Load satellite cache index on mount
+  // Load satellite cache index on mount (Sentinel-2, no product param)
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
+
+  // Build full yearly trend from all R2 cache years (parallel fetch, post-render injection)
+  useEffect(() => {
+    if (!cacheIndex?.yearly?.length) return;
+    Promise.all(
+      (cacheIndex.yearly as string[]).map((yr) =>
+        fetchCacheMetadata("yearly", yr).then((m) => {
+          const stats = (m?.district_stats ?? []) as any[];
+          const vals  = stats
+            .map((r: any) => r.water_ratio)
+            .filter((v: any): v is number => typeof v === "number" && Number.isFinite(v));
+          const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+          return [yr, avg !== null ? +avg.toFixed(4) : null] as [string, number | null];
+        })
+      )
+    )
+      .then((rows) => {
+        const trend = rows
+          .filter((r): r is [string, number] => r[1] !== null)
+          .sort((a, b) => Number(a[0]) - Number(b[0]));
+        if (trend.length > 1) {
+          setSummary((prev: any) => (prev ? { ...prev, yearlyTrend: trend } : prev));
+        }
+      })
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheIndex]);
 
   // Default cache period when entering satellite-cache mode
   useEffect(() => {

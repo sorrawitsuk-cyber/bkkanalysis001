@@ -20,6 +20,7 @@ import os
 import sys
 import zipfile
 from datetime import date, datetime
+from pathlib import Path
 from typing import Optional
 
 import boto3
@@ -79,6 +80,65 @@ VIS_PARAMS: dict[str, dict] = {
         "palette": ["#065F46", "#F7F7F7", "#7F1D1D"],
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# District helpers
+# ---------------------------------------------------------------------------
+
+def load_districts_feature_collection():
+    path = Path(__file__).resolve().parents[2] / "src" / "data" / "bkk_districts.json"
+    with path.open(encoding="utf-8") as f:
+        data = json.load(f)
+    features = []
+    for feature in data["features"]:
+        props = feature.get("properties", {})
+        features.append(
+            ee.Feature(
+                ee.Geometry(feature["geometry"]).simplify(250),
+                {
+                    "id": props.get("id"),
+                    "name_th": props.get("name_th"),
+                    "name_en": props.get("name_en", ""),
+                },
+            )
+        )
+    return ee.FeatureCollection(features)
+
+
+def compute_district_stats(composites: dict, districts) -> list[dict]:
+    """Compute per-district NDWI, MNDWI, and water_ratio from Sentinel-2 composites."""
+    ndwi_img  = composites.get("ndwi_mean")
+    mndwi_img = composites.get("mndwi_mean")
+    if ndwi_img is None:
+        return []
+
+    stacked = ndwi_img.rename("ndwi_mean")
+    if mndwi_img is not None:
+        stacked = stacked.addBands(mndwi_img.rename("mndwi_mean"))
+    stacked = stacked.addBands(ndwi_img.gt(0).rename("water_ratio"))
+
+    result = stacked.reduceRegions(
+        collection=districts,
+        reducer=ee.Reducer.mean(),
+        scale=SCALE,
+        tileScale=2,
+    ).getInfo()
+
+    rows = []
+    for feature in result.get("features", []):
+        props = feature.get("properties", {})
+        def _f(key):
+            v = props.get(key)
+            return round(float(v), 4) if v is not None else None
+        rows.append({
+            "district_id":   props.get("id"),
+            "district_name": props.get("name_th"),
+            "ndwi_mean":     _f("ndwi_mean"),
+            "mndwi_mean":    _f("mndwi_mean"),
+            "water_ratio":   _f("water_ratio"),
+        })
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -373,19 +433,25 @@ def process_year(
             name, image, bkk, s3, bucket, base_key, public_base_url, force
         )
 
+    log.info("Computing district-level water stats for year %s", period_str)
+    districts      = load_districts_feature_collection()
+    district_stats = compute_district_stats(composites, districts)
+    log.info("District stats computed: %d rows", len(district_stats))
+
     meta = {
-        "period":       period_str,
-        "type":         "yearly",
-        "source":       "COPERNICUS/S2_SR_HARMONIZED",
-        "date_start":   date_start,
-        "date_end":     date_end,
-        "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "image_count":  image_count,
-        "cloud_filter": CLOUD_FILTER,
+        "period":        period_str,
+        "type":          "yearly",
+        "source":        "COPERNICUS/S2_SR_HARMONIZED",
+        "date_start":    date_start,
+        "date_end":      date_end,
+        "generated_at":  datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "image_count":   image_count,
+        "cloud_filter":  CLOUD_FILTER,
         "fallback_used": False,
-        "bounds":       BKK_BOUNDS,
-        "status":       "ok",
-        "layers":       layers,
+        "bounds":        BKK_BOUNDS,
+        "status":        "ok",
+        "layers":        layers,
+        "district_stats": district_stats,
     }
     upload_bytes(s3, bucket, meta_key, json.dumps(meta, indent=2).encode(), "application/json")
     log.info("metadata.json written for year %s", period_str)
