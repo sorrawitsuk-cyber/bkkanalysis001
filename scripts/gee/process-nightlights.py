@@ -51,7 +51,9 @@ PREVIEW_DIM = 512
 WEBP_QUALITY = 82
 MIN_CLOUD_FREE_COVERAGE = 3
 
-ANNUAL_DATASET = "NOAA/VIIRS/DNB/ANNUAL_V22"
+ANNUAL_DATASET_V21 = "NOAA/VIIRS/DNB/ANNUAL_V21"
+ANNUAL_DATASET_V22 = "NOAA/VIIRS/DNB/ANNUAL_V22"
+ANNUAL_DATASET = ANNUAL_DATASET_V22
 MONTHLY_DATASET = "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG"
 
 VIS_PARAMS = {
@@ -162,15 +164,22 @@ def monthly_date_range(period: str) -> tuple[int, int, str, str]:
     return year, month, start, end
 
 
+def annual_dataset_for_year(year: int) -> str:
+    if year < 2013:
+        raise ValueError("Annual VIIRS nightlights cache supports 2013 or later")
+    return ANNUAL_DATASET_V21 if year <= 2021 else ANNUAL_DATASET_V22
+
+
 def build_image(period_type: str, period: str, geometry):
     if period_type == "yearly":
         year = int(period)
         start = f"{year}-01-01"
         end = f"{year + 1}-01-01"
-        collection = ee.ImageCollection(ANNUAL_DATASET).filterBounds(geometry).filterDate(start, end)
+        dataset = annual_dataset_for_year(year)
+        collection = ee.ImageCollection(dataset).filterBounds(geometry).filterDate(start, end)
         image_count = collection.size().getInfo()
         image = collection.first().select("average_masked").max(0).rename("value")
-        return image, image_count, start, end, ANNUAL_DATASET, "average_masked"
+        return image, image_count, start, end, dataset, "average_masked"
 
     _year, _month, start, end = monthly_date_range(period)
     collection = ee.ImageCollection(MONTHLY_DATASET).filterBounds(geometry).filterDate(start, end)
