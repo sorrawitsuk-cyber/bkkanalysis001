@@ -10,7 +10,9 @@ const EMPTY_INDEX = {
   yearly:       [] as string[],
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const productParam = new URL(request.url).searchParams.get("product");
+  const productPrefix = productParam === "nightlights" ? "/nightlights" : "";
   if (!R2_PUBLIC_BASE_URL) {
     // R2 not configured — return empty index so frontend degrades gracefully
     return NextResponse.json(EMPTY_INDEX, {
@@ -18,7 +20,7 @@ export async function GET() {
     });
   }
 
-  const url = `${R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${SATELLITE_CACHE_PREFIX}/index.json`;
+  const url = `${R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${SATELLITE_CACHE_PREFIX}${productPrefix}/index.json`;
 
   try {
     const r2Res = await fetch(url, { next: { revalidate: 300 } });

@@ -26,6 +26,8 @@ export interface SatelliteCacheMetadata {
   bounds: [[number, number], [number, number]];
   status: SatelliteCacheStatus;
   layers: Record<string, SatelliteCacheLayer>;
+  district_stats?: Array<Record<string, unknown>>;
+  summary?: Record<string, unknown>;
 }
 
 export interface SatelliteCacheIndex {
@@ -43,9 +45,10 @@ const EMPTY_INDEX: SatelliteCacheIndex = {
 };
 
 /** Fetch the top-level cache index from the Next.js proxy route. */
-export async function fetchCacheIndex(): Promise<SatelliteCacheIndex> {
+export async function fetchCacheIndex(product?: "nightlights"): Promise<SatelliteCacheIndex> {
   try {
-    const res = await fetch("/api/satellite-cache/index", {
+    const productParam = product ? `?product=${product}` : "";
+    const res = await fetch(`/api/satellite-cache/index${productParam}`, {
       next: { revalidate: 300 },
     });
     if (!res.ok) return EMPTY_INDEX;
@@ -63,10 +66,12 @@ export async function fetchCacheIndex(): Promise<SatelliteCacheIndex> {
 export async function fetchCacheMetadata(
   type: "monthly" | "yearly",
   period: string,
+  product?: "nightlights",
 ): Promise<SatelliteCacheMetadata | null> {
   try {
+    const productParam = product ? `&product=${product}` : "";
     const res = await fetch(
-      `/api/satellite-cache/metadata?type=${type}&period=${encodeURIComponent(period)}`,
+      `/api/satellite-cache/metadata?type=${type}&period=${encodeURIComponent(period)}${productParam}`,
       { next: { revalidate: 300 } },
     );
     if (!res.ok) return null;
@@ -96,6 +101,7 @@ export const CACHE_LAYER_LABELS: Record<string, string> = {
   ndwi_max:    "NDWI max",
   mndwi_mean:  "MNDWI mean",
   ndbi_mean:   "NDBI mean",
+  ntl_mean:    "Nighttime lights",
 };
 
 /** Format a YYYY-MM period string to a human-readable Thai month label. */

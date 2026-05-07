@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type   = searchParams.get("type");
   const period = searchParams.get("period");
+  const product = searchParams.get("product");
 
   if (!type || !period) {
     return NextResponse.json(
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
   }
 
   const base = R2_PUBLIC_BASE_URL.replace(/\/$/, "");
-  const url  = `${base}/${SATELLITE_CACHE_PREFIX}/${type}/${period}/metadata.json`;
+  const productPrefix = product === "nightlights" ? "/nightlights" : "";
+  const url  = `${base}/${SATELLITE_CACHE_PREFIX}${productPrefix}/${type}/${period}/metadata.json`;
 
   try {
     const r2Res = await fetch(url, { next: { revalidate: 300 } });

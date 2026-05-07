@@ -5,10 +5,18 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { Calendar, FileDown, Layers, Moon, RefreshCw } from "lucide-react";
+import bkkDistricts from "@/data/bkk_districts.json";
+import {
+  fetchCacheIndex,
+  fetchCacheMetadata,
+  getCacheLayerPreviewUrl,
+  type SatelliteCacheIndex,
+  type SatelliteCacheMetadata,
+} from "@/lib/satellite-cache";
 
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
 
-type MapMode = "district" | "idw";
+type MapMode = "district" | "satellite-cache";
 type DataProduct = "annual" | "monthly";
 const FIRST_YEAR = 2014;
 const LATEST_DATA_YEAR = 2024;
@@ -20,6 +28,109 @@ function formatRadiance(value: number | null | undefined, digits = 2) {
   return value.toLocaleString("th-TH", { maximumFractionDigits: digits });
 }
 
+function normalizeRows(meta: SatelliteCacheMetadata | null) {
+  return ((meta?.district_stats || []) as any[])
+    .filter((row) => row?.district_id !== null && row?.district_id !== undefined)
+    .map((row) => ({
+      district_id: Number(row.district_id),
+      district_name: String(row.district_name || ""),
+      ntl_mean: typeof row.ntl_mean === "number" ? row.ntl_mean : null,
+      ntl_max: typeof row.ntl_max === "number" ? row.ntl_max : null,
+      pixel_count: typeof row.pixel_count === "number" ? row.pixel_count : null,
+    }));
+}
+
+function buildNightLightsView(
+  meta: SatelliteCacheMetadata | null,
+  baselineMeta: SatelliteCacheMetadata | null,
+  selectedYear: number,
+  selectedMonth: number,
+  dataProduct: DataProduct,
+) {
+  const rows = normalizeRows(meta);
+  const baselineById = new Map(normalizeRows(baselineMeta).map((row) => [row.district_id, row]));
+  const rowById = new Map(rows.map((row) => [row.district_id, row]));
+  const rankingRows = rows.filter((row) => row.ntl_mean !== null);
+  const hasBaseline = baselineById.size > 0;
+  const values = rankingRows.map((row) => Number(row.ntl_mean)).filter(Number.isFinite);
+  const deltas = rankingRows
+    .map((row) => {
+      const baseline = baselineById.get(row.district_id)?.ntl_mean;
+      return row.ntl_mean !== null && typeof baseline === "number" ? row.ntl_mean - baseline : null;
+    })
+    .filter((value): value is number => value !== null);
+
+  const features = (bkkDistricts.features as any[]).map((feature) => {
+    const row = rowById.get(Number(feature.properties.id));
+    const baseline = baselineById.get(Number(feature.properties.id));
+    const delta = row?.ntl_mean !== null && row?.ntl_mean !== undefined && baseline?.ntl_mean !== null && baseline?.ntl_mean !== undefined
+      ? row.ntl_mean - baseline.ntl_mean
+      : null;
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        ntl_mean: row?.ntl_mean ?? null,
+        ntl_max: row?.ntl_max ?? null,
+        ntl_delta: delta,
+        pixel_count: row?.pixel_count ?? null,
+      },
+    };
+  });
+
+  const ranking = hasBaseline
+    ? [...rankingRows]
+        .map((row) => {
+          const baseline = baselineById.get(row.district_id)?.ntl_mean;
+          const delta = row.ntl_mean !== null && typeof baseline === "number" ? row.ntl_mean - baseline : null;
+          const pct = delta !== null && baseline ? (delta / baseline) * 100 : null;
+          return [row.district_name, delta, pct];
+        })
+        .filter((row) => row[1] !== null)
+        .sort((a: any, b: any) => Number(b[1]) - Number(a[1]))
+    : [...rankingRows]
+        .sort((a, b) => Number(b.ntl_mean ?? -Infinity) - Number(a.ntl_mean ?? -Infinity))
+        .map((row) => [row.district_name, row.ntl_mean, row.ntl_max]);
+
+  const maxRow = rankingRows.length
+    ? [...rankingRows].sort((a, b) => Number(b.ntl_mean ?? -Infinity) - Number(a.ntl_mean ?? -Infinity))[0]
+    : null;
+  const fastestGrowthRow = hasBaseline && ranking.length ? ranking[0]?.[0] : null;
+  const monthlyTrend = dataProduct === "monthly"
+    ? Array.from({ length: Math.max(3, selectedMonth) }, (_, index) => [
+        index + 1,
+        index + 1 === selectedMonth && values.length ? Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(3)) : null,
+        index + 1 === selectedMonth ? "selected" : "available",
+      ])
+    : [];
+
+  return {
+    geojson: { type: "FeatureCollection", features },
+    summary: {
+      product: dataProduct,
+      selectedYear,
+      selectedMonth: dataProduct === "monthly" ? selectedMonth : null,
+      compareYear: hasBaseline ? baselineMeta?.period : null,
+      averageRadiance: values.length ? Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(3)) : null,
+      maxRadiance: values.length ? Number(Math.max(...values).toFixed(3)) : null,
+      minRadiance: values.length ? Number(Math.min(...values).toFixed(3)) : null,
+      maxDistrict: maxRow?.district_name ?? null,
+      fastestGrowthDistrict: fastestGrowthRow,
+      avgDelta: deltas.length ? Number((deltas.reduce((sum, value) => sum + value, 0) / deltas.length).toFixed(3)) : null,
+      maxDelta: deltas.length ? Number(Math.max(...deltas).toFixed(3)) : null,
+      minDelta: deltas.length ? Number(Math.min(...deltas).toFixed(3)) : null,
+      ranking,
+      yearlyTrend: dataProduct === "annual" && values.length
+        ? [[selectedYear, Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(3)), null]]
+        : [],
+      monthlyTrend,
+      dataSource: meta?.source ?? "R2 cache",
+      units: "nW/sr/cm²",
+      cacheStatus: meta?.status ?? "pending",
+    },
+  };
+}
+
 export default function NighttimeLightsPage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [dataProduct, setDataProduct] = useState<DataProduct>("annual");
@@ -27,38 +138,60 @@ export default function NighttimeLightsPage() {
   const [selectedMonth, setSelectedMonth] = useState(3);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2014);
-  const [mapMode, setMapMode] = useState<MapMode>("idw");
+  const [mapMode, setMapMode] = useState<MapMode>("satellite-cache");
   const [geojsonData, setGeojsonData] = useState<any>(null);
-  const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.82);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [isExporting, setIsExporting] = useState(false);
+  const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
+  const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
+  const [compareMeta, setCompareMeta] = useState<SatelliteCacheMetadata | null>(null);
+
+  useEffect(() => {
+    fetchCacheIndex("nightlights").then((index) => {
+      setCacheIndex(index);
+      if (index.latest_year) setSelectedYear(Number(index.latest_year));
+      if (index.latest_month) {
+        const [year, month] = index.latest_month.split("-").map(Number);
+        if (year && month) {
+          setSelectedMonth(month);
+        }
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({
-      product: dataProduct,
-      year: selectedYear.toString(),
-    });
-    if (dataProduct === "monthly") params.append("month", selectedMonth.toString());
-    if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
-    if (compareMode && dataProduct === "annual") params.append("compareYear", compareYear.toString());
+    const type = dataProduct === "monthly" ? "monthly" : "yearly";
+    const period = dataProduct === "monthly"
+      ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`
+      : String(selectedYear);
 
-    fetch(`/api/nighttime-lights?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setGeojsonData(data.geojson);
-        setInvertedMask(data.invertedMask);
-        setSummary(data.summary);
+    Promise.all([
+      fetchCacheMetadata(type, period, "nightlights"),
+      compareMode && dataProduct === "annual"
+        ? fetchCacheMetadata("yearly", String(compareYear), "nightlights")
+        : Promise.resolve(null),
+    ])
+      .then(([meta, baselineMeta]) => {
+        setCacheMeta(meta);
+        setCompareMeta(baselineMeta);
+        const built = buildNightLightsView(meta, baselineMeta, selectedYear, selectedMonth, dataProduct);
+        setGeojsonData(built.geojson);
+        setSummary(built.summary);
         setLoading(false);
       })
       .catch((error) => {
         console.error(error);
+        setCacheMeta(null);
+        setCompareMeta(null);
+        setGeojsonData(null);
+        setSummary(null);
         setLoading(false);
       });
-  }, [activeDistrict, dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
+  }, [dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
 
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
@@ -67,7 +200,7 @@ export default function NighttimeLightsPage() {
     setSelectedMonth(3);
     setCompareMode(false);
     setCompareYear(2014);
-    setMapMode("idw");
+    setMapMode("satellite-cache");
     setOpacity(0.82);
     setBaseMap("dark");
   };
@@ -82,8 +215,9 @@ export default function NighttimeLightsPage() {
   const isMonthlyPreview = dataProduct === "monthly";
   const monthLabel = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
   const periodLabel = isMonthlyPreview ? `Monthly preview ${monthLabel}` : `Annual composite ${selectedYear}`;
-  const sourceDataset = isMonthlyPreview ? "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG" : "NOAA/VIIRS/DNB/ANNUAL_V22";
-  const sourceBand = isMonthlyPreview ? "avg_rad + cf_cvg mask" : "average_masked";
+  const sourceDataset = cacheMeta?.source || (isMonthlyPreview ? "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG" : "NOAA/VIIRS/DNB/ANNUAL_V22");
+  const sourceBand = (cacheMeta as any)?.band || (isMonthlyPreview ? "avg_rad + cf_cvg mask" : "average_masked");
+  const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, "ntl_mean");
 
   const kpiCards = [
     {
@@ -146,7 +280,6 @@ export default function NighttimeLightsPage() {
         <div className="absolute inset-0 z-0">
           <LSTMapView
             geojsonData={geojsonData}
-            invertedMask={invertedMask}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
             compareMode={compareMode && !isMonthlyPreview}
@@ -157,6 +290,8 @@ export default function NighttimeLightsPage() {
             dataPeriodLabel={periodLabel}
             nightLightsProduct={dataProduct}
             nightLightsMonth={selectedMonth}
+            satelliteCachePreviewUrl={cachePreviewUrl}
+            satelliteCacheBounds={cacheMeta?.bounds}
           />
         </div>
 
@@ -176,10 +311,11 @@ export default function NighttimeLightsPage() {
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Suomi NPP VIIRS Day/Night Band</p>
-            <p><span className="text-white">Dataset:</span> {sourceDataset}</p>
+            <p><span className="text-white">Source:</span> R2 cache · {sourceDataset}</p>
             <p><span className="text-white">Period:</span> {periodLabel}</p>
             <p><span className="text-white">Band:</span> {sourceBand} · nW/sr/cm²</p>
             <p><span className="text-white">Resolution:</span> ~500m per pixel</p>
+            <p><span className="text-white">Cache:</span> {cacheMeta?.status === "ok" ? "พร้อมใช้งาน" : "ยังไม่มี cache สำหรับช่วงนี้"}</p>
             {isMonthlyPreview && <p><span className="text-amber-300">Note:</span> monthly preview ไม่ใช่ annual trend</p>}
           </div>
         </div>
@@ -225,10 +361,10 @@ export default function NighttimeLightsPage() {
                 รายเขต
               </button>
               <button
-                onClick={() => setMapMode("idw")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                onClick={() => setMapMode("satellite-cache")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "satellite-cache" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                ดาวเทียม (GEE)
+                R2 Cache
               </button>
             </div>
 
@@ -236,7 +372,7 @@ export default function NighttimeLightsPage() {
               <button
                 onClick={() => {
                   setDataProduct("annual");
-                  setSelectedYear(2024);
+                  setSelectedYear(Number(cacheIndex?.latest_year || 2024));
                 }}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
@@ -245,8 +381,9 @@ export default function NighttimeLightsPage() {
               <button
                 onClick={() => {
                   setDataProduct("monthly");
-                  setSelectedYear(LATEST_MONTHLY_YEAR);
-                  setSelectedMonth(LATEST_MONTHLY_MONTH);
+                  const [latestYear, latestMonth] = (cacheIndex?.latest_month || `${LATEST_MONTHLY_YEAR}-${String(LATEST_MONTHLY_MONTH).padStart(2, "0")}`).split("-").map(Number);
+                  setSelectedYear(latestYear || LATEST_MONTHLY_YEAR);
+                  setSelectedMonth(latestMonth || LATEST_MONTHLY_MONTH);
                   setCompareMode(false);
                 }}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
@@ -281,7 +418,7 @@ export default function NighttimeLightsPage() {
             </button>
           </div>
 
-          {mapMode === "idw" && (
+          {mapMode === "satellite-cache" && (
             <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
