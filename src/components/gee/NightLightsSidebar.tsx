@@ -37,9 +37,11 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
   }
 
   const rankingRows: [string, number, number | null][] = summary.ranking || [];
+  const isMonthlyPreview = summary.product === "monthly";
   const yearlyTrend = (summary.yearlyTrend || []).filter((item: any) => item[1] !== null);
+  const monthlyTrend = (summary.monthlyTrend || []).filter((item: any) => item[1] !== null || item[2] === "available" || item[2] === "selected");
   const trendValues = yearlyTrend.map((item: any) => Number(item[1]) || 0);
-  const maxTrend = Math.max(1, ...trendValues);
+  const maxTrend = Math.max(1, ...trendValues, ...(monthlyTrend.map((item: any) => Number(item[1]) || 0)));
   const rankingValues = rankingRows.map((row) => Number(row[1])).filter(Number.isFinite);
   const minRank = compareMode ? Math.min(0, ...rankingValues) : 0;
   const maxRank = compareMode
@@ -62,7 +64,12 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
           วิเคราะห์ค่า radiance เฉลี่ยรายปีจากแสงกลางคืน เพื่อดูศูนย์กลางกิจกรรมเมือง พื้นที่พาณิชยกรรม และการเปลี่ยนแปลงความเข้มเมืองรายเขต
         </p>
         <div className="mb-4 flex flex-wrap gap-1.5">
-          {["VIIRS DNB", "avg_rad", "500m", "2014-2025"].map((badge) => (
+          {[
+            "VIIRS DNB",
+            isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
+            "500m",
+            isMonthlyPreview ? "2025 preview" : "2014-2024 annual",
+          ].map((badge) => (
             <span key={badge} className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-2 py-1 text-[9px] font-bold text-yellow-100">
               {badge}
             </span>
@@ -107,7 +114,7 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
               <Calendar className="w-3 h-3 text-sky-300" /> ปีข้อมูล
             </div>
             <div className="text-sm font-bold text-sky-300 font-mono leading-tight break-words">
-              {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : summary.selectedYear}
+              {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : isMonthlyPreview ? `${summary.selectedMonth}/2025` : summary.selectedYear}
             </div>
           </div>
         </div>
@@ -116,28 +123,31 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
 
         <section>
           <h3 className="mb-2 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
-            <Activity className="w-3 h-3" /> แนวโน้มรายปี
+            <Activity className="w-3 h-3" /> {isMonthlyPreview ? "ข้อมูลรายเดือนล่าสุด" : "แนวโน้มรายปี"}
           </h3>
           <p className="text-[9px] text-slate-500 leading-snug mb-3">
-            ค่าเฉลี่ย radiance ของ{activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} รายปี หน่วย nW/sr/cm²
+            {isMonthlyPreview
+              ? `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} ในเดือนที่มีข้อมูลปี 2025`
+              : `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} รายปี หน่วย nW/sr/cm²`}
           </p>
           <div className="flex items-end gap-[3px] h-20 mb-2">
-            {yearlyTrend.map((item: any) => {
-              const [year, value] = item;
+            {(isMonthlyPreview ? monthlyTrend : yearlyTrend).map((item: any) => {
+              const [period, value, status] = item;
               const pct = Math.max(4, Math.min(100, (Number(value) / maxTrend) * 100));
+              const isSelected = status === "selected";
               return (
-                <div key={year} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                  <div className="w-full rounded-t-sm bg-gradient-to-t from-blue-700 via-yellow-300 to-white min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110" style={{ height: `${pct}%` }} />
+                <div key={period} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                  <div className={`w-full rounded-t-sm ${isSelected ? "bg-gradient-to-t from-blue-700 via-yellow-300 to-white" : "bg-slate-700"} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${value === null ? 6 : pct}%` }} />
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
-                    {year}: {formatRadiance(value, 3)}
+                    {isMonthlyPreview ? `เดือน ${period}` : period}: {value === null ? "เลือกดูได้" : formatRadiance(value, 3)}
                   </div>
                 </div>
               );
             })}
           </div>
           <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-            <span>{yearlyTrend?.[0]?.[0]}</span>
-            <span>{yearlyTrend?.[yearlyTrend?.length - 1]?.[0]}</span>
+            <span>{isMonthlyPreview ? "ม.ค." : yearlyTrend?.[0]?.[0]}</span>
+            <span>{isMonthlyPreview ? "มี.ค." : yearlyTrend?.[yearlyTrend?.length - 1]?.[0]}</span>
           </div>
         </section>
 
@@ -148,9 +158,13 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
             <Calendar className="w-3 h-3" /> คุณภาพข้อมูลรายปี
           </h3>
           <div className="rounded-xl border border-yellow-300/20 bg-yellow-300/10 p-3">
-            <div className="text-[10px] font-bold text-yellow-100">Annual V2.2 · average_masked</div>
+            <div className="text-[10px] font-bold text-yellow-100">
+              {isMonthlyPreview ? "Monthly V1 · avg_rad + cf_cvg" : "Annual V2.2 · average_masked"}
+            </div>
             <p className="mt-1 text-[9px] leading-relaxed text-slate-400">
-              ชุดข้อมูล annual ถูกสร้างจาก monthly cloud-free radiance และผ่านการกรองค่าผิดปกติ/พื้นหลัง จึงเหมาะกับการเปรียบเทียบรายปีรายเขตมากกว่าการเอา monthly ดิบมารวมเองในหน้าโหลดแรก
+              {isMonthlyPreview
+                ? "Monthly preview ใช้ดูภาพล่าสุดที่ GEE มีถึง มี.ค. 2025 เท่านั้น ยังไม่ใช่ข้อมูลรายปีเต็ม และไม่ควรนำไปเทียบตรง ๆ กับ annual 2024"
+                : "ชุดข้อมูล annual ถูกสร้างจาก monthly cloud-free radiance และผ่านการกรองค่าผิดปกติ/พื้นหลัง จึงเหมาะกับการเปรียบเทียบรายปีรายเขตมากกว่าการเอา monthly ดิบมารวมเองในหน้าโหลดแรก"}
             </p>
           </div>
         </section>

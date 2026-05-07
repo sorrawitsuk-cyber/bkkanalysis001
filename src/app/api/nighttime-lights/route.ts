@@ -7,9 +7,14 @@ import geojson from "@/data/bkk_districts.json";
 export const dynamic = "force-dynamic";
 
 const ALL_DISTRICTS = "ทั้งหมด";
-const DATASET_ID = "NOAA/VIIRS/DNB/ANNUAL_V22";
+const ANNUAL_DATASET_ID = "NOAA/VIIRS/DNB/ANNUAL_V22";
+const MONTHLY_DATASET_ID = "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG";
 const FIRST_YEAR = 2014;
-const LATEST_DATA_YEAR = 2024;
+const LATEST_ANNUAL_YEAR = 2024;
+const LATEST_MONTHLY_YEAR = 2025;
+const LATEST_MONTHLY_MONTH = 3;
+const MIN_CLOUD_FREE_COVERAGE = 3;
+type NightLightsProduct = "annual" | "monthly";
 
 function evaluateEe<T>(eeObject: any): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -21,7 +26,7 @@ function evaluateEe<T>(eeObject: any): Promise<T> {
 }
 
 function getYearRange() {
-  return Array.from({ length: LATEST_DATA_YEAR - FIRST_YEAR + 1 }, (_, index) => FIRST_YEAR + index);
+  return Array.from({ length: LATEST_ANNUAL_YEAR - FIRST_YEAR + 1 }, (_, index) => FIRST_YEAR + index);
 }
 
 function getDateRange(year: number) {
@@ -31,9 +36,26 @@ function getDateRange(year: number) {
   };
 }
 
-function getNightLightsImage(year: number, geometry: any) {
+function getNightLightsImage(product: NightLightsProduct, year: number, month: number, geometry: any) {
+  if (product === "monthly") {
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const endDate = month === 12
+      ? `${year + 1}-01-01`
+      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    return ee.ImageCollection(MONTHLY_DATASET_ID)
+      .filterBounds(geometry)
+      .filterDate(startDate, endDate)
+      .map((image: any) => image
+        .select("avg_rad")
+        .max(0)
+        .rename("ntl")
+        .updateMask(image.select("cf_cvg").gte(MIN_CLOUD_FREE_COVERAGE)))
+      .mean()
+      .rename("ntl");
+  }
+
   const { startDate, endDate } = getDateRange(year);
-  return ee.ImageCollection(DATASET_ID)
+  return ee.ImageCollection(ANNUAL_DATASET_ID)
     .filterBounds(geometry)
     .filterDate(startDate, endDate)
     .first()
@@ -46,7 +68,7 @@ function getNightLightsImageForEeYear(year: any, geometry: any) {
   const start = ee.Date.fromYMD(year, 1, 1);
   const end = ee.Date.fromYMD(ee.Number(year).add(1), 1, 1);
 
-  return ee.ImageCollection(DATASET_ID)
+  return ee.ImageCollection(ANNUAL_DATASET_ID)
     .filterBounds(geometry)
     .filterDate(start, end)
     .first()
@@ -78,11 +100,18 @@ function normalizeDistrictName(value: string | null) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const rawYear = parseInt(searchParams.get("year") || `${LATEST_DATA_YEAR}`, 10);
-    const year = Math.max(FIRST_YEAR, Math.min(LATEST_DATA_YEAR, rawYear));
+    const product: NightLightsProduct = searchParams.get("product") === "monthly" ? "monthly" : "annual";
+    const maxYear = product === "monthly" ? LATEST_MONTHLY_YEAR : LATEST_ANNUAL_YEAR;
+    const defaultYear = product === "monthly" ? LATEST_MONTHLY_YEAR : LATEST_ANNUAL_YEAR;
+    const rawYear = parseInt(searchParams.get("year") || `${defaultYear}`, 10);
+    const year = Math.max(FIRST_YEAR, Math.min(maxYear, rawYear));
+    const rawMonth = parseInt(searchParams.get("month") || `${LATEST_MONTHLY_MONTH}`, 10);
+    const month = product === "monthly"
+      ? Math.max(1, Math.min(year === LATEST_MONTHLY_YEAR ? LATEST_MONTHLY_MONTH : 12, rawMonth))
+      : 1;
     const compareYearParam = searchParams.get("compareYear");
-    const compareYear = compareYearParam
-      ? Math.max(FIRST_YEAR, Math.min(LATEST_DATA_YEAR, parseInt(compareYearParam, 10)))
+    const compareYear = product === "annual" && compareYearParam
+      ? Math.max(FIRST_YEAR, Math.min(LATEST_ANNUAL_YEAR, parseInt(compareYearParam, 10)))
       : null;
     const districtFilter = searchParams.get("district") || ALL_DISTRICTS;
 
@@ -102,7 +131,7 @@ export async function GET(request: Request) {
       console.error("Nighttime lights mask generation failed:", error);
     }
 
-    const currentImage = getNightLightsImage(year, bkkGeometry);
+    const currentImage = getNightLightsImage(product, year, month, bkkGeometry);
     const currentStats = await evaluateEe<any>(currentImage.reduceRegions({
       collection: districtFeatures,
       reducer: ee.Reducer.mean()
@@ -113,7 +142,7 @@ export async function GET(request: Request) {
     }));
 
     const compareStats = compareYear
-      ? await evaluateEe<any>(getNightLightsImage(compareYear, bkkGeometry).reduceRegions({
+      ? await evaluateEe<any>(getNightLightsImage("annual", compareYear, 1, bkkGeometry).reduceRegions({
           collection: districtFeatures,
           reducer: ee.Reducer.mean(),
           scale: 750,
@@ -197,12 +226,13 @@ export async function GET(request: Request) {
     // Full historical trend is better materialized as a cache job because GEE
     // reduceRegions over 50 Bangkok districts for every year is slow enough to
     // make the dashboard feel broken on first load.
-    const yearlyTrend = [[year, null, null]];
-    const monthlyTrend = Array.from({ length: 12 }, (_, index) => [index + 1, null, "annual-only"]);
-
     const values = rankingSource.map((row) => row.ntl_mean).filter((value): value is number => value !== null);
     const deltas = rankingSource.map((row) => row.delta).filter((value): value is number => value !== null);
     const average = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    const yearlyTrend = product === "annual" ? [[year, average !== null ? Number(average.toFixed(3)) : null, null]] : [];
+    const monthlyTrend = product === "monthly"
+      ? Array.from({ length: LATEST_MONTHLY_MONTH }, (_, index) => [index + 1, index + 1 === month && average !== null ? Number(average.toFixed(3)) : null, index + 1 === month ? "selected" : "available"])
+      : Array.from({ length: 12 }, (_, index) => [index + 1, null, "annual-only"]);
     const maxDistrict = rankingSource.sort((a, b) => (b.ntl_mean ?? -Infinity) - (a.ntl_mean ?? -Infinity))[0] || null;
     const fastestGrowthDistrict = compareYear
       ? [...rankingSource].sort((a, b) => (b.delta ?? -Infinity) - (a.delta ?? -Infinity))[0] || null
@@ -213,10 +243,18 @@ export async function GET(request: Request) {
       invertedMask,
       summary: {
         metric: "nightlights",
+        product,
         selectedYear: year,
+        selectedMonth: product === "monthly" ? month : null,
         compareYear,
         availableYears: getYearRange(),
-        latestDataYear: LATEST_DATA_YEAR,
+        latestDataYear: LATEST_ANNUAL_YEAR,
+        latestAnnualYear: LATEST_ANNUAL_YEAR,
+        latestMonthlyYear: LATEST_MONTHLY_YEAR,
+        latestMonthlyMonth: LATEST_MONTHLY_MONTH,
+        availableMonthlyMonths: product === "monthly" && year === LATEST_MONTHLY_YEAR
+          ? Array.from({ length: LATEST_MONTHLY_MONTH }, (_, index) => index + 1)
+          : Array.from({ length: 12 }, (_, index) => index + 1),
         averageRadiance: average !== null ? Number(average.toFixed(3)) : null,
         maxRadiance: values.length ? Number(Math.max(...values).toFixed(3)) : null,
         minRadiance: values.length ? Number(Math.min(...values).toFixed(3)) : null,
@@ -232,7 +270,9 @@ export async function GET(request: Request) {
         max_ntl: maxValue !== -Infinity ? Number(maxValue.toFixed(3)) : 80,
         min_delta: minDelta !== Infinity ? Number(minDelta.toFixed(3)) : -10,
         max_delta: maxDelta !== -Infinity ? Number(maxDelta.toFixed(3)) : 10,
-        dataSource: `${DATASET_ID} annual average_masked`,
+        dataSource: product === "monthly"
+          ? `${MONTHLY_DATASET_ID} monthly avg_rad, cf_cvg >= ${MIN_CLOUD_FREE_COVERAGE}`
+          : `${ANNUAL_DATASET_ID} annual average_masked`,
         units: "nW/sr/cm²",
       },
     }, {

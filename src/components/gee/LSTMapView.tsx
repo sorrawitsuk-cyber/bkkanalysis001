@@ -19,6 +19,8 @@ interface LSTMapViewProps {
   analysisType?: "heat" | "green" | "builtup" | "nightlights";
   ndviLayer?: "green_area_rai" | "green_area_ratio" | "ndvi_mean";
   dataPeriodLabel?: string;
+  nightLightsProduct?: "annual" | "monthly";
+  nightLightsMonth?: number;
   /** WebP preview URL from R2 cache — rendered as an image overlay in satellite-cache mode. */
   satelliteCachePreviewUrl?: string | null;
   /** Bounds for the cache overlay: [[south, west], [north, east]]. Defaults to Bangkok extent. */
@@ -55,6 +57,8 @@ export default function LSTMapView({
   analysisType = "heat",
   ndviLayer = "green_area_rai",
   dataPeriodLabel,
+  nightLightsProduct = "annual",
+  nightLightsMonth,
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
 }: LSTMapViewProps) {
@@ -68,6 +72,8 @@ export default function LSTMapView({
   const mapModeRef = useRef(mapMode);
   const compareModeRef = useRef(compareMode);
   const analysisTypeRef = useRef(analysisType);
+  const nightLightsProductRef = useRef(nightLightsProduct);
+  const nightLightsMonthRef = useRef(nightLightsMonth);
   const dataPeriodRef = useRef(dataPeriodLabel || "");
   const activeDistrictRef = useRef(activeDistrict);
 
@@ -83,9 +89,11 @@ export default function LSTMapView({
     mapModeRef.current = mapMode;
     compareModeRef.current = compareMode;
     analysisTypeRef.current = analysisType;
+    nightLightsProductRef.current = nightLightsProduct;
+    nightLightsMonthRef.current = nightLightsMonth;
     dataPeriodRef.current = dataPeriodLabel || "";
     activeDistrictRef.current = activeDistrict;
-  }, [activeDistrict, analysisType, compareMode, dataPeriodLabel, mapMode]);
+  }, [activeDistrict, analysisType, compareMode, dataPeriodLabel, mapMode, nightLightsMonth, nightLightsProduct]);
 
   const pointPopupContent = useCallback((options: {
     lat: number;
@@ -165,7 +173,7 @@ export default function LSTMapView({
 
       try {
         const currentAnalysis = analysisTypeRef.current;
-        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : currentAnalysis === "builtup" ? "&metric=builtup" : currentAnalysis === "nightlights" ? "&metric=nightlights" : "";
+        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : currentAnalysis === "builtup" ? "&metric=builtup" : currentAnalysis === "nightlights" ? `&metric=nightlights&product=${nightLightsProductRef.current}${nightLightsMonthRef.current ? `&month=${nightLightsMonthRef.current}` : ""}` : "";
         const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
         const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}${compareParam}`);
         const data = await res.json();
@@ -278,7 +286,7 @@ export default function LSTMapView({
       }
       if (mapMode === "idw" && summary?.selectedYear) {
         try {
-          const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? "&metric=nightlights" : "";
+          const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? `&metric=nightlights&product=${nightLightsProduct}${nightLightsMonth ? `&month=${nightLightsMonth}` : ""}` : "";
           const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}`);
           const data = await res.json();
           if (data.urlFormat) {
@@ -290,7 +298,7 @@ export default function LSTMapView({
       }
     };
     updateGeeLayer();
-  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType, opacity]);
+  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType, opacity, nightLightsMonth, nightLightsProduct]);
 
   useEffect(() => {
     if (geeLayerRef.current) geeLayerRef.current.setOpacity(opacity);

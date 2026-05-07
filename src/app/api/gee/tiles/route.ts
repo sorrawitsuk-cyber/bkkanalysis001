@@ -14,6 +14,8 @@ export async function GET(request: Request) {
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
   const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : 'lst';
+  const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
+  const nightLightsMonth = Math.max(1, Math.min(3, parseInt(searchParams.get('month') || '3', 10)));
 
   try {
     await initGEE();
@@ -98,6 +100,22 @@ export async function GET(request: Request) {
       if (metric === 'vegetation') return getSentinelNdviImage(y, endMMDD);
       if (metric === 'builtup') return getSentinelNdbiImage(y, endMMDD);
       if (metric === 'nightlights') {
+        if (nightLightsProduct === 'monthly') {
+          const targetYear = Math.max(2014, Math.min(2025, y));
+          const endDate = nightLightsMonth === 12 ? `${targetYear + 1}-01-01` : `${targetYear}-${String(nightLightsMonth + 1).padStart(2, '0')}-01`;
+          return ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG')
+            .filterBounds(bkkBoundary)
+            .filterDate(`${targetYear}-${String(nightLightsMonth).padStart(2, '0')}-01`, endDate)
+            .map((image: any) => image
+              .select('avg_rad')
+              .max(0)
+              .rename('NTL')
+              .updateMask(image.select('cf_cvg').gte(3)))
+            .mean()
+            .rename('NTL')
+            .clip(bkkBoundary);
+        }
+
         const targetYear = Math.max(2014, Math.min(2024, y));
         return ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
           .filterBounds(bkkBoundary)
@@ -160,7 +178,9 @@ export async function GET(request: Request) {
         : metric === 'builtup'
           ? 'Sentinel-2 SR Harmonized yearly median NDBI'
           : metric === 'nightlights'
-            ? 'VIIRS DNB Annual V2.2 average_masked'
+            ? nightLightsProduct === 'monthly'
+              ? 'VIIRS DNB monthly avg_rad preview'
+              : 'VIIRS DNB Annual V2.2 average_masked'
             : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
       resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' ? 500 : 30,
     }, {

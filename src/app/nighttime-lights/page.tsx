@@ -9,8 +9,11 @@ import { Calendar, FileDown, Layers, Moon, RefreshCw } from "lucide-react";
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
 
 type MapMode = "district" | "idw";
+type DataProduct = "annual" | "monthly";
 const FIRST_YEAR = 2014;
 const LATEST_DATA_YEAR = 2024;
+const LATEST_MONTHLY_YEAR = 2025;
+const LATEST_MONTHLY_MONTH = 3;
 
 function formatRadiance(value: number | null | undefined, digits = 2) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
@@ -19,7 +22,9 @@ function formatRadiance(value: number | null | undefined, digits = 2) {
 
 export default function NighttimeLightsPage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [dataProduct, setDataProduct] = useState<DataProduct>("annual");
   const [selectedYear, setSelectedYear] = useState(2024);
+  const [selectedMonth, setSelectedMonth] = useState(3);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2014);
   const [mapMode, setMapMode] = useState<MapMode>("idw");
@@ -33,9 +38,13 @@ export default function NighttimeLightsPage() {
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ year: selectedYear.toString() });
+    const params = new URLSearchParams({
+      product: dataProduct,
+      year: selectedYear.toString(),
+    });
+    if (dataProduct === "monthly") params.append("month", selectedMonth.toString());
     if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
-    if (compareMode) params.append("compareYear", compareYear.toString());
+    if (compareMode && dataProduct === "annual") params.append("compareYear", compareYear.toString());
 
     fetch(`/api/nighttime-lights?${params.toString()}`)
       .then((res) => res.json())
@@ -49,11 +58,13 @@ export default function NighttimeLightsPage() {
         console.error(error);
         setLoading(false);
       });
-  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+  }, [activeDistrict, dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
 
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
+    setDataProduct("annual");
     setSelectedYear(2024);
+    setSelectedMonth(3);
     setCompareMode(false);
     setCompareYear(2014);
     setMapMode("idw");
@@ -68,28 +79,32 @@ export default function NighttimeLightsPage() {
     alert("Nighttime Lights report export จะต่อกับ A4 report template ในรอบถัดไป");
   };
 
-  const periodLabel = `Annual composite ${selectedYear}`;
+  const isMonthlyPreview = dataProduct === "monthly";
+  const monthLabel = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
+  const periodLabel = isMonthlyPreview ? `Monthly preview ${monthLabel}` : `Annual composite ${selectedYear}`;
+  const sourceDataset = isMonthlyPreview ? "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG" : "NOAA/VIIRS/DNB/ANNUAL_V22";
+  const sourceBand = isMonthlyPreview ? "avg_rad + cf_cvg mask" : "average_masked";
 
   const kpiCards = [
     {
-      label: compareMode ? "ส่วนต่างแสงเฉลี่ย" : "ค่าแสงกลางคืนเฉลี่ย",
-      value: compareMode ? `${(summary?.avgDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary?.avgDelta, 3)}` : formatRadiance(summary?.averageRadiance, 3),
+      label: compareMode && !isMonthlyPreview ? "ส่วนต่างแสงเฉลี่ย" : "ค่าแสงกลางคืนเฉลี่ย",
+      value: compareMode && !isMonthlyPreview ? `${(summary?.avgDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary?.avgDelta, 3)}` : formatRadiance(summary?.averageRadiance, 3),
     },
     {
-      label: compareMode ? "เขตเพิ่มขึ้นสูงสุด" : "เขตสว่างที่สุด",
-      value: compareMode ? summary?.fastestGrowthDistrict || "ไม่มีข้อมูล" : summary?.maxDistrict || "ไม่มีข้อมูล",
+      label: compareMode && !isMonthlyPreview ? "เขตเพิ่มขึ้นสูงสุด" : "เขตสว่างที่สุด",
+      value: compareMode && !isMonthlyPreview ? summary?.fastestGrowthDistrict || "ไม่มีข้อมูล" : summary?.maxDistrict || "ไม่มีข้อมูล",
     },
     {
-      label: compareMode ? "ส่วนต่างสูงสุด" : "ค่าสูงสุดรายเขต",
-      value: compareMode ? `${(summary?.maxDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary?.maxDelta, 3)}` : formatRadiance(summary?.maxRadiance, 3),
+      label: compareMode && !isMonthlyPreview ? "ส่วนต่างสูงสุด" : "ค่าสูงสุดรายเขต",
+      value: compareMode && !isMonthlyPreview ? `${(summary?.maxDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary?.maxDelta, 3)}` : formatRadiance(summary?.maxRadiance, 3),
     },
     {
       label: "ช่วงข้อมูลดาวเทียม",
-      value: compareMode ? `${selectedYear} vs ${compareYear}` : periodLabel,
+      value: compareMode && !isMonthlyPreview ? `${selectedYear} vs ${compareYear}` : periodLabel,
     },
   ];
 
-  const legendConfig = compareMode
+  const legendConfig = compareMode && !isMonthlyPreview
     ? {
         title: "การเปลี่ยนแปลงแสงกลางคืน",
         description: `ค่า avg_rad ปี ${selectedYear} ลบปีฐาน ${compareYear}; สีส้มคือเข้มขึ้น สีฟ้าคืออ่อนลง`,
@@ -104,7 +119,9 @@ export default function NighttimeLightsPage() {
       }
     : {
         title: "ระดับความเข้มแสงกลางคืน",
-        description: "ค่าเฉลี่ย radiance รายปีจาก VIIRS DNB avg_rad หลังกรองเดือนที่ cloud-free coverage ต่ำ",
+        description: isMonthlyPreview
+          ? "ค่า radiance รายเดือนจาก VIIRS DNB ใช้ดูภาพล่าสุดแบบ preview ยังไม่ใช่สถิติ annual"
+          : "ค่าเฉลี่ย radiance รายปีจาก VIIRS DNB annual average_masked",
         unit: "nW/sr/cm²",
         items: [
           { color: "#172554", label: "ต่ำมาก", range: "< 5" },
@@ -122,7 +139,7 @@ export default function NighttimeLightsPage() {
         activeDistrict={activeDistrict}
         summary={summary}
         loading={loading}
-        compareMode={compareMode}
+        compareMode={compareMode && !isMonthlyPreview}
       />
 
       <main className="flex-1 min-w-0 relative">
@@ -132,12 +149,14 @@ export default function NighttimeLightsPage() {
             invertedMask={invertedMask}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
-            compareMode={compareMode}
+            compareMode={compareMode && !isMonthlyPreview}
             summary={summary}
             opacity={opacity}
             baseMap={baseMap}
             analysisType="nightlights"
             dataPeriodLabel={periodLabel}
+            nightLightsProduct={dataProduct}
+            nightLightsMonth={selectedMonth}
           />
         </div>
 
@@ -157,10 +176,11 @@ export default function NighttimeLightsPage() {
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Suomi NPP VIIRS Day/Night Band</p>
-            <p><span className="text-white">Dataset:</span> NOAA/VIIRS/DNB/ANNUAL_V22</p>
+            <p><span className="text-white">Dataset:</span> {sourceDataset}</p>
             <p><span className="text-white">Period:</span> {periodLabel}</p>
-            <p><span className="text-white">Band:</span> average_masked · nW/sr/cm²</p>
+            <p><span className="text-white">Band:</span> {sourceBand} · nW/sr/cm²</p>
             <p><span className="text-white">Resolution:</span> ~500m per pixel</p>
+            {isMonthlyPreview && <p><span className="text-amber-300">Note:</span> monthly preview ไม่ใช่ annual trend</p>}
           </div>
         </div>
 
@@ -211,6 +231,38 @@ export default function NighttimeLightsPage() {
                 ดาวเทียม (GEE)
               </button>
             </div>
+
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+              <button
+                onClick={() => {
+                  setDataProduct("annual");
+                  setSelectedYear(2024);
+                }}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                Annual 2014-2024
+              </button>
+              <button
+                onClick={() => {
+                  setDataProduct("monthly");
+                  setSelectedYear(LATEST_MONTHLY_YEAR);
+                  setSelectedMonth(LATEST_MONTHLY_MONTH);
+                  setCompareMode(false);
+                }}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                2025 Preview
+              </button>
+            </div>
+
+            {isMonthlyPreview && (
+              <div className="mb-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
+                <div className="text-[10px] font-bold text-amber-100">ข้อมูลล่าสุดแบบรายเดือน</div>
+                <p className="mt-1 text-[9px] leading-snug text-slate-400">
+                  มีข้อมูลใน GEE ถึง มี.ค. 2025 เท่านั้น จึงใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual 2024
+                </p>
+              </div>
+            )}
 
             <button
               onClick={handleExportPlaceholder}
@@ -276,28 +328,50 @@ export default function NighttimeLightsPage() {
                 <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
               </h4>
               <button
-                onClick={() => setCompareMode(!compareMode)}
-                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? "bg-yellow-300/20 text-yellow-100 border-yellow-300/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
+                onClick={() => dataProduct === "annual" && setCompareMode(!compareMode)}
+                disabled={isMonthlyPreview}
+                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${isMonthlyPreview ? "bg-slate-900/50 text-slate-600 border-slate-800 cursor-not-allowed" : compareMode ? "bg-yellow-300/20 text-yellow-100 border-yellow-300/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
               >
-                เปรียบเทียบปี
+                {isMonthlyPreview ? "Preview เท่านั้น" : "เปรียบเทียบปี"}
               </button>
             </div>
 
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">{FIRST_YEAR}</span>
+              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? LATEST_MONTHLY_YEAR : FIRST_YEAR}</span>
               <span className="text-lg font-bold text-yellow-200 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">{LATEST_DATA_YEAR}</span>
+              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? LATEST_MONTHLY_YEAR : LATEST_DATA_YEAR}</span>
             </div>
             <input
               type="range"
-              min={FIRST_YEAR}
-              max={LATEST_DATA_YEAR}
+              min={isMonthlyPreview ? LATEST_MONTHLY_YEAR : FIRST_YEAR}
+              max={isMonthlyPreview ? LATEST_MONTHLY_YEAR : LATEST_DATA_YEAR}
               value={selectedYear}
               onChange={(event) => setSelectedYear(parseInt(event.target.value, 10))}
               className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300 mb-2"
             />
 
-            {compareMode && (
+            {isMonthlyPreview && (
+              <div className="mt-4 pt-4 border-t border-slate-800/50">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">เดือนข้อมูลล่าสุด</h4>
+                  <span className="text-sm font-bold text-amber-100 font-mono">{selectedMonth}/2025</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={LATEST_MONTHLY_MONTH}
+                  value={selectedMonth}
+                  onChange={(event) => setSelectedMonth(parseInt(event.target.value, 10))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-300"
+                />
+                <div className="mt-2 flex justify-between text-[9px] text-slate-500 font-mono">
+                  <span>ม.ค.</span>
+                  <span>มี.ค.</span>
+                </div>
+              </div>
+            )}
+
+            {compareMode && !isMonthlyPreview && (
               <div className="mt-4 pt-4 border-t border-slate-800/50">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest">ปีฐานที่ใช้เทียบ (Baseline)</h4>

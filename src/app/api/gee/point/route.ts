@@ -19,6 +19,8 @@ export async function GET(request: Request) {
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
   const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : 'lst';
+  const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
+  const nightLightsMonth = Math.max(1, Math.min(3, parseInt(searchParams.get('month') || '3', 10)));
 
   if (!lat || !lng) {
     return NextResponse.json({ error: 'Missing coordinates' }, { status: 400 });
@@ -105,6 +107,21 @@ export async function GET(request: Request) {
     };
 
     const getNightLightsImage = (targetYear: number) => {
+      if (nightLightsProduct === 'monthly') {
+        const cappedYear = Math.max(2014, Math.min(2025, targetYear));
+        const endDate = nightLightsMonth === 12 ? `${cappedYear + 1}-01-01` : `${cappedYear}-${String(nightLightsMonth + 1).padStart(2, '0')}-01`;
+        return ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG')
+          .filterBounds(point)
+          .filterDate(`${cappedYear}-${String(nightLightsMonth).padStart(2, '0')}-01`, endDate)
+          .map((image: any) => image
+            .select('avg_rad')
+            .max(0)
+            .rename('NTL')
+            .updateMask(image.select('cf_cvg').gte(3)))
+          .mean()
+          .rename('NTL');
+      }
+
       const cappedYear = Math.max(2014, Math.min(2024, targetYear));
       return ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
         .filterBounds(point)
@@ -122,9 +139,13 @@ export async function GET(request: Request) {
           .filterDate(startDate, endDate)
           .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
       : metric === 'nightlights'
-        ? ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
+        ? (nightLightsProduct === 'monthly'
+          ? ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG')
+              .filterBounds(point)
+              .filterDate(`${Math.max(2014, Math.min(2025, year))}-${String(nightLightsMonth).padStart(2, '0')}-01`, nightLightsMonth === 12 ? `${Math.max(2014, Math.min(2025, year)) + 1}-01-01` : `${Math.max(2014, Math.min(2025, year))}-${String(nightLightsMonth + 1).padStart(2, '0')}-01`)
+          : ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
             .filterBounds(point)
-            .filterDate(`${Math.max(2014, Math.min(2024, year))}-01-01`, `${Math.max(2014, Math.min(2024, year)) + 1}-01-01`)
+            .filterDate(`${Math.max(2014, Math.min(2024, year))}-01-01`, `${Math.max(2014, Math.min(2024, year)) + 1}-01-01`))
       : (year >= 2022
           ? ee.ImageCollection('LANDSAT/LC08/C02/T1_L2').merge(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'))
           : ee.ImageCollection('LANDSAT/LC08/C02/T1_L2'))
@@ -165,7 +186,7 @@ export async function GET(request: Request) {
         : metric === 'builtup'
           ? 'Sentinel-2 SR Harmonized yearly median NDBI'
           : metric === 'nightlights'
-            ? 'VIIRS DNB Annual V2.2 average_masked'
+            ? nightLightsProduct === 'monthly' ? 'VIIRS DNB monthly avg_rad preview' : 'VIIRS DNB Annual V2.2 average_masked'
             : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
       resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' ? 500 : 30
     });
