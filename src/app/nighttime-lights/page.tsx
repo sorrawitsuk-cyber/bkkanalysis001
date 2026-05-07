@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { Calendar, FileDown, Layers, Moon, RefreshCw } from "lucide-react";
@@ -18,10 +18,6 @@ const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: f
 
 type MapMode = "district" | "satellite-cache";
 type DataProduct = "annual" | "monthly";
-const FIRST_YEAR = 2014;
-const LATEST_DATA_YEAR = 2024;
-const LATEST_MONTHLY_YEAR = 2025;
-const LATEST_MONTHLY_MONTH = 3;
 
 function formatRadiance(value: number | null | undefined, digits = 2) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
@@ -146,6 +142,24 @@ export default function NighttimeLightsPage() {
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [isExporting, setIsExporting] = useState(false);
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
+
+  // Derive year range dynamically from R2 index — fall back to sensible defaults
+  const firstYear = useMemo(() => {
+    if (!cacheIndex?.yearly?.length) return 2013;
+    return Math.min(...cacheIndex.yearly.map(Number));
+  }, [cacheIndex]);
+  const latestDataYear = useMemo(() => {
+    if (!cacheIndex?.yearly?.length) return new Date().getFullYear() - 1;
+    return Math.max(...cacheIndex.yearly.map(Number));
+  }, [cacheIndex]);
+  const [latestMonthlyYear, latestMonthlyMonth] = useMemo<[number, number]>(() => {
+    if (cacheIndex?.latest_month) {
+      const [y, m] = cacheIndex.latest_month.split("-").map(Number);
+      if (y && m) return [y, m];
+    }
+    const now = new Date();
+    return [now.getFullYear(), now.getMonth() || 1];
+  }, [cacheIndex]);
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [compareMeta, setCompareMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
@@ -241,10 +255,10 @@ export default function NighttimeLightsPage() {
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setDataProduct("annual");
-    setSelectedYear(2024);
-    setSelectedMonth(3);
+    setSelectedYear(latestDataYear);
+    setSelectedMonth(latestMonthlyMonth);
     setCompareMode(false);
-    setCompareYear(2014);
+    setCompareYear(firstYear);
     setMapMode("satellite-cache");
     setOpacity(0.82);
     setBaseMap("dark");
@@ -418,23 +432,22 @@ export default function NighttimeLightsPage() {
               <button
                 onClick={() => {
                   setDataProduct("annual");
-                  setSelectedYear(Number(cacheIndex?.latest_year || 2024));
+                  setSelectedYear(latestDataYear);
                 }}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                Annual 2014-2024
+                Annual {firstYear}–{latestDataYear}
               </button>
               <button
                 onClick={() => {
                   setDataProduct("monthly");
-                  const [latestYear, latestMonth] = (cacheIndex?.latest_month || `${LATEST_MONTHLY_YEAR}-${String(LATEST_MONTHLY_MONTH).padStart(2, "0")}`).split("-").map(Number);
-                  setSelectedYear(latestYear || LATEST_MONTHLY_YEAR);
-                  setSelectedMonth(latestMonth || LATEST_MONTHLY_MONTH);
+                  setSelectedYear(latestMonthlyYear);
+                  setSelectedMonth(latestMonthlyMonth);
                   setCompareMode(false);
                 }}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                2025 Preview
+                {latestMonthlyYear} Preview
               </button>
             </div>
 
@@ -442,7 +455,7 @@ export default function NighttimeLightsPage() {
               <div className="mb-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
                 <div className="text-[10px] font-bold text-amber-100">ข้อมูลล่าสุดแบบรายเดือน</div>
                 <p className="mt-1 text-[9px] leading-snug text-slate-400">
-                  มีข้อมูลใน GEE ถึง มี.ค. 2025 เท่านั้น จึงใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual 2024
+                  ข้อมูลรายเดือนล่าสุดถึง {latestMonthlyMonth}/{latestMonthlyYear} ใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual
                 </p>
               </div>
             )}
@@ -520,14 +533,14 @@ export default function NighttimeLightsPage() {
             </div>
 
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? LATEST_MONTHLY_YEAR : FIRST_YEAR}</span>
+              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : firstYear}</span>
               <span className="text-lg font-bold text-yellow-200 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? LATEST_MONTHLY_YEAR : LATEST_DATA_YEAR}</span>
+              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : latestDataYear}</span>
             </div>
             <input
               type="range"
-              min={isMonthlyPreview ? LATEST_MONTHLY_YEAR : FIRST_YEAR}
-              max={isMonthlyPreview ? LATEST_MONTHLY_YEAR : LATEST_DATA_YEAR}
+              min={isMonthlyPreview ? latestMonthlyYear : firstYear}
+              max={isMonthlyPreview ? latestMonthlyYear : latestDataYear}
               value={selectedYear}
               onChange={(event) => setSelectedYear(parseInt(event.target.value, 10))}
               className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300 mb-2"
@@ -537,19 +550,19 @@ export default function NighttimeLightsPage() {
               <div className="mt-4 pt-4 border-t border-slate-800/50">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">เดือนข้อมูลล่าสุด</h4>
-                  <span className="text-sm font-bold text-amber-100 font-mono">{selectedMonth}/2025</span>
+                  <span className="text-sm font-bold text-amber-100 font-mono">{selectedMonth}/{latestMonthlyYear}</span>
                 </div>
                 <input
                   type="range"
                   min={1}
-                  max={LATEST_MONTHLY_MONTH}
+                  max={latestMonthlyMonth}
                   value={selectedMonth}
                   onChange={(event) => setSelectedMonth(parseInt(event.target.value, 10))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-300"
                 />
                 <div className="mt-2 flex justify-between text-[9px] text-slate-500 font-mono">
                   <span>ม.ค.</span>
-                  <span>มี.ค.</span>
+                  <span>เดือน {latestMonthlyMonth}</span>
                 </div>
               </div>
             )}
@@ -562,8 +575,8 @@ export default function NighttimeLightsPage() {
                 </div>
                 <input
                   type="range"
-                  min={FIRST_YEAR}
-                  max={LATEST_DATA_YEAR}
+                  min={firstYear}
+                  max={latestDataYear}
                   value={compareYear}
                   onChange={(event) => setCompareYear(parseInt(event.target.value, 10))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
