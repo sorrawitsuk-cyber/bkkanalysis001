@@ -12,6 +12,8 @@ interface FloodRiskSidebarProps {
   geojsonData?: any;
   loading: boolean;
   compareMode?: boolean;
+  mapMode?: "district" | "satellite-cache" | "traffy" | "combined";
+  traffySummary?: any;
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -26,6 +28,11 @@ function formatRai(value: number | null | undefined): string {
   return `${Math.round(value).toLocaleString("th-TH")} ไร่`;
 }
 
+function formatScore(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
+  return `${Math.round(value * 100)}/100`;
+}
+
 export default function FloodRiskSidebar({
   onDistrictSelect,
   activeDistrict,
@@ -33,6 +40,8 @@ export default function FloodRiskSidebar({
   geojsonData,
   loading,
   compareMode,
+  mapMode = "district",
+  traffySummary,
 }: FloodRiskSidebarProps) {
   const [showAll, setShowAll] = useState(false);
 
@@ -46,9 +55,18 @@ export default function FloodRiskSidebar({
           waterRatio: f.properties?.water_ratio as number | null,
           waterAreaRai: f.properties?.water_area_rai as number | null,
           delta: f.properties?.delta as number | null,
+          traffyRecent: f.properties?.traffy_recent as number | null,
+          traffyDensity: f.properties?.traffy_recent_per_sqkm as number | null,
+          traffyScore: f.properties?.traffy_score as number | null,
+          combinedScore: f.properties?.combined_flood_proxy as number | null,
+          confidence: f.properties?.flood_proxy_confidence as string | null,
         }))
-        .filter((r: any) => r.district && r.waterRatio !== null && Number.isFinite(r.waterRatio))
-        .sort((a: any, b: any) => b.waterRatio - a.waterRatio);
+        .filter((r: any) => r.district)
+        .sort((a: any, b: any) => {
+          if (mapMode === "combined") return (b.combinedScore ?? -1) - (a.combinedScore ?? -1);
+          if (mapMode === "traffy") return (b.traffyScore ?? -1) - (a.traffyScore ?? -1);
+          return (b.waterRatio ?? -1) - (a.waterRatio ?? -1);
+        });
     }
     // Fallback to API summary ranking
     return (summary?.ranking || []).map(([district, waterRatio, waterAreaRai]: any) => ({
@@ -57,10 +75,16 @@ export default function FloodRiskSidebar({
       waterAreaRai,
       delta: null,
     }));
-  }, [geojsonData, summary?.ranking]);
+  }, [geojsonData, summary?.ranking, mapMode]);
 
   const districtOptions = rankingRows.map((r: any) => r.district).filter(Boolean);
-  const maxRankingValue = rankingRows.length ? rankingRows[0]?.waterRatio || 0.5 : 0.5;
+  const maxRankingValue = rankingRows.length
+    ? mapMode === "combined"
+      ? rankingRows[0]?.combinedScore || 1
+      : mapMode === "traffy"
+        ? rankingRows[0]?.traffyScore || 1
+        : rankingRows[0]?.waterRatio || 0.5
+    : 0.5;
 
   // Trend data: prefer waterAreaTrend (total rai), fallback to yearlyTrend (avg ratio)
   const trendData: [string, number][] = useMemo(() => {
@@ -96,6 +120,17 @@ export default function FloodRiskSidebar({
             <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Flood Risk · Water Analysis</p>
           </div>
         </div>
+
+        {(mapMode === "traffy" || mapMode === "combined") && (
+          <div className="mb-4 rounded-lg border border-orange-500/20 bg-orange-950/20 px-3 py-2">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-orange-300">
+              Incident Evidence
+            </p>
+            <p className="mt-1 text-[10px] leading-snug text-slate-400">
+              Traffy ใช้เป็นหลักฐานเหตุการณ์ที่ประชาชนรายงาน ไม่ตีความว่าไม่มีเรื่องร้องเรียนเท่ากับไม่ท่วม
+            </p>
+          </div>
+        )}
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <MapPin className="w-3 h-3" /> พื้นที่ (District)
@@ -134,9 +169,17 @@ export default function FloodRiskSidebar({
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
               <Activity className="w-3 h-3 text-indigo-400 shrink-0" />
-              {compareMode ? "เปลี่ยนแปลง" : "เขตน้ำมาก"}
+              {mapMode === "combined" ? "Proxy สูงสุด" : mapMode === "traffy" ? "ร้องเรียนสูง" : compareMode ? "เปลี่ยนแปลง" : "เขตน้ำมาก"}
             </div>
-            {compareMode ? (
+            {mapMode === "combined" ? (
+              <div className="text-base font-bold font-mono text-rose-300">
+                {formatScore(rankingRows[0]?.combinedScore)}
+              </div>
+            ) : mapMode === "traffy" ? (
+              <div className="text-base font-bold font-mono text-orange-300">
+                {(traffySummary?.recentFloodReports ?? 0).toLocaleString("th-TH")}
+              </div>
+            ) : compareMode ? (
               <div className={`text-base font-bold font-mono ${(summary.avgDelta ?? 0) >= 0 ? "text-sky-400" : "text-amber-400"}`}>
                 {summary.avgDelta !== null ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(1)}%` : "–"}
               </div>
@@ -154,7 +197,7 @@ export default function FloodRiskSidebar({
         <section>
           <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 mb-2">
             <Activity className="w-3 h-3" />
-            {isAreaTrend ? "Trend พื้นที่น้ำ (ไร่)" : "Trend สัดส่วนน้ำ (%)"}
+            {mapMode === "traffy" || mapMode === "combined" ? "Trend ดาวเทียมประกอบ" : isAreaTrend ? "Trend พื้นที่น้ำ (ไร่)" : "Trend สัดส่วนน้ำ (%)"}
           </h3>
           <div className="flex items-end gap-[3px] h-20 mb-2">
             {trendData.map(([yr, val], idx) => {
@@ -190,7 +233,7 @@ export default function FloodRiskSidebar({
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3 shrink-0" />
-              {compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ" : "สัดส่วนพื้นที่น้ำรายเขต"}
+              {mapMode === "combined" ? "คะแนนเฝ้าระวังรวมรายเขต" : mapMode === "traffy" ? "Traffy น้ำท่วม/ระบายน้ำรายเขต" : compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ" : "สัดส่วนพื้นที่น้ำรายเขต"}
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
@@ -203,15 +246,27 @@ export default function FloodRiskSidebar({
           <div className="space-y-1.5">
             {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, idx: number) => {
               const isSelected = activeDistrict === row.district;
-              const displayVal = compareMode && row.delta !== null
-                ? `${row.delta >= 0 ? "+" : ""}${(row.delta * 100).toFixed(1)}%`
-                : formatPct(row.waterRatio);
-              const barPct = compareMode && row.delta !== null
-                ? Math.min(100, Math.abs(row.delta) / 0.1 * 100)
-                : ((row.waterRatio ?? 0) / maxRankingValue) * 100;
-              const barColor = compareMode
-                ? (row.delta ?? 0) >= 0 ? "from-sky-600 to-sky-400" : "from-amber-600 to-amber-400"
-                : "from-sky-600 to-cyan-400";
+              const displayVal = mapMode === "combined"
+                ? formatScore(row.combinedScore)
+                : mapMode === "traffy"
+                  ? `${(row.traffyRecent ?? 0).toLocaleString("th-TH")} เรื่อง`
+                  : compareMode && row.delta !== null
+                    ? `${row.delta >= 0 ? "+" : ""}${(row.delta * 100).toFixed(1)}%`
+                    : formatPct(row.waterRatio);
+              const barPct = mapMode === "combined"
+                ? ((row.combinedScore ?? 0) / maxRankingValue) * 100
+                : mapMode === "traffy"
+                  ? ((row.traffyScore ?? 0) / maxRankingValue) * 100
+                  : compareMode && row.delta !== null
+                    ? Math.min(100, Math.abs(row.delta) / 0.1 * 100)
+                    : ((row.waterRatio ?? 0) / maxRankingValue) * 100;
+              const barColor = mapMode === "combined"
+                ? "from-rose-700 to-orange-400"
+                : mapMode === "traffy"
+                  ? "from-orange-700 to-amber-300"
+                  : compareMode
+                    ? (row.delta ?? 0) >= 0 ? "from-sky-600 to-sky-400" : "from-amber-600 to-amber-400"
+                    : "from-sky-600 to-cyan-400";
 
               return (
                 <button

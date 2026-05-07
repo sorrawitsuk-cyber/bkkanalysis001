@@ -9,9 +9,11 @@ interface FloodRiskMapViewProps {
   geojsonData: any;
   invertedMask?: any;
   activeDistrict: string;
-  mapMode: "district" | "satellite-cache";
+  mapMode: "district" | "satellite-cache" | "traffy" | "combined";
   compareMode?: boolean;
   summary?: any;
+  traffyGeojson?: any;
+  traffySummary?: any;
   opacity?: number;
   baseMap?: "dark" | "light" | "satellite" | "streets" | "none";
   satelliteCachePreviewUrl?: string | null;
@@ -39,9 +41,32 @@ function getDeltaColor(delta: number | null | undefined): string {
   return "#78350f";
 }
 
+function getTraffyColor(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "#334155";
+  if (value >= 0.80) return "#7f1d1d";
+  if (value >= 0.60) return "#dc2626";
+  if (value >= 0.40) return "#f97316";
+  if (value >= 0.20) return "#facc15";
+  return "#164e63";
+}
+
+function getCombinedColor(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "#334155";
+  if (value >= 0.80) return "#881337";
+  if (value >= 0.60) return "#be123c";
+  if (value >= 0.40) return "#f97316";
+  if (value >= 0.20) return "#22c55e";
+  return "#0f766e";
+}
+
 function formatPct(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "ไม่มีข้อมูล";
   return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatNumber(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "ไม่มีข้อมูล";
+  return value.toLocaleString("th-TH", { maximumFractionDigits: digits });
 }
 
 export default function FloodRiskMapView({
@@ -51,6 +76,8 @@ export default function FloodRiskMapView({
   mapMode,
   compareMode,
   summary,
+  traffyGeojson,
+  traffySummary,
   opacity = 0.78,
   baseMap = "dark",
   satelliteCachePreviewUrl,
@@ -61,6 +88,7 @@ export default function FloodRiskMapView({
   const geojsonLayerRef   = useRef<L.GeoJSON | null>(null);
   const maskLayerRef      = useRef<L.GeoJSON | null>(null);
   const cacheLayerRef     = useRef<L.ImageOverlay | null>(null);
+  const traffyLayerRef    = useRef<L.LayerGroup | null>(null);
   const yearRef           = useRef(summary?.selectedYear || 2024);
   const compareModeRef    = useRef(compareMode);
   const activeDistrictRef = useRef(activeDistrict);
@@ -128,8 +156,49 @@ export default function FloodRiskMapView({
 
   const getFeatureColor = useCallback((feature: any) => {
     if (compareMode) return getDeltaColor(feature?.properties?.delta);
+    if (mapMode === "traffy") return getTraffyColor(feature?.properties?.traffy_score);
+    if (mapMode === "combined") return getCombinedColor(feature?.properties?.combined_flood_proxy);
     return getWaterColor(feature?.properties?.water_ratio);
-  }, [compareMode]);
+  }, [compareMode, mapMode]);
+
+  // Traffy point evidence overlay
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (traffyLayerRef.current) {
+      mapRef.current.removeLayer(traffyLayerRef.current);
+      traffyLayerRef.current = null;
+    }
+    if ((mapMode !== "traffy" && mapMode !== "combined") || !traffyGeojson?.features?.length) return;
+
+    const group = L.layerGroup();
+    traffyGeojson.features.forEach((feature: any) => {
+      const [lon, lat] = feature.geometry?.coordinates || [];
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+      const props = feature.properties || {};
+      const isOpen = ["รอรับเรื่อง", "กำลังดำเนินการ", "ส่งต่อ(ใหม่)", "ส่งต่อ"].some((state) =>
+        String(props.state || "").includes(state)
+      );
+      const marker = L.circleMarker([lat, lon], {
+        radius: isOpen ? 5 : 3.5,
+        color: isOpen ? "#f97316" : "#38bdf8",
+        fillColor: isOpen ? "#f97316" : "#38bdf8",
+        fillOpacity: isOpen ? 0.72 : 0.42,
+        weight: isOpen ? 1.3 : 0.8,
+      });
+      marker.bindPopup(`
+        <div class="text-slate-800 w-64">
+          <div class="font-bold text-slate-900">${props.district || "ไม่ระบุเขต"}</div>
+          <div class="text-[11px] text-slate-500 mb-1">${props.state || "ไม่ระบุสถานะ"} · ${props.ticket_id || ""}</div>
+          <div class="text-[12px] leading-snug">${props.description || props.problem_type || "ไม่มีรายละเอียด"}</div>
+          <div class="text-[10px] text-slate-500 mt-2">${props.address || ""}</div>
+          <div class="text-[10px] text-slate-400 mt-1">${props.timestamp ? new Date(props.timestamp).toLocaleString("th-TH") : ""}</div>
+        </div>
+      `);
+      group.addLayer(marker);
+    });
+    group.addTo(mapRef.current);
+    traffyLayerRef.current = group;
+  }, [mapMode, traffyGeojson]);
 
   // GeoJSON district layer
   useEffect(() => {
@@ -141,7 +210,7 @@ export default function FloodRiskMapView({
         const isSelected = activeDistrict !== ALL_DISTRICTS &&
           (feature?.properties?.name_th === activeDistrict || `เขต${feature?.properties?.name_th}` === activeDistrict);
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
-        const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const showFill = mapMode === "district" || mapMode === "traffy" || mapMode === "combined" || activeDistrict !== ALL_DISTRICTS;
         return {
           fillColor: getFeatureColor(feature),
           weight: isSelected ? 2.5 : 1,
@@ -157,6 +226,10 @@ export default function FloodRiskMapView({
         const waterAreaRai: number | null = props.water_area_rai;
         const delta: number | null = props.delta;
         const compareRatio: number | null = props.compare_water_ratio;
+        const traffyRecent = props.traffy_recent as number | null;
+        const traffyDensity = props.traffy_recent_per_sqkm as number | null;
+        const combinedScore = props.combined_flood_proxy as number | null;
+        const confidence = props.flood_proxy_confidence as string | null;
         const year = summary?.selectedYear ?? "–";
         const cmpYear = summary?.compareYear ?? "–";
 
@@ -165,12 +238,22 @@ export default function FloodRiskMapView({
            <div class="text-[10px] text-slate-400">ปีฐาน: <span class="text-slate-200 font-mono">${formatPct(compareRatio ?? undefined)}</span></div>`
           : "";
 
+        const traffyLine = (mapMode === "traffy" || mapMode === "combined")
+          ? `<div class="mt-2 border-t border-slate-800 pt-1.5">
+              <div class="text-[10px] text-slate-400">Traffy น้ำท่วม/ระบายน้ำ ${traffySummary?.recentDays || 365} วัน: <span class="text-orange-300 font-mono font-bold">${formatNumber(traffyRecent, 0)}</span> เรื่อง</div>
+              <div class="text-[10px] text-slate-400">ความหนาแน่นล่าสุด: <span class="text-orange-200 font-mono">${formatNumber(traffyDensity, 2)}</span> เรื่อง/ตร.กม.</div>
+              ${combinedScore !== null && combinedScore !== undefined ? `<div class="text-[10px] text-slate-400">คะแนน proxy รวม: <span class="text-rose-300 font-mono font-bold">${(combinedScore * 100).toFixed(0)}/100</span></div>` : ""}
+              ${confidence ? `<div class="text-[9px] text-slate-500">confidence: ${confidence}</div>` : ""}
+            </div>`
+          : "";
+
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[200px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1 text-sky-300">${props.name_th || "Unknown"}</div>
             <div class="text-[10px] text-slate-400">สัดส่วนพื้นที่น้ำ: <span class="text-sky-300 text-lg font-mono ml-1">${formatPct(waterRatio ?? undefined)}</span></div>
             ${waterAreaRai !== null ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่น้ำ: <span class="text-sky-200 font-mono">${(waterAreaRai).toLocaleString("th-TH")} ไร่</span></div>` : ""}
             ${deltaLine}
+            ${traffyLine}
             <div class="text-[9px] text-slate-500 mt-2">ปีที่แสดง: ${year}</div>
           </div>
         `, { sticky: true, className: "bg-transparent border-none shadow-none" });
@@ -186,7 +269,7 @@ export default function FloodRiskMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, getFeatureColor]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, traffySummary?.recentDays, getFeatureColor]);
 
   return <div id="flood-risk-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }
