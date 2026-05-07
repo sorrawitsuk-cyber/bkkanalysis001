@@ -11,16 +11,32 @@ interface NightLightsSidebarProps {
   summary: any;
   loading: boolean;
   compareMode?: boolean;
+  firstYear?: number;
+  latestDataYear?: number;
+  latestMonthlyYear?: number;
+  latestMonthlyMonth?: number;
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
+
+const THAI_MONTHS = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 function formatRadiance(value: number | null | undefined, digits = 2) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
   return value.toLocaleString("th-TH", { maximumFractionDigits: digits });
 }
 
-export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: NightLightsSidebarProps) {
+export default function NightLightsSidebar({
+  onDistrictSelect,
+  activeDistrict,
+  summary,
+  loading,
+  compareMode,
+  firstYear = 2013,
+  latestDataYear,
+  latestMonthlyYear,
+  latestMonthlyMonth = 3,
+}: NightLightsSidebarProps) {
   const [showAll, setShowAll] = useState(false);
 
   if (loading || !summary) {
@@ -48,6 +64,11 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
     ? Math.max(1, ...rankingValues.map((value) => Math.abs(value)))
     : Math.max(1, ...rankingValues);
 
+  const moYear = latestMonthlyYear || summary.selectedYear;
+  const moMonth = latestMonthlyMonth;
+  const moMonthName = THAI_MONTHS[moMonth] || "ม.ค.";
+  const annualRange = latestDataYear ? `${firstYear}–${latestDataYear}` : `${firstYear}–ปัจจุบัน`;
+
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
       <div className="p-5 border-b border-slate-800/60 sticky top-0 bg-[#0f172a]/95 backdrop-blur z-20">
@@ -68,7 +89,7 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
             "VIIRS DNB",
             isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
             "500m",
-            isMonthlyPreview ? "2025 preview" : "2014-2024 annual",
+            isMonthlyPreview ? `${moYear} preview` : `Annual ${annualRange}`,
           ].map((badge) => (
             <span key={badge} className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-2 py-1 text-[9px] font-bold text-yellow-100">
               {badge}
@@ -114,7 +135,11 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
               <Calendar className="w-3 h-3 text-sky-300" /> ปีข้อมูล
             </div>
             <div className="text-sm font-bold text-sky-300 font-mono leading-tight break-words">
-              {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : isMonthlyPreview ? `${summary.selectedMonth}/2025` : summary.selectedYear}
+              {compareMode
+                ? `${summary.selectedYear} vs ${summary.compareYear}`
+                : isMonthlyPreview
+                  ? `${summary.selectedMonth}/${moYear}`
+                  : summary.selectedYear}
             </div>
           </div>
         </div>
@@ -127,7 +152,7 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
           </h3>
           <p className="text-[9px] text-slate-500 leading-snug mb-3">
             {isMonthlyPreview
-              ? `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} ในเดือนที่มีข้อมูลปี 2025`
+              ? `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} ในเดือนที่มีข้อมูลปี ${moYear}`
               : `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} รายปี หน่วย nW/sr/cm²`}
           </p>
           <div className="flex items-end gap-[3px] h-20 mb-2">
@@ -147,7 +172,7 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
           </div>
           <div className="flex justify-between text-[9px] text-slate-500 font-mono">
             <span>{isMonthlyPreview ? "ม.ค." : yearlyTrend?.[0]?.[0]}</span>
-            <span>{isMonthlyPreview ? "มี.ค." : yearlyTrend?.[yearlyTrend?.length - 1]?.[0]}</span>
+            <span>{isMonthlyPreview ? moMonthName : yearlyTrend?.[yearlyTrend?.length - 1]?.[0]}</span>
           </div>
         </section>
 
@@ -163,8 +188,8 @@ export default function NightLightsSidebar({ onDistrictSelect, activeDistrict, s
             </div>
             <p className="mt-1 text-[9px] leading-relaxed text-slate-400">
               {isMonthlyPreview
-                ? "Monthly preview ใช้ดูภาพล่าสุดที่ GEE มีถึง มี.ค. 2025 เท่านั้น ยังไม่ใช่ข้อมูลรายปีเต็ม และไม่ควรนำไปเทียบตรง ๆ กับ annual 2024"
-                : "ชุดข้อมูล annual ถูกสร้างจาก monthly cloud-free radiance และผ่านการกรองค่าผิดปกติ/พื้นหลัง จึงเหมาะกับการเปรียบเทียบรายปีรายเขตมากกว่าการเอา monthly ดิบมารวมเองในหน้าโหลดแรก"}
+                ? `Monthly preview ใช้ดูภาพล่าสุดที่ GEE มีถึง ${moMonthName} ${moYear} เท่านั้น ไม่ควรนำไปเทียบตรง ๆ กับ annual`
+                : "ชุดข้อมูล annual ถูกสร้างจาก monthly cloud-free radiance และผ่านการกรองค่าผิดปกติ/พื้นหลัง จึงเหมาะกับการเปรียบเทียบรายปีรายเขต"}
             </p>
           </div>
         </section>

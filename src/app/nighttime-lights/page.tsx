@@ -134,7 +134,7 @@ export default function NighttimeLightsPage() {
   const [selectedMonth, setSelectedMonth] = useState(3);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2014);
-  const [mapMode, setMapMode] = useState<MapMode>("satellite-cache");
+  const [mapMode, setMapMode] = useState<MapMode>("district");
   const [geojsonData, setGeojsonData] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +143,7 @@ export default function NighttimeLightsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
 
-  // Derive year range dynamically from R2 index — fall back to sensible defaults
+  // Derive year range dynamically from R2 index
   const firstYear = useMemo(() => {
     if (!cacheIndex?.yearly?.length) return 2013;
     return Math.min(...cacheIndex.yearly.map(Number));
@@ -160,6 +160,7 @@ export default function NighttimeLightsPage() {
     const now = new Date();
     return [now.getFullYear(), now.getMonth() || 1];
   }, [cacheIndex]);
+
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [compareMeta, setCompareMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
@@ -170,9 +171,7 @@ export default function NighttimeLightsPage() {
       if (index.latest_year) setSelectedYear(Number(index.latest_year));
       if (index.latest_month) {
         const [year, month] = index.latest_month.split("-").map(Number);
-        if (year && month) {
-          setSelectedMonth(month);
-        }
+        if (year && month) setSelectedMonth(month);
       }
     });
   }, []);
@@ -203,7 +202,7 @@ export default function NighttimeLightsPage() {
           return;
         }
 
-        // Cache empty — fall back to GEE API (slow but complete)
+        // Cache empty — fall back to GEE API
         const params = new URLSearchParams({ product: dataProduct, year: String(selectedYear) });
         if (dataProduct === "monthly") params.set("month", String(selectedMonth));
         if (compareMode && dataProduct === "annual") params.set("compareYear", String(compareYear));
@@ -225,7 +224,7 @@ export default function NighttimeLightsPage() {
       });
   }, [dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
 
-  // Load full yearly trend from all R2 cache years (parallel fetch, post-render update)
+  // Load full yearly trend from all R2 cache years (parallel fetch, post-render)
   useEffect(() => {
     if (!cacheIndex?.yearly?.length || dataProduct !== "annual") return;
     Promise.all(
@@ -259,7 +258,7 @@ export default function NighttimeLightsPage() {
     setSelectedMonth(latestMonthlyMonth);
     setCompareMode(false);
     setCompareYear(firstYear);
-    setMapMode("satellite-cache");
+    setMapMode("district");
     setOpacity(0.82);
     setBaseMap("dark");
   };
@@ -333,6 +332,10 @@ export default function NighttimeLightsPage() {
         summary={summary}
         loading={loading}
         compareMode={compareMode && !isMonthlyPreview}
+        firstYear={firstYear}
+        latestDataYear={latestDataYear}
+        latestMonthlyYear={latestMonthlyYear}
+        latestMonthlyMonth={latestMonthlyMonth}
       />
 
       <main className="flex-1 min-w-0 relative">
@@ -355,6 +358,7 @@ export default function NighttimeLightsPage() {
           />
         </div>
 
+        {/* KPI cards */}
         <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
           {kpiCards.map((card) => (
             <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
@@ -364,6 +368,7 @@ export default function NighttimeLightsPage() {
           ))}
         </div>
 
+        {/* Data source badge */}
         <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 bg-yellow-300 rounded-full" />
@@ -380,6 +385,7 @@ export default function NighttimeLightsPage() {
           </div>
         </div>
 
+        {/* Legend */}
         <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
           <div className="mb-3">
             <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
@@ -398,8 +404,11 @@ export default function NighttimeLightsPage() {
         </div>
       </main>
 
+      {/* ── Right control panel ── */}
       <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
         <div className="flex min-h-full flex-col gap-3">
+
+          {/* Card 1: Map mode + Export */}
           <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <div className="flex justify-between items-center mb-4">
               <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -413,53 +422,23 @@ export default function NighttimeLightsPage() {
               </button>
             </div>
 
+            {/* Map mode toggle */}
             <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
               <button
                 onClick={() => setMapMode("district")}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                รายเขต
+                รายเขต (Districts)
               </button>
               <button
                 onClick={() => setMapMode("satellite-cache")}
                 className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "satellite-cache" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                R2 Cache
+                ดาวเทียม (GEE)
               </button>
             </div>
 
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => {
-                  setDataProduct("annual");
-                  setSelectedYear(latestDataYear);
-                }}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                Annual {firstYear}–{latestDataYear}
-              </button>
-              <button
-                onClick={() => {
-                  setDataProduct("monthly");
-                  setSelectedYear(latestMonthlyYear);
-                  setSelectedMonth(latestMonthlyMonth);
-                  setCompareMode(false);
-                }}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                {latestMonthlyYear} Preview
-              </button>
-            </div>
-
-            {isMonthlyPreview && (
-              <div className="mb-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
-                <div className="text-[10px] font-bold text-amber-100">ข้อมูลล่าสุดแบบรายเดือน</div>
-                <p className="mt-1 text-[9px] leading-snug text-slate-400">
-                  ข้อมูลรายเดือนล่าสุดถึง {latestMonthlyMonth}/{latestMonthlyYear} ใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual
-                </p>
-              </div>
-            )}
-
+            {/* Export button */}
             <button
               onClick={handleExportPlaceholder}
               disabled={isExporting}
@@ -472,11 +451,12 @@ export default function NighttimeLightsPage() {
               {isExporting ? (
                 <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังเตรียมรายงาน...</>
               ) : (
-                <><FileDown className="w-3.5 h-3.5" /> เตรียมรายงานสถิติ</>
+                <><FileDown className="w-3.5 h-3.5" /> นำออกรายงานสรุป</>
               )}
             </button>
           </div>
 
+          {/* Card 2: Opacity (satellite-cache only) */}
           {mapMode === "satellite-cache" && (
             <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
@@ -495,6 +475,7 @@ export default function NighttimeLightsPage() {
             </div>
           )}
 
+          {/* Card 3: Base map */}
           <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
@@ -518,20 +499,47 @@ export default function NighttimeLightsPage() {
             </div>
           </div>
 
+          {/* Card 4: Data product + Year + Compare */}
           <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
-              </h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5" /> ชุดข้อมูล &amp; ช่วงเวลา
+            </h4>
+
+            {/* Data product toggle */}
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
               <button
-                onClick={() => dataProduct === "annual" && setCompareMode(!compareMode)}
-                disabled={isMonthlyPreview}
-                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${isMonthlyPreview ? "bg-slate-900/50 text-slate-600 border-slate-800 cursor-not-allowed" : compareMode ? "bg-yellow-300/20 text-yellow-100 border-yellow-300/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
+                onClick={() => {
+                  setDataProduct("annual");
+                  setSelectedYear(latestDataYear);
+                }}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
-                {isMonthlyPreview ? "Preview เท่านั้น" : "เปรียบเทียบปี"}
+                Annual {firstYear}–{latestDataYear}
+              </button>
+              <button
+                onClick={() => {
+                  setDataProduct("monthly");
+                  setSelectedYear(latestMonthlyYear);
+                  setSelectedMonth(latestMonthlyMonth);
+                  setCompareMode(false);
+                }}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                {latestMonthlyYear} Preview
               </button>
             </div>
 
+            {/* Monthly info banner */}
+            {isMonthlyPreview && (
+              <div className="mb-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
+                <div className="text-[10px] font-bold text-amber-100">ข้อมูลล่าสุดแบบรายเดือน</div>
+                <p className="mt-1 text-[9px] leading-snug text-slate-400">
+                  ข้อมูลรายเดือนล่าสุดถึง {latestMonthlyMonth}/{latestMonthlyYear} ใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual
+                </p>
+              </div>
+            )}
+
+            {/* Year slider */}
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : firstYear}</span>
               <span className="text-lg font-bold text-yellow-200 font-mono">{selectedYear}</span>
@@ -543,13 +551,42 @@ export default function NighttimeLightsPage() {
               max={isMonthlyPreview ? latestMonthlyYear : latestDataYear}
               value={selectedYear}
               onChange={(event) => setSelectedYear(parseInt(event.target.value, 10))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300 mb-2"
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300 mb-4"
             />
 
-            {isMonthlyPreview && (
-              <div className="mt-4 pt-4 border-t border-slate-800/50">
+            {/* Compare toggle (annual only) */}
+            {!isMonthlyPreview && (
+              <button
+                onClick={() => setCompareMode(!compareMode)}
+                className={`w-full text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold mb-2 ${compareMode ? "bg-yellow-300/20 text-yellow-100 border-yellow-300/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500 hover:text-slate-300"}`}
+              >
+                {compareMode ? "✓ โหมดเปรียบเทียบปีเปิดอยู่" : "เปรียบเทียบปี (Compare Mode)"}
+              </button>
+            )}
+
+            {/* Compare year slider */}
+            {compareMode && !isMonthlyPreview && (
+              <div className="mt-2 pt-4 border-t border-slate-800/50">
                 <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">เดือนข้อมูลล่าสุด</h4>
+                  <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest">ปีฐานที่ใช้เทียบ</h4>
+                  <span className="text-sm font-bold text-yellow-100 font-mono">{compareYear}</span>
+                </div>
+                <input
+                  type="range"
+                  min={firstYear}
+                  max={latestDataYear}
+                  value={compareYear}
+                  onChange={(event) => setCompareYear(parseInt(event.target.value, 10))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
+                />
+              </div>
+            )}
+
+            {/* Month slider (monthly only) */}
+            {isMonthlyPreview && (
+              <div className="mt-2 pt-4 border-t border-slate-800/50">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">เดือน</h4>
                   <span className="text-sm font-bold text-amber-100 font-mono">{selectedMonth}/{latestMonthlyYear}</span>
                 </div>
                 <input
@@ -566,34 +603,19 @@ export default function NighttimeLightsPage() {
                 </div>
               </div>
             )}
-
-            {compareMode && !isMonthlyPreview && (
-              <div className="mt-4 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest">ปีฐานที่ใช้เทียบ (Baseline)</h4>
-                  <span className="text-sm font-bold text-yellow-100 font-mono">{compareYear}</span>
-                </div>
-                <input
-                  type="range"
-                  min={firstYear}
-                  max={latestDataYear}
-                  value={compareYear}
-                  onChange={(event) => setCompareYear(parseInt(event.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
-                />
-              </div>
-            )}
           </div>
 
+          {/* Card 5: Info */}
           <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-yellow-300/20 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest mb-2 flex items-center gap-2">
               <Moon className="w-3.5 h-3.5" /> Nighttime Lights คืออะไร
             </h4>
             <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
-          <p>VIIRS DNB วัดความสว่างกลางคืนของพื้นผิวโลก ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง ถนน อาคาร พาณิชยกรรม และพื้นที่ที่เปิดไฟต่อเนื่อง</p>
+              <p>VIIRS DNB วัดความสว่างกลางคืนของพื้นผิวโลก ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง ถนน อาคาร พาณิชยกรรม และพื้นที่ที่เปิดไฟต่อเนื่อง</p>
               <p>ข้อมูลนี้เหมาะสำหรับดูแนวโน้มความเข้มเมืองเชิงพื้นที่ แต่ไม่ควรตีความเป็นจำนวนประชากรหรือมูลค่าเศรษฐกิจโดยตรง เพราะแสงไฟถนน ท่าเรือ สนามบิน งานก่อสร้าง หรือแสงสะท้อนมีผลต่อค่าได้</p>
             </div>
           </div>
+
         </div>
       </aside>
     </div>
