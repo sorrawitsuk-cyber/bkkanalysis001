@@ -39,8 +39,15 @@ function parseCredentials() {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!, 10) : null;
-  const recentDays = Math.max(30, Math.min(3650, parseInt(searchParams.get("recentDays") || "365", 10)));
+  const recentDays = Math.max(1, Math.min(3650, parseInt(searchParams.get("recentDays") || "365", 10)));
   const pointLimit = Math.max(0, Math.min(3000, parseInt(searchParams.get("pointLimit") || "1200", 10)));
+
+  // referenceDate: "YYYY-MM-DD" — for historical years this is set to Dec 31 of that year
+  // so "recent" means "last N days before end of that year" instead of "last N days from now"
+  const referenceDateParam = searchParams.get("referenceDate");
+  const referenceTimestamp = referenceDateParam
+    ? `${referenceDateParam}T23:59:59`
+    : new Date().toISOString().slice(0, 19); // current UTC time without Z
 
   const credentials = parseCredentials();
   if (!process.env.BQ_PROJECT_ID || !process.env.BQ_DATASET || !credentials) {
@@ -93,7 +100,7 @@ export async function GET(request: Request) {
       SELECT
         (SELECT COUNT(*) FROM flood_filtered) AS total_flood_reports,
         (SELECT COUNT(*) FROM flood_filtered
-         WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @recent_days DAY)
+         WHERE created_at >= TIMESTAMP_SUB(TIMESTAMP(@reference_timestamp), INTERVAL @recent_days DAY)
         ) AS recent_flood_reports,
         (SELECT COUNT(*) FROM flood_filtered
          WHERE state IN UNNEST(@open_states)
@@ -111,7 +118,7 @@ export async function GET(request: Request) {
            SELECT
              district,
              COUNT(*) AS total,
-             COUNTIF(created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @recent_days DAY)) AS recent,
+             COUNTIF(created_at >= TIMESTAMP_SUB(TIMESTAMP(@reference_timestamp), INTERVAL @recent_days DAY)) AS recent,
              COUNTIF(state IN UNNEST(@open_states)) AS unresolved
            FROM flood_filtered
            WHERE district IS NOT NULL AND district != 'ไม่ระบุ'
@@ -147,6 +154,7 @@ export async function GET(request: Request) {
         point_limit: pointLimit,
         keyword_pattern: keywordPattern,
         open_states: OPEN_STATES,
+        reference_timestamp: referenceTimestamp,
       },
       types: {
         year: "INT64",
@@ -154,6 +162,7 @@ export async function GET(request: Request) {
         point_limit: "INT64",
         keyword_pattern: "STRING",
         open_states: ["STRING"],
+        reference_timestamp: "STRING",
       },
       parameterMode: "NAMED",
       location: "asia-southeast1",

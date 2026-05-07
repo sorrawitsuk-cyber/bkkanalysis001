@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { AlertTriangle, Calendar, Database, Layers, RefreshCw } from "lucide-react";
@@ -137,6 +137,8 @@ export default function FloodRiskPage() {
   const [traffyGeojson, setTraffyGeojson] = useState<any>(null);
   const [traffySummary, setTraffySummary] = useState<any>(null);
   const [traffyLoading, setTraffyLoading] = useState(false);
+  const lastTraffyFetchRef = useRef<number>(0);
+  const TRAFFY_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
@@ -188,26 +190,57 @@ export default function FloodRiskPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDistrict, selectedYear, compareMode, compareYear]);
 
-  // Fetch human-reported flood/drainage incident evidence from Traffy.
+  // Build Traffy fetch params: year-relative recentDays + referenceDate for historical years
+  const buildTraffyParams = useCallback(() => {
+    const currentYear = new Date().getFullYear();
+    const params = new URLSearchParams({ year: selectedYear.toString(), pointLimit: "1200" });
+    if (selectedYear === currentYear) {
+      // YTD: cover every day from Jan 1 of current year to today
+      const ytdDays = Math.max(1, Math.floor(
+        (Date.now() - new Date(selectedYear, 0, 1).getTime()) / 86_400_000
+      ) + 1);
+      params.set("recentDays", ytdDays.toString());
+    } else {
+      // Historical year: reference date = Dec 31 of that year so "recent" ≈ full year
+      params.set("recentDays", "365");
+      params.set("referenceDate", `${selectedYear}-12-31`);
+    }
+    return params;
+  }, [selectedYear]);
+
+  // Traffy fetch + auto-refresh (5 min interval + tab-focus re-fetch)
   useEffect(() => {
     if (mapMode !== "traffy" && mapMode !== "combined") return;
-    setTraffyLoading(true);
-    const params = new URLSearchParams({
-      year: selectedYear.toString(),
-      recentDays: "365",
-      pointLimit: "1200",
-    });
-    fetch(`/api/flood-risk/traffy?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setTraffyGeojson(data.geojson);
-        setTraffySummary(data.summary);
-        setTraffyLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setTraffyLoading(false);
-      });
+
+    const doFetch = () => {
+      setTraffyLoading(true);
+      lastTraffyFetchRef.current = Date.now();
+      fetch(`/api/flood-risk/traffy?${buildTraffyParams()}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setTraffyGeojson(data.geojson);
+          setTraffySummary(data.summary);
+          setTraffyLoading(false);
+        })
+        .catch((err) => { console.error(err); setTraffyLoading(false); });
+    };
+
+    doFetch();
+
+    const intervalId = setInterval(doFetch, TRAFFY_REFRESH_MS);
+
+    const handleVisibility = () => {
+      if (!document.hidden && Date.now() - lastTraffyFetchRef.current >= TRAFFY_REFRESH_MS) {
+        doFetch();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapMode, selectedYear]);
 
   // Load satellite cache index on mount (Sentinel-2, no product param)
