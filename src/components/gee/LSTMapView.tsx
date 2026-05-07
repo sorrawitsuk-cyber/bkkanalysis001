@@ -48,6 +48,7 @@ const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13
 
 export default function LSTMapView({
   geojsonData,
+  invertedMask,
   activeDistrict,
   mapMode,
   compareMode,
@@ -67,6 +68,7 @@ export default function LSTMapView({
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const geeLayerRef = useRef<L.TileLayer | null>(null);
   const cacheLayerRef = useRef<L.ImageOverlay | null>(null);
+  const maskLayerRef = useRef<L.GeoJSON | null>(null);
   const yearRef = useRef(summary?.selectedYear || 2024);
   const baselineYearRef = useRef(summary?.compareYear || 2018);
   const mapModeRef = useRef(mapMode);
@@ -322,6 +324,17 @@ export default function LSTMapView({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapMode, satelliteCachePreviewUrl, satelliteCacheBounds]);
+
+  // Inverted mask overlay — darkens area outside Bangkok
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (maskLayerRef.current) { mapRef.current.removeLayer(maskLayerRef.current); maskLayerRef.current = null; }
+    if (!invertedMask) return;
+    maskLayerRef.current = L.geoJSON(invertedMask, {
+      style: { fillColor: "#0b0f19", fillOpacity: 0.85, weight: 0, color: "transparent" },
+      interactive: false,
+    }).addTo(mapRef.current);
+  }, [invertedMask]);
 
   useEffect(() => {
     if (!mapRef.current || !geojsonData) return;

@@ -148,6 +148,7 @@ export default function NighttimeLightsPage() {
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [compareMeta, setCompareMeta] = useState<SatelliteCacheMetadata | null>(null);
+  const [invertedMask, setInvertedMask] = useState<any>(null);
 
   useEffect(() => {
     fetchCacheIndex("nightlights").then((index) => {
@@ -175,16 +176,33 @@ export default function NighttimeLightsPage() {
         ? fetchCacheMetadata("yearly", String(compareYear), "nightlights")
         : Promise.resolve(null),
     ])
-      .then(([meta, baselineMeta]) => {
+      .then(async ([meta, baselineMeta]) => {
         setCacheMeta(meta);
         setCompareMeta(baselineMeta);
-        const built = buildNightLightsView(meta, baselineMeta, selectedYear, selectedMonth, dataProduct);
-        setGeojsonData(built.geojson);
-        setSummary(built.summary);
+
+        // R2 cache has district stats — use them directly (fast path)
+        if ((meta?.district_stats?.length ?? 0) > 0) {
+          const built = buildNightLightsView(meta, baselineMeta, selectedYear, selectedMonth, dataProduct);
+          setGeojsonData(built.geojson);
+          setSummary(built.summary);
+          setLoading(false);
+          return;
+        }
+
+        // Cache empty — fall back to GEE API (slow but complete)
+        const params = new URLSearchParams({ product: dataProduct, year: String(selectedYear) });
+        if (dataProduct === "monthly") params.set("month", String(selectedMonth));
+        if (compareMode && dataProduct === "annual") params.set("compareYear", String(compareYear));
+        const res = await fetch(`/api/nighttime-lights?${params}`);
+        if (!res.ok) throw new Error(`Nighttime Lights API error ${res.status}`);
+        const data = await res.json();
+        setInvertedMask(data.invertedMask ?? null);
+        setGeojsonData(data.geojson);
+        setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
         setLoading(false);
       })
       .catch((error) => {
-        console.error(error);
+        console.error("Nighttime lights load failed:", error);
         setCacheMeta(null);
         setCompareMeta(null);
         setGeojsonData(null);
@@ -192,6 +210,33 @@ export default function NighttimeLightsPage() {
         setLoading(false);
       });
   }, [dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
+
+  // Load full yearly trend from all R2 cache years (parallel fetch, post-render update)
+  useEffect(() => {
+    if (!cacheIndex?.yearly?.length || dataProduct !== "annual") return;
+    Promise.all(
+      (cacheIndex.yearly as string[]).map((yr) =>
+        fetchCacheMetadata("yearly", yr, "nightlights").then((m) => {
+          const stats = (m?.district_stats ?? []) as any[];
+          const vals = stats
+            .map((r: any) => r.ntl_mean)
+            .filter((v: any): v is number => typeof v === "number" && Number.isFinite(v));
+          const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+          return [yr, avg !== null ? +avg.toFixed(3) : null, null] as [string, number | null, null];
+        })
+      )
+    )
+      .then((rows) => {
+        const trend = rows
+          .filter((r): r is [string, number, null] => r[1] !== null)
+          .sort((a, b) => Number(a[0]) - Number(b[0]));
+        if (trend.length > 1) {
+          setSummary((prev: any) => (prev ? { ...prev, yearlyTrend: trend } : prev));
+        }
+      })
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheIndex, dataProduct]);
 
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
@@ -280,6 +325,7 @@ export default function NighttimeLightsPage() {
         <div className="absolute inset-0 z-0">
           <LSTMapView
             geojsonData={geojsonData}
+            invertedMask={invertedMask}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
             compareMode={compareMode && !isMonthlyPreview}
