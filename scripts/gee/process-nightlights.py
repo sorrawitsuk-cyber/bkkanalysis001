@@ -167,7 +167,7 @@ def monthly_date_range(period: str) -> tuple[int, int, str, str]:
 def annual_dataset_for_year(year: int) -> str:
     if year < 2013:
         raise ValueError("Annual VIIRS nightlights cache supports 2013 or later")
-    return ANNUAL_DATASET_V21 if year <= 2021 else ANNUAL_DATASET_V22
+    return ANNUAL_DATASET_V21 if year <= 2020 else ANNUAL_DATASET_V22
 
 
 def build_image(period_type: str, period: str, geometry):
