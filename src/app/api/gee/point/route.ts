@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const baselineYear = parseInt(searchParams.get('baseline') || '2018', 10);
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
-  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : 'lst';
+  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : 'lst';
 
   if (!lat || !lng) {
     return NextResponse.json({ error: 'Missing coordinates' }, { status: 400 });
@@ -104,12 +104,27 @@ export async function GET(request: Request) {
       return celsius.rename('LST');
     };
 
+    const getNightLightsImage = (targetYear: number) => {
+      const cappedYear = Math.max(2014, Math.min(2024, targetYear));
+      return ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
+        .filterBounds(point)
+        .filterDate(`${cappedYear}-01-01`, `${cappedYear + 1}-01-01`)
+        .first()
+        .select('average_masked')
+        .max(0)
+        .rename('NTL');
+    };
+
     const { startDate, endDate } = getDateRange(year);
     const collection = metric === 'vegetation' || metric === 'builtup'
       ? ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
           .filterBounds(point)
           .filterDate(startDate, endDate)
           .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+      : metric === 'nightlights'
+        ? ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
+            .filterBounds(point)
+            .filterDate(`${Math.max(2014, Math.min(2024, year))}-01-01`, `${Math.max(2014, Math.min(2024, year)) + 1}-01-01`)
       : (year >= 2022
           ? ee.ImageCollection('LANDSAT/LC08/C02/T1_L2').merge(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'))
           : ee.ImageCollection('LANDSAT/LC08/C02/T1_L2'))
@@ -122,23 +137,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No satellite data found for this location/year' }, { status: 404 });
     }
 
-    const currentImage = metric === 'vegetation' ? getSentinelNdviImage(year, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(year, todayMMDD) : getLandsatLSTImage(year, todayMMDD);
+    const currentImage = metric === 'vegetation' ? getSentinelNdviImage(year, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(year, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(year) : getLandsatLSTImage(year, todayMMDD);
     const metricImage = isCompare
-      ? currentImage.subtract(metric === 'vegetation' ? getSentinelNdviImage(baselineYear, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(baselineYear, todayMMDD) : getLandsatLSTImage(baselineYear, todayMMDD))
+      ? currentImage.subtract(metric === 'vegetation' ? getSentinelNdviImage(baselineYear, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(baselineYear, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(baselineYear) : getLandsatLSTImage(baselineYear, todayMMDD))
       : currentImage;
 
     // 3. Sample the value at the point
     const result = await evaluateEe<Record<string, number | null>>(metricImage.reduceRegion({
       reducer: ee.Reducer.first(),
       geometry: point,
-      scale: metric === 'vegetation' ? 10 : 30,
+      scale: metric === 'vegetation' ? 10 : metric === 'nightlights' ? 500 : 30,
       bestEffort: true,
     }));
 
-    const value = metric === 'vegetation' ? result.NDVI : metric === 'builtup' ? result.NDBI : result.LST;
+    const value = metric === 'vegetation' ? result.NDVI : metric === 'builtup' ? result.NDBI : metric === 'nightlights' ? result.NTL : result.LST;
 
     return NextResponse.json({ 
-      temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' ? 3 : 2)) : null,
+      temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' || metric === 'nightlights' ? 3 : 2)) : null,
       metric,
       lat,
       lng,
@@ -149,8 +164,10 @@ export async function GET(request: Request) {
         ? 'Sentinel-2 SR Harmonized yearly median NDVI'
         : metric === 'builtup'
           ? 'Sentinel-2 SR Harmonized yearly median NDBI'
-          : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
-      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : 30
+          : metric === 'nightlights'
+            ? 'VIIRS DNB Annual V2.2 average_masked'
+            : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' ? 500 : 30
     });
 
   } catch (error: any) {

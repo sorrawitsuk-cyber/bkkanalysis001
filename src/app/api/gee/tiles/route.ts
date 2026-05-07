@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const baselineYear = baselineParam && baselineParam !== 'null' ? parseInt(baselineParam, 10) : 2018;
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
-  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : 'lst';
+  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : 'lst';
 
   try {
     await initGEE();
@@ -97,6 +97,17 @@ export async function GET(request: Request) {
     const getMetricImage = (y: number, endMMDD = '12-31') => {
       if (metric === 'vegetation') return getSentinelNdviImage(y, endMMDD);
       if (metric === 'builtup') return getSentinelNdbiImage(y, endMMDD);
+      if (metric === 'nightlights') {
+        const targetYear = Math.max(2014, Math.min(2024, y));
+        return ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
+          .filterBounds(bkkBoundary)
+          .filterDate(`${targetYear}-01-01`, `${targetYear + 1}-01-01`)
+          .first()
+          .select('average_masked')
+          .max(0)
+          .rename('NTL')
+          .clip(bkkBoundary);
+      }
 
       // ST_B10 is Surface Temperature band (Kelvin)
       // Scale: 0.00341802, Offset: 149.0
@@ -117,7 +128,9 @@ export async function GET(request: Request) {
         ? { min: -0.2, max: 0.2, palette: ['#8B1E1E', '#F59E0B', '#F7F7F7', '#86EFAC', '#047857'] }
         : metric === 'builtup'
           ? { min: -0.2, max: 0.2, palette: ['#047857', '#86EFAC', '#F7F7F7', '#F59E0B', '#8B1E1E'] }
-          : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
+          : metric === 'nightlights'
+            ? { min: -12, max: 12, palette: ['#08306B', '#4292C6', '#F7F7F7', '#F59E0B', '#B45309'] }
+            : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
     } else {
       resultImage = getMetricImage(year);
       
@@ -125,7 +138,9 @@ export async function GET(request: Request) {
         ? { min: 0.1, max: 0.8, palette: ['#7F1D1D', '#B45309', '#FACC15', '#84CC16', '#16A34A', '#065F46'] }
         : metric === 'builtup'
           ? { min: -0.2, max: 0.4, palette: ['#16A34A', '#84CC16', '#FACC15', '#F59E0B', '#EF4444', '#7F1D1D'] }
-          : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
+          : metric === 'nightlights'
+            ? { min: 0, max: 80, palette: ['#030712', '#172554', '#2563EB', '#FACC15', '#F97316', '#FFFFFF'] }
+            : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
     }
 
     // Get Map ID from GEE
@@ -144,8 +159,10 @@ export async function GET(request: Request) {
         ? 'Sentinel-2 SR Harmonized yearly median NDVI'
         : metric === 'builtup'
           ? 'Sentinel-2 SR Harmonized yearly median NDBI'
-          : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
-      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : 30,
+          : metric === 'nightlights'
+            ? 'VIIRS DNB Annual V2.2 average_masked'
+            : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' ? 500 : 30,
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'

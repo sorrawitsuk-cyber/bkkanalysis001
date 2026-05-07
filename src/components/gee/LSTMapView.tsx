@@ -16,7 +16,7 @@ interface LSTMapViewProps {
   summary?: any;
   opacity?: number;
   baseMap?: "dark" | "light" | "satellite" | "streets" | "none";
-  analysisType?: "heat" | "green" | "builtup";
+  analysisType?: "heat" | "green" | "builtup" | "nightlights";
   ndviLayer?: "green_area_rai" | "green_area_ratio" | "ndvi_mean";
   dataPeriodLabel?: string;
   /** WebP preview URL from R2 cache — rendered as an image overlay in satellite-cache mode. */
@@ -97,12 +97,13 @@ export default function LSTMapView({
     const currentAnalysis = analysisTypeRef.current;
     const isGreen = currentAnalysis === "green";
     const isBuiltup = currentAnalysis === "builtup";
+    const isNightlights = currentAnalysis === "nightlights";
     const isCompare = compareModeRef.current;
-    const accent = isGreen ? "text-emerald-400" : isBuiltup ? "text-indigo-400" : "text-orange-400";
+    const accent = isGreen ? "text-emerald-400" : isBuiltup ? "text-indigo-400" : isNightlights ? "text-yellow-300" : "text-orange-400";
     const label = isCompare
-      ? isGreen ? "ส่วนต่าง NDVI" : isBuiltup ? "ส่วนต่าง NDBI" : "ส่วนต่าง LST"
-      : isGreen ? "ค่า NDVI ณ พิกเซล" : isBuiltup ? "ค่า NDBI ณ พิกเซล" : "ค่า LST ณ พิกเซล";
-    const unit = (isGreen || isBuiltup) ? "" : "°C";
+      ? isGreen ? "ส่วนต่าง NDVI" : isBuiltup ? "ส่วนต่าง NDBI" : isNightlights ? "ส่วนต่างแสงกลางคืน" : "ส่วนต่าง LST"
+      : isGreen ? "ค่า NDVI ณ พิกเซล" : isBuiltup ? "ค่า NDBI ณ พิกเซล" : isNightlights ? "ค่าแสงกลางคืน ณ พิกเซล" : "ค่า LST ณ พิกเซล";
+    const unit = (isGreen || isBuiltup) ? "" : isNightlights ? " nW/sr/cm²" : "°C";
     const signedValue = typeof options.value === "number" && isCompare && options.value > 0 ? `+${options.value}` : options.value;
     const valueText = options.loading
       ? "กำลังอ่านค่า..."
@@ -110,7 +111,7 @@ export default function LSTMapView({
         ? "ไม่มีข้อมูล"
         : options.value === null || options.value === undefined
           ? "ไม่มีข้อมูล"
-          : (isGreen || isBuiltup)
+          : (isGreen || isBuiltup || isNightlights)
             ? `${signedValue}${unit}`
             : isCompare
               ? `${signedValue}${unit}`
@@ -132,7 +133,8 @@ export default function LSTMapView({
           <div>lat ${options.lat.toFixed(6)}</div>
           <div>lng ${options.lng.toFixed(6)}</div>
         </div>
-        ${(!isGreen && !isBuiltup) && !isCompare && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div><div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>` : ""}
+        ${(!isGreen && !isBuiltup && !isNightlights) && !isCompare && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div><div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>` : ""}
+        ${isNightlights && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง แสงไฟถนน อาคาร และพื้นที่พาณิชยกรรม</div>` : ""}
         ${options.error ? `<div class="text-[9px] text-red-300 mt-2">${options.error}</div>` : ""}
       </div>
     `;
@@ -163,7 +165,7 @@ export default function LSTMapView({
 
       try {
         const currentAnalysis = analysisTypeRef.current;
-        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : currentAnalysis === "builtup" ? "&metric=builtup" : "";
+        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : currentAnalysis === "builtup" ? "&metric=builtup" : currentAnalysis === "nightlights" ? "&metric=nightlights" : "";
         const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
         const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}${compareParam}`);
         const data = await res.json();
@@ -202,8 +204,13 @@ export default function LSTMapView({
   }, [baseMap]);
 
   const getFeatureValue = useCallback((feature: any) => {
-    if (compareMode) return analysisType === "green" ? feature?.properties?.vegetation_delta : feature?.properties?.delta;
+    if (compareMode) {
+      if (analysisType === "green") return feature?.properties?.vegetation_delta;
+      if (analysisType === "nightlights") return feature?.properties?.ntl_delta;
+      return feature?.properties?.delta;
+    }
     if (analysisType === "builtup") return feature?.properties?.ndbi_mean ?? feature?.properties?.ndbi;
+    if (analysisType === "nightlights") return feature?.properties?.ntl_mean;
     if (analysisType !== "green") return feature?.properties?.mean_lst;
     if (ndviLayer === "green_area_rai") return feature?.properties?.green_area_rai;
     if (ndviLayer === "green_area_ratio") return feature?.properties?.green_area_ratio;
@@ -219,6 +226,9 @@ export default function LSTMapView({
       if (analysisType === "builtup") {
         return value > 0.1 ? "#EF4444" : value > 0.05 ? "#F59E0B" : value > -0.05 ? "#F7F7F7" : value > -0.1 ? "#84CC16" : "#16A34A";
       }
+      if (analysisType === "nightlights") {
+        return value > 8 ? "#B45309" : value > 3 ? "#F59E0B" : value > -3 ? "#F7F7F7" : value > -8 ? "#4292C6" : "#08306B";
+      }
       return value > 1.5 ? "#B2182B" : value > 0.5 ? "#EF8A62" : value > -0.5 ? "#F7F7F7" : value > -1.5 ? "#67A9CF" : "#2166AC";
     }
 
@@ -227,6 +237,14 @@ export default function LSTMapView({
       const max = 0.4;
       const pct = (value - min) / Math.max(0.01, max - min);
       return pct > 0.8 ? "#7F1D1D" : pct > 0.6 ? "#EF4444" : pct > 0.4 ? "#F59E0B" : pct > 0.2 ? "#84CC16" : "#16A34A";
+    }
+
+    if (analysisType === "nightlights") {
+      if (value < 5) return "#172554";
+      if (value < 15) return "#2563EB";
+      if (value < 35) return "#FACC15";
+      if (value < 60) return "#F97316";
+      return "#FFFFFF";
     }
 
     if (analysisType === "green") {
@@ -260,7 +278,7 @@ export default function LSTMapView({
       }
       if (mapMode === "idw" && summary?.selectedYear) {
         try {
-          const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : "";
+          const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? "&metric=nightlights" : "";
           const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}`);
           const data = await res.json();
           if (data.urlFormat) {
@@ -321,9 +339,9 @@ export default function LSTMapView({
         if (mapMode !== "district") return;
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
-        const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : 3;
-        const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : "";
-        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : analysisType === "builtup" ? "NDBI" : "ค่า LST";
+        const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : 3;
+        const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : analysisType === "nightlights" ? " nW/sr/cm²" : "";
+        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : analysisType === "builtup" ? "NDBI" : analysisType === "nightlights" ? "ค่าแสงกลางคืน" : "ค่า LST";
         const selectedDisplay = analysisType === "green" && ndviLayer === "green_area_ratio" && typeof value === "number"
           ? `${(value * 100).toFixed(1)}%`
           : formatValue(value, analysisType === "heat" ? 2 : decimals, unit);
@@ -343,13 +361,19 @@ export default function LSTMapView({
               <div class="text-[10px] text-slate-400 mt-1">NDBI เฉลี่ย: <span class="text-indigo-300 font-mono">${formatValue(props.ndbi_mean, 3)}</span></div>
               <div class="text-[9px] text-slate-500 mt-2">ค่า NDBI สะท้อนความหนาแน่นของสิ่งปลูกสร้าง ยิ่งสูงแปลว่ามีสิ่งปลูกสร้าง/คอนกรีตหนาแน่น</div>
             ` : "";
+        const nightlightDetails = analysisType === "nightlights" ? `
+              <div class="text-[10px] text-slate-400 mt-1">ค่าสูงสุดในเขต: <span class="text-yellow-200 font-mono">${formatValue(props.ntl_max, 3, " nW/sr/cm²")}</span></div>
+              ${props.ntl_delta !== null && props.ntl_delta !== undefined ? `<div class="text-[10px] text-slate-400 mt-1">เปลี่ยนแปลง: <span class="${props.ntl_delta >= 0 ? "text-amber-300" : "text-sky-300"} font-mono">${props.ntl_delta >= 0 ? "+" : ""}${props.ntl_delta.toFixed(3)}</span></div>` : ""}
+              <div class="text-[9px] text-slate-500 mt-2">VIIRS DNB avg_rad สะท้อนความเข้มแสงกลางคืนและกิจกรรมเมือง ไม่ใช่จำนวนประชากรโดยตรง</div>
+            ` : "";
 
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[190px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}</div>
-            <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : analysisType === "builtup" ? "text-indigo-300" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
+            <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : analysisType === "builtup" ? "text-indigo-300" : analysisType === "nightlights" ? "text-yellow-200" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
             ${heatDetails}
             ${builtupDetails}
+            ${nightlightDetails}
             ${analysisType === "green" ? `
               <div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">ระดับ: <span class="text-emerald-300">${props.ndvi_class || "ไม่มีข้อมูล"}</span></div>
