@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import { AlertTriangle, Calendar, Database, Layers, RefreshCw } from "lucide-react";
+import * as turf from "@turf/turf";
+import { Calendar, Database, Layers, RefreshCw } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -19,7 +20,7 @@ import {
 
 const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false });
 
-type MapMode = "district" | "satellite-cache" | "traffy" | "combined";
+type MapMode = "district" | "satellite-cache";
 
 const WATER_CACHE_LAYERS = ["ndwi_mean", "ndwi_max", "mndwi_mean"] as const;
 type WaterCacheLayer = typeof WATER_CACHE_LAYERS[number];
@@ -51,20 +52,6 @@ const MODE_GUIDANCE: Record<MapMode | "compare", {
     caution: "NDWI mean ดูภาพนิ่ง, NDWI max ช่วยจับน้ำชั่วคราว, MNDWI เหมาะกับเมืองมากกว่า",
     tone: "border-cyan-500/40 bg-cyan-950/35 text-cyan-200",
   },
-  traffy: {
-    eyebrow: "เหตุการณ์จากประชาชน",
-    title: "พื้นที่ไหนมีเรื่องร้องเรียนน้ำท่วม",
-    description: "ใช้ดูรายงาน Traffy เกี่ยวกับน้ำท่วม น้ำขัง และการระบายน้ำ พร้อมจุดเหตุการณ์บนแผนที่",
-    caution: "ไม่มีรายงานไม่ได้แปลว่าไม่ท่วม เพราะมี reporting bias ตามการใช้งานแพลตฟอร์ม",
-    tone: "border-orange-500/40 bg-orange-950/35 text-orange-200",
-  },
-  combined: {
-    eyebrow: "จัดลำดับเฝ้าระวัง",
-    title: "พื้นที่ไหนควรถูกตามก่อน",
-    description: "รวม Traffy, สัญญาณน้ำจากดาวเทียม และสถานะงานค้าง เพื่อช่วยเรียงลำดับพื้นที่น่าสนใจ",
-    caution: "เป็น proxy เพื่อคัดกรอง ไม่ใช่ hydraulic flood model หรือคำทำนายน้ำท่วม",
-    tone: "border-rose-500/40 bg-rose-950/35 text-rose-200",
-  },
   compare: {
     eyebrow: "เทียบกับปีฐาน",
     title: "น้ำเพิ่มหรือลดจากปีฐาน",
@@ -75,27 +62,25 @@ const MODE_GUIDANCE: Record<MapMode | "compare", {
 };
 
 const MODE_OPTIONS: Array<{ id: MapMode; label: string; sublabel: string; activeClass: string }> = [
-  { id: "district", label: "พื้นที่น้ำ", sublabel: "จัดอันดับรายเขต", activeClass: "bg-sky-500 text-white shadow-lg shadow-sky-500/20" },
-  { id: "satellite-cache", label: "ภาพ NDWI", sublabel: "ดู raster รายเดือน", activeClass: "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" },
-  { id: "traffy", label: "เรื่องร้องเรียน", sublabel: "จุดเหตุการณ์จริง", activeClass: "bg-orange-600 text-white shadow-lg shadow-orange-500/20" },
-  { id: "combined", label: "เฝ้าระวังรวม", sublabel: "เรียงพื้นที่น่าตาม", activeClass: "bg-rose-600 text-white shadow-lg shadow-rose-500/20" },
+  { id: "satellite-cache", label: "GEE NDWI/MNDWI", sublabel: "NDWI mean · max · MNDWI", activeClass: "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" },
+  { id: "district", label: "สถิติเขต/แขวง", sublabel: "ค่าเฉลี่ยและพื้นที่น้ำ", activeClass: "bg-sky-500 text-white shadow-lg shadow-sky-500/20" },
 ];
 
-function clamp01(value: number) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(1, value));
-}
+const DISTRICT_AREA_RAI = new Map<number, number>(
+  (bkkDistricts.features as any[]).map((feature: any) => [
+    Number(feature.properties.id),
+    Math.round(turf.area(feature) / 1600),
+  ]),
+);
 
-function normalizeDistrictName(value: string | null | undefined) {
-  return (value || "").replace(/^เขต/, "").trim();
-}
-
-function confidenceLabel(hasTraffy: boolean, waterScore: number, status?: string) {
-  if (status !== "ok") return "ข้อมูล Traffy ยังไม่พร้อม";
-  if (hasTraffy && waterScore >= 0.35) return "สูง: Traffy และสัญญาณน้ำสอดคล้องกัน";
-  if (hasTraffy) return "กลาง: ยืนยันจากเรื่องร้องเรียนเป็นหลัก";
-  if (waterScore >= 0.35) return "ต่ำ-กลาง: พบจากดาวเทียมเป็นหลัก";
-  return "ต่ำ: หลักฐานเชิงพื้นที่ยังจำกัด";
+function getLayerValue(row: any, layer: WaterCacheLayer): number | null {
+  const value = row?.[layer];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (layer === "ndwi_max") {
+    const fallback = row?.ndwi_mean;
+    return typeof fallback === "number" && Number.isFinite(fallback) ? fallback : null;
+  }
+  return null;
 }
 
 function buildFloodRiskView(
@@ -103,6 +88,7 @@ function buildFloodRiskView(
   baselineMeta: SatelliteCacheMetadata | null,
   selectedYear: number,
   compareYearVal: number | null,
+  selectedLayer: WaterCacheLayer,
 ) {
   const rows = (meta?.district_stats ?? []) as any[];
   const baselineRows = (baselineMeta?.district_stats ?? []) as any[];
@@ -115,6 +101,11 @@ function buildFloodRiskView(
   const features = (bkkDistricts.features as any[]).map((feature: any) => {
     const row = rowById.get(Number(feature.properties.id));
     const waterRatio: number | null = row?.water_ratio ?? null;
+    const layerValue = getLayerValue(row, selectedLayer);
+    const districtAreaRai = DISTRICT_AREA_RAI.get(Number(feature.properties.id)) ?? null;
+    const waterAreaRai = waterRatio !== null && districtAreaRai !== null
+      ? Math.round(waterRatio * districtAreaRai)
+      : null;
     const baselineRow = compareYearVal !== null ? baselineById.get(Number(feature.properties.id)) : null;
     const compareRatio: number | null = baselineRow?.water_ratio ?? null;
     const delta = waterRatio !== null && compareRatio !== null
@@ -130,19 +121,28 @@ function buildFloodRiskView(
       properties: {
         ...feature.properties,
         water_ratio: waterRatio,
-        water_area_rai: null,          // not available in cache path (no area table)
-        district_area_rai: null,
+        water_area_rai: waterAreaRai,
+        district_area_rai: districtAreaRai,
         delta,
         compare_water_ratio: compareRatio,
         ndwi_mean: row?.ndwi_mean ?? null,
+        ndwi_max: row?.ndwi_max ?? null,
         mndwi_mean: row?.mndwi_mean ?? null,
+        display_value: layerValue,
+        display_area_rai: waterAreaRai,
+        display_layer: selectedLayer,
+        display_label: WATER_LAYER_LABELS[selectedLayer],
       },
     };
   });
 
-  const validRows = rows.filter((r: any) => typeof r.water_ratio === "number");
-  const avgWaterRatio = validRows.length
-    ? parseFloat((validRows.reduce((s: number, r: any) => s + r.water_ratio, 0) / validRows.length).toFixed(4))
+  const validRows = rows.filter((r: any) => typeof getLayerValue(r, selectedLayer) === "number");
+  const avgDisplayValue = validRows.length
+    ? parseFloat((validRows.reduce((s: number, r: any) => s + (getLayerValue(r, selectedLayer) ?? 0), 0) / validRows.length).toFixed(4))
+    : null;
+  const waterRows = rows.filter((r: any) => typeof r.water_ratio === "number");
+  const avgWaterRatio = waterRows.length
+    ? parseFloat((waterRows.reduce((s: number, r: any) => s + r.water_ratio, 0) / waterRows.length).toFixed(4))
     : null;
   const baselineValidRows = baselineRows.filter((r: any) => typeof r.water_ratio === "number");
   const baselineAvg = baselineValidRows.length
@@ -152,8 +152,18 @@ function buildFloodRiskView(
     ? parseFloat((avgWaterRatio - baselineAvg).toFixed(4)) : null;
 
   const ranking = [...validRows]
-    .sort((a: any, b: any) => (b.water_ratio ?? 0) - (a.water_ratio ?? 0))
-    .map((r: any) => [r.district_name ?? "ไม่ระบุ", r.water_ratio, null]);
+    .sort((a: any, b: any) => (getLayerValue(b, selectedLayer) ?? -Infinity) - (getLayerValue(a, selectedLayer) ?? -Infinity))
+    .map((r: any) => {
+      const districtId = Number(r.district_id);
+      const areaRai = DISTRICT_AREA_RAI.get(districtId) ?? null;
+      const waterAreaRai = typeof r.water_ratio === "number" && areaRai !== null ? Math.round(r.water_ratio * areaRai) : null;
+      return [r.district_name ?? "ไม่ระบุ", getLayerValue(r, selectedLayer), waterAreaRai];
+    });
+  const totalWaterAreaRai = waterRows.reduce((sum: number, row: any) => {
+    const districtId = Number(row.district_id);
+    const areaRai = DISTRICT_AREA_RAI.get(districtId);
+    return sum + (typeof row.water_ratio === "number" && areaRai ? Math.round(row.water_ratio * areaRai) : 0);
+  }, 0);
 
   return {
     geojson: { type: "FeatureCollection", features },
@@ -161,7 +171,8 @@ function buildFloodRiskView(
       selectedYear,
       compareYear: compareYearVal,
       avgWaterRatio,
-      totalWaterAreaRai: 0,
+      avgDisplayValue,
+      totalWaterAreaRai,
       baselineAvg,
       avgDelta,
       topWet: ranking.slice(0, 5),
@@ -171,6 +182,8 @@ function buildFloodRiskView(
       waterAreaTrend: [],
       min_value: minValue !== Infinity ? minValue : 0,
       max_value: maxValue !== -Infinity ? maxValue : 0.5,
+      displayLayer: selectedLayer,
+      displayLabel: WATER_LAYER_LABELS[selectedLayer],
       dataSource: "R2 cache (Sentinel-2)",
       cacheStatus: meta?.status ?? "pending",
     },
@@ -187,11 +200,6 @@ export default function FloodRiskPage() {
   const [geojsonData, setGeojsonData] = useState<any>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
-  const [traffyGeojson, setTraffyGeojson] = useState<any>(null);
-  const [traffySummary, setTraffySummary] = useState<any>(null);
-  const [traffyLoading, setTraffyLoading] = useState(false);
-  const lastTraffyFetchRef = useRef<number>(0);
-  const TRAFFY_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
@@ -219,7 +227,7 @@ export default function FloodRiskPage() {
 
         if (hasWaterCache) {
           // R2 fast path — district_stats already in cache
-          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null);
+          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null, cacheLayer);
           setGeojsonData(built.geojson);
           setSummary(built.summary);
           setLoading(false);
@@ -241,60 +249,7 @@ export default function FloodRiskPage() {
       })
       .catch((err) => { console.error(err); setLoading(false); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDistrict, selectedYear, compareMode, compareYear]);
-
-  // Build Traffy fetch params: year-relative recentDays + referenceDate for historical years
-  const buildTraffyParams = useCallback(() => {
-    const currentYear = new Date().getFullYear();
-    const params = new URLSearchParams({ year: selectedYear.toString(), pointLimit: "1200" });
-    if (selectedYear === currentYear) {
-      // YTD: cover every day from Jan 1 of current year to today
-      const ytdDays = Math.max(1, Math.floor(
-        (Date.now() - new Date(selectedYear, 0, 1).getTime()) / 86_400_000
-      ) + 1);
-      params.set("recentDays", ytdDays.toString());
-    } else {
-      // Historical year: reference date = Dec 31 of that year so "recent" ≈ full year
-      params.set("recentDays", "365");
-      params.set("referenceDate", `${selectedYear}-12-31`);
-    }
-    return params;
-  }, [selectedYear]);
-
-  // Traffy fetch + auto-refresh (5 min interval + tab-focus re-fetch)
-  useEffect(() => {
-    if (mapMode !== "traffy" && mapMode !== "combined") return;
-
-    const doFetch = () => {
-      setTraffyLoading(true);
-      lastTraffyFetchRef.current = Date.now();
-      fetch(`/api/flood-risk/traffy?${buildTraffyParams()}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setTraffyGeojson(data.geojson);
-          setTraffySummary(data.summary);
-          setTraffyLoading(false);
-        })
-        .catch((err) => { console.error(err); setTraffyLoading(false); });
-    };
-
-    doFetch();
-
-    const intervalId = setInterval(doFetch, TRAFFY_REFRESH_MS);
-
-    const handleVisibility = () => {
-      if (!document.hidden && Date.now() - lastTraffyFetchRef.current >= TRAFFY_REFRESH_MS) {
-        doFetch();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    return () => {
-      clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapMode, selectedYear]);
+  }, [activeDistrict, selectedYear, compareMode, compareYear, cacheLayer]);
 
   // Load satellite cache index on mount (Sentinel-2, no product param)
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
@@ -307,7 +262,7 @@ export default function FloodRiskPage() {
         fetchCacheMetadata("yearly", yr).then((m) => {
           const stats = (m?.district_stats ?? []) as any[];
           const vals  = stats
-            .map((r: any) => r.water_ratio)
+            .map((r: any) => getLayerValue(r, cacheLayer))
             .filter((v: any): v is number => typeof v === "number" && Number.isFinite(v));
           const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
           return [yr, avg !== null ? +avg.toFixed(4) : null] as [string, number | null];
@@ -324,7 +279,7 @@ export default function FloodRiskPage() {
       })
       .catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cacheIndex]);
+  }, [cacheIndex, cacheLayer]);
 
   // Default cache period when entering satellite-cache mode
   useEffect(() => {
@@ -357,59 +312,26 @@ export default function FloodRiskPage() {
   };
 
   const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, cacheLayer);
-  const augmentedGeojsonData = useMemo(() => {
-    if (!geojsonData?.features) return geojsonData;
-    const districtRows = traffySummary?.byDistrict || [];
-    const traffyByDistrict = new Map<string, any>(
-      districtRows.map((row: any) => [normalizeDistrictName(row.district), row]),
-    );
-    const maxRecentDensity = Math.max(
-      0,
-      ...districtRows.map((row: any) => Number(row.recent_reports_per_sqkm || 0)),
-    );
-    const maxTotalDensity = Math.max(
-      0,
-      ...districtRows.map((row: any) => Number(row.reports_per_sqkm || 0)),
-    );
-
+  const cacheBuiltView = useMemo(() => {
+    if (mapMode !== "satellite-cache" || cacheMeta?.status !== "ok") return null;
+    const built = buildFloodRiskView(cacheMeta, null, Number(cacheMeta.period.slice(0, 4)) || selectedYear, null, cacheLayer);
     return {
-      ...geojsonData,
-      features: geojsonData.features.map((feature: any) => {
-        const districtName = normalizeDistrictName(feature.properties?.name_th);
-        const traffy = traffyByDistrict.get(districtName);
-        const recentDensity = Number(traffy?.recent_reports_per_sqkm || 0);
-        const totalDensity = Number(traffy?.reports_per_sqkm || 0);
-        const unresolvedRatio = Number(traffy?.unresolved_ratio || 0);
-        const waterRatio = Number(feature.properties?.water_ratio || 0);
-        const waterScore = clamp01(waterRatio / 0.4);
-        const recentScore = maxRecentDensity > 0 ? recentDensity / maxRecentDensity : 0;
-        const historicalScore = maxTotalDensity > 0 ? totalDensity / maxTotalDensity : 0;
-        const traffyScore = clamp01((recentScore * 0.6) + (historicalScore * 0.25) + (unresolvedRatio * 0.15));
-        const combinedScore = clamp01((traffyScore * 0.6) + (waterScore * 0.3) + (unresolvedRatio * 0.1));
-
-        return {
-          ...feature,
-          properties: {
-            ...feature.properties,
-            traffy_total: traffy?.total ?? 0,
-            traffy_recent: traffy?.recent ?? 0,
-            traffy_unresolved: traffy?.unresolved ?? 0,
-            traffy_reports_per_sqkm: traffy?.reports_per_sqkm ?? null,
-            traffy_recent_per_sqkm: traffy?.recent_reports_per_sqkm ?? null,
-            traffy_unresolved_ratio: traffy?.unresolved_ratio ?? null,
-            traffy_score: traffy ? traffyScore : null,
-            water_observation_score: waterScore,
-            combined_flood_proxy: traffy || waterRatio > 0 ? combinedScore : null,
-            flood_proxy_confidence: confidenceLabel(!!traffy, waterScore, traffySummary?.status),
-          },
-        };
-      }),
+      geojson: built.geojson,
+      summary: {
+        ...built.summary,
+        selectedYear,
+        selectedPeriod: cacheMeta.period,
+        yearlyTrend: summary?.yearlyTrend ?? [],
+      },
     };
-  }, [geojsonData, traffySummary]);
+  }, [cacheMeta, cacheLayer, mapMode, selectedYear, summary?.yearlyTrend]);
+
+  const activeGeojsonData = cacheBuiltView?.geojson ?? geojsonData;
+  const activeSummary = cacheBuiltView?.summary ?? summary;
 
   const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(augmentedGeojsonData) : augmentedGeojsonData,
-    [augmentedGeojsonData, granularity],
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(activeGeojsonData) : activeGeojsonData,
+    [activeGeojsonData, granularity],
   );
 
   // Legend config
@@ -425,36 +347,6 @@ export default function FloodRiskPage() {
           { color: "#94a3b8", label: "ใกล้เคียงเดิม", range: "-3% ถึง +3%" },
           { color: "#b45309", label: "น้ำลด", range: "-10% ถึง -3%" },
           { color: "#78350f", label: "น้ำลดมาก", range: "< -10%" },
-        ],
-      };
-    }
-
-    if (mapMode === "traffy") {
-      return {
-        title: "Traffy Flood Reports — หลักฐานเหตุการณ์น้ำท่วม/ระบายน้ำ",
-        description: "ค่าสูง = มีเรื่องร้องเรียนหนาแน่นและ/หรือยังไม่ปิดงานมากกว่าเขตอื่นในชุดข้อมูลที่กรอง",
-        unit: "",
-        items: [
-          { color: "#164e63", label: "ต่ำมาก", range: "0–20" },
-          { color: "#facc15", label: "ต่ำ-กลาง", range: "20–40" },
-          { color: "#f97316", label: "กลาง", range: "40–60" },
-          { color: "#dc2626", label: "สูง", range: "60–80" },
-          { color: "#7f1d1d", label: "สูงมาก", range: "80–100" },
-        ],
-      };
-    }
-
-    if (mapMode === "combined") {
-      return {
-        title: "Combined Proxy — Traffy + NDWI/MNDWI district signal",
-        description: "ไม่ใช่แบบจำลองน้ำท่วมเชิงอุทกวิทยา แต่เป็นคะแนนเฝ้าระวังจากเรื่องร้องเรียนและสัญญาณน้ำผิวดิน",
-        unit: "",
-        items: [
-          { color: "#0f766e", label: "หลักฐานต่ำ", range: "0–20" },
-          { color: "#22c55e", label: "ต่ำ-กลาง", range: "20–40" },
-          { color: "#f97316", label: "กลาง", range: "40–60" },
-          { color: "#be123c", label: "สูง", range: "60–80" },
-          { color: "#881337", label: "สูงมาก", range: "80–100" },
         ],
       };
     }
@@ -512,12 +404,11 @@ export default function FloodRiskPage() {
       <FloodRiskSidebar
         onDistrictSelect={setActiveDistrict}
         activeDistrict={activeDistrict}
-        summary={summary}
+        summary={activeSummary}
         geojsonData={displayGeoJson}
         loading={loading}
         compareMode={compareMode}
         mapMode={mapMode}
-        traffySummary={traffySummary}
         granularity={granularity}
       />
 
@@ -529,9 +420,7 @@ export default function FloodRiskPage() {
             activeDistrict={activeDistrict}
             mapMode={mapMode}
             compareMode={compareMode}
-            summary={summary}
-            traffyGeojson={traffyGeojson}
-            traffySummary={traffySummary}
+            summary={activeSummary}
             opacity={opacity}
             baseMap={baseMap}
             satelliteCachePreviewUrl={cachePreviewUrl}
@@ -550,18 +439,11 @@ export default function FloodRiskPage() {
         {/* Data source info (bottom-left) */}
         <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
           <div className="flex items-center gap-2 mb-1">
-            <div className={`w-2 h-2 rounded-full ${mapMode === "satellite-cache" ? "bg-sky-400" : mapMode === "traffy" ? "bg-orange-400" : mapMode === "combined" ? "bg-rose-400" : "bg-cyan-500"}`} />
+            <div className={`w-2 h-2 rounded-full ${mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
-            {(mapMode === "traffy" || mapMode === "combined") ? (
-              <>
-                <p><span className="text-white">Incident evidence:</span> Traffy Fondue</p>
-                <p><span className="text-white">Filter:</span> น้ำท่วม/ระบายน้ำ + keywords</p>
-                <p><span className="text-white">Reports:</span> {(traffySummary?.totalFloodReports ?? 0).toLocaleString("th-TH")} total · {(traffySummary?.recentFloodReports ?? 0).toLocaleString("th-TH")} recent</p>
-                <p><span className="text-white">Status:</span> {traffySummary?.status === "ok" ? "BigQuery connected" : "not configured / pending"}</p>
-              </>
-            ) : mapMode === "satellite-cache" && cacheMeta?.status === "ok" ? (
+            {mapMode === "satellite-cache" && cacheMeta?.status === "ok" ? (
               <>
                 <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
                 <p><span className="text-white">Period:</span> {formatPeriodThai(cacheMeta.period)} · {cacheMeta.image_count} scenes{cacheMeta.fallback_used ? " (fallback)" : ""}</p>
@@ -666,38 +548,6 @@ export default function FloodRiskPage() {
                 </button>
               ))}
             </div>
-
-            {(mapMode === "traffy" || mapMode === "combined") && (
-              <div className="mt-4 rounded-lg border border-orange-800/50 bg-orange-950/20 p-3 space-y-2">
-                <h4 className="text-[10px] font-bold text-orange-300 mb-1 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Traffy Flood Evidence
-                </h4>
-                {traffyLoading ? (
-                  <p className="text-[9px] text-slate-500 flex items-center gap-1">
-                    <RefreshCw className="w-3 h-3 animate-spin" /> กำลังโหลดเรื่องร้องเรียน...
-                  </p>
-                ) : traffySummary?.status === "ok" ? (
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-2">
-                      <p className="text-[8px] text-slate-500">ทั้งหมด</p>
-                      <p className="text-sm font-bold text-orange-300 font-mono">{traffySummary.totalFloodReports.toLocaleString("th-TH")}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-2">
-                      <p className="text-[8px] text-slate-500">365 วัน</p>
-                      <p className="text-sm font-bold text-amber-300 font-mono">{traffySummary.recentFloodReports.toLocaleString("th-TH")}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-2">
-                      <p className="text-[8px] text-slate-500">ยังเปิด</p>
-                      <p className="text-sm font-bold text-rose-300 font-mono">{traffySummary.unresolvedFloodReports.toLocaleString("th-TH")}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-[9px] leading-snug text-amber-300">
-                    ยังไม่ได้เชื่อม BigQuery ใน environment นี้ จะแสดงเฉพาะ NDWI/ข้อมูลรายเขตจนกว่าจะตั้งค่า BQ_PROJECT_ID, BQ_DATASET และ BQ_CREDENTIALS
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Satellite cache controls */}
             {mapMode === "satellite-cache" && (
@@ -852,10 +702,10 @@ export default function FloodRiskPage() {
                 <span className="text-slate-100 font-bold">MNDWI</span> = (Green - SWIR) / (Green + SWIR) มักเหมาะกับเมืองมากขึ้น เพราะลดการรบกวนจาก built-up surface เมื่อเทียบกับ NDWI
               </p>
               <p>
-                <span className="text-orange-300 font-bold">Traffy</span> เป็น human-reported incident evidence: บอกจุดที่ประชาชนพบปัญหาน้ำท่วม น้ำขัง หรือระบายน้ำจริง แต่มี reporting bias ตามการใช้งานแพลตฟอร์ม
+                <span className="text-sky-300 font-bold">Water ratio</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0 ใช้ประมาณปริมาณพื้นที่น้ำรวมและรายเขต/แขวง
               </p>
               <p className="text-slate-500">
-                คะแนน Combined เป็น proxy เพื่อจัดลำดับเฝ้าระวัง: 60% Traffy signal, 30% water observation, 10% unresolved ratio ไม่ใช่ hydraulic flood model
+                ค่า NDWI/MNDWI เป็นดัชนีดาวเทียม ควรอ่านร่วมกับฤดูกาล เมฆ และจำนวนภาพที่นำมาทำ composite
               </p>
             </div>
           </div>

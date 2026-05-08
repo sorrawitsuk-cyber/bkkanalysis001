@@ -124,12 +124,15 @@ def load_districts_feature_collection():
 def compute_district_stats(composites: dict, districts) -> list[dict]:
     """Compute per-district NDWI, MNDWI, and water_ratio from Sentinel-2 composites."""
     ndwi_img   = composites.get("ndwi_mean")
+    ndwi_max   = composites.get("ndwi_max")
     mndwi_img  = composites.get("mndwi_mean")
     if ndwi_img is None:
         return []
 
     # Stack bands: ndwi_mean, mndwi_mean, water_ratio (fraction of pixels with NDWI > 0)
     stacked = ndwi_img.rename("ndwi_mean")
+    if ndwi_max is not None:
+        stacked = stacked.addBands(ndwi_max.rename("ndwi_max"))
     if mndwi_img is not None:
         stacked = stacked.addBands(mndwi_img.rename("mndwi_mean"))
     stacked = stacked.addBands(ndwi_img.gt(0).rename("water_ratio"))
@@ -151,6 +154,7 @@ def compute_district_stats(composites: dict, districts) -> list[dict]:
             "district_id":   props.get("id"),
             "district_name": props.get("name_th"),
             "ndwi_mean":     _f("ndwi_mean"),
+            "ndwi_max":      _f("ndwi_max"),
             "mndwi_mean":    _f("mndwi_mean"),
             "water_ratio":   _f("water_ratio"),
         })

@@ -62,7 +62,12 @@ export function buildSubdistrictGeoJson(
         water_delta:             p.water_delta             ?? null,
         compare_water_ratio:     p.compare_water_ratio     ?? null,
         ndwi_mean:               p.ndwi_mean               ?? null,
+        ndwi_max:                p.ndwi_max                ?? null,
         mndwi_mean:              p.mndwi_mean              ?? null,
+        display_value:           p.display_value           ?? null,
+        display_area_rai:        p.display_area_rai        ?? null,
+        display_layer:           p.display_layer           ?? null,
+        display_label:           p.display_label           ?? null,
         flood_risk_score:        p.flood_risk_score        ?? null,
         traffy_count:            p.traffy_count            ?? null,
         // ── Computed flood-proxy (augmented in flood-risk page) ──────────────
