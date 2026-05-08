@@ -18,6 +18,7 @@ interface FloodRiskMapViewProps {
   baseMap?: "dark" | "light" | "satellite" | "streets" | "none";
   satelliteCachePreviewUrl?: string | null;
   satelliteCacheBounds?: [[number, number], [number, number]];
+  granularity?: "district" | "subdistrict";
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -82,6 +83,7 @@ export default function FloodRiskMapView({
   baseMap = "dark",
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
+  granularity = "district",
 }: FloodRiskMapViewProps) {
   const mapRef            = useRef<L.Map | null>(null);
   const baseLayerRef      = useRef<L.TileLayer | null>(null);
@@ -207,8 +209,11 @@ export default function FloodRiskMapView({
 
     geojsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
-        const isSelected = activeDistrict !== ALL_DISTRICTS &&
-          (feature?.properties?.name_th === activeDistrict || `เขต${feature?.properties?.name_th}` === activeDistrict);
+        const fp = feature?.properties ?? {};
+        const isSelected = activeDistrict !== ALL_DISTRICTS && (
+          fp.name_th === activeDistrict || `เขต${fp.name_th}` === activeDistrict ||
+          fp.district_name === activeDistrict || `เขต${fp.district_name}` === activeDistrict
+        );
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
         const showFill = mapMode === "district" || mapMode === "traffy" || mapMode === "combined" || activeDistrict !== ALL_DISTRICTS;
         return {
@@ -249,7 +254,7 @@ export default function FloodRiskMapView({
 
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[200px]">
-            <div class="font-bold mb-1 border-b border-slate-800 pb-1 text-sky-300">${props.name_th || "Unknown"}</div>
+            <div class="font-bold mb-1 border-b border-slate-800 pb-1 text-sky-300">${props.name_th || "Unknown"}${granularity === "subdistrict" && props.district_name ? `<span class="text-slate-500 text-[9px] ml-1">· เขต${props.district_name}</span>` : ""}</div>
             <div class="text-[10px] text-slate-400">สัดส่วนพื้นที่น้ำ: <span class="text-sky-300 text-lg font-mono ml-1">${formatPct(waterRatio ?? undefined)}</span></div>
             ${waterAreaRai !== null ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่น้ำ: <span class="text-sky-200 font-mono">${(waterAreaRai).toLocaleString("th-TH")} ไร่</span></div>` : ""}
             ${deltaLine}
@@ -260,16 +265,22 @@ export default function FloodRiskMapView({
       },
     }).addTo(mapRef.current);
 
-    // Fly to selected district or fit all
+    // Fly to selected district (or all its subdistricts) or fit all
     if (activeDistrict !== ALL_DISTRICTS && geojsonLayerRef.current) {
-      const sel = geojsonLayerRef.current.getLayers().find((l: any) =>
-        l.feature?.properties?.name_th === activeDistrict || `เขต${l.feature?.properties?.name_th}` === activeDistrict
-      ) as L.Polygon | undefined;
-      if (sel) mapRef.current.flyToBounds(sel.getBounds(), { padding: [50, 50], duration: 1.2 });
+      const sels = geojsonLayerRef.current.getLayers().filter((l: any) => {
+        const lp = l.feature?.properties ?? {};
+        return lp.name_th === activeDistrict || `เขต${lp.name_th}` === activeDistrict ||
+               lp.district_name === activeDistrict || `เขต${lp.district_name}` === activeDistrict;
+      });
+      if (sels.length > 0) {
+        const bounds = L.latLngBounds([]);
+        sels.forEach((l: any) => { if (l.getBounds) bounds.extend(l.getBounds()); });
+        if (bounds.isValid()) mapRef.current.flyToBounds(bounds, { padding: [50, 50], duration: 1.2 });
+      }
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, traffySummary?.recentDays, getFeatureColor]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, traffySummary?.recentDays, granularity, getFeatureColor]);
 
   return <div id="flood-risk-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

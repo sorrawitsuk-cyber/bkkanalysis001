@@ -25,6 +25,8 @@ interface LSTMapViewProps {
   satelliteCachePreviewUrl?: string | null;
   /** Bounds for the cache overlay: [[south, west], [north, east]]. Defaults to Bangkok extent. */
   satelliteCacheBounds?: [[number, number], [number, number]];
+  /** "district" renders 50 district polygons; "subdistrict" renders 180 แขวง polygons. */
+  granularity?: "district" | "subdistrict";
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -62,6 +64,7 @@ export default function LSTMapView({
   nightLightsMonth,
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
+  granularity = "district",
 }: LSTMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
@@ -343,8 +346,12 @@ export default function LSTMapView({
     geojsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
         const value = getFeatureValue(feature);
-        const isSelected = activeDistrict !== ALL_DISTRICTS &&
-          (feature?.properties?.name_th === activeDistrict || `เขต${feature?.properties?.name_th}` === activeDistrict);
+        const p = feature?.properties ?? {};
+        const isSelected = activeDistrict !== ALL_DISTRICTS && (
+          p.name_th === activeDistrict || `เขต${p.name_th}` === activeDistrict ||
+          // subdistrict: match parent district
+          p.district_name === activeDistrict || `เขต${p.district_name}` === activeDistrict
+        );
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
         const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
         return {
@@ -388,9 +395,11 @@ export default function LSTMapView({
               <div class="text-[9px] text-slate-500 mt-2">VIIRS DNB avg_rad สะท้อนความเข้มแสงกลางคืนและกิจกรรมเมือง ไม่ใช่จำนวนประชากรโดยตรง</div>
             ` : "";
 
+        const titleSuffix = granularity === "subdistrict" && props.district_name
+          ? `<span class="text-slate-500 text-[9px] ml-1">· เขต${props.district_name}</span>` : "";
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[190px]">
-            <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}</div>
+            <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}${titleSuffix}</div>
             <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : analysisType === "builtup" ? "text-indigo-300" : analysisType === "nightlights" ? "text-yellow-200" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
             ${heatDetails}
             ${builtupDetails}
@@ -408,16 +417,20 @@ export default function LSTMapView({
     }).addTo(mapRef.current);
 
     if (activeDistrict !== ALL_DISTRICTS && geojsonLayerRef.current) {
-      const selectedLayers = geojsonLayerRef.current.getLayers().filter((layer: any) =>
-        layer.feature.properties.name_th === activeDistrict || `เขต${layer.feature.properties.name_th}` === activeDistrict,
-      );
-      if (selectedLayers.length > 0 && selectedLayers[0] instanceof L.Polygon) {
-        mapRef.current.flyToBounds((selectedLayers[0] as L.Polygon).getBounds(), { padding: [50, 50], duration: 1.2 });
+      const selectedLayers = geojsonLayerRef.current.getLayers().filter((layer: any) => {
+        const lp = layer.feature?.properties ?? {};
+        return lp.name_th === activeDistrict || `เขต${lp.name_th}` === activeDistrict ||
+               lp.district_name === activeDistrict || `เขต${lp.district_name}` === activeDistrict;
+      });
+      if (selectedLayers.length > 0) {
+        const bounds = L.latLngBounds([]);
+        selectedLayers.forEach((l: any) => { if (l.getBounds) bounds.extend(l.getBounds()); });
+        if (bounds.isValid()) mapRef.current.flyToBounds(bounds, { padding: [50, 50], duration: 1.2 });
       }
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, analysisType, getColor, getFeatureValue]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, analysisType, granularity, getColor, getFeatureValue]);
 
   return <div id="lst-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }
