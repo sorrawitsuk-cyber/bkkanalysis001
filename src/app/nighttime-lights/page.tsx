@@ -436,13 +436,13 @@ export default function NighttimeLightsPage() {
             <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
               <button
                 onClick={() => setGranularity("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
                 เขต (50)
               </button>
               <button
                 onClick={() => setGranularity("subdistrict")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
                 แขวง (180)
               </button>
