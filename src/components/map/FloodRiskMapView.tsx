@@ -148,6 +148,9 @@ export default function FloodRiskMapView({
     if (!mapRef.current || !geojsonData) return;
     if (geojsonLayerRef.current) { mapRef.current.removeLayer(geojsonLayerRef.current); geojsonLayerRef.current = null; }
 
+    // Fall back to district choropleth when satellite-cache has no preview URL
+    const effectiveMapMode = mapMode === "satellite-cache" && !satelliteCachePreviewUrl ? "district" : mapMode;
+
     geojsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
         const fp = feature?.properties ?? {};
@@ -156,7 +159,7 @@ export default function FloodRiskMapView({
           fp.district_name === activeDistrict || `เขต${fp.district_name}` === activeDistrict
         );
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
-        const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const showFill = effectiveMapMode === "district" || activeDistrict !== ALL_DISTRICTS;
         return {
           fillColor: getFeatureColor(feature),
           weight: isSelected ? 2.5 : 1,
@@ -211,7 +214,7 @@ export default function FloodRiskMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, granularity, getFeatureColor]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, granularity, getFeatureColor, satelliteCachePreviewUrl]);
 
   return <div id="flood-risk-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

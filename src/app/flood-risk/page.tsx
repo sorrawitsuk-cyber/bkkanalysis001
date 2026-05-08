@@ -6,14 +6,12 @@ import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import * as turf from "@turf/turf";
-import { Calendar, Database, Layers, RefreshCw } from "lucide-react";
+import { Calendar, Layers } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
   fetchCacheMetadata,
   getCacheLayerPreviewUrl,
-  formatPeriodThai,
-  CACHE_LAYER_LABELS,
   type SatelliteCacheIndex,
   type SatelliteCacheMetadata,
 } from "@/lib/satellite-cache";
@@ -31,40 +29,12 @@ const WATER_LAYER_LABELS: Record<WaterCacheLayer, string> = {
   mndwi_mean: "MNDWI (mean)",
 };
 
-const MODE_GUIDANCE: Record<MapMode | "compare", {
-  eyebrow: string;
-  title: string;
-  description: string;
-  caution: string;
-  tone: string;
-}> = {
-  district: {
-    eyebrow: "ภาพรวมรายพื้นที่",
-    title: "พื้นที่ไหนมีสัญญาณน้ำมาก",
-    description: "ใช้ดูสัดส่วนพื้นที่น้ำจาก Sentinel-2 รายเขต/รายแขวง เหมาะกับการจัดอันดับและเทียบแนวโน้มรายปี",
-    caution: "ค่านี้คือ water ratio จากดัชนีดาวเทียม ไม่ใช่ระดับน้ำหรือจุดน้ำท่วมจริง",
-    tone: "border-sky-500/40 bg-sky-950/35 text-sky-200",
-  },
-  "satellite-cache": {
-    eyebrow: "ภาพดาวเทียมรายเดือน",
-    title: "พิกเซลไหนดูเป็นน้ำหรือชื้น",
-    description: "ใช้ดู raster NDWI/MNDWI รายเดือนบนแผนที่ เหมาะกับการตรวจภาพรวมคลอง บึง และพื้นที่ชื้น",
-    caution: "NDWI mean ดูภาพนิ่ง, NDWI max ช่วยจับน้ำชั่วคราว, MNDWI เหมาะกับเมืองมากกว่า",
-    tone: "border-cyan-500/40 bg-cyan-950/35 text-cyan-200",
-  },
-  compare: {
-    eyebrow: "เทียบกับปีฐาน",
-    title: "น้ำเพิ่มหรือลดจากปีฐาน",
-    description: "ใช้ดูการเปลี่ยนแปลงสัดส่วนพื้นที่น้ำระหว่างปีที่เลือกกับปีฐาน",
-    caution: "สีฟ้าคือน้ำเพิ่ม สีเหลือง/น้ำตาลคือน้ำลด ควรดูร่วมกับฤดูกาลและจำนวนภาพดาวเทียม",
-    tone: "border-amber-500/40 bg-amber-950/30 text-amber-100",
-  },
-};
-
-const MODE_OPTIONS: Array<{ id: MapMode; label: string; sublabel: string; activeClass: string }> = [
-  { id: "satellite-cache", label: "GEE NDWI/MNDWI", sublabel: "NDWI mean · max · MNDWI", activeClass: "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" },
-  { id: "district", label: "สถิติเขต/แขวง", sublabel: "ค่าเฉลี่ยและพื้นที่น้ำ", activeClass: "bg-sky-500 text-white shadow-lg shadow-sky-500/20" },
-];
+// Compute inverted mask (world minus Bangkok) once at module level for map clipping
+let _bkk: any = (bkkDistricts.features as any[])[0];
+for (let i = 1; i < (bkkDistricts.features as any[]).length; i++) {
+  _bkk = turf.union(turf.featureCollection([_bkk, (bkkDistricts.features as any[])[i]]));
+}
+const BKK_INVERTED_MASK = turf.mask(_bkk);
 
 const DISTRICT_AREA_RAI = new Map<number, number>(
   (bkkDistricts.features as any[]).map((feature: any) => [
@@ -198,7 +168,6 @@ export default function FloodRiskPage() {
   const [mapMode, setMapMode] = useState<MapMode>("district");
   const [granularity, setGranularity] = useState<"district" | "subdistrict">("district");
   const [geojsonData, setGeojsonData] = useState<any>(null);
-  const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.78);
@@ -206,10 +175,8 @@ export default function FloodRiskPage() {
 
   // Satellite cache state
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
-  const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
-  const [cacheLoading, setCacheLoading] = useState(false);
+  const [yearlyMeta, setYearlyMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
-  const [cachePeriod, setCachePeriod] = useState<string | null>(null);
 
   // Fetch district data — try R2 cache first, fall back to Supabase API
   useEffect(() => {
@@ -222,6 +189,7 @@ export default function FloodRiskPage() {
       compareMode ? fetchCacheMetadata("yearly", compareYearStr) : Promise.resolve(null),
     ])
       .then(async ([meta, baselineMeta]) => {
+        setYearlyMeta(meta);
         const stats = (meta?.district_stats ?? []) as any[];
         const hasWaterCache = stats.some((r: any) => typeof r.water_ratio === "number");
 
@@ -242,7 +210,6 @@ export default function FloodRiskPage() {
         const res = await fetch(`/api/flood-risk?${params}`);
         if (!res.ok) throw new Error(`Flood Risk API error ${res.status}`);
         const data = await res.json();
-        setInvertedMask(data.invertedMask ?? null);
         setGeojsonData(data.geojson);
         setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
         setLoading(false);
@@ -281,22 +248,6 @@ export default function FloodRiskPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheIndex, cacheLayer]);
 
-  // Default cache period when entering satellite-cache mode
-  useEffect(() => {
-    if (mapMode === "satellite-cache" && !cachePeriod && cacheIndex?.latest_month) {
-      setCachePeriod(cacheIndex.latest_month);
-    }
-  }, [mapMode, cacheIndex, cachePeriod]);
-
-  // Load cache metadata when period changes
-  useEffect(() => {
-    if (mapMode !== "satellite-cache" || !cachePeriod) return;
-    setCacheLoading(true);
-    fetchCacheMetadata("monthly", cachePeriod)
-      .then((meta) => { setCacheMeta(meta ?? null); setCacheLoading(false); })
-      .catch(() => setCacheLoading(false));
-  }, [cachePeriod, mapMode]);
-
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setSelectedYear(2026);
@@ -307,31 +258,13 @@ export default function FloodRiskPage() {
     setOpacity(0.78);
     setBaseMap("dark");
     setCacheLayer("ndwi_mean");
-    setCachePeriod(null);
-    setCacheMeta(null);
   };
 
-  const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, cacheLayer);
-  const cacheBuiltView = useMemo(() => {
-    if (mapMode !== "satellite-cache" || cacheMeta?.status !== "ok") return null;
-    const built = buildFloodRiskView(cacheMeta, null, Number(cacheMeta.period.slice(0, 4)) || selectedYear, null, cacheLayer);
-    return {
-      geojson: built.geojson,
-      summary: {
-        ...built.summary,
-        selectedYear,
-        selectedPeriod: cacheMeta.period,
-        yearlyTrend: summary?.yearlyTrend ?? [],
-      },
-    };
-  }, [cacheMeta, cacheLayer, mapMode, selectedYear, summary?.yearlyTrend]);
-
-  const activeGeojsonData = cacheBuiltView?.geojson ?? geojsonData;
-  const activeSummary = cacheBuiltView?.summary ?? summary;
+  const cachePreviewUrl = getCacheLayerPreviewUrl(yearlyMeta, cacheLayer);
 
   const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(activeGeojsonData) : activeGeojsonData,
-    [activeGeojsonData, granularity],
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
+    [geojsonData, granularity],
   );
 
   // Legend config
@@ -397,14 +330,13 @@ export default function FloodRiskPage() {
   const periodLabel = selectedYear === new Date().getFullYear()
     ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
     : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
-  const modeGuidance = MODE_GUIDANCE[compareMode ? "compare" : mapMode];
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       <FloodRiskSidebar
         onDistrictSelect={setActiveDistrict}
         activeDistrict={activeDistrict}
-        summary={activeSummary}
+        summary={summary}
         geojsonData={displayGeoJson}
         loading={loading}
         compareMode={compareMode}
@@ -416,24 +348,17 @@ export default function FloodRiskPage() {
         <div className="absolute inset-0 z-0">
           <FloodRiskMapView
             geojsonData={displayGeoJson}
-            invertedMask={invertedMask}
+            invertedMask={BKK_INVERTED_MASK}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
             compareMode={compareMode}
-            summary={activeSummary}
+            summary={summary}
             opacity={opacity}
             baseMap={baseMap}
             satelliteCachePreviewUrl={cachePreviewUrl}
-            satelliteCacheBounds={cacheMeta?.bounds}
+            satelliteCacheBounds={yearlyMeta?.bounds}
             granularity={granularity}
           />
-        </div>
-
-        <div className={`absolute left-4 top-4 z-[1000] w-[26rem] max-w-[calc(100%-2rem)] rounded-xl border p-4 shadow-2xl backdrop-blur-md ${modeGuidance.tone}`}>
-          <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] opacity-80">{modeGuidance.eyebrow}</div>
-          <h2 className="text-base font-bold leading-tight text-slate-50">{modeGuidance.title}</h2>
-          <p className="mt-1 text-[11px] leading-relaxed text-slate-300">{modeGuidance.description}</p>
-          <p className="mt-2 border-t border-white/10 pt-2 text-[10px] leading-snug text-slate-400">{modeGuidance.caution}</p>
         </div>
 
         {/* Data source info (bottom-left) */}
@@ -443,10 +368,10 @@ export default function FloodRiskPage() {
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
-            {mapMode === "satellite-cache" && cacheMeta?.status === "ok" ? (
+            {mapMode === "satellite-cache" && yearlyMeta?.status === "ok" ? (
               <>
                 <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-                <p><span className="text-white">Period:</span> {formatPeriodThai(cacheMeta.period)} · {cacheMeta.image_count} scenes{cacheMeta.fallback_used ? " (fallback)" : ""}</p>
+                <p><span className="text-white">Period:</span> Annual {selectedYear} · {yearlyMeta.image_count} scenes{yearlyMeta.fallback_used ? " (fallback)" : ""}</p>
                 <p><span className="text-white">Layer:</span> {WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer}</p>
                 <p><span className="text-white">Resolution:</span> 100m per pixel (R2 cache)</p>
               </>
@@ -516,94 +441,39 @@ export default function FloodRiskPage() {
             </div>
 
             {/* Map mode toggle */}
-            <div className="mb-2 flex items-end justify-between gap-2">
-              <div>
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">คำถามบนแผนที่</p>
-                <p className="mt-0.5 text-[9px] leading-snug text-slate-500">เลือกจากสิ่งที่อยากตอบ ไม่ต้องจำชื่อดัชนี</p>
-              </div>
-              {compareMode && (
-                <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[8px] font-bold text-amber-300">
-                  เทียบปี
-                </span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 p-1.5">
-              {MODE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => setMapMode(option.id)}
-                  className={`grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all ${
-                    mapMode === option.id
-                      ? option.activeClass
-                      : "border border-transparent text-slate-500 hover:border-slate-700 hover:bg-slate-800/70 hover:text-slate-200"
-                  }`}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[10px] font-bold leading-tight">{option.label}</span>
-                    <span className={`block truncate text-[8px] leading-tight ${mapMode === option.id ? "text-white/75" : "text-slate-600"}`}>
-                      {option.sublabel}
-                    </span>
-                  </span>
-                  {option.id === "satellite-cache" && <Database className="h-3 w-3 shrink-0" />}
-                </button>
-              ))}
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+              <button
+                onClick={() => setMapMode("district")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                สถิติ
+              </button>
+              <button
+                onClick={() => setMapMode("satellite-cache")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "satellite-cache" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                ดาวเทียม (GEE)
+              </button>
             </div>
 
-            {/* Satellite cache controls */}
+            {/* Satellite cache layer picker */}
             {mapMode === "satellite-cache" && (
-              <div className="mt-4 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
-                <h4 className="text-[10px] font-bold text-sky-300 mb-1 flex items-center gap-1">
-                  <Database className="w-3 h-3" /> Satellite Cache (R2)
-                </h4>
-
-                {cacheIndex?.monthly && cacheIndex.monthly.length > 0 && (
-                  <div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">เดือน</p>
-                    <select
-                      value={cachePeriod ?? ""}
-                      onChange={(e) => setCachePeriod(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-sky-800/40 text-slate-200 text-[10px] rounded-lg px-2 py-1.5 appearance-none focus:outline-none focus:border-sky-500/60 cursor-pointer"
+              <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (Water)</p>
+                <div className="flex flex-col gap-1">
+                  {WATER_CACHE_LAYERS.map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => setCacheLayer(key)}
+                      className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
                     >
-                      {[...cacheIndex.monthly].reverse().map((p) => (
-                        <option key={p} value={p}>{formatPeriodThai(p)}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {cacheLoading ? (
-                  <p className="text-[9px] text-slate-500 flex items-center gap-1">
-                    <RefreshCw className="w-3 h-3 animate-spin" /> กำลังโหลด...
-                  </p>
-                ) : cacheMeta?.status === "ok" ? (
-                  <>
-                    <p className="text-[9px] text-slate-400">
-                      <span className="text-slate-200 font-bold">จำนวนภาพ:</span>{" "}
-                      {cacheMeta.image_count} scenes
-                      {cacheMeta.fallback_used && <span className="text-amber-400 ml-1">(fallback)</span>}
-                    </p>
-                    <div className="mt-1">
-                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (Water)</p>
-                      <div className="flex flex-col gap-1">
-                        {WATER_CACHE_LAYERS.map((key) => (
-                          <button
-                            key={key}
-                            onClick={() => setCacheLayer(key)}
-                            className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
-                          >
-                            {WATER_LAYER_LABELS[key]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {!cachePreviewUrl && (
-                      <p className="text-[9px] text-amber-400">ยังไม่มี preview สำหรับ layer นี้</p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-[9px] text-slate-500">
-                    ยังไม่มีข้อมูล cache — รัน GitHub Action เพื่อประมวลผลครั้งแรก
-                  </p>
+                      {WATER_LAYER_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
+                {!cachePreviewUrl && (
+                  <p className="text-[9px] text-amber-400">ยังไม่มี preview สำหรับ layer นี้ในปีที่เลือก</p>
                 )}
               </div>
             )}
@@ -664,12 +534,18 @@ export default function FloodRiskPage() {
             </div>
 
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">2018</span>
+              <span className="text-xs text-slate-400 font-mono">
+                {cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
+              </span>
               <span className="text-lg font-bold text-sky-400 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">2026</span>
+              <span className="text-xs text-slate-400 font-mono">
+                {cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
+              </span>
             </div>
             <input
-              type="range" min="2018" max="2026"
+              type="range"
+              min={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
+              max={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
               className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400 mb-2"
@@ -682,7 +558,9 @@ export default function FloodRiskPage() {
                   <span className="text-sm font-bold text-sky-400 font-mono">{compareYear}</span>
                 </div>
                 <input
-                  type="range" min="2018" max="2026"
+                  type="range"
+                  min={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
+                  max={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
                   value={compareYear}
                   onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
                   className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
