@@ -200,6 +200,8 @@ export default function EarthEnginePage() {
         summary={summary}
         loading={loading}
         compareMode={compareMode}
+        granularity={granularity}
+        subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
       />
 
       <main className="flex-1 min-w-0 relative">

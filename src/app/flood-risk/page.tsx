@@ -461,11 +461,12 @@ export default function FloodRiskPage() {
         onDistrictSelect={setActiveDistrict}
         activeDistrict={activeDistrict}
         summary={summary}
-        geojsonData={augmentedGeojsonData}
+        geojsonData={displayGeoJson}
         loading={loading}
         compareMode={compareMode}
         mapMode={mapMode}
         traffySummary={traffySummary}
+        granularity={granularity}
       />
 
       <main className="flex-1 min-w-0 relative">

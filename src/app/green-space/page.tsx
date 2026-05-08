@@ -331,10 +331,11 @@ export default function GreenSpacePage() {
         onDistrictSelect={setActiveDistrict}
         activeDistrict={activeDistrict}
         summary={summary}
-        geojsonData={geojsonData}
+        geojsonData={displayGeoJson}
         ndviLayer={ndviLayer}
         loading={loading}
         compareMode={compareMode}
+        granularity={granularity}
       />
 
       <main className="flex-1 min-w-0 relative">

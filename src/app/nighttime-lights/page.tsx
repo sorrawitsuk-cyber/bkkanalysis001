@@ -344,6 +344,8 @@ export default function NighttimeLightsPage() {
         latestDataYear={latestDataYear}
         latestMonthlyYear={latestMonthlyYear}
         latestMonthlyMonth={latestMonthlyMonth}
+        granularity={granularity}
+        subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
       />
 
       <main className="flex-1 min-w-0 relative">

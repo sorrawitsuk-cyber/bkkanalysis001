@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Building2, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert, ThermometerSun, Droplets } from "lucide-react";
 import Link from "next/link";
 
@@ -11,9 +11,11 @@ interface BuiltUpSidebarProps {
   summary: any;
   loading: boolean;
   compareMode?: boolean;
+  granularity?: "district" | "subdistrict";
+  subdistrictFeatures?: any[];
 }
 
-export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: BuiltUpSidebarProps) {
+export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode, granularity = "district", subdistrictFeatures }: BuiltUpSidebarProps) {
   const [showAll, setShowAll] = useState(false);
   const [displayMode, setDisplayMode] = useState<'area' | 'ndbi'>('area');
   
@@ -54,6 +56,19 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
   const rankingMin = 0;
   const rankingMaxAbs = rankingValues.length ? Math.max(...rankingValues.map((v: number) => Math.abs(v))) : 1;
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : 1;
+
+  const subRows = useMemo(() => {
+    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
+    const metric = compareMode ? "delta" : "ndbi_mean";
+    return subdistrictFeatures
+      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
+      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
+      .sort((a, b) => compareMode ? Math.abs(b[1]) - Math.abs(a[1]) : b[1] - a[1]);
+  }, [granularity, subdistrictFeatures, compareMode]);
+  const activeRows = subRows ?? rankingDisplayRows.map((r: any[]) => [r[0], r[1], undefined] as [string, number, undefined]);
+  const activeRankMax = subRows?.length ? Math.max(...subRows.map(r => Math.abs(r[1]))) : rankingMax;
+  const rankTotalCount = subRows ? 180 : 50;
+  const levelLabel = subRows ? "รายแขวง" : "รายเขต";
 
   const formatRai = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k ไร่` : `${v} ไร่`;
 
@@ -263,8 +278,8 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3" /> {
                 compareMode
-                  ? (isAreaMode ? 'พื้นที่เปลี่ยนแปลงรายเขต (ไร่)' : 'อันดับ NDBI เพิ่มขึ้น · Urban Growth')
-                  : displayMode === 'ndbi' ? 'อันดับค่าดัชนี NDBI รายเขต' : 'พื้นที่สิ่งปลูกสร้างรายเขต (ไร่)'
+                  ? (isAreaMode ? `พื้นที่เปลี่ยนแปลง${levelLabel} (ไร่)` : `อันดับ NDBI เพิ่มขึ้น · Urban Growth`)
+                  : displayMode === 'ndbi' ? `อันดับค่าดัชนี NDBI ${levelLabel}` : `พื้นที่สิ่งปลูกสร้าง${levelLabel} (ไร่)`
               }
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
@@ -272,7 +287,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                 onClick={() => setShowAll(!showAll)}
                 className="max-w-[74px] text-right text-[9px] leading-tight text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-wide transition-colors"
               >
-                {showAll ? 'แสดงแค่ Top 10' : 'แสดงทั้ง 50 เขต'}
+                {showAll ? 'แสดงแค่ Top 10' : `แสดงทั้ง ${rankTotalCount} ${subRows ? 'แขวง' : 'เขต'}`}
               </button>
             </div>
           </div>
@@ -284,36 +299,36 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             </div>
           )}
           <div className="space-y-1.5">
-            {rankingDisplayRows.slice(0, showAll ? 50 : 10).map(([district, val]: [string, number], i: number) => {
+            {activeRows.slice(0, showAll ? rankTotalCount : 10).map(([district, val, parentDistrict]: [string, number, string | undefined], i: number) => {
               let pct = 0;
               const isSelected = activeDistrict === district;
               if (compareMode) {
-                const maxD = isAreaMode ? (rankingMaxAbs || 1) : Math.abs(summary.max_delta || 0.1);
+                const maxD = subRows ? (activeRankMax || 0.1) : isAreaMode ? (rankingMaxAbs || 1) : Math.abs(summary.max_delta || 0.1);
                 pct = Math.min(100, (Math.abs(val) / maxD) * 100);
               } else {
-                const min = rankingMin;
-                const max = rankingMax;
-                pct = max > min ? ((val - min) / (max - min)) * 100 : 100;
+                pct = activeRankMax > rankingMin ? ((val - rankingMin) / (activeRankMax - rankingMin)) * 100 : 100;
               }
 
-              const displayVal = compareMode
-                ? (isAreaMode
-                  ? (val > 0 ? `+${formatRai(val)}` : val < 0 ? `-${formatRai(Math.abs(val))}` : `0 ไร่`)
-                  : (val > 0 ? `+${val.toFixed(3)}` : val.toFixed(3)))
-                : displayMode === 'ndbi' ? val.toFixed(3)
-                : formatRai(Math.round(val));
+              const displayVal = subRows
+                ? val.toFixed(3)
+                : compareMode
+                  ? (isAreaMode
+                    ? (val > 0 ? `+${formatRai(val)}` : val < 0 ? `-${formatRai(Math.abs(val))}` : `0 ไร่`)
+                    : (val > 0 ? `+${val.toFixed(3)}` : val.toFixed(3)))
+                  : displayMode === 'ndbi' ? val.toFixed(3)
+                  : formatRai(Math.round(val));
               const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-emerald-400') : 'text-indigo-400';
-              const barGradient = compareMode 
-                ? (val > 0 ? 'from-indigo-500 to-red-500' : 'from-emerald-300 to-emerald-500') 
+              const barGradient = compareMode
+                ? (val > 0 ? 'from-indigo-500 to-red-500' : 'from-emerald-300 to-emerald-500')
                 : 'from-slate-500 to-indigo-500';
-              
+
               return (
-                <button 
-                  key={district}
+                <button
+                  key={`${district}-${i}`}
                   onClick={() => onDistrictSelect(isSelected ? 'ทั้งหมด' : district)}
                   className={`w-full group transition-all duration-200 ${
-                    activeDistrict !== 'ทั้งหมด' && !isSelected 
-                      ? 'opacity-40 grayscale-[50%]' 
+                    activeDistrict !== 'ทั้งหมด' && !isSelected
+                      ? 'opacity-40 grayscale-[50%]'
                       : 'opacity-100 hover:scale-[1.02]'
                   }`}
                 >
@@ -324,10 +339,13 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                         <span className={`truncate pr-1 ${isSelected ? 'text-indigo-400 font-bold' : 'text-slate-300 group-hover:text-white'}`}>{district}</span>
                         <span className={`${colorClass} font-mono tabular-nums font-bold`}>{displayVal}</span>
                       </div>
+                      {parentDistrict && (
+                        <p className="text-[8px] text-slate-600 leading-none -mt-0.5 mb-0.5 truncate">{parentDistrict}</p>
+                      )}
                       <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full bg-gradient-to-r ${barGradient} rounded-full transition-all duration-700`} 
-                          style={{ width: `${pct}%` }} 
+                        <div
+                          className={`h-full bg-gradient-to-r ${barGradient} rounded-full transition-all duration-700`}
+                          style={{ width: `${pct}%` }}
                         />
                       </div>
                     </div>

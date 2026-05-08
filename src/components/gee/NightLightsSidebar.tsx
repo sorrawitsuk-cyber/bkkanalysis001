@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Activity, Building2, Calendar, ChevronRight, Droplets, Flame, Home, MapPin, Moon, ShieldAlert, Trees } from "lucide-react";
 
@@ -15,6 +15,8 @@ interface NightLightsSidebarProps {
   latestDataYear?: number;
   latestMonthlyYear?: number;
   latestMonthlyMonth?: number;
+  granularity?: "district" | "subdistrict";
+  subdistrictFeatures?: any[];
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -36,6 +38,8 @@ export default function NightLightsSidebar({
   latestDataYear,
   latestMonthlyYear,
   latestMonthlyMonth = 3,
+  granularity = "district",
+  subdistrictFeatures,
 }: NightLightsSidebarProps) {
   const [showAll, setShowAll] = useState(false);
 
@@ -53,6 +57,18 @@ export default function NightLightsSidebar({
   }
 
   const rankingRows: [string, number, number | null][] = summary.ranking || [];
+
+  const subRows = useMemo(() => {
+    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
+    const metric = compareMode ? "ntl_delta" : "ntl_mean";
+    return subdistrictFeatures
+      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
+      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
+      .sort((a, b) => b[1] - a[1]);
+  }, [granularity, subdistrictFeatures, compareMode]);
+  const activeRows = subRows ?? rankingRows.map(r => [r[0], r[1], undefined] as [string, number, undefined]);
+  const rankTotalCount = subRows ? 180 : 50;
+  const levelLabel = subRows ? "รายแขวง" : "รายเขต";
   const isMonthlyPreview = summary.product === "monthly";
   const yearlyTrend = (summary.yearlyTrend || []).filter((item: any) => item[1] !== null);
   const monthlyTrend = (summary.monthlyTrend || []).filter((item: any) => item[1] !== null || item[2] === "available" || item[2] === "selected");
@@ -199,22 +215,24 @@ export default function NightLightsSidebar({
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? "อันดับแสงกลางคืนเพิ่มขึ้นรายเขต" : "อันดับความเข้มแสงกลางคืนรายเขต"}
+              <MapPin className="w-3 h-3" /> {compareMode ? `อันดับแสงกลางคืนเพิ่มขึ้น${levelLabel}` : `อันดับความเข้มแสงกลางคืน${levelLabel}`}
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
               className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-yellow-200 hover:text-yellow-100 font-bold uppercase tracking-wide transition-colors"
             >
-              {showAll ? "แสดง Top 10" : "แสดงทั้งหมด"}
+              {showAll ? "แสดง Top 10" : `แสดงทั้ง ${rankTotalCount} ${subRows ? "แขวง" : "เขต"}`}
             </button>
           </div>
 
           <div className="space-y-1.5">
-            {rankingRows.slice(0, showAll ? 50 : 10).map(([district, value], index) => {
+            {activeRows.slice(0, showAll ? rankTotalCount : 10).map(([district, value, parentDistrict]: [string, number, string | undefined], index) => {
               const isSelected = activeDistrict === district;
+              const activeMaxRank = subRows?.length ? Math.max(...subRows.map(r => Math.abs(r[1]))) : maxRank;
+              const activeMinRank = subRows?.length ? 0 : minRank;
               const pct = compareMode
-                ? Math.min(100, (Math.abs(Number(value)) / maxRank) * 100)
-                : Math.min(100, ((Number(value) - minRank) / Math.max(0.01, maxRank - minRank)) * 100);
+                ? Math.min(100, (Math.abs(Number(value)) / activeMaxRank) * 100)
+                : Math.min(100, ((Number(value) - activeMinRank) / Math.max(0.01, activeMaxRank - activeMinRank)) * 100);
               const valueClass = compareMode ? (Number(value) >= 0 ? "text-amber-300" : "text-sky-300") : "text-yellow-200";
               const barClass = compareMode
                 ? Number(value) >= 0 ? "from-yellow-400 to-orange-500" : "from-sky-500 to-blue-700"
@@ -222,7 +240,7 @@ export default function NightLightsSidebar({
 
               return (
                 <button
-                  key={district}
+                  key={`${district}-${index}`}
                   onClick={() => onDistrictSelect(isSelected ? ALL_DISTRICTS : district)}
                   className={`w-full group transition-all duration-200 ${activeDistrict !== ALL_DISTRICTS && !isSelected ? "opacity-40 grayscale-[50%]" : "opacity-100 hover:scale-[1.02]"}`}
                 >
@@ -233,6 +251,9 @@ export default function NightLightsSidebar({
                         <span className={`truncate pr-1 ${isSelected ? "text-yellow-200 font-bold" : "text-slate-300 group-hover:text-white"}`}>{district}</span>
                         <span className={`${valueClass} font-mono tabular-nums font-bold`}>{compareMode && Number(value) > 0 ? "+" : ""}{formatRadiance(value, 3)}</span>
                       </div>
+                      {parentDistrict && (
+                        <p className="text-[8px] text-slate-600 leading-none -mt-0.5 mb-0.5 truncate">{parentDistrict}</p>
+                      )}
                       <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
                         <div className={`h-full bg-gradient-to-r ${barClass} rounded-full transition-all duration-700`} style={{ width: `${Math.max(4, pct)}%` }} />
                       </div>

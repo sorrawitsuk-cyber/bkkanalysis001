@@ -16,6 +16,7 @@ interface GreenSpaceSidebarProps {
   ndviLayer?: NdviLayer;
   loading: boolean;
   compareMode?: boolean;
+  granularity?: "district" | "subdistrict";
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -87,6 +88,7 @@ export default function GreenSpaceSidebar({
   geojsonData,
   loading,
   compareMode,
+  granularity = "district",
 }: GreenSpaceSidebarProps) {
   const [showAll, setShowAll] = useState(false);
   const [displayMode, setDisplayMode] = useState<"area" | "ndvi">("area");
@@ -99,6 +101,7 @@ export default function GreenSpaceSidebar({
         const ratio = estimateGreenRatio(props, value, feature.geometry);
         return {
           district: props.name_th,
+          districtParent: (props.district_name as string) ?? null,
           value,
           ratio,
           ndvi: Number(props.ndvi_mean ?? props.ndvi),
@@ -264,13 +267,13 @@ export default function GreenSpaceSidebar({
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {isAreaMode ? "ปริมาณพื้นที่สีเขียว (ไร่)" : "ค่าดัชนี NDVI รายเขต"}
+              <MapPin className="w-3 h-3" /> {isAreaMode ? `ปริมาณพื้นที่สีเขียว${granularity === "subdistrict" ? "รายแขวง" : ""} (ไร่)` : `ค่าดัชนี NDVI ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
               className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-emerald-400 hover:text-emerald-300 font-bold uppercase tracking-wide transition-colors"
             >
-              {showAll ? "แสดงแค่ Top 10" : "แสดงทั้งหมด"}
+              {showAll ? "แสดงแค่ Top 10" : `แสดงทั้ง ${granularity === "subdistrict" ? "180 แขวง" : "50 เขต"}`}
             </button>
           </div>
 
@@ -296,6 +299,9 @@ export default function GreenSpaceSidebar({
                         <span className={`truncate pr-1 ${isSelected ? "text-emerald-400 font-bold" : "text-slate-300 group-hover:text-white"}`}>{row.district}</span>
                         <span className="text-emerald-400 font-mono tabular-nums font-bold">{displayValue}</span>
                       </div>
+                      {row.districtParent && (
+                        <p className="text-[8px] text-slate-600 leading-none -mt-0.5 mb-0.5 truncate">{row.districtParent}</p>
+                      )}
                       <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-lime-500 to-emerald-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(4, Math.min(100, pct))}%` }} />
                       </div>

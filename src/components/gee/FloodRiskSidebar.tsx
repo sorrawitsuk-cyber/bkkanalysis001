@@ -14,6 +14,7 @@ interface FloodRiskSidebarProps {
   compareMode?: boolean;
   mapMode?: "district" | "satellite-cache" | "traffy" | "combined";
   traffySummary?: any;
+  granularity?: "district" | "subdistrict";
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -42,6 +43,7 @@ export default function FloodRiskSidebar({
   compareMode,
   mapMode = "district",
   traffySummary,
+  granularity = "district",
 }: FloodRiskSidebarProps) {
   const [showAll, setShowAll] = useState(false);
 
@@ -52,6 +54,7 @@ export default function FloodRiskSidebar({
       return features
         .map((f: any) => ({
           district: f.properties?.name_th,
+          districtName: (f.properties?.district_name as string) ?? null,
           waterRatio: f.properties?.water_ratio as number | null,
           waterAreaRai: f.properties?.water_area_rai as number | null,
           delta: f.properties?.delta as number | null,
@@ -233,13 +236,13 @@ export default function FloodRiskSidebar({
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3 shrink-0" />
-              {mapMode === "combined" ? "คะแนนเฝ้าระวังรวมรายเขต" : mapMode === "traffy" ? "Traffy น้ำท่วม/ระบายน้ำรายเขต" : compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ" : "สัดส่วนพื้นที่น้ำรายเขต"}
+              {mapMode === "combined" ? `คะแนนเฝ้าระวังรวม${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}` : mapMode === "traffy" ? `Traffy น้ำท่วม/ระบายน้ำ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}` : compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ" : `สัดส่วนพื้นที่น้ำ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
               className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-sky-400 hover:text-sky-300 font-bold uppercase tracking-wide transition-colors"
             >
-              {showAll ? "แสดงแค่ Top 10" : "แสดงทั้งหมด"}
+              {showAll ? "แสดงแค่ Top 10" : `แสดงทั้ง ${granularity === "subdistrict" ? "180 แขวง" : "50 เขต"}`}
             </button>
           </div>
 
@@ -281,6 +284,9 @@ export default function FloodRiskSidebar({
                         <span className={`truncate pr-1 ${isSelected ? "text-sky-400 font-bold" : "text-slate-300 group-hover:text-white"}`}>{row.district}</span>
                         <span className="text-sky-400 font-mono tabular-nums font-bold">{displayVal}</span>
                       </div>
+                      {row.districtName && (
+                        <p className="text-[8px] text-slate-600 leading-none -mt-0.5 mb-0.5 truncate">{row.districtName}</p>
+                      )}
                       <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
                         <div className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all duration-700`} style={{ width: `${Math.max(4, Math.min(100, barPct))}%` }} />
                       </div>

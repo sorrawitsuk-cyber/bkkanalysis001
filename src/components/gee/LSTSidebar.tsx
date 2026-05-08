@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ThermometerSun, MapPin, Calendar, Activity, ChevronRight, Trees, Home, ShieldAlert, Droplets, Building2 } from "lucide-react";
 import Link from "next/link";
 
@@ -11,9 +11,11 @@ interface LSTSidebarProps {
   summary: any;
   loading: boolean;
   compareMode?: boolean;
+  granularity?: "district" | "subdistrict";
+  subdistrictFeatures?: any[];
 }
 
-export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode }: LSTSidebarProps) {
+export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode, granularity = "district", subdistrictFeatures }: LSTSidebarProps) {
   const [showAll, setShowAll] = useState(false);
   const [trendMode, setTrendMode] = useState<"average" | "max">("average");
   
@@ -50,6 +52,20 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
   const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
   const rankingMin = rankingValues.length ? Math.min(...rankingValues) : (summary.min_lst || 30);
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : (summary.max_lst || 40);
+
+  const subRows = useMemo(() => {
+    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
+    const metric = compareMode ? "delta" : isMaxMode ? "max_lst" : "mean_lst";
+    return subdistrictFeatures
+      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
+      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
+      .sort((a, b) => b[1] - a[1]);
+  }, [granularity, subdistrictFeatures, compareMode, isMaxMode]);
+  const activeRows = subRows ?? rankingDisplayRows.map((r: any[]) => [r[0], r[1], undefined] as [string, number, undefined]);
+  const activeMin = subRows?.length ? Math.min(...subRows.map(r => r[1])) : rankingMin;
+  const activeMax = subRows?.length ? Math.max(...subRows.map(r => r[1])) : rankingMax;
+  const rankTotalCount = subRows ? 180 : 50;
+  const levelLabel = subRows ? "รายแขวง" : "รายเขต";
 
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
@@ -275,7 +291,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {compareMode ? 'อันดับ LST เพิ่มขึ้น · Top Increases' : isMaxMode ? "LST สูงสุดรายเขต · Max Ranking" : "LST เฉลี่ยรายเขต · Ranking"}
+              <MapPin className="w-3 h-3" /> {compareMode ? `อันดับ LST เพิ่มขึ้น · Top Increases` : isMaxMode ? `LST สูงสุด${levelLabel} · Max Ranking` : `LST เฉลี่ย${levelLabel} · Ranking`}
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
               {!compareMode && (
@@ -287,39 +303,35 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                 onClick={() => setShowAll(!showAll)}
                 className="max-w-[74px] text-right text-[9px] leading-tight text-orange-500 hover:text-orange-400 font-bold uppercase tracking-wide transition-colors"
               >
-                {showAll ? 'แสดงแค่ Top 10' : 'แสดงทั้ง 50 เขต'}
+                {showAll ? 'แสดงแค่ Top 10' : `แสดงทั้ง ${rankTotalCount} ${subRows ? 'แขวง' : 'เขต'}`}
               </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            {rankingDisplayRows.slice(0, showAll ? 50 : 10).map(([district, val]: [string, number], i: number) => {
-              // Normalize for progress bar
+            {activeRows.slice(0, showAll ? rankTotalCount : 10).map(([district, val, parentDistrict]: [string, number, string | undefined], i: number) => {
               let pct = 0;
               const isSelected = activeDistrict === district;
               if (compareMode) {
-                // For delta: max delta usually ~2C
                 const maxD = Math.abs(summary.max_delta || 2);
                 pct = Math.min(100, (Math.abs(val) / maxD) * 100);
               } else {
-                const min = rankingMin;
-                const max = rankingMax;
-                pct = max > min ? ((val - min) / (max - min)) * 100 : 100;
+                pct = activeMax > activeMin ? ((val - activeMin) / (activeMax - activeMin)) * 100 : 100;
               }
 
               const displayVal = compareMode ? (val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2)) : val.toFixed(1);
               const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-blue-400') : 'text-orange-400';
-              const barGradient = compareMode 
-                ? (val > 0 ? 'from-orange-500 to-red-500' : 'from-blue-300 to-blue-500') 
+              const barGradient = compareMode
+                ? (val > 0 ? 'from-orange-500 to-red-500' : 'from-blue-300 to-blue-500')
                 : 'from-yellow-500 to-red-500';
-              
+
               return (
-                <button 
-                  key={district}
+                <button
+                  key={`${district}-${i}`}
                   onClick={() => onDistrictSelect(isSelected ? 'ทั้งหมด' : district)}
                   className={`w-full group transition-all duration-200 ${
-                    activeDistrict !== 'ทั้งหมด' && !isSelected 
-                      ? 'opacity-40 grayscale-[50%]' 
+                    activeDistrict !== 'ทั้งหมด' && !isSelected
+                      ? 'opacity-40 grayscale-[50%]'
                       : 'opacity-100 hover:scale-[1.02]'
                   }`}
                 >
@@ -330,10 +342,13 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
                         <span className={`truncate pr-1 ${isSelected ? 'text-orange-400 font-bold' : 'text-slate-300 group-hover:text-white'}`}>{district}</span>
                         <span className={`${colorClass} font-mono tabular-nums font-bold`}>{displayVal}°</span>
                       </div>
+                      {parentDistrict && (
+                        <p className="text-[8px] text-slate-600 leading-none -mt-0.5 mb-0.5 truncate">{parentDistrict}</p>
+                      )}
                       <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full bg-gradient-to-r ${barGradient} rounded-full transition-all duration-700`} 
-                          style={{ width: `${pct}%` }} 
+                        <div
+                          className={`h-full bg-gradient-to-r ${barGradient} rounded-full transition-all duration-700`}
+                          style={{ width: `${pct}%` }}
                         />
                       </div>
                     </div>
