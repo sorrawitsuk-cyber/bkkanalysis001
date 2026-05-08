@@ -18,7 +18,16 @@ interface BuiltUpSidebarProps {
 export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode, granularity = "district", subdistrictFeatures }: BuiltUpSidebarProps) {
   const [showAll, setShowAll] = useState(false);
   const [displayMode, setDisplayMode] = useState<'area' | 'ndbi'>('area');
-  
+
+  const subRows = useMemo(() => {
+    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
+    const metric = compareMode ? "delta" : "ndbi_mean";
+    return subdistrictFeatures
+      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
+      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
+      .sort((a, b) => compareMode ? Math.abs(b[1]) - Math.abs(a[1]) : b[1] - a[1]);
+  }, [granularity, subdistrictFeatures, compareMode]);
+
   // Skeleton Loader
   if (loading || !summary) {
     return (
@@ -56,15 +65,6 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
   const rankingMin = 0;
   const rankingMaxAbs = rankingValues.length ? Math.max(...rankingValues.map((v: number) => Math.abs(v))) : 1;
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : 1;
-
-  const subRows = useMemo(() => {
-    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
-    const metric = compareMode ? "delta" : "ndbi_mean";
-    return subdistrictFeatures
-      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
-      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
-      .sort((a, b) => compareMode ? Math.abs(b[1]) - Math.abs(a[1]) : b[1] - a[1]);
-  }, [granularity, subdistrictFeatures, compareMode]);
   const activeRows = subRows ?? rankingDisplayRows.map((r: any[]) => [r[0], r[1], undefined] as [string, number, undefined]);
   const activeRankMax = subRows?.length ? Math.max(...subRows.map(r => Math.abs(r[1]))) : rankingMax;
   const rankTotalCount = subRows ? 180 : 50;

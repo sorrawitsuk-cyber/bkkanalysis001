@@ -43,6 +43,15 @@ export default function NightLightsSidebar({
 }: NightLightsSidebarProps) {
   const [showAll, setShowAll] = useState(false);
 
+  const subRows = useMemo(() => {
+    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
+    const metric = compareMode ? "ntl_delta" : "ntl_mean";
+    return subdistrictFeatures
+      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
+      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
+      .sort((a, b) => b[1] - a[1]);
+  }, [granularity, subdistrictFeatures, compareMode]);
+
   if (loading || !summary) {
     return (
       <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 p-5 flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto hidden md:flex">
@@ -57,15 +66,6 @@ export default function NightLightsSidebar({
   }
 
   const rankingRows: [string, number, number | null][] = summary.ranking || [];
-
-  const subRows = useMemo(() => {
-    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
-    const metric = compareMode ? "ntl_delta" : "ntl_mean";
-    return subdistrictFeatures
-      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
-      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
-      .sort((a, b) => b[1] - a[1]);
-  }, [granularity, subdistrictFeatures, compareMode]);
   const activeRows = subRows ?? rankingRows.map(r => [r[0], r[1], undefined] as [string, number, undefined]);
   const rankTotalCount = subRows ? 180 : 50;
   const levelLabel = subRows ? "รายแขวง" : "รายเขต";

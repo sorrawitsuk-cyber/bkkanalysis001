@@ -343,6 +343,9 @@ export default function LSTMapView({
     if (!mapRef.current || !geojsonData) return;
     if (geojsonLayerRef.current) mapRef.current.removeLayer(geojsonLayerRef.current);
 
+    // When satellite-cache mode has no preview image, fall back to choropleth so the map isn't blank
+    const effectiveMapMode = mapMode === "satellite-cache" && !satelliteCachePreviewUrl ? "district" : mapMode;
+
     geojsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
         const value = getFeatureValue(feature);
@@ -353,7 +356,7 @@ export default function LSTMapView({
           p.district_name === activeDistrict || `เขต${p.district_name}` === activeDistrict
         );
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
-        const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const showFill = effectiveMapMode === "district" || activeDistrict !== ALL_DISTRICTS;
         return {
           fillColor: getColor(value),
           weight: isSelected ? 3 : 1,
@@ -364,7 +367,7 @@ export default function LSTMapView({
         };
       },
       onEachFeature: (feature, layer) => {
-        if (mapMode !== "district") return;
+        if (effectiveMapMode !== "district") return;
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : 3;
@@ -430,7 +433,7 @@ export default function LSTMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, analysisType, granularity, getColor, getFeatureValue]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, analysisType, granularity, satelliteCachePreviewUrl, getColor, getFeatureValue]);
 
   return <div id="lst-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

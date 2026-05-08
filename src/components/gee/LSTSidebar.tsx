@@ -18,7 +18,17 @@ interface LSTSidebarProps {
 export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode, granularity = "district", subdistrictFeatures }: LSTSidebarProps) {
   const [showAll, setShowAll] = useState(false);
   const [trendMode, setTrendMode] = useState<"average" | "max">("average");
-  
+  const isMaxMode = !compareMode && trendMode === "max";
+
+  const subRows = useMemo(() => {
+    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
+    const metric = compareMode ? "delta" : isMaxMode ? "max_lst" : "mean_lst";
+    return subdistrictFeatures
+      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
+      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
+      .sort((a, b) => b[1] - a[1]);
+  }, [granularity, subdistrictFeatures, compareMode, isMaxMode]);
+
   // Skeleton Loader
   if (loading || !summary) {
     return (
@@ -41,7 +51,6 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxAbsTrend = Math.max(1, ...trendValues);
   const maxIncreaseValue = summary.maxIncreaseDelta ?? summary.max_delta ?? 0;
-  const isMaxMode = !compareMode && trendMode === "max";
   const statModeLabel = isMaxMode ? "LST สูงสุด" : "LST เฉลี่ย";
   const monthlyDisplayTrend = isMaxMode && summary.monthlyMaxTrend?.length
     ? summary.monthlyMaxTrend
@@ -52,15 +61,6 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
   const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
   const rankingMin = rankingValues.length ? Math.min(...rankingValues) : (summary.min_lst || 30);
   const rankingMax = rankingValues.length ? Math.max(...rankingValues) : (summary.max_lst || 40);
-
-  const subRows = useMemo(() => {
-    if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
-    const metric = compareMode ? "delta" : isMaxMode ? "max_lst" : "mean_lst";
-    return subdistrictFeatures
-      .filter((f: any) => f.properties?.[metric] != null && Number.isFinite(Number(f.properties[metric])))
-      .map((f: any) => [f.properties.name_th as string, Number(f.properties[metric]), f.properties.district_name as string] as [string, number, string])
-      .sort((a, b) => b[1] - a[1]);
-  }, [granularity, subdistrictFeatures, compareMode, isMaxMode]);
   const activeRows = subRows ?? rankingDisplayRows.map((r: any[]) => [r[0], r[1], undefined] as [string, number, undefined]);
   const activeMin = subRows?.length ? Math.min(...subRows.map(r => r[1])) : rankingMin;
   const activeMax = subRows?.length ? Math.max(...subRows.map(r => r[1])) : rankingMax;
