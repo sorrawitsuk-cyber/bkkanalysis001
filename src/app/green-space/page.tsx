@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
+import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import A4Report from "@/components/gee/A4Report";
 import { Calendar, Database, FileDown, Layers, RefreshCw } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
@@ -30,6 +31,7 @@ export default function GreenSpacePage() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2018);
   const [mapMode, setMapMode] = useState<MapMode>("idw");
+  const [granularity, setGranularity] = useState<"district" | "subdistrict">("district");
   const [geojsonData, setGeojsonData] = useState<any>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
@@ -91,12 +93,18 @@ export default function GreenSpacePage() {
       .catch(() => setCacheLoading(false));
   }, [cachePeriod, mapMode]);
 
+  const displayGeoJson = useMemo(
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
+    [geojsonData, granularity],
+  );
+
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setSelectedYear(2026);
     setCompareMode(false);
     setCompareYear(2018);
     setMapMode("idw");
+    setGranularity("district");
     setOpacity(0.78);
     setBaseMap("dark");
     setNdviLayer("ndvi_mean");
@@ -332,7 +340,7 @@ export default function GreenSpacePage() {
       <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
           <LSTMapView
-            geojsonData={geojsonData}
+            geojsonData={displayGeoJson}
             invertedMask={invertedMask}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
@@ -343,6 +351,7 @@ export default function GreenSpacePage() {
             analysisType="green"
             ndviLayer={ndviLayer}
             satelliteCachePreviewUrl={cachePreviewUrl}
+            granularity={granularity}
           />
         </div>
 
@@ -423,6 +432,22 @@ export default function GreenSpacePage() {
                 className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
               >
                 RESET
+              </button>
+            </div>
+
+            {/* Granularity Toggle */}
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+              <button
+                onClick={() => setGranularity("district")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายเขต
+              </button>
+              <button
+                onClick={() => setGranularity("subdistrict")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายแขวง
               </button>
             </div>
 

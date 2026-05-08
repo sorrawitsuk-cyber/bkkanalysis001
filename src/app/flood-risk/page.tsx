@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
+import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { AlertTriangle, Calendar, Database, Layers, RefreshCw } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
@@ -131,6 +132,7 @@ export default function FloodRiskPage() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2018);
   const [mapMode, setMapMode] = useState<MapMode>("district");
+  const [granularity, setGranularity] = useState<"district" | "subdistrict">("district");
   const [geojsonData, setGeojsonData] = useState<any>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
@@ -295,6 +297,7 @@ export default function FloodRiskPage() {
     setCompareMode(false);
     setCompareYear(2018);
     setMapMode("district");
+    setGranularity("district");
     setOpacity(0.78);
     setBaseMap("dark");
     setCacheLayer("ndwi_mean");
@@ -352,6 +355,11 @@ export default function FloodRiskPage() {
       }),
     };
   }, [geojsonData, traffySummary]);
+
+  const displayGeoJson = useMemo(
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(augmentedGeojsonData) : augmentedGeojsonData,
+    [augmentedGeojsonData, granularity],
+  );
 
   // Legend config
   const legendConfig = (() => {
@@ -463,7 +471,7 @@ export default function FloodRiskPage() {
       <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
           <FloodRiskMapView
-            geojsonData={augmentedGeojsonData}
+            geojsonData={displayGeoJson}
             invertedMask={invertedMask}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
@@ -475,6 +483,7 @@ export default function FloodRiskPage() {
             baseMap={baseMap}
             satelliteCachePreviewUrl={cachePreviewUrl}
             satelliteCacheBounds={cacheMeta?.bounds}
+            granularity={granularity}
           />
         </div>
 
@@ -544,6 +553,22 @@ export default function FloodRiskPage() {
                 className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
               >
                 RESET
+              </button>
+            </div>
+
+            {/* Granularity Toggle */}
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+              <button
+                onClick={() => setGranularity("district")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายเขต
+              </button>
+              <button
+                onClick={() => setGranularity("subdistrict")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายแขวง
               </button>
             </div>
 

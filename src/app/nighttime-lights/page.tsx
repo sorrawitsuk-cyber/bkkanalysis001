@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
+import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { Calendar, FileDown, Layers, Moon, RefreshCw } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
@@ -135,6 +136,7 @@ export default function NighttimeLightsPage() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2014);
   const [mapMode, setMapMode] = useState<MapMode>("district");
+  const [granularity, setGranularity] = useState<"district" | "subdistrict">("district");
   const [geojsonData, setGeojsonData] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -251,6 +253,11 @@ export default function NighttimeLightsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheIndex, dataProduct]);
 
+  const displayGeoJson = useMemo(
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
+    [geojsonData, granularity],
+  );
+
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setDataProduct("annual");
@@ -259,6 +266,7 @@ export default function NighttimeLightsPage() {
     setCompareMode(false);
     setCompareYear(firstYear);
     setMapMode("district");
+    setGranularity("district");
     setOpacity(0.82);
     setBaseMap("dark");
   };
@@ -341,7 +349,7 @@ export default function NighttimeLightsPage() {
       <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
           <LSTMapView
-            geojsonData={geojsonData}
+            geojsonData={displayGeoJson}
             invertedMask={invertedMask}
             activeDistrict={activeDistrict}
             mapMode={mapMode}
@@ -355,6 +363,7 @@ export default function NighttimeLightsPage() {
             nightLightsMonth={selectedMonth}
             satelliteCachePreviewUrl={cachePreviewUrl}
             satelliteCacheBounds={cacheMeta?.bounds}
+            granularity={granularity}
           />
         </div>
 
@@ -419,6 +428,22 @@ export default function NighttimeLightsPage() {
                 className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
               >
                 RESET
+              </button>
+            </div>
+
+            {/* Granularity Toggle */}
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+              <button
+                onClick={() => setGranularity("district")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายเขต
+              </button>
+              <button
+                onClick={() => setGranularity("subdistrict")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                รายแขวง
               </button>
             </div>
 
