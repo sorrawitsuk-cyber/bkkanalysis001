@@ -119,9 +119,18 @@ export default function FloodRiskSidebar({
             <Droplets className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-100 leading-none">น้ำท่วม / แหล่งน้ำ</h1>
-            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Flood Risk · Water Analysis</p>
+            <h1 className="text-base font-bold text-slate-100 leading-none">NDWI น้ำผิวดิน</h1>
+            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Water Signal · Flood Evidence</p>
           </div>
+        </div>
+
+        <div className="mb-4 rounded-lg border border-sky-500/20 bg-sky-950/20 px-3 py-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-sky-300">
+            อ่านหน้านี้แบบเร็ว
+          </p>
+          <p className="mt-1 text-[10px] leading-snug text-slate-400">
+            เริ่มจาก “พื้นที่น้ำ” เพื่อดูภาพรวมรายเขต แล้วค่อยสลับไป “ภาพ NDWI” ถ้าต้องการดูพิกเซลดาวเทียม หรือ “เรื่องร้องเรียน” เพื่อดูเหตุการณ์จริง
+          </p>
         </div>
 
         {(mapMode === "traffy" || mapMode === "combined") && (

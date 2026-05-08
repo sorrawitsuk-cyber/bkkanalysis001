@@ -30,6 +30,57 @@ const WATER_LAYER_LABELS: Record<WaterCacheLayer, string> = {
   mndwi_mean: "MNDWI (mean)",
 };
 
+const MODE_GUIDANCE: Record<MapMode | "compare", {
+  eyebrow: string;
+  title: string;
+  description: string;
+  caution: string;
+  tone: string;
+}> = {
+  district: {
+    eyebrow: "ภาพรวมรายพื้นที่",
+    title: "พื้นที่ไหนมีสัญญาณน้ำมาก",
+    description: "ใช้ดูสัดส่วนพื้นที่น้ำจาก Sentinel-2 รายเขต/รายแขวง เหมาะกับการจัดอันดับและเทียบแนวโน้มรายปี",
+    caution: "ค่านี้คือ water ratio จากดัชนีดาวเทียม ไม่ใช่ระดับน้ำหรือจุดน้ำท่วมจริง",
+    tone: "border-sky-500/40 bg-sky-950/35 text-sky-200",
+  },
+  "satellite-cache": {
+    eyebrow: "ภาพดาวเทียมรายเดือน",
+    title: "พิกเซลไหนดูเป็นน้ำหรือชื้น",
+    description: "ใช้ดู raster NDWI/MNDWI รายเดือนบนแผนที่ เหมาะกับการตรวจภาพรวมคลอง บึง และพื้นที่ชื้น",
+    caution: "NDWI mean ดูภาพนิ่ง, NDWI max ช่วยจับน้ำชั่วคราว, MNDWI เหมาะกับเมืองมากกว่า",
+    tone: "border-cyan-500/40 bg-cyan-950/35 text-cyan-200",
+  },
+  traffy: {
+    eyebrow: "เหตุการณ์จากประชาชน",
+    title: "พื้นที่ไหนมีเรื่องร้องเรียนน้ำท่วม",
+    description: "ใช้ดูรายงาน Traffy เกี่ยวกับน้ำท่วม น้ำขัง และการระบายน้ำ พร้อมจุดเหตุการณ์บนแผนที่",
+    caution: "ไม่มีรายงานไม่ได้แปลว่าไม่ท่วม เพราะมี reporting bias ตามการใช้งานแพลตฟอร์ม",
+    tone: "border-orange-500/40 bg-orange-950/35 text-orange-200",
+  },
+  combined: {
+    eyebrow: "จัดลำดับเฝ้าระวัง",
+    title: "พื้นที่ไหนควรถูกตามก่อน",
+    description: "รวม Traffy, สัญญาณน้ำจากดาวเทียม และสถานะงานค้าง เพื่อช่วยเรียงลำดับพื้นที่น่าสนใจ",
+    caution: "เป็น proxy เพื่อคัดกรอง ไม่ใช่ hydraulic flood model หรือคำทำนายน้ำท่วม",
+    tone: "border-rose-500/40 bg-rose-950/35 text-rose-200",
+  },
+  compare: {
+    eyebrow: "เทียบกับปีฐาน",
+    title: "น้ำเพิ่มหรือลดจากปีฐาน",
+    description: "ใช้ดูการเปลี่ยนแปลงสัดส่วนพื้นที่น้ำระหว่างปีที่เลือกกับปีฐาน",
+    caution: "สีฟ้าคือน้ำเพิ่ม สีเหลือง/น้ำตาลคือน้ำลด ควรดูร่วมกับฤดูกาลและจำนวนภาพดาวเทียม",
+    tone: "border-amber-500/40 bg-amber-950/30 text-amber-100",
+  },
+};
+
+const MODE_OPTIONS: Array<{ id: MapMode; label: string; sublabel: string; activeClass: string }> = [
+  { id: "district", label: "พื้นที่น้ำ", sublabel: "จัดอันดับรายเขต", activeClass: "bg-sky-500 text-white shadow-lg shadow-sky-500/20" },
+  { id: "satellite-cache", label: "ภาพ NDWI", sublabel: "ดู raster รายเดือน", activeClass: "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" },
+  { id: "traffy", label: "เรื่องร้องเรียน", sublabel: "จุดเหตุการณ์จริง", activeClass: "bg-orange-600 text-white shadow-lg shadow-orange-500/20" },
+  { id: "combined", label: "เฝ้าระวังรวม", sublabel: "เรียงพื้นที่น่าตาม", activeClass: "bg-rose-600 text-white shadow-lg shadow-rose-500/20" },
+];
+
 function clamp01(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
@@ -454,6 +505,7 @@ export default function FloodRiskPage() {
   const periodLabel = selectedYear === new Date().getFullYear()
     ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
     : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+  const modeGuidance = MODE_GUIDANCE[compareMode ? "compare" : mapMode];
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -486,6 +538,13 @@ export default function FloodRiskPage() {
             satelliteCacheBounds={cacheMeta?.bounds}
             granularity={granularity}
           />
+        </div>
+
+        <div className={`absolute left-4 top-4 z-[1000] w-[26rem] max-w-[calc(100%-2rem)] rounded-xl border p-4 shadow-2xl backdrop-blur-md ${modeGuidance.tone}`}>
+          <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] opacity-80">{modeGuidance.eyebrow}</div>
+          <h2 className="text-base font-bold leading-tight text-slate-50">{modeGuidance.title}</h2>
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-300">{modeGuidance.description}</p>
+          <p className="mt-2 border-t border-white/10 pt-2 text-[10px] leading-snug text-slate-400">{modeGuidance.caution}</p>
         </div>
 
         {/* Data source info (bottom-left) */}
@@ -575,32 +634,37 @@ export default function FloodRiskPage() {
             </div>
 
             {/* Map mode toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 border border-slate-800 gap-1">
-              <button
-                onClick={() => setMapMode("district")}
-                className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                สถิติ
-              </button>
-              <button
-                onClick={() => setMapMode("satellite-cache")}
-                className={`text-[9px] py-2 rounded-lg transition-all font-bold flex items-center justify-center gap-1 ${mapMode === "satellite-cache" ? "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                <Database className="w-2.5 h-2.5" /> NDWI Cache
-              </button>
-              <button
-                onClick={() => setMapMode("traffy")}
-                className={`text-[9px] py-2 rounded-lg transition-all font-bold flex items-center justify-center gap-1 ${mapMode === "traffy" ? "bg-orange-600 text-white shadow-lg shadow-orange-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                Traffy Flood
-              </button>
-              <button
-                onClick={() => setMapMode("combined")}
-                className={`text-[9px] py-2 rounded-lg transition-all font-bold flex items-center justify-center gap-1 ${mapMode === "combined" ? "bg-rose-600 text-white shadow-lg shadow-rose-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                Combined
-              </button>
+            <div className="mb-2 flex items-end justify-between gap-2">
+              <div>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">คำถามบนแผนที่</p>
+                <p className="mt-0.5 text-[9px] leading-snug text-slate-500">เลือกจากสิ่งที่อยากตอบ ไม่ต้องจำชื่อดัชนี</p>
+              </div>
+              {compareMode && (
+                <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[8px] font-bold text-amber-300">
+                  เทียบปี
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 p-1.5">
+              {MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setMapMode(option.id)}
+                  className={`grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all ${
+                    mapMode === option.id
+                      ? option.activeClass
+                      : "border border-transparent text-slate-500 hover:border-slate-700 hover:bg-slate-800/70 hover:text-slate-200"
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[10px] font-bold leading-tight">{option.label}</span>
+                    <span className={`block truncate text-[8px] leading-tight ${mapMode === option.id ? "text-white/75" : "text-slate-600"}`}>
+                      {option.sublabel}
+                    </span>
+                  </span>
+                  {option.id === "satellite-cache" && <Database className="h-3 w-3 shrink-0" />}
+                </button>
+              ))}
             </div>
 
             {(mapMode === "traffy" || mapMode === "combined") && (
