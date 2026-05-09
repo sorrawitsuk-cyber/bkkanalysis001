@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Activity,
   ArrowRight,
   Building2,
   Compass,
@@ -14,6 +13,7 @@ import {
   Satellite,
   ShieldAlert,
   Trees,
+  Wind,
 } from "lucide-react";
 
 const analysisModules = [
@@ -71,10 +71,18 @@ const analysisModules = [
     accent: "from-yellow-400 to-orange-500",
     metric: "VIIRS",
   },
+  {
+    title: "มลพิษอากาศจากดาวเทียม",
+    eyebrow: "Air Pollution · Sentinel-5P",
+    description: "ติดตาม NO2, CO, SO2 และ Aerosol proxy รายเขต พร้อมภาพ raster สดจาก Google Earth Engine",
+    href: "/air-quality",
+    icon: Wind,
+    accent: "from-cyan-400 to-sky-600",
+    metric: "S5P",
+  },
 ];
 
 const futureModules = [
-  { title: "คุณภาพอากาศ (AQI)", icon: Activity },
   { title: "การเดินทางและการเข้าถึง", icon: Compass },
 ];
 

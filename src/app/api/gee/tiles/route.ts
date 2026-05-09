@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   const baselineYear = baselineParam && baselineParam !== 'null' ? parseInt(baselineParam, 10) : 2018;
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
-  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : metricParam === 'ndwi' ? 'ndwi' : metricParam === 'mndwi' ? 'mndwi' : 'lst';
+  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : metricParam === 'ndwi' ? 'ndwi' : metricParam === 'mndwi' ? 'mndwi' : metricParam === 'air_pollution' ? 'air_pollution' : 'lst';
+  const pollutantParam = searchParams.get('pollutant');
+  const pollutant = pollutantParam === 'co' ? 'co' : pollutantParam === 'so2' ? 'so2' : pollutantParam === 'aerosol' ? 'aerosol' : 'no2';
   const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
   const nightLightsMonth = Math.max(1, Math.min(3, parseInt(searchParams.get('month') || '3', 10)));
 
@@ -131,6 +133,43 @@ export async function GET(request: Request) {
       if (metric === 'builtup') return getSentinelNdbiImage(y, endMMDD);
       if (metric === 'ndwi') return getSentinelNdwiImage(y, endMMDD);
       if (metric === 'mndwi') return getSentinelMndwiImage(y, endMMDD);
+      if (metric === 'air_pollution') {
+        const { startDate, endDate } = getDateRange(y, endMMDD);
+        if (pollutant === 'co') {
+          return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_CO')
+            .filterBounds(bkkBoundary)
+            .filterDate(startDate, endDate)
+            .select('CO_column_number_density')
+            .mean()
+            .rename('CO')
+            .clip(bkkBoundary);
+        }
+        if (pollutant === 'so2') {
+          return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_SO2')
+            .filterBounds(bkkBoundary)
+            .filterDate(startDate, endDate)
+            .select('SO2_column_number_density')
+            .mean()
+            .rename('SO2')
+            .clip(bkkBoundary);
+        }
+        if (pollutant === 'aerosol') {
+          return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_AER_AI')
+            .filterBounds(bkkBoundary)
+            .filterDate(startDate, endDate)
+            .select('absorbing_aerosol_index')
+            .mean()
+            .rename('AEROSOL')
+            .clip(bkkBoundary);
+        }
+        return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_NO2')
+          .filterBounds(bkkBoundary)
+          .filterDate(startDate, endDate)
+          .select('tropospheric_NO2_column_number_density')
+          .mean()
+          .rename('NO2')
+          .clip(bkkBoundary);
+      }
       if (metric === 'nightlights') {
         if (nightLightsProduct === 'monthly') {
           const targetYear = Math.max(2014, Math.min(2025, y));
@@ -180,6 +219,8 @@ export async function GET(request: Request) {
           ? { min: -0.2, max: 0.2, palette: ['#047857', '#86EFAC', '#F7F7F7', '#F59E0B', '#8B1E1E'] }
           : metric === 'nightlights'
             ? { min: -12, max: 12, palette: ['#08306B', '#4292C6', '#F7F7F7', '#F59E0B', '#B45309'] }
+            : metric === 'air_pollution'
+              ? { min: pollutant === 'co' ? -0.01 : pollutant === 'aerosol' ? -0.4 : -0.00008, max: pollutant === 'co' ? 0.01 : pollutant === 'aerosol' ? 0.4 : 0.00008, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#F59E0B', '#B2182B'] }
             : (metric === 'ndwi' || metric === 'mndwi')
               ? { min: -0.5, max: 0.5, palette: ['#78350F', '#C4974A', '#F7F7F7', '#7EC8E3', '#075985'] }
               : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
@@ -192,6 +233,14 @@ export async function GET(request: Request) {
           ? { min: -0.2, max: 0.4, palette: ['#16A34A', '#84CC16', '#FACC15', '#F59E0B', '#EF4444', '#7F1D1D'] }
           : metric === 'nightlights'
             ? { min: 0, max: 80, palette: ['#030712', '#172554', '#2563EB', '#FACC15', '#F97316', '#FFFFFF'] }
+            : metric === 'air_pollution'
+              ? pollutant === 'co'
+                ? { min: 0.015, max: 0.055, palette: ['#ECFEFF', '#67E8F9', '#22C55E', '#FACC15', '#F97316', '#7F1D1D'] }
+                : pollutant === 'so2'
+                  ? { min: -0.0001, max: 0.0006, palette: ['#F8FAFC', '#A7F3D0', '#FDE047', '#FB923C', '#B91C1C'] }
+                  : pollutant === 'aerosol'
+                    ? { min: -1, max: 2, palette: ['#0F766E', '#E0F2FE', '#FDE68A', '#FB923C', '#7F1D1D'] }
+                    : { min: 0, max: 0.0003, palette: ['#ECFEFF', '#67E8F9', '#22C55E', '#FACC15', '#F97316', '#7F1D1D'] }
             : (metric === 'ndwi' || metric === 'mndwi')
               ? { min: -0.5, max: 0.5, palette: ['#78350F', '#C4974A', '#F7F7F7', '#7EC8E3', '#075985'] }
               : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
@@ -217,12 +266,14 @@ export async function GET(request: Request) {
             ? nightLightsProduct === 'monthly'
               ? 'VIIRS DNB monthly avg_rad preview'
               : 'VIIRS DNB Annual V2.2 average_masked'
+            : metric === 'air_pollution'
+              ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()}`
             : metric === 'ndwi'
               ? 'Sentinel-2 SR Harmonized yearly median NDWI'
               : metric === 'mndwi'
                 ? 'Sentinel-2 SR Harmonized yearly median MNDWI'
                 : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
-      resolutionMeters: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' ? 10 : metric === 'nightlights' ? 500 : 30,
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30,
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'

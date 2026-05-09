@@ -18,7 +18,9 @@ export async function GET(request: Request) {
   const baselineYear = parseInt(searchParams.get('baseline') || '2018', 10);
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
-  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : 'lst';
+  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : metricParam === 'air_pollution' ? 'air_pollution' : 'lst';
+  const pollutantParam = searchParams.get('pollutant');
+  const pollutant = pollutantParam === 'co' ? 'co' : pollutantParam === 'so2' ? 'so2' : pollutantParam === 'aerosol' ? 'aerosol' : 'no2';
   const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
   const nightLightsMonth = Math.max(1, Math.min(3, parseInt(searchParams.get('month') || '3', 10)));
 
@@ -132,6 +134,40 @@ export async function GET(request: Request) {
         .rename('NTL');
     };
 
+    const getAirPollutionImage = (targetYear: number, endMMDD = '12-31') => {
+      const { startDate, endDate } = getDateRange(targetYear, endMMDD);
+      if (pollutant === 'co') {
+        return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_CO')
+          .filterBounds(point)
+          .filterDate(startDate, endDate)
+          .select('CO_column_number_density')
+          .mean()
+          .rename('AIR');
+      }
+      if (pollutant === 'so2') {
+        return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_SO2')
+          .filterBounds(point)
+          .filterDate(startDate, endDate)
+          .select('SO2_column_number_density')
+          .mean()
+          .rename('AIR');
+      }
+      if (pollutant === 'aerosol') {
+        return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_AER_AI')
+          .filterBounds(point)
+          .filterDate(startDate, endDate)
+          .select('absorbing_aerosol_index')
+          .mean()
+          .rename('AIR');
+      }
+      return ee.ImageCollection('COPERNICUS/S5P/OFFL/L3_NO2')
+        .filterBounds(point)
+        .filterDate(startDate, endDate)
+        .select('tropospheric_NO2_column_number_density')
+        .mean()
+        .rename('AIR');
+    };
+
     const { startDate, endDate } = getDateRange(year);
     const collection = metric === 'vegetation' || metric === 'builtup'
       ? ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
@@ -146,6 +182,18 @@ export async function GET(request: Request) {
           : ee.ImageCollection('NOAA/VIIRS/DNB/ANNUAL_V22')
             .filterBounds(point)
             .filterDate(`${Math.max(2014, Math.min(2024, year))}-01-01`, `${Math.max(2014, Math.min(2024, year)) + 1}-01-01`))
+      : metric === 'air_pollution'
+        ? ee.ImageCollection(
+            pollutant === 'co'
+              ? 'COPERNICUS/S5P/OFFL/L3_CO'
+              : pollutant === 'so2'
+                ? 'COPERNICUS/S5P/OFFL/L3_SO2'
+                : pollutant === 'aerosol'
+                  ? 'COPERNICUS/S5P/OFFL/L3_AER_AI'
+                  : 'COPERNICUS/S5P/OFFL/L3_NO2'
+          )
+          .filterBounds(point)
+          .filterDate(startDate, endDate)
       : (year >= 2022
           ? ee.ImageCollection('LANDSAT/LC08/C02/T1_L2').merge(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'))
           : ee.ImageCollection('LANDSAT/LC08/C02/T1_L2'))
@@ -158,23 +206,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No satellite data found for this location/year' }, { status: 404 });
     }
 
-    const currentImage = metric === 'vegetation' ? getSentinelNdviImage(year, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(year, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(year) : getLandsatLSTImage(year, todayMMDD);
+    const currentImage = metric === 'vegetation' ? getSentinelNdviImage(year, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(year, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(year) : metric === 'air_pollution' ? getAirPollutionImage(year, todayMMDD) : getLandsatLSTImage(year, todayMMDD);
     const metricImage = isCompare
-      ? currentImage.subtract(metric === 'vegetation' ? getSentinelNdviImage(baselineYear, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(baselineYear, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(baselineYear) : getLandsatLSTImage(baselineYear, todayMMDD))
+      ? currentImage.subtract(metric === 'vegetation' ? getSentinelNdviImage(baselineYear, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(baselineYear, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(baselineYear) : metric === 'air_pollution' ? getAirPollutionImage(baselineYear, todayMMDD) : getLandsatLSTImage(baselineYear, todayMMDD))
       : currentImage;
 
     // 3. Sample the value at the point
     const result = await evaluateEe<Record<string, number | null>>(metricImage.reduceRegion({
       reducer: ee.Reducer.first(),
       geometry: point,
-      scale: metric === 'vegetation' ? 10 : metric === 'nightlights' ? 500 : 30,
+      scale: metric === 'vegetation' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30,
       bestEffort: true,
     }));
 
-    const value = metric === 'vegetation' ? result.NDVI : metric === 'builtup' ? result.NDBI : metric === 'nightlights' ? result.NTL : result.LST;
+    const value = metric === 'vegetation' ? result.NDVI : metric === 'builtup' ? result.NDBI : metric === 'nightlights' ? result.NTL : metric === 'air_pollution' ? result.AIR : result.LST;
 
     return NextResponse.json({ 
-      temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' || metric === 'nightlights' ? 3 : 2)) : null,
+      temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' || metric === 'nightlights' ? 3 : metric === 'air_pollution' ? 6 : 2)) : null,
       metric,
       lat,
       lng,
@@ -187,8 +235,10 @@ export async function GET(request: Request) {
           ? 'Sentinel-2 SR Harmonized yearly median NDBI'
           : metric === 'nightlights'
             ? nightLightsProduct === 'monthly' ? 'VIIRS DNB monthly avg_rad preview' : 'VIIRS DNB Annual V2.2 average_masked'
+            : metric === 'air_pollution'
+              ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()}`
             : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
-      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' ? 500 : 30
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30
     });
 
   } catch (error: any) {

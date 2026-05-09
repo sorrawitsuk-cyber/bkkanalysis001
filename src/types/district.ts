@@ -28,6 +28,18 @@ export interface DistrictStatistic {
   max_lst?: number | null;
   ndbi_mean?: number | null;
   ndbi_max?: number | null;
+  no2_mean?: number | null;
+  no2_max?: number | null;
+  co_mean?: number | null;
+  co_max?: number | null;
+  so2_mean?: number | null;
+  so2_max?: number | null;
+  aerosol_index_mean?: number | null;
+  aerosol_index_max?: number | null;
+  pollution_score?: number | null;
+  pollution_class?: string | null;
+  air_quality_source?: string | null;
+  air_quality_note?: string | null;
   monthly_lst?: number[] | null;
   lst_data_source?: string | null;
   population?: number | null;

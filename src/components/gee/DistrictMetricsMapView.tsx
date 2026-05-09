@@ -16,8 +16,9 @@ interface DistrictMetricsMapViewProps {
   summary?: any;
   opacity?: number;
   baseMap?: "dark" | "light" | "satellite" | "streets" | "none";
-  analysisType?: "heat" | "green" | "builtup" | "nightlights";
+  analysisType?: "heat" | "green" | "builtup" | "nightlights" | "air";
   ndviLayer?: "green_area_rai" | "green_area_ratio" | "ndvi_mean";
+  airPollutionLayer?: "no2_mean" | "co_mean" | "so2_mean" | "aerosol_index_mean" | "pollution_score";
   dataPeriodLabel?: string;
   nightLightsProduct?: "annual" | "monthly";
   nightLightsMonth?: number;
@@ -59,6 +60,7 @@ export default function DistrictMetricsMapView({
   baseMap = "dark",
   analysisType = "heat",
   ndviLayer = "green_area_rai",
+  airPollutionLayer = "no2_mean",
   dataPeriodLabel,
   nightLightsProduct = "annual",
   nightLightsMonth,
@@ -79,8 +81,16 @@ export default function DistrictMetricsMapView({
   const analysisTypeRef = useRef(analysisType);
   const nightLightsProductRef = useRef(nightLightsProduct);
   const nightLightsMonthRef = useRef(nightLightsMonth);
+  const airPollutantRef = useRef("no2");
   const dataPeriodRef = useRef(dataPeriodLabel || "");
   const activeDistrictRef = useRef(activeDistrict);
+  const airPollutant = airPollutionLayer === "co_mean"
+    ? "co"
+    : airPollutionLayer === "so2_mean"
+      ? "so2"
+      : airPollutionLayer === "aerosol_index_mean"
+        ? "aerosol"
+        : "no2";
 
   useEffect(() => {
     if (summary?.selectedYear) yearRef.current = summary.selectedYear;
@@ -96,9 +106,10 @@ export default function DistrictMetricsMapView({
     analysisTypeRef.current = analysisType;
     nightLightsProductRef.current = nightLightsProduct;
     nightLightsMonthRef.current = nightLightsMonth;
+    airPollutantRef.current = airPollutant;
     dataPeriodRef.current = dataPeriodLabel || "";
     activeDistrictRef.current = activeDistrict;
-  }, [activeDistrict, analysisType, compareMode, dataPeriodLabel, mapMode, nightLightsMonth, nightLightsProduct]);
+  }, [activeDistrict, airPollutant, analysisType, compareMode, dataPeriodLabel, mapMode, nightLightsMonth, nightLightsProduct]);
 
   const pointPopupContent = useCallback((options: {
     lat: number;
@@ -111,12 +122,13 @@ export default function DistrictMetricsMapView({
     const isGreen = currentAnalysis === "green";
     const isBuiltup = currentAnalysis === "builtup";
     const isNightlights = currentAnalysis === "nightlights";
+    const isAir = currentAnalysis === "air";
     const isCompare = compareModeRef.current;
-    const accent = isGreen ? "text-emerald-400" : isBuiltup ? "text-indigo-400" : isNightlights ? "text-yellow-300" : "text-orange-400";
+    const accent = isGreen ? "text-emerald-400" : isBuiltup ? "text-indigo-400" : isNightlights ? "text-yellow-300" : isAir ? "text-cyan-300" : "text-orange-400";
     const label = isCompare
       ? isGreen ? "ส่วนต่าง NDVI" : isBuiltup ? "ส่วนต่าง NDBI" : isNightlights ? "ส่วนต่างแสงกลางคืน" : "ส่วนต่าง LST"
       : isGreen ? "ค่า NDVI ณ พิกเซล" : isBuiltup ? "ค่า NDBI ณ พิกเซล" : isNightlights ? "ค่าแสงกลางคืน ณ พิกเซล" : "ค่า LST ณ พิกเซล";
-    const unit = (isGreen || isBuiltup) ? "" : isNightlights ? " nW/sr/cm²" : "°C";
+    const unit = (isGreen || isBuiltup) ? "" : isNightlights ? " nW/sr/cm²" : isAir ? " mol/m²" : "°C";
     const signedValue = typeof options.value === "number" && isCompare && options.value > 0 ? `+${options.value}` : options.value;
     const valueText = options.loading
       ? "กำลังอ่านค่า..."
@@ -124,12 +136,12 @@ export default function DistrictMetricsMapView({
         ? "ไม่มีข้อมูล"
         : options.value === null || options.value === undefined
           ? "ไม่มีข้อมูล"
-          : (isGreen || isBuiltup || isNightlights)
+          : (isGreen || isBuiltup || isNightlights || isAir)
             ? `${signedValue}${unit}`
             : isCompare
               ? `${signedValue}${unit}`
               : formatLST(Number(options.value));
-    const lstClass = (!isGreen && !isBuiltup) && typeof options.value === "number" ? getLSTClassThai(options.value) : "";
+    const lstClass = (!isGreen && !isBuiltup && !isNightlights && !isAir) && typeof options.value === "number" ? getLSTClassThai(options.value) : "";
     const locationLabel = activeDistrictRef.current !== ALL_DISTRICTS ? activeDistrictRef.current : "ตำแหน่งที่คลิกบนแผนที่";
 
     return `
@@ -146,8 +158,9 @@ export default function DistrictMetricsMapView({
           <div>lat ${options.lat.toFixed(6)}</div>
           <div>lng ${options.lng.toFixed(6)}</div>
         </div>
-        ${(!isGreen && !isBuiltup && !isNightlights) && !isCompare && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div><div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>` : ""}
+        ${(!isGreen && !isBuiltup && !isNightlights && !isAir) && !isCompare && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div><div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>` : ""}
         ${isNightlights && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง แสงไฟถนน อาคาร และพื้นที่พาณิชยกรรม</div>` : ""}
+        ${isAir && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ค่า column density จาก Sentinel-5P ไม่ใช่ AQI จากสถานีภาคพื้น</div>` : ""}
         ${options.error ? `<div class="text-[9px] text-red-300 mt-2">${options.error}</div>` : ""}
       </div>
     `;
@@ -178,7 +191,7 @@ export default function DistrictMetricsMapView({
 
       try {
         const currentAnalysis = analysisTypeRef.current;
-        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : currentAnalysis === "builtup" ? "&metric=builtup" : currentAnalysis === "nightlights" ? `&metric=nightlights&product=${nightLightsProductRef.current}${nightLightsMonthRef.current ? `&month=${nightLightsMonthRef.current}` : ""}` : "";
+        const metricParam = currentAnalysis === "green" ? "&metric=vegetation" : currentAnalysis === "builtup" ? "&metric=builtup" : currentAnalysis === "nightlights" ? `&metric=nightlights&product=${nightLightsProductRef.current}${nightLightsMonthRef.current ? `&month=${nightLightsMonthRef.current}` : ""}` : currentAnalysis === "air" ? `&metric=air_pollution&pollutant=${airPollutantRef.current}` : "";
         const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
         const res = await fetch(`/api/gee/point?lat=${lat}&lng=${lng}&year=${yearRef.current}${metricParam}${compareParam}`);
         const data = await res.json();
@@ -224,6 +237,7 @@ export default function DistrictMetricsMapView({
     }
     if (analysisType === "builtup") return feature?.properties?.ndbi_mean ?? feature?.properties?.ndbi;
     if (analysisType === "nightlights") return feature?.properties?.ntl_mean;
+    if (analysisType === "air") return feature?.properties?.[airPollutionLayer] ?? feature?.properties?.no2_mean;
     if (analysisType !== "green") return feature?.properties?.mean_lst;
     if (ndviLayer === "green_area_rai") return feature?.properties?.green_area_rai;
     if (ndviLayer === "green_area_ratio") return feature?.properties?.green_area_ratio;
@@ -241,6 +255,9 @@ export default function DistrictMetricsMapView({
       }
       if (analysisType === "nightlights") {
         return value > 8 ? "#B45309" : value > 3 ? "#F59E0B" : value > -3 ? "#F7F7F7" : value > -8 ? "#4292C6" : "#08306B";
+      }
+      if (analysisType === "air") {
+        return value > 0.00008 ? "#B2182B" : value > 0.000025 ? "#F59E0B" : value > -0.000025 ? "#F7F7F7" : value > -0.00008 ? "#67A9CF" : "#2166AC";
       }
       return value > 1.5 ? "#B2182B" : value > 0.5 ? "#EF8A62" : value > -0.5 ? "#F7F7F7" : value > -1.5 ? "#67A9CF" : "#2166AC";
     }
@@ -260,6 +277,22 @@ export default function DistrictMetricsMapView({
       return "#FFFFFF";
     }
 
+    if (analysisType === "air") {
+      if (airPollutionLayer === "pollution_score") {
+        return value > 8 ? "#7F1D1D" : value > 6 ? "#DC2626" : value > 4 ? "#F97316" : value > 2 ? "#FACC15" : "#22C55E";
+      }
+      if (airPollutionLayer === "co_mean") {
+        const pct = (value - 0.015) / 0.04;
+        return pct > 0.8 ? "#7F1D1D" : pct > 0.6 ? "#F97316" : pct > 0.4 ? "#FACC15" : pct > 0.2 ? "#22C55E" : "#67E8F9";
+      }
+      if (airPollutionLayer === "aerosol_index_mean") {
+        const pct = (value + 1) / 3;
+        return pct > 0.8 ? "#7F1D1D" : pct > 0.6 ? "#FB923C" : pct > 0.4 ? "#FDE68A" : pct > 0.2 ? "#E0F2FE" : "#0F766E";
+      }
+      const pct = value / 0.0003;
+      return pct > 0.8 ? "#7F1D1D" : pct > 0.6 ? "#F97316" : pct > 0.4 ? "#FACC15" : pct > 0.2 ? "#22C55E" : "#67E8F9";
+    }
+
     if (analysisType === "green") {
       let min = 0.1;
       let max = 0.6;
@@ -275,7 +308,7 @@ export default function DistrictMetricsMapView({
     }
 
     return getLSTColor(value);
-  }, [analysisType, compareMode, ndviLayer]);
+  }, [airPollutionLayer, analysisType, compareMode, ndviLayer]);
 
   useEffect(() => {
     const updateGeeLayer = async () => {
@@ -291,7 +324,7 @@ export default function DistrictMetricsMapView({
       }
       if (mapMode === "idw" && summary?.selectedYear) {
         try {
-          const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? `&metric=nightlights&product=${nightLightsProduct}${nightLightsMonth ? `&month=${nightLightsMonth}` : ""}` : "";
+          const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? `&metric=nightlights&product=${nightLightsProduct}${nightLightsMonth ? `&month=${nightLightsMonth}` : ""}` : analysisType === "air" ? `&metric=air_pollution&pollutant=${airPollutant}` : "";
           const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}`);
           const data = await res.json();
           if (data.urlFormat) {
@@ -303,7 +336,7 @@ export default function DistrictMetricsMapView({
       }
     };
     updateGeeLayer();
-  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType, opacity, nightLightsMonth, nightLightsProduct]);
+  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType, opacity, nightLightsMonth, nightLightsProduct, airPollutant]);
 
   useEffect(() => {
     if (geeLayerRef.current) geeLayerRef.current.setOpacity(opacity);
@@ -368,9 +401,16 @@ export default function DistrictMetricsMapView({
         if (mapMode !== "district") return;
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
-        const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : 3;
-        const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : analysisType === "nightlights" ? " nW/sr/cm²" : "";
-        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : analysisType === "builtup" ? "NDBI" : analysisType === "nightlights" ? "ค่าแสงกลางคืน" : "ค่า LST";
+        const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : analysisType === "air" ? (airPollutionLayer === "pollution_score" ? 2 : 6) : 3;
+        const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : analysisType === "nightlights" ? " nW/sr/cm²" : analysisType === "air" && airPollutionLayer !== "pollution_score" ? " mol/m²" : "";
+        const airLayerLabels: Record<string, string> = {
+          no2_mean: "NO2 mean",
+          co_mean: "CO mean",
+          so2_mean: "SO2 mean",
+          aerosol_index_mean: "Aerosol Index",
+          pollution_score: "Pollution score",
+        };
+        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : analysisType === "builtup" ? "NDBI" : analysisType === "nightlights" ? "ค่าแสงกลางคืน" : analysisType === "air" ? airLayerLabels[airPollutionLayer] : "ค่า LST";
         const selectedDisplay = analysisType === "green" && ndviLayer === "green_area_ratio" && typeof value === "number"
           ? `${(value * 100).toFixed(1)}%`
           : formatValue(value, analysisType === "heat" ? 2 : decimals, unit);
@@ -395,16 +435,25 @@ export default function DistrictMetricsMapView({
               ${props.ntl_delta !== null && props.ntl_delta !== undefined ? `<div class="text-[10px] text-slate-400 mt-1">เปลี่ยนแปลง: <span class="${props.ntl_delta >= 0 ? "text-amber-300" : "text-sky-300"} font-mono">${props.ntl_delta >= 0 ? "+" : ""}${props.ntl_delta.toFixed(3)}</span></div>` : ""}
               <div class="text-[9px] text-slate-500 mt-2">VIIRS DNB avg_rad สะท้อนความเข้มแสงกลางคืนและกิจกรรมเมือง ไม่ใช่จำนวนประชากรโดยตรง</div>
             ` : "";
+        const airDetails = analysisType === "air" ? `
+              <div class="text-[10px] text-slate-400 mt-1">NO2: <span class="text-cyan-200 font-mono">${formatValue(props.no2_mean, 6, " mol/m²")}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">CO: <span class="text-cyan-200 font-mono">${formatValue(props.co_mean, 4, " mol/m²")}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">SO2: <span class="text-cyan-200 font-mono">${formatValue(props.so2_mean, 6, " mol/m²")}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">Aerosol Index: <span class="text-cyan-200 font-mono">${formatValue(props.aerosol_index_mean, 3)}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">Score: <span class="text-cyan-200 font-mono">${formatValue(props.pollution_score, 2)}</span> <span class="text-slate-500">${props.pollution_class || ""}</span></div>
+              <div class="text-[9px] text-slate-500 mt-2">Sentinel-5P column density proxy. Not ground-station AQI.</div>
+            ` : "";
 
         const titleSuffix = granularity === "subdistrict" && props.district_name
           ? `<span class="text-slate-500 text-[9px] ml-1">· เขต${props.district_name}</span>` : "";
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[190px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}${titleSuffix}</div>
-            <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : analysisType === "builtup" ? "text-indigo-300" : analysisType === "nightlights" ? "text-yellow-200" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
+            <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : analysisType === "builtup" ? "text-indigo-300" : analysisType === "nightlights" ? "text-yellow-200" : analysisType === "air" ? "text-cyan-200" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
             ${heatDetails}
             ${builtupDetails}
             ${nightlightDetails}
+            ${airDetails}
             ${analysisType === "green" ? `
               <div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">ระดับ: <span class="text-emerald-300">${props.ndvi_class || "ไม่มีข้อมูล"}</span></div>
@@ -431,7 +480,7 @@ export default function DistrictMetricsMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, analysisType, granularity, satelliteCachePreviewUrl, getColor, getFeatureValue]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, airPollutionLayer, analysisType, granularity, satelliteCachePreviewUrl, getColor, getFeatureValue]);
 
   return <div id="lst-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

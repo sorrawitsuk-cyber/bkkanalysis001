@@ -26,10 +26,13 @@ const districtAreaRaiMap = new Map<number, number>(
   ])
 );
 
-function valueFor(row: any, metric: "lst" | "vegetation" | "builtup"): number | null {
+type DistrictMetric = "lst" | "vegetation" | "builtup" | "air_pollution";
+
+function valueFor(row: any, metric: DistrictMetric): number | null {
   if (!row) return null;
   if (metric === "vegetation") return resolveNdviMean(row);
   if (metric === "builtup") return typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
+  if (metric === "air_pollution") return typeof row.no2_mean === "number" ? row.no2_mean : null;
   return typeof row.mean_lst === "number" ? row.mean_lst : null;
 }
 
@@ -112,13 +115,23 @@ function hasNdbiData(rows: any[]): boolean {
   return rows.some((r) => typeof r.ndbi_mean === "number");
 }
 
+function hasAirPollutionData(rows: any[]): boolean {
+  return rows.some((r) => typeof r.no2_mean === "number" || typeof r.pollution_score === "number");
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get("year") || "2024", 10);
     const districtFilter = searchParams.get("district");
     const metricParam = searchParams.get("metric");
-    const metric = metricParam === "vegetation" ? "vegetation" : metricParam === "builtup" ? "builtup" : "lst";
+    const metric = metricParam === "vegetation"
+      ? "vegetation"
+      : metricParam === "builtup"
+        ? "builtup"
+        : metricParam === "air_pollution"
+          ? "air_pollution"
+          : "lst";
     const compareYearStr = searchParams.get("compareYear");
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
 
@@ -168,9 +181,9 @@ export async function GET(request: Request) {
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 
-    const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : metric === "builtup" ? hasNdbiData(dbYearRows) : hasLstData(dbYearRows);
-    const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : metric === "builtup" ? hasNdbiData(dbCompareRows) : hasLstData(dbCompareRows);
-    const useDbAll = metric === "vegetation" ? hasNdviData(dbAllRows) : metric === "builtup" ? hasNdbiData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
+    const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : metric === "builtup" ? hasNdbiData(dbYearRows) : metric === "air_pollution" ? hasAirPollutionData(dbYearRows) : hasLstData(dbYearRows);
+    const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : metric === "builtup" ? hasNdbiData(dbCompareRows) : metric === "air_pollution" ? hasAirPollutionData(dbCompareRows) : hasLstData(dbCompareRows);
+    const useDbAll = metric === "vegetation" ? hasNdviData(dbAllRows) : metric === "builtup" ? hasNdbiData(dbAllRows) : metric === "air_pollution" ? hasAirPollutionData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
 
     const yearData: any[] = metric === "vegetation"
       ? (useDbYear ? dbYearRows.map(enrichVegetationRow) : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
@@ -219,6 +232,18 @@ export async function GET(request: Request) {
           max_lst: row?.max_lst ?? null,
           ndbi_mean: ndbiMeanVal,
           ndbi_max: row?.ndbi_max ?? null,
+          no2_mean: row?.no2_mean ?? null,
+          no2_max: row?.no2_max ?? null,
+          co_mean: row?.co_mean ?? null,
+          co_max: row?.co_max ?? null,
+          so2_mean: row?.so2_mean ?? null,
+          so2_max: row?.so2_max ?? null,
+          aerosol_index_mean: row?.aerosol_index_mean ?? null,
+          aerosol_index_max: row?.aerosol_index_max ?? null,
+          pollution_score: row?.pollution_score ?? null,
+          pollution_class: row?.pollution_class ?? null,
+          air_quality_source: row?.air_quality_source ?? null,
+          air_quality_note: row?.air_quality_note ?? null,
           builtup_area_rai: builtupAreaRai,
           delta,
           vegetation_index: ndviMean,
@@ -240,11 +265,14 @@ export async function GET(request: Request) {
 
     const hasAnyDbLst = dbAllRows.some((r) => typeof r.mean_lst === "number");
     const hasAnyDbNdbi = dbAllRows.some((r) => typeof r.ndbi_mean === "number");
+    const hasAnyDbAir = hasAirPollutionData(dbAllRows);
     let summaryData: any[] = metric === "vegetation"
       ? (useDbAll ? dbAllRows.map(enrichVegetationRow) : lstData.map((r: any) => toVegetationFallbackRow(r)))
       : metric === "builtup"
         ? (hasAnyDbNdbi ? dbAllRows : [])
-        : (hasAnyDbLst ? dbAllRows : lstData);
+        : metric === "air_pollution"
+          ? (hasAnyDbAir ? dbAllRows : [])
+          : (hasAnyDbLst ? dbAllRows : lstData);
     if (districtFilter && districtFilter !== ALL_DISTRICTS) {
       summaryData = summaryData.filter((row: any) => row.district_name === districtFilter || `เขต${row.district_name}` === districtFilter);
     }
@@ -269,8 +297,8 @@ export async function GET(request: Request) {
     }, {});
 
     const yearlyTrend = Object.keys(trendData).sort().map((trendYear) => {
-      const isNdviOrNdbi = metric === "vegetation" || metric === "builtup";
-      const avg = parseFloat((trendData[trendYear].sum / trendData[trendYear].count).toFixed(isNdviOrNdbi ? 3 : 2));
+      const isIndexMetric = metric === "vegetation" || metric === "builtup" || metric === "air_pollution";
+      const avg = parseFloat((trendData[trendYear].sum / trendData[trendYear].count).toFixed(isIndexMetric ? 6 : 2));
       let maxMonthIdx = -1;
       let maxMonthTemp = -Infinity;
       trendData[trendYear].monthlyData.forEach((sum: number, idx: number) => {
@@ -320,7 +348,7 @@ export async function GET(request: Request) {
     const yearlyDeltaTrend = compareYear && baselineTrendAvg !== null && baselineTrendAvg !== undefined
       ? yearlyTrend.map(([trendYear, avg, maxMonthIdx]) => [
           trendYear,
-          parseFloat((Number(avg) - baselineTrendAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
+          parseFloat((Number(avg) - baselineTrendAvg).toFixed((metric === "vegetation" || metric === "builtup" || metric === "air_pollution") ? 6 : 2)),
           maxMonthIdx,
         ])
       : [];
@@ -428,6 +456,14 @@ export async function GET(request: Request) {
               const pct = areaRai > 0 ? parseFloat(((builtupRai / areaRai) * 100).toFixed(1)) : 0;
               return [row.district_name, pct];
             })
+            .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
+        } else if (metric === "air_pollution") {
+          ranking = currentYearData
+            .sort((a: any, b: any) => (valueFor(b, metric) ?? -Infinity) - (valueFor(a, metric) ?? -Infinity))
+            .map((row: any) => [row.district_name, valueFor(row, metric), row.pollution_score ?? null]);
+          densityRanking = currentYearData
+            .filter((row: any) => typeof row.pollution_score === "number")
+            .map((row: any) => [row.district_name, Number(row.pollution_score.toFixed(2))])
             .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
         } else {
         ranking = currentYearData
@@ -544,10 +580,10 @@ export async function GET(request: Request) {
         metric,
         selectedYear: year,
         compareYear,
-        averageTemp: parseFloat(currentAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
-        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)) : null,
-        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)) : 0,
-        maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)) : null,
+        averageTemp: parseFloat(currentAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)),
+        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
+        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : 0,
+        maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
         yearlyTrend,
         yearlyMaxTrend,
         greenAreaTrend,
@@ -562,17 +598,17 @@ export async function GET(request: Request) {
         areaRanking,
         densityRanking,
         maxRanking,
-        min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : metric === "builtup" ? -0.2 : 30,
-        max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : metric === "builtup" ? 0.4 : 40,
-        min_delta: minDelta !== Infinity ? minDelta : metric === "vegetation" ? -0.2 : metric === "builtup" ? -0.2 : -2,
-        max_delta: maxDelta !== -Infinity ? maxDelta : metric === "vegetation" ? 0.2 : metric === "builtup" ? 0.2 : 2,
-        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
-        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : 2)),
+        min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : metric === "builtup" ? -0.2 : metric === "air_pollution" ? 0 : 30,
+        max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : metric === "builtup" ? 0.4 : metric === "air_pollution" ? 0.0003 : 40,
+        min_delta: minDelta !== Infinity ? minDelta : metric === "vegetation" ? -0.2 : metric === "builtup" ? -0.2 : metric === "air_pollution" ? -0.00015 : -2,
+        max_delta: maxDelta !== -Infinity ? maxDelta : metric === "vegetation" ? 0.2 : metric === "builtup" ? 0.2 : metric === "air_pollution" ? 0.00015 : 2,
+        maxIncreaseDelta: parseFloat(maxIncreaseDelta.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)),
+        minIncreaseDelta: parseFloat(minIncreaseDelta.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)),
         ndviSummary,
         lowestNdviRanking,
         priorityRanking,
         encroachmentRanking,
-        dataSource: useDbYear ? "supabase district_statistics" : "local fallback (mock)",
+        dataSource: useDbYear ? "supabase district_statistics" : metric === "air_pollution" || metric === "builtup" ? "no district_statistics rows" : "local fallback (mock)",
       },
     }, {
       headers: {
