@@ -15,7 +15,7 @@ import {
   type SatelliteCacheMetadata,
 } from "@/lib/satellite-cache";
 
-const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
+const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
 type MapMode = "district" | "satellite-cache" | "idw";
 type DataProduct = "annual" | "monthly";
@@ -350,7 +350,7 @@ export default function NighttimeLightsPage() {
 
       <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
-          <LSTMapView
+          <DistrictMetricsMapView
             geojsonData={displayGeoJson}
             invertedMask={invertedMask}
             activeDistrict={activeDistrict}

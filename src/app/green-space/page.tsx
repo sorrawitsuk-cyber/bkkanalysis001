@@ -11,7 +11,7 @@ import { formatRai } from "@/lib/ndvi";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
+const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 type MapMode  = "district" | "idw";
@@ -43,7 +43,7 @@ export default function GreenSpacePage() {
     if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
     if (compareMode) params.append("compareYear", compareYear.toString());
 
-    fetch(`/api/lst?${params.toString()}`)
+    fetch(`/api/district-metrics?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         setGeojsonData(data.geojson);
@@ -239,7 +239,7 @@ export default function GreenSpacePage() {
 
       <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
-          <LSTMapView
+          <DistrictMetricsMapView
             geojsonData={displayGeoJson}
             invertedMask={invertedMask}
             activeDistrict={activeDistrict}

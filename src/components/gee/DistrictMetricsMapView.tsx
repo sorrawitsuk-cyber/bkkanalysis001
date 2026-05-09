@@ -7,7 +7,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import { formatLST, getLSTClassThai, getLSTColor } from "@/lib/lst";
 
-interface LSTMapViewProps {
+interface DistrictMetricsMapViewProps {
   geojsonData: any;
   invertedMask?: any;
   activeDistrict: string;
@@ -48,7 +48,7 @@ function formatValue(value: number | null | undefined, digits = 2, suffix = "") 
 // Bangkok bounding box used as default for the R2 cache image overlay
 const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13.956, 100.935]];
 
-export default function LSTMapView({
+export default function DistrictMetricsMapView({
   geojsonData,
   invertedMask,
   activeDistrict,
@@ -65,7 +65,7 @@ export default function LSTMapView({
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
   granularity = "district",
-}: LSTMapViewProps) {
+}: DistrictMetricsMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);

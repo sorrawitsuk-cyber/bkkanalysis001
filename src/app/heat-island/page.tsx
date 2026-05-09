@@ -12,9 +12,9 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 // Use dynamic import for Map to prevent SSR issues with Leaflet
-const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
+const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
-export default function EarthEnginePage() {
+export default function HeatIslandPage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [selectedYear, setSelectedYear] = useState(2026);
   const [compareMode, setCompareMode] = useState(false);
@@ -39,7 +39,7 @@ export default function EarthEnginePage() {
     if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
     if (compareMode) params.append('compareYear', compareYear.toString());
 
-    fetch(`/api/lst?${params.toString()}`)
+    fetch(`/api/district-metrics?${params.toString()}`)
       .then(res => res.json())
       .then(data => {
         setGeojsonData(data.geojson);
@@ -206,7 +206,7 @@ export default function EarthEnginePage() {
 
       <main className="flex-1 min-w-0 relative">
         <div className="absolute inset-0 z-0">
-            <LSTMapView
+            <DistrictMetricsMapView
               geojsonData={displayGeoJson}
               invertedMask={invertedMask}
               activeDistrict={activeDistrict}

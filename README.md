@@ -1,5 +1,7 @@
 # Bangkok District Analytics Dashboard
 
+> Workflow map: see [`docs/APP_WORKFLOW.md`](docs/APP_WORKFLOW.md). New metric dashboards should call `/api/district-metrics`; `/api/lst` is kept only as a compatibility alias.
+
 Dashboard สำหรับการวิเคราะห์ข้อมูลระดับเขตของกรุงเทพมหานคร เพื่อเป็นเครื่องมือประกอบการตัดสินใจสำหรับผู้บริหารโครงการ มีฟีเจอร์แผนที่แบบ Choropleth (Leaflet), ข้อมูลเชิงสถิติจาก Supabase, กราฟแสดงแนวโน้มพยากรณ์ (Recharts), และบูรณาการร่วมกับเครื่องมือประมวลผลข้อมูล Google Earth Engine
 
 ## โครงสร้างโปรเจกต์ (Project Structure)

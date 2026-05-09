@@ -42,7 +42,7 @@ export default function DistrictDetailPage() {
 
   useEffect(() => {
     if (!latest?.year) return;
-    fetch(`/api/lst?year=${latest.year}&metric=vegetation`)
+    fetch(`/api/district-metrics?year=${latest.year}&metric=vegetation`)
       .then((res) => res.json())
       .then((data) => {
         const features = data?.geojson?.features || [];
