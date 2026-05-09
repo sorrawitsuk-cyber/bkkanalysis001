@@ -126,8 +126,8 @@ export default function Home() {
         {/* ── Main 2-column grid — fills remaining height ── */}
         <div className="mt-5 grid min-h-0 flex-1 items-start gap-8 lg:grid-cols-[1fr_1.6fr]">
 
-          {/* ── LEFT: Hero (non-scrollable) ─────────────── */}
-          <div className="flex h-full flex-col justify-between pb-2">
+          {/* ── LEFT: Hero ──────────────────────────────── */}
+          <div className="flex h-full flex-col gap-6 pb-2">
             <div>
               {/* badge */}
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">
@@ -150,89 +150,87 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {/* stats */}
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                {platformStats.map((stat) => {
-                  const Icon = stat.icon;
-                  return (
-                    <div key={stat.label} className="flex items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
-                      <Icon className="h-4 w-4 shrink-0 text-cyan-400/80" />
-                      <div className="min-w-0">
-                        <div className="truncate text-[12px] font-black text-white">{stat.value}</div>
-                        <div className="text-[10px] uppercase tracking-widest text-slate-500">{stat.label}</div>
-                      </div>
+            {/* stats */}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {platformStats.map((stat) => {
+                const Icon = stat.icon;
+                return (
+                  <div key={stat.label} className="flex items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
+                    <Icon className="h-4 w-4 shrink-0 text-cyan-400/80" />
+                    <div className="min-w-0">
+                      <div className="truncate text-[12px] font-black text-white">{stat.value}</div>
+                      <div className="text-[10px] uppercase tracking-widest text-slate-500">{stat.label}</div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
+            </div>
 
-              {/* data sources */}
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
-                <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">ข้อมูลที่ใช้วิเคราะห์</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-                  {[
-                    ["Sentinel-2",   "NDVI · NDBI · NDWI"],
-                    ["Landsat 8/9",  "Land Surface Temp"],
-                    ["VIIRS DNB",    "Nighttime Lights"],
-                    ["Sentinel-5P",  "NO₂ · CO · SO₂"],
-                    ["Traffy Fondue","ร้องเรียนเมือง"],
-                    ["GEE API",      "ประมวลผล live"],
-                  ].map(([src, desc]) => (
-                    <div key={src} className="flex items-baseline gap-1.5">
-                      <span className="shrink-0 font-mono text-[10px] text-cyan-400">{src}</span>
-                      <span className="truncate text-slate-500">{desc}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* data sources */}
+            <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
+              <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">ข้อมูลที่ใช้วิเคราะห์</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                {[
+                  ["Sentinel-2",   "NDVI · NDBI · NDWI"],
+                  ["Landsat 8/9",  "Land Surface Temp"],
+                  ["VIIRS DNB",    "Nighttime Lights"],
+                  ["Sentinel-5P",  "NO₂ · CO · SO₂"],
+                  ["Traffy Fondue","ร้องเรียนเมือง"],
+                  ["GEE API",      "ประมวลผล live"],
+                ].map(([src, desc]) => (
+                  <div key={src} className="flex items-baseline gap-1.5">
+                    <span className="shrink-0 font-mono text-[10px] text-cyan-400">{src}</span>
+                    <span className="truncate text-slate-500">{desc}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* ── RIGHT: Module cards (internal scroll if overflow) ── */}
+          {/* ── RIGHT: Module cards (internal scroll) ────── */}
           <div
             id="modules"
             className="min-h-0 overflow-y-auto pb-2 custom-scrollbar"
           >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               {analysisModules.map((module) => {
                 const Icon = module.icon;
                 return (
                   <Link
                     key={module.href}
                     href={module.href}
-                    className="group relative overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/65 p-4 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-600/80 hover:bg-slate-900/85 hover:shadow-xl hover:shadow-black/40"
+                    className="group relative overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/65 p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-600/80 hover:bg-slate-900/85 hover:shadow-xl hover:shadow-black/40"
                   >
                     {/* accent top line */}
                     <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${module.accent} opacity-70 transition-opacity group-hover:opacity-100`} />
 
                     {/* top row */}
-                    <div className="mb-2 flex items-center gap-2">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${module.accent} shadow-md`}>
-                        <Icon className="h-4 w-4 text-white drop-shadow" />
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${module.accent} shadow-md`}>
+                        <Icon className="h-5 w-5 text-white drop-shadow" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="block truncate text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">
+                        <span className="block truncate text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
                           {module.eyebrow}
                         </span>
                       </div>
-                      <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-400">
+                      <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-400">
                         Live
                       </span>
-                      <span className="shrink-0 rounded-md border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-300">
+                      <span className="shrink-0 rounded-md border border-slate-700/80 bg-slate-900/70 px-2.5 py-0.5 font-mono text-[11px] font-bold text-cyan-300">
                         {module.metric}
                       </span>
                     </div>
 
                     {/* title + description + arrow */}
-                    <div className="flex items-end justify-between gap-2">
+                    <div className="flex items-end justify-between gap-3">
                       <div className="min-w-0">
-                        <h2 className="text-[15px] font-black leading-snug text-white">{module.title}</h2>
-                        <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-400">
+                        <h2 className="text-lg font-black leading-snug text-white">{module.title}</h2>
+                        <p className="mt-1.5 text-[12px] leading-relaxed text-slate-400">
                           {module.description}
                         </p>
                       </div>
-                      <ArrowRight className="mb-0.5 h-4 w-4 shrink-0 text-slate-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-300" />
+                      <ArrowRight className="mb-0.5 h-5 w-5 shrink-0 text-slate-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-300" />
                     </div>
                   </Link>
                 );
