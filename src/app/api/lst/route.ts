@@ -56,6 +56,26 @@ function toVegetationFallbackRow(row: any): DistrictStatistic {
   };
 }
 
+// Compute derived green-space fields from ndvi_mean when Supabase rows lack them.
+function enrichVegetationRow(row: any): any {
+  const ndviMean = typeof row.ndvi_mean === "number" ? row.ndvi_mean : null;
+  if (ndviMean === null) return row;
+  if (row.green_area_ratio != null && row.green_area_rai != null && row.low_green_ratio != null) return row;
+  const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 19600;
+  const greenAreaRatio = row.green_area_ratio ?? Math.max(0.03, Math.min(0.65, ndviMean - 0.08));
+  return {
+    ...row,
+    ndvi_median: row.ndvi_median ?? ndviMean,
+    ndvi_min: row.ndvi_min ?? Math.max(-0.1, ndviMean - 0.18),
+    ndvi_max: row.ndvi_max ?? Math.min(0.85, ndviMean + 0.22),
+    ndvi_score: row.ndvi_score ?? normalizeNdviScore(ndviMean),
+    ndvi_class: row.ndvi_class || getNdviClass(ndviMean),
+    green_area_ratio: greenAreaRatio,
+    green_area_rai: row.green_area_rai ?? Math.round(greenAreaRatio * districtAreaRai),
+    low_green_ratio: row.low_green_ratio ?? Math.max(0.05, 0.62 - greenAreaRatio),
+  };
+}
+
 async function loadDbRows(year: number, districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase.from("district_statistics").select("*").eq("year", year);
   if (error || !data || data.length === 0) {
@@ -153,10 +173,10 @@ export async function GET(request: Request) {
     const useDbAll = metric === "vegetation" ? hasNdviData(dbAllRows) : metric === "builtup" ? hasNdbiData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
 
     const yearData: any[] = metric === "vegetation"
-      ? (useDbYear ? dbYearRows : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
+      ? (useDbYear ? dbYearRows.map(enrichVegetationRow) : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
       : (useDbYear ? dbYearRows : localYearRows);
     const compareData: any[] = metric === "vegetation"
-      ? (useDbCompare ? dbCompareRows : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
+      ? (useDbCompare ? dbCompareRows.map(enrichVegetationRow) : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
       : (useDbCompare ? dbCompareRows : localCompareRows);
 
     const lstMap = new Map<number, any>();
@@ -221,7 +241,7 @@ export async function GET(request: Request) {
     const hasAnyDbLst = dbAllRows.some((r) => typeof r.mean_lst === "number");
     const hasAnyDbNdbi = dbAllRows.some((r) => typeof r.ndbi_mean === "number");
     let summaryData: any[] = metric === "vegetation"
-      ? (useDbAll ? dbAllRows : lstData.map((r: any) => toVegetationFallbackRow(r)))
+      ? (useDbAll ? dbAllRows.map(enrichVegetationRow) : lstData.map((r: any) => toVegetationFallbackRow(r)))
       : metric === "builtup"
         ? (hasAnyDbNdbi ? dbAllRows : [])
         : (hasAnyDbLst ? dbAllRows : lstData);
