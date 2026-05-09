@@ -9,6 +9,7 @@ import {
   Droplets, Flame, Home, Layers, MapPin,
   RefreshCw, ShieldAlert, Trees, Wind,
 } from "lucide-react";
+import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
@@ -49,6 +50,7 @@ export default function AirQualityPage() {
   const [summary,        setSummary]           = useState<any>(null);
   const [loading,        setLoading]           = useState(true);
   const [showAll,        setShowAll]           = useState(false);
+  const [granularity,    setGranularity]       = useState<"district" | "subdistrict">("district");
 
   useEffect(() => {
     setLoading(true);
@@ -74,12 +76,23 @@ export default function AirQualityPage() {
 
   const features = geojsonData?.features ?? [];
 
-  const rankingRows: [string, number][] = useMemo(() => {
+  const displayGeoJson = useMemo(
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
+    [geojsonData, granularity],
+  );
+
+  const rankingRows: [string, number, string?][] = useMemo(() => {
+    if (granularity === "subdistrict" && displayGeoJson?.features) {
+      return [...(displayGeoJson.features as any[])]
+        .filter((f: any) => typeof f?.properties?.[airLayer] === "number")
+        .sort((a: any, b: any) => Number(b.properties[airLayer]) - Number(a.properties[airLayer]))
+        .map((f: any) => [f.properties.name_th as string, Number(f.properties[airLayer]), f.properties.district_name as string]);
+    }
     return [...features]
       .filter((f: any) => typeof f?.properties?.[airLayer] === "number")
       .sort((a: any, b: any) => Number(b.properties[airLayer]) - Number(a.properties[airLayer]))
       .map((f: any) => [f.properties.name_th as string, Number(f.properties[airLayer])]);
-  }, [features, airLayer]);
+  }, [features, displayGeoJson, airLayer, granularity]);
 
   const values = rankingRows.map(([, v]) => v);
   const avgValue   = values.length ? values.reduce((s, v) => s + v, 0) / values.length : null;
@@ -102,6 +115,7 @@ export default function AirQualityPage() {
     setOpacity(0.78);
     setAirLayer("no2_mean");
     setShowAll(false);
+    setGranularity("district");
   };
 
   const skeletonLoader = (
@@ -221,6 +235,29 @@ export default function AirQualityPage() {
 
             <div className="h-px bg-slate-800/60" />
 
+            {/* Granularity toggle */}
+            <section>
+              <h3 className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                <MapPin className="h-3 w-3" /> ขอบเขตแผนที่
+              </h3>
+              <div className="grid grid-cols-2 bg-slate-900/60 rounded-xl p-1 border border-slate-800">
+                <button
+                  onClick={() => setGranularity("district")}
+                  className={`text-[10px] py-1.5 rounded-lg transition-all font-bold ${granularity === "district" ? "bg-cyan-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  เขต (50)
+                </button>
+                <button
+                  onClick={() => setGranularity("subdistrict")}
+                  className={`text-[10px] py-1.5 rounded-lg transition-all font-bold ${granularity === "subdistrict" ? "bg-cyan-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  แขวง (180)
+                </button>
+              </div>
+            </section>
+
+            <div className="h-px bg-slate-800/60" />
+
             {/* Year & compare */}
             <section>
               <h3 className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -298,13 +335,13 @@ export default function AirQualityPage() {
               <div className="flex justify-between items-start gap-2 mb-3">
                 <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
                   <MapPin className="w-3 h-3" />
-                  {compareMode ? "อันดับเปลี่ยนแปลงรายเขต" : `อันดับ ${layerMeta.label} รายเขต`}
+                  {`อันดับ ${layerMeta.label} ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
                 </h3>
                 <button
                   onClick={() => setShowAll(!showAll)}
                   className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wide transition-colors"
                 >
-                  {showAll ? "แสดง Top 10" : "แสดงทั้ง 50 เขต"}
+                  {showAll ? "แสดง Top 10" : `ทั้ง ${granularity === "subdistrict" ? "180 แขวง" : "50 เขต"}`}
                 </button>
               </div>
 
@@ -323,12 +360,12 @@ export default function AirQualityPage() {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {rankingRows.slice(0, showAll ? 50 : 10).map(([district, value], i) => {
+                  {rankingRows.slice(0, showAll ? (granularity === "subdistrict" ? 180 : 50) : 10).map(([district, value, parentDistrict], i) => {
                     const isSelected = activeDistrict === district;
                     const pct = maxValue && maxValue > 0 ? (value / maxValue) * 100 : 0;
                     return (
                       <button
-                        key={district}
+                        key={`${district}-${i}`}
                         onClick={() => setActiveDistrict(isSelected ? ALL_DISTRICTS : district)}
                         className={`w-full group transition-all duration-200 ${
                           activeDistrict !== ALL_DISTRICTS && !isSelected
@@ -347,6 +384,9 @@ export default function AirQualityPage() {
                                 {formatMetric(value, airLayer)}
                               </span>
                             </div>
+                            {parentDistrict && (
+                              <p className="text-[8px] text-slate-600 leading-none -mt-0.5 mb-0.5 truncate">{parentDistrict}</p>
+                            )}
                             <div className="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-cyan-700 to-cyan-400 rounded-full transition-all duration-700"
@@ -421,7 +461,7 @@ export default function AirQualityPage() {
       {/* ── Map ─────────────────────────────────────────────────────────────── */}
       <main className="relative min-w-0 flex-1">
         <DistrictMetricsMapView
-          geojsonData={geojsonData}
+          geojsonData={displayGeoJson}
           invertedMask={invertedMask}
           activeDistrict={activeDistrict}
           mapMode={mapMode}
@@ -432,6 +472,7 @@ export default function AirQualityPage() {
           analysisType="air"
           airPollutionLayer={airLayer}
           dataPeriodLabel={latestLabel}
+          granularity={granularity}
         />
 
         <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] max-w-xs rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 text-[10px] leading-5 text-slate-400 shadow-xl backdrop-blur">

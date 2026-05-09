@@ -70,6 +70,12 @@ export function buildSubdistrictGeoJson(
         display_label:           p.display_label           ?? null,
         flood_risk_score:        p.flood_risk_score        ?? null,
         traffy_count:            p.traffy_count            ?? null,
+        // ── Air Quality (Sentinel-5P) ─────────────────────────────────────────
+        no2_mean:            p.no2_mean            ?? null,
+        co_mean:             p.co_mean             ?? null,
+        so2_mean:            p.so2_mean            ?? null,
+        aerosol_index_mean:  p.aerosol_index_mean  ?? null,
+        pollution_score:     p.pollution_score     ?? null,
         // ── Computed flood-proxy (augmented in flood-risk page) ──────────────
         traffy_total:            p.traffy_total            ?? null,
         traffy_recent:           p.traffy_recent           ?? null,
