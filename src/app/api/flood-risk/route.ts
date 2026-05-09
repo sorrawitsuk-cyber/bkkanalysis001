@@ -7,6 +7,7 @@ import ee, { initGEE } from "@/lib/gee";
 import type { DistrictStatistic } from "@/types/district";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
@@ -18,6 +19,15 @@ const districtAreaRaiMap = new Map<number, number>(
 );
 
 // ── GEE helpers ──────────────────────────────────────────────────────────────
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`GEE timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
 
 function evaluateEe<T>(eeObject: any): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -101,7 +111,7 @@ async function computeGeeWaterStats(year: number): Promise<any[]> {
 async function loadDbRows(year: number): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
-    .select("district_id, district_name, year, water_ratio")
+    .select("district_id, district_name, year, water_ratio, ndwi_mean, mndwi_mean")
     .eq("year", year);
   if (error || !data || data.length === 0) return [];
   return data as DistrictStatistic[];
@@ -110,7 +120,7 @@ async function loadDbRows(year: number): Promise<DistrictStatistic[]> {
 async function loadAllDbRows(): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
-    .select("district_id, district_name, year, water_ratio")
+    .select("district_id, district_name, year, water_ratio, ndwi_mean, mndwi_mean")
     .order("year", { ascending: true });
   if (error || !data || data.length === 0) return [];
   return data as DistrictStatistic[];
@@ -168,8 +178,8 @@ export async function GET(request: Request) {
     try {
       await initGEE();
       const [yearStats, compareStats] = await Promise.all([
-        computeGeeWaterStats(year),
-        compareYear ? computeGeeWaterStats(compareYear) : Promise.resolve([]),
+        withTimeout(computeGeeWaterStats(year), 45000),
+        compareYear ? withTimeout(computeGeeWaterStats(compareYear), 45000) : Promise.resolve([]),
       ]);
       geeYearRows   = yearStats;
       geeCompareRows = compareStats;
