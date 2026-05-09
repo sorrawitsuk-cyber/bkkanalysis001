@@ -38,5 +38,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Claude Code local session data
-.claude/
+# Claude Code local session data (keep memory/ tracked)
+.claude/settings.local.json
