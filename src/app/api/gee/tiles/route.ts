@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const baselineYear = baselineParam && baselineParam !== 'null' ? parseInt(baselineParam, 10) : 2018;
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
-  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : 'lst';
+  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : metricParam === 'ndwi' ? 'ndwi' : metricParam === 'mndwi' ? 'mndwi' : 'lst';
   const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
   const nightLightsMonth = Math.max(1, Math.min(3, parseInt(searchParams.get('month') || '3', 10)));
 
@@ -68,6 +68,36 @@ export async function GET(request: Request) {
       return collection.median().updateMask(waterMask).clip(bkkBoundary);
     };
 
+    const getSentinelNdwiImage = (y: number, endMMDD = '12-31') => {
+      const { startDate, endDate } = getDateRange(y, endMMDD);
+      const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(bkkBoundary)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((image: any) => {
+          const green = image.select('B3').divide(10000);
+          const nir = image.select('B8').divide(10000);
+          return green.subtract(nir).divide(green.add(nir)).rename('NDWI');
+        });
+      return collection.median().clip(bkkBoundary);
+    };
+
+    const getSentinelMndwiImage = (y: number, endMMDD = '12-31') => {
+      const { startDate, endDate } = getDateRange(y, endMMDD);
+      const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(bkkBoundary)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((image: any) => {
+          const green = image.select('B3').divide(10000);
+          const swir = image.select('B11').divide(10000);
+          return green.subtract(swir).divide(green.add(swir)).rename('MNDWI');
+        });
+      return collection.median().clip(bkkBoundary);
+    };
+
     const getSentinelNdbiImage = (y: number, endMMDD = '12-31') => {
       const { startDate, endDate } = getDateRange(y, endMMDD);
       const collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
@@ -99,6 +129,8 @@ export async function GET(request: Request) {
     const getMetricImage = (y: number, endMMDD = '12-31') => {
       if (metric === 'vegetation') return getSentinelNdviImage(y, endMMDD);
       if (metric === 'builtup') return getSentinelNdbiImage(y, endMMDD);
+      if (metric === 'ndwi') return getSentinelNdwiImage(y, endMMDD);
+      if (metric === 'mndwi') return getSentinelMndwiImage(y, endMMDD);
       if (metric === 'nightlights') {
         if (nightLightsProduct === 'monthly') {
           const targetYear = Math.max(2014, Math.min(2025, y));
@@ -148,17 +180,21 @@ export async function GET(request: Request) {
           ? { min: -0.2, max: 0.2, palette: ['#047857', '#86EFAC', '#F7F7F7', '#F59E0B', '#8B1E1E'] }
           : metric === 'nightlights'
             ? { min: -12, max: 12, palette: ['#08306B', '#4292C6', '#F7F7F7', '#F59E0B', '#B45309'] }
-            : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
+            : (metric === 'ndwi' || metric === 'mndwi')
+              ? { min: -0.5, max: 0.5, palette: ['#78350F', '#C4974A', '#F7F7F7', '#7EC8E3', '#075985'] }
+              : { min: -3, max: 3, palette: ['#2166AC', '#67A9CF', '#F7F7F7', '#EF8A62', '#B2182B'] };
     } else {
       resultImage = getMetricImage(year);
-      
+
       visParams = metric === 'vegetation'
         ? { min: 0.1, max: 0.8, palette: ['#7F1D1D', '#B45309', '#FACC15', '#84CC16', '#16A34A', '#065F46'] }
         : metric === 'builtup'
           ? { min: -0.2, max: 0.4, palette: ['#16A34A', '#84CC16', '#FACC15', '#F59E0B', '#EF4444', '#7F1D1D'] }
           : metric === 'nightlights'
             ? { min: 0, max: 80, palette: ['#030712', '#172554', '#2563EB', '#FACC15', '#F97316', '#FFFFFF'] }
-            : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
+            : (metric === 'ndwi' || metric === 'mndwi')
+              ? { min: -0.5, max: 0.5, palette: ['#78350F', '#C4974A', '#F7F7F7', '#7EC8E3', '#075985'] }
+              : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
     }
 
     // Get Map ID from GEE
@@ -181,8 +217,12 @@ export async function GET(request: Request) {
             ? nightLightsProduct === 'monthly'
               ? 'VIIRS DNB monthly avg_rad preview'
               : 'VIIRS DNB Annual V2.2 average_masked'
-            : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
-      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' ? 500 : 30,
+            : metric === 'ndwi'
+              ? 'Sentinel-2 SR Harmonized yearly median NDWI'
+              : metric === 'mndwi'
+                ? 'Sentinel-2 SR Harmonized yearly median MNDWI'
+                : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' ? 10 : metric === 'nightlights' ? 500 : 30,
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'

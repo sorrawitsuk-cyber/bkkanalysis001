@@ -9,7 +9,7 @@ interface FloodRiskMapViewProps {
   geojsonData: any;
   invertedMask?: any;
   activeDistrict: string;
-  mapMode: "district" | "satellite-cache";
+  mapMode: "district" | "satellite-cache" | "idw";
   compareMode?: boolean;
   summary?: any;
   opacity?: number;
@@ -17,6 +17,7 @@ interface FloodRiskMapViewProps {
   satelliteCachePreviewUrl?: string | null;
   satelliteCacheBounds?: [[number, number], [number, number]];
   granularity?: "district" | "subdistrict";
+  ndwiMetric?: "ndwi" | "mndwi";
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -67,10 +68,12 @@ export default function FloodRiskMapView({
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
   granularity = "district",
+  ndwiMetric = "ndwi",
 }: FloodRiskMapViewProps) {
   const mapRef            = useRef<L.Map | null>(null);
   const baseLayerRef      = useRef<L.TileLayer | null>(null);
   const geojsonLayerRef   = useRef<L.GeoJSON | null>(null);
+  const geeLayerRef       = useRef<L.TileLayer | null>(null);
   const maskLayerRef      = useRef<L.GeoJSON | null>(null);
   const cacheLayerRef     = useRef<L.ImageOverlay | null>(null);
   const yearRef           = useRef(summary?.selectedYear || 2024);
@@ -111,6 +114,7 @@ export default function FloodRiskMapView({
   // Opacity sync
   useEffect(() => {
     if (cacheLayerRef.current) cacheLayerRef.current.setOpacity(opacity);
+    if (geeLayerRef.current) geeLayerRef.current.setOpacity(opacity);
   }, [opacity]);
 
   // Satellite cache overlay
@@ -127,6 +131,29 @@ export default function FloodRiskMapView({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapMode, satelliteCachePreviewUrl, satelliteCacheBounds]);
+
+  // GEE live tile layer (idw mode)
+  useEffect(() => {
+    const loadGeeLayer = async () => {
+      if (!mapRef.current) return;
+      if (geeLayerRef.current) { mapRef.current.removeLayer(geeLayerRef.current); geeLayerRef.current = null; }
+      if (mapMode !== "idw") return;
+      const year = yearRef.current;
+      const metric = ndwiMetric;
+      const compareParam = compareModeRef.current ? `&compare=true&baseline=${summary?.compareYear || 2018}` : "";
+      try {
+        const res = await fetch(`/api/gee/tiles?year=${year}&metric=${metric}${compareParam}`);
+        const data = await res.json();
+        if (data.urlFormat && mapRef.current) {
+          geeLayerRef.current = L.tileLayer(data.urlFormat, { maxZoom: 20, opacity }).addTo(mapRef.current);
+        }
+      } catch (err) {
+        console.error("FloodRiskMapView: GEE tiles fetch failed", err);
+      }
+    };
+    loadGeeLayer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapMode, ndwiMetric, summary?.selectedYear, summary?.compareYear, compareMode]);
 
   // Inverted mask overlay (outside Bangkok)
   useEffect(() => {
@@ -148,9 +175,6 @@ export default function FloodRiskMapView({
     if (!mapRef.current || !geojsonData) return;
     if (geojsonLayerRef.current) { mapRef.current.removeLayer(geojsonLayerRef.current); geojsonLayerRef.current = null; }
 
-    // Fall back to district choropleth when satellite-cache has no preview URL
-    const effectiveMapMode = mapMode === "satellite-cache" && !satelliteCachePreviewUrl ? "district" : mapMode;
-
     geojsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
         const fp = feature?.properties ?? {};
@@ -159,13 +183,14 @@ export default function FloodRiskMapView({
           fp.district_name === activeDistrict || `เขต${fp.district_name}` === activeDistrict
         );
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
-        const showFill = effectiveMapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const isRasterMode = mapMode === "idw" || mapMode === "satellite-cache";
         return {
           fillColor: getFeatureColor(feature),
-          weight: isSelected ? 2.5 : 1,
-          opacity: 1,
+          weight: isRasterMode ? (isSelected ? 2 : 0) : (isSelected ? 2.5 : 1),
+          opacity: isRasterMode ? (isSelected ? 0.9 : 0) : 1,
           color: isSelected ? "#ffffff" : "#1e293b",
-          dashArray: "3",
+          dashArray: isRasterMode ? undefined : "3",
           fillOpacity: showFill ? (isDimmed ? 0.15 : 0.72) : 0,
         };
       },
@@ -214,7 +239,7 @@ export default function FloodRiskMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, granularity, getFeatureColor, satelliteCachePreviewUrl]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, granularity, getFeatureColor]);
 
   return <div id="flood-risk-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

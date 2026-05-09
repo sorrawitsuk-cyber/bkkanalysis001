@@ -6,24 +6,15 @@ import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import A4Report from "@/components/gee/A4Report";
-import { Calendar, Database, FileDown, Layers, RefreshCw } from "lucide-react";
+import { Calendar, FileDown, Layers, RefreshCw } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import {
-  fetchCacheIndex,
-  fetchCacheMetadata,
-  getCacheLayerPreviewUrl,
-  formatPeriodThai,
-  CACHE_LAYER_LABELS,
-  type SatelliteCacheIndex,
-  type SatelliteCacheMetadata,
-} from "@/lib/satellite-cache";
 
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
-type MapMode  = "district" | "idw" | "satellite-cache";
+type MapMode  = "district" | "idw";
 
 export default function GreenSpacePage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
@@ -40,12 +31,6 @@ export default function GreenSpacePage() {
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
 
-  // Satellite cache state
-  const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
-  const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
-  const [cacheLoading, setCacheLoading] = useState(false);
-  const [cacheLayer, setCacheLayer] = useState("ndvi_mean");
-  const [cachePeriod, setCachePeriod] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [mapSnapshot, setMapSnapshot] = useState<string | null>(null);
 
@@ -72,27 +57,6 @@ export default function GreenSpacePage() {
       });
   }, [activeDistrict, selectedYear, compareMode, compareYear]);
 
-  // Load index on mount
-  useEffect(() => {
-    fetchCacheIndex().then(setCacheIndex);
-  }, []);
-
-  // Set default period when entering cache mode (or when index arrives)
-  useEffect(() => {
-    if (mapMode === "satellite-cache" && !cachePeriod && cacheIndex?.latest_month) {
-      setCachePeriod(cacheIndex.latest_month);
-    }
-  }, [mapMode, cacheIndex, cachePeriod]);
-
-  // Load metadata whenever selected period changes
-  useEffect(() => {
-    if (mapMode !== "satellite-cache" || !cachePeriod) return;
-    setCacheLoading(true);
-    fetchCacheMetadata("monthly", cachePeriod)
-      .then((meta) => { setCacheMeta(meta ?? null); setCacheLoading(false); })
-      .catch(() => setCacheLoading(false));
-  }, [cachePeriod, mapMode]);
-
   const displayGeoJson = useMemo(
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
     [geojsonData, granularity],
@@ -108,10 +72,6 @@ export default function GreenSpacePage() {
     setOpacity(0.78);
     setBaseMap("dark");
     setNdviLayer("ndvi_mean");
-    setCacheMeta(null);
-    setCacheLoading(false);
-    setCacheLayer("ndvi_mean");
-    setCachePeriod(null);
   };
 
   const handleExportPDF = async () => {
@@ -158,8 +118,6 @@ export default function GreenSpacePage() {
     setIsExporting(false);
   };
 
-  const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, cacheLayer);
-
   const ndviSummary = summary?.ndviSummary;
   const districtCount = geojsonData?.features?.length || 50;
   const avgGreenAreaRai = ndviSummary?.total_green_area_rai && districtCount
@@ -202,65 +160,6 @@ export default function GreenSpacePage() {
           { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" },
           { color: "#86EFAC", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.15" },
           { color: "#047857", label: "เพิ่มขึ้นมาก", range: "> +0.15" },
-        ],
-      };
-    }
-
-    if (mapMode === "satellite-cache") {
-      if (cacheLayer === "ndwi_mean" || cacheLayer === "ndwi_max") {
-        return {
-          title: `NDWI — ดัชนีน้ำผิวดิน (${CACHE_LAYER_LABELS[cacheLayer]})`,
-          description: "ค่าสูง = น้ำผิวดิน / ความชื้นสูง  ค่าต่ำ = ดินแห้ง พืช หรือสิ่งปลูกสร้าง",
-          unit: "",
-          items: [
-            { color: "#92400E", label: "ดินแห้ง/พืช", range: "< -0.30" },
-            { color: "#C4974A", label: "กึ่งแห้ง", range: "-0.30 ถึง -0.10" },
-            { color: "#F7F7F7", label: "กลาง", range: "-0.10 ถึง 0.10" },
-            { color: "#7EC8E3", label: "ชื้น/น้ำตื้น", range: "0.10 ถึง 0.30" },
-            { color: "#0369A1", label: "น้ำผิวดิน", range: "> 0.30" },
-          ],
-        };
-      }
-      if (cacheLayer === "mndwi_mean") {
-        return {
-          title: "MNDWI — ดัชนีน้ำในเมือง (mean)",
-          description: "แม่นกว่า NDWI ในพื้นที่เมือง ลดการรบกวนจากสิ่งปลูกสร้าง",
-          unit: "",
-          items: [
-            { color: "#92400E", label: "ดิน/พืช", range: "< -0.30" },
-            { color: "#C4974A", label: "กึ่งแห้ง", range: "-0.30 ถึง -0.10" },
-            { color: "#F7F7F7", label: "กลาง", range: "-0.10 ถึง 0.10" },
-            { color: "#60ACD8", label: "น้ำตื้น/ชื้น", range: "0.10 ถึง 0.30" },
-            { color: "#0284C7", label: "น้ำ/คลอง", range: "> 0.30" },
-          ],
-        };
-      }
-      if (cacheLayer === "ndbi_mean") {
-        return {
-          title: "NDBI — ดัชนีสิ่งปลูกสร้าง (mean)",
-          description: "ค่าสูง = พื้นที่สิ่งปลูกสร้าง  ค่าต่ำ = พืชพรรณหนาแน่น",
-          unit: "",
-          items: [
-            { color: "#065F46", label: "พืชพรรณหนาแน่น", range: "< -0.30" },
-            { color: "#4CAF7D", label: "กึ่งพืชพรรณ", range: "-0.30 ถึง -0.10" },
-            { color: "#F7F7F7", label: "กลาง/ผสม", range: "-0.10 ถึง 0.10" },
-            { color: "#C07070", label: "กึ่งสิ่งปลูกสร้าง", range: "0.10 ถึง 0.30" },
-            { color: "#7F1D1D", label: "สิ่งปลูกสร้างหนาแน่น", range: "> 0.30" },
-          ],
-        };
-      }
-      // ndvi_mean / ndvi_max
-      return {
-        title: `NDVI — พืชพรรณ (${CACHE_LAYER_LABELS[cacheLayer] ?? cacheLayer})`,
-        description: `ภาพ composite รายเดือน${cacheMeta?.period ? ` · ${formatPeriodThai(cacheMeta.period)}` : ""} · ตัดพื้นที่น้ำออกแล้ว`,
-        unit: "",
-        items: [
-          { color: "#7F1D1D", label: "เขียวน้อยมาก", range: "0.10 - 0.25" },
-          { color: "#B45309", label: "เขียวน้อย", range: "0.25 - 0.40" },
-          { color: "#FACC15", label: "ปานกลาง", range: "0.40 - 0.55" },
-          { color: "#84CC16", label: "ดี", range: "0.55 - 0.70" },
-          { color: "#16A34A", label: "ดีมาก", range: "0.70 - 0.80" },
-          { color: "#065F46", label: "หนาแน่นมาก", range: "> 0.80" },
         ],
       };
     }
@@ -351,7 +250,6 @@ export default function GreenSpacePage() {
             baseMap={baseMap}
             analysisType="green"
             ndviLayer={ndviLayer}
-            satelliteCachePreviewUrl={cachePreviewUrl}
             granularity={granularity}
           />
         </div>
@@ -367,25 +265,14 @@ export default function GreenSpacePage() {
 
         <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
           <div className="flex items-center gap-2 mb-1">
-            <div className={`w-2 h-2 rounded-full ${mapMode === "satellite-cache" ? "bg-sky-400" : "bg-emerald-500"}`} />
+            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-            {mapMode === "satellite-cache" && cacheMeta?.status === "ok" ? (
-              <>
-                <p><span className="text-white">Period:</span> {formatPeriodThai(cacheMeta.period)} · {cacheMeta.image_count} scenes{cacheMeta.fallback_used ? " (fallback)" : ""}</p>
-                <p><span className="text-white">Layer:</span> {CACHE_LAYER_LABELS[cacheLayer] ?? cacheLayer}</p>
-                <p><span className="text-white">Method:</span> monthly composite · cloud + water masked</p>
-                <p><span className="text-white">Resolution:</span> 100m per pixel (R2 cache)</p>
-              </>
-            ) : (
-              <>
-                <p><span className="text-white">Period:</span> {periodLabel}</p>
-                <p><span className="text-white">Method:</span> yearly median NDVI · cloud + water masked</p>
-                <p><span className="text-white">Resolution:</span> 10m per pixel</p>
-              </>
-            )}
+            <p><span className="text-white">Period:</span> {periodLabel}</p>
+            <p><span className="text-white">Method:</span> yearly median NDVI · cloud + water masked</p>
+            <p><span className="text-white">Resolution:</span> {mapMode === "idw" ? "10m per pixel (GEE Live)" : "district-level"}</p>
           </div>
         </div>
 
@@ -454,7 +341,7 @@ export default function GreenSpacePage() {
             </div>
 
             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-            <div className="grid grid-cols-3 bg-slate-900/80 rounded-xl p-1 border border-slate-800">
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 border border-slate-800">
               <button
                 onClick={() => setMapMode("district")}
                 className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
@@ -469,13 +356,6 @@ export default function GreenSpacePage() {
                 className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
               >
                 GEE Live
-              </button>
-              <button
-                onClick={() => setMapMode("satellite-cache")}
-                className={`text-[9px] py-2 rounded-lg transition-all font-bold flex items-center justify-center gap-1 ${mapMode === "satellite-cache" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                <Database className="w-2.5 h-2.5" />
-                Cache
               </button>
             </div>
 
@@ -526,75 +406,13 @@ export default function GreenSpacePage() {
               </div>
             )}
 
-            {mapMode === "satellite-cache" && (
-              <div className="mt-4 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
-                <h4 className="text-[10px] font-bold text-sky-300 mb-1 flex items-center gap-1">
-                  <Database className="w-3 h-3" /> Satellite Cache (R2)
-                </h4>
-                {/* Period selector */}
-                {cacheIndex?.monthly && cacheIndex.monthly.length > 0 && (
-                  <div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">เดือน</p>
-                    <select
-                      value={cachePeriod ?? ""}
-                      onChange={(e) => setCachePeriod(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-sky-800/40 text-slate-200 text-[10px] rounded-lg px-2 py-1.5 appearance-none focus:outline-none focus:border-sky-500/60 cursor-pointer"
-                    >
-                      {[...cacheIndex.monthly].reverse().map((p) => (
-                        <option key={p} value={p}>{formatPeriodThai(p)}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {cacheLoading ? (
-                  <p className="text-[9px] text-slate-500">กำลังโหลดข้อมูล...</p>
-                ) : cacheMeta?.status === "ok" ? (
-                  <>
-                    <p className="text-[9px] text-slate-400">
-                      <span className="text-slate-200 font-bold">จำนวนภาพ:</span>{" "}
-                      {cacheMeta.image_count} scenes
-                      {cacheMeta.fallback_used && (
-                        <span className="text-amber-400 ml-1">(fallback range)</span>
-                      )}
-                    </p>
-                    <div className="mt-1">
-                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล</p>
-                      <div className="grid grid-cols-2 gap-1">
-                        {Object.entries(CACHE_LAYER_LABELS).map(([key, label]) => (
-                          <button
-                            key={key}
-                            onClick={() => setCacheLayer(key)}
-                            className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {!cachePreviewUrl && (
-                      <p className="text-[9px] text-amber-400">ยังไม่มี preview สำหรับ layer นี้</p>
-                    )}
-                  </>
-                ) : cacheMeta?.status === "insufficient_data" || cacheMeta?.status === "pending" ? (
-                  <p className="text-[9px] text-amber-400">
-                    ข้อมูลช่วงนี้ยังไม่พร้อม (ภาพถ่ายน้อยเกินไป)
-                  </p>
-                ) : (
-                  <p className="text-[9px] text-slate-500">
-                    ยังไม่มีข้อมูล cache — รัน GitHub Action เพื่อประมวลผลครั้งแรก
-                  </p>
-                )}
-              </div>
-            )}
-
           </div>
 
-          {(mapMode === "idw" || mapMode === "satellite-cache") && (
+          {mapMode === "idw" && (
             <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${mapMode === "satellite-cache" ? "text-sky-400 bg-sky-500/10" : "text-emerald-400 bg-emerald-500/10"}`}>{Math.round(opacity * 100)}%</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full text-emerald-400 bg-emerald-500/10">{Math.round(opacity * 100)}%</span>
               </div>
               <input
                 type="range"
@@ -603,7 +421,7 @@ export default function GreenSpacePage() {
                 step="0.01"
                 value={opacity}
                 onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                className={`w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer ${mapMode === "satellite-cache" ? "accent-sky-400" : "accent-emerald-500"}`}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
               />
             </div>
           )}

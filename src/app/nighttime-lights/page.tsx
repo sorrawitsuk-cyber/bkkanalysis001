@@ -17,7 +17,7 @@ import {
 
 const LSTMapView = dynamic(() => import("@/components/gee/LSTMapView"), { ssr: false });
 
-type MapMode = "district" | "satellite-cache";
+type MapMode = "district" | "satellite-cache" | "idw";
 type DataProduct = "annual" | "monthly";
 
 function formatRadiance(value: number | null | undefined, digits = 2) {
@@ -460,8 +460,8 @@ export default function NighttimeLightsPage() {
                 สถิติ
               </button>
               <button
-                onClick={() => setMapMode("satellite-cache")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "satellite-cache" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                onClick={() => setMapMode("idw")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
               >
                 ดาวเทียม (GEE)
               </button>
@@ -485,8 +485,8 @@ export default function NighttimeLightsPage() {
             </button>
           </div>
 
-          {/* Card 2: Opacity (satellite-cache only) */}
-          {mapMode === "satellite-cache" && (
+          {/* Card 2: Opacity (raster modes) */}
+          {(mapMode === "satellite-cache" || mapMode === "idw") && (
             <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>

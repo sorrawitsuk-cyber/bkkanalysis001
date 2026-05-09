@@ -18,7 +18,7 @@ import {
 
 const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false });
 
-type MapMode = "district" | "satellite-cache";
+type MapMode = "district" | "satellite-cache" | "idw";
 
 const WATER_CACHE_LAYERS = ["ndwi_mean", "ndwi_max", "mndwi_mean"] as const;
 type WaterCacheLayer = typeof WATER_CACHE_LAYERS[number];
@@ -358,6 +358,7 @@ export default function FloodRiskPage() {
             satelliteCachePreviewUrl={cachePreviewUrl}
             satelliteCacheBounds={yearlyMeta?.bounds}
             granularity={granularity}
+            ndwiMetric={cacheLayer === "mndwi_mean" ? "mndwi" : "ndwi"}
           />
         </div>
 
@@ -368,12 +369,12 @@ export default function FloodRiskPage() {
             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
-            {mapMode === "satellite-cache" && yearlyMeta?.status === "ok" ? (
+            {mapMode === "idw" ? (
               <>
                 <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-                <p><span className="text-white">Period:</span> Annual {selectedYear} · {yearlyMeta.image_count} scenes{yearlyMeta.fallback_used ? " (fallback)" : ""}</p>
-                <p><span className="text-white">Layer:</span> {WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer}</p>
-                <p><span className="text-white">Resolution:</span> 100m per pixel (R2 cache)</p>
+                <p><span className="text-white">Period:</span> {periodLabel}</p>
+                <p><span className="text-white">Layer:</span> {WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer} (GEE Live)</p>
+                <p><span className="text-white">Resolution:</span> 10m per pixel (real-time)</p>
               </>
             ) : (
               <>
@@ -450,17 +451,17 @@ export default function FloodRiskPage() {
                 สถิติ
               </button>
               <button
-                onClick={() => setMapMode("satellite-cache")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "satellite-cache" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                onClick={() => setMapMode("idw")}
+                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
               >
                 ดาวเทียม (GEE)
               </button>
             </div>
 
-            {/* Satellite cache layer picker */}
-            {mapMode === "satellite-cache" && (
+            {/* Live GEE layer picker */}
+            {mapMode === "idw" && (
               <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (Water)</p>
+                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (WATER)</p>
                 <div className="flex flex-col gap-1">
                   {WATER_CACHE_LAYERS.map((key) => (
                     <button
@@ -472,15 +473,12 @@ export default function FloodRiskPage() {
                     </button>
                   ))}
                 </div>
-                {!cachePreviewUrl && (
-                  <p className="text-[9px] text-amber-400">ยังไม่มี preview สำหรับ layer นี้ในปีที่เลือก</p>
-                )}
               </div>
             )}
           </div>
 
-          {/* Opacity slider (satellite-cache mode) */}
-          {mapMode === "satellite-cache" && (
+          {/* Opacity slider (raster modes) */}
+          {mapMode === "idw" && (
             <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>

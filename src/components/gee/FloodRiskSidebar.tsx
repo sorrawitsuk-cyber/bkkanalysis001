@@ -12,7 +12,7 @@ interface FloodRiskSidebarProps {
   geojsonData?: any;
   loading: boolean;
   compareMode?: boolean;
-  mapMode?: "district" | "satellite-cache";
+  mapMode?: "district" | "satellite-cache" | "idw";
   granularity?: "district" | "subdistrict";
 }
 
