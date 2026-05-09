@@ -7,9 +7,12 @@ import geojson from "@/data/bkk_districts.json";
 export const dynamic = "force-dynamic";
 
 const ALL_DISTRICTS = "ทั้งหมด";
-const ANNUAL_DATASET_ID = "NOAA/VIIRS/DNB/ANNUAL_V22";
+// V22 covers 2022+; V21 covers 2012-2021 (band: average vs average_masked)
+const ANNUAL_V22_DATASET_ID = "NOAA/VIIRS/DNB/ANNUAL_V22";
+const ANNUAL_V21_DATASET_ID = "NOAA/VIIRS/DNB/ANNUAL_V21";
 const MONTHLY_DATASET_ID = "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG";
 const FIRST_YEAR = 2014;
+const ANNUAL_V22_START_YEAR = 2022;
 const LATEST_ANNUAL_YEAR = 2024;
 const LATEST_MONTHLY_YEAR = 2025;
 const LATEST_MONTHLY_MONTH = 3;
@@ -55,11 +58,14 @@ function getNightLightsImage(product: NightLightsProduct, year: number, month: n
   }
 
   const { startDate, endDate } = getDateRange(year);
-  return ee.ImageCollection(ANNUAL_DATASET_ID)
+  const useV22 = year >= ANNUAL_V22_START_YEAR;
+  const datasetId = useV22 ? ANNUAL_V22_DATASET_ID : ANNUAL_V21_DATASET_ID;
+  const band = useV22 ? "average_masked" : "average";
+  return ee.ImageCollection(datasetId)
     .filterBounds(geometry)
     .filterDate(startDate, endDate)
     .first()
-    .select("average_masked")
+    .select(band)
     .max(0)
     .rename("ntl");
 }
@@ -67,8 +73,8 @@ function getNightLightsImage(product: NightLightsProduct, year: number, month: n
 function getNightLightsImageForEeYear(year: any, geometry: any) {
   const start = ee.Date.fromYMD(year, 1, 1);
   const end = ee.Date.fromYMD(ee.Number(year).add(1), 1, 1);
-
-  return ee.ImageCollection(ANNUAL_DATASET_ID)
+  // Note: this uses V22 only; callers should pass years >= 2022 for correct data
+  return ee.ImageCollection(ANNUAL_V22_DATASET_ID)
     .filterBounds(geometry)
     .filterDate(start, end)
     .first()
