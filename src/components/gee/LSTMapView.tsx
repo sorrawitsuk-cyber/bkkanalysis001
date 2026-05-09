@@ -343,9 +343,6 @@ export default function LSTMapView({
     if (!mapRef.current || !geojsonData) return;
     if (geojsonLayerRef.current) mapRef.current.removeLayer(geojsonLayerRef.current);
 
-    // When satellite-cache mode has no preview image, fall back to choropleth so the map isn't blank
-    const effectiveMapMode = mapMode === "satellite-cache" && !satelliteCachePreviewUrl ? "district" : mapMode;
-
     geojsonLayerRef.current = L.geoJSON(geojsonData, {
       style: (feature) => {
         const value = getFeatureValue(feature);
@@ -356,18 +353,19 @@ export default function LSTMapView({
           p.district_name === activeDistrict || `เขต${p.district_name}` === activeDistrict
         );
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
-        const showFill = effectiveMapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
+        const isSatelliteMode = mapMode === "satellite-cache";
         return {
           fillColor: getColor(value),
-          weight: isSelected ? 3 : 1,
-          opacity: 1,
+          weight: isSatelliteMode ? (isSelected ? 2 : 0) : (isSelected ? 3 : 1),
+          opacity: isSatelliteMode ? (isSelected ? 0.9 : 0) : 1,
           color: isSelected ? "#ffffff" : "#1e293b",
-          dashArray: "3",
+          dashArray: isSatelliteMode ? undefined : "3",
           fillOpacity: showFill ? (isDimmed ? 0.2 : 0.72) : 0,
         };
       },
       onEachFeature: (feature, layer) => {
-        if (effectiveMapMode !== "district") return;
+        if (mapMode !== "district") return;
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : 3;
