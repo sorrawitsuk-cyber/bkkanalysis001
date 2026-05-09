@@ -28,6 +28,28 @@ function formatIndex(value: number | null | undefined): string {
   return value.toFixed(3);
 }
 
+function ringAreaSquareMeters(ring: number[][]) {
+  if (!ring?.length) return 0;
+  const radius = 6378137;
+  let area = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [lon1, lat1] = ring[i];
+    const [lon2, lat2] = ring[(i + 1) % ring.length];
+    area += ((lon2 - lon1) * Math.PI / 180) * (2 + Math.sin(lat1 * Math.PI / 180) + Math.sin(lat2 * Math.PI / 180));
+  }
+  return Math.abs((area * radius * radius) / 2);
+}
+
+function geometryAreaRai(geometry: any): number | null {
+  if (!geometry?.coordinates) return null;
+  const polygons = geometry.type === "MultiPolygon" ? geometry.coordinates : [geometry.coordinates];
+  const sqm = polygons.reduce((sum: number, polygon: number[][][]) => {
+    const [outer, ...holes] = polygon;
+    return sum + Math.max(0, ringAreaSquareMeters(outer) - holes.reduce((h, ring) => h + ringAreaSquareMeters(ring), 0));
+  }, 0);
+  return sqm > 0 ? sqm / 1600 : null;
+}
+
 export default function FloodRiskSidebar({
   onDistrictSelect,
   activeDistrict,
@@ -39,26 +61,35 @@ export default function FloodRiskSidebar({
   granularity = "district",
 }: FloodRiskSidebarProps) {
   const [showAll, setShowAll] = useState(false);
+  const [displayMode, setDisplayMode] = useState<"index" | "density">("index");
 
   // Build ranking rows from GeoJSON features (most accurate for current year)
   const rankingRows = useMemo(() => {
     const features = geojsonData?.features || [];
     if (features.length > 0) {
-      return features
-        .map((f: any) => ({
-          district: f.properties?.name_th,
-          districtName: (f.properties?.district_name as string) ?? null,
-          waterRatio: f.properties?.water_ratio as number | null,
-          waterAreaRai: f.properties?.water_area_rai as number | null,
-          displayValue: f.properties?.display_value as number | null,
-          displayAreaRai: f.properties?.display_area_rai as number | null,
-          displayLabel: f.properties?.display_label as string | null,
-          delta: f.properties?.delta as number | null,
-        }))
-        .filter((r: any) => r.district)
-        .sort((a: any, b: any) => {
-          return (b.displayValue ?? b.waterRatio ?? -1) - (a.displayValue ?? a.waterRatio ?? -1);
-        });
+      const rows = features
+        .map((f: any) => {
+          const waterAreaRai = f.properties?.water_area_rai as number | null;
+          const districtAreaRai = geometryAreaRai(f.geometry);
+          const densityPct = waterAreaRai !== null && districtAreaRai && districtAreaRai > 0
+            ? parseFloat(((waterAreaRai / districtAreaRai) * 100).toFixed(1))
+            : null;
+          return {
+            district: f.properties?.name_th,
+            districtName: (f.properties?.district_name as string) ?? null,
+            waterRatio: f.properties?.water_ratio as number | null,
+            waterAreaRai,
+            displayValue: f.properties?.display_value as number | null,
+            displayAreaRai: f.properties?.display_area_rai as number | null,
+            displayLabel: f.properties?.display_label as string | null,
+            delta: f.properties?.delta as number | null,
+            densityPct,
+          };
+        })
+        .filter((r: any) => r.district);
+      return displayMode === "density"
+        ? [...rows].sort((a: any, b: any) => (b.densityPct ?? -1) - (a.densityPct ?? -1))
+        : rows.sort((a: any, b: any) => (b.displayValue ?? b.waterRatio ?? -1) - (a.displayValue ?? a.waterRatio ?? -1));
     }
     // Fallback to API summary ranking
     return (summary?.ranking || []).map(([district, waterRatio, waterAreaRai]: any) => ({
@@ -68,8 +99,9 @@ export default function FloodRiskSidebar({
       displayAreaRai: waterAreaRai,
       waterAreaRai,
       delta: null,
+      densityPct: null,
     }));
-  }, [geojsonData, summary?.ranking]);
+  }, [geojsonData, summary?.ranking, displayMode]);
 
   const districtOptions = rankingRows.map((r: any) => r.district).filter(Boolean);
   const maxRankingValue = rankingRows.length
@@ -211,14 +243,34 @@ export default function FloodRiskSidebar({
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3 shrink-0" />
-              {compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ" : `${displayLabel}${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
+              {compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ"
+                : displayMode === "density" ? `ความหนาแน่นพื้นที่น้ำ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"} (%)`
+                : `${displayLabel}${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
             </h3>
-            <button
-              onClick={() => setShowAll(!showAll)}
-              className="shrink-0 max-w-[74px] text-right text-[9px] leading-tight text-sky-400 hover:text-sky-300 font-bold uppercase tracking-wide transition-colors"
-            >
-              {showAll ? "แสดงแค่ Top 10" : `แสดงทั้ง ${granularity === "subdistrict" ? "180 แขวง" : "50 เขต"}`}
-            </button>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {!compareMode && (
+                <div className="flex bg-slate-900/60 border border-slate-700/60 rounded-md overflow-hidden text-[9px] font-bold">
+                  <button
+                    onClick={() => setDisplayMode("index")}
+                    className={`px-2 py-1 transition-colors ${displayMode === "index" ? "bg-sky-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
+                  >
+                    ดัชนี
+                  </button>
+                  <button
+                    onClick={() => setDisplayMode("density")}
+                    className={`px-2 py-1 transition-colors ${displayMode === "density" ? "bg-sky-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
+                  >
+                    หนาแน่น
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => setShowAll(!showAll)}
+                className="max-w-[74px] text-right text-[9px] leading-tight text-sky-400 hover:text-sky-300 font-bold uppercase tracking-wide transition-colors"
+              >
+                {showAll ? "แสดงแค่ Top 10" : `แสดงทั้ง ${granularity === "subdistrict" ? "180 แขวง" : "50 เขต"}`}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -226,11 +278,15 @@ export default function FloodRiskSidebar({
               const isSelected = activeDistrict === row.district;
               const displayVal = compareMode && row.delta !== null
                     ? `${row.delta >= 0 ? "+" : ""}${(row.delta * 100).toFixed(1)}%`
-                    : formatIndex(row.displayValue ?? row.waterRatio);
+                    : displayMode === "density"
+                      ? (row.densityPct !== null ? `${row.densityPct}%` : "ไม่มีข้อมูล")
+                      : formatIndex(row.displayValue ?? row.waterRatio);
               const areaVal = row.displayAreaRai ?? row.waterAreaRai;
               const barPct = compareMode && row.delta !== null
                     ? Math.min(100, Math.abs(row.delta) / 0.1 * 100)
-                    : (Math.abs(row.displayValue ?? row.waterRatio ?? 0) / maxRankingValue) * 100;
+                    : displayMode === "density"
+                      ? Math.min(100, (row.densityPct ?? 0))
+                      : (Math.abs(row.displayValue ?? row.waterRatio ?? 0) / maxRankingValue) * 100;
               const barColor = compareMode
                     ? (row.delta ?? 0) >= 0 ? "from-sky-600 to-sky-400" : "from-amber-600 to-amber-400"
                     : "from-sky-600 to-cyan-400";

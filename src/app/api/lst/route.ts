@@ -329,6 +329,7 @@ export async function GET(request: Request) {
     let ranking: any[] = [];
     let ndbiRanking: any[] = [];
     let areaRanking: any[] = [];
+    let densityRanking: any[] = [];
     let maxRanking: any[] = [];
     let currentAvg = 0;
     let maxCurrentValue = -Infinity;
@@ -418,6 +419,16 @@ export async function GET(request: Request) {
             .filter((row: any) => typeof row.ndbi_mean === "number")
             .map((row: any) => [row.district_name, parseFloat(row.ndbi_mean.toFixed(3))])
             .sort((a: any, b: any) => (b[1] ?? -Infinity) - (a[1] ?? -Infinity));
+          // density = built-up area as % of total district area
+          densityRanking = currentYearData
+            .map((row: any) => {
+              const ndbi = typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
+              const areaRai = districtAreaRaiMap.get(row.district_id) ?? 0;
+              const builtupRai = ndbi !== null ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai) : 0;
+              const pct = areaRai > 0 ? parseFloat(((builtupRai / areaRai) * 100).toFixed(1)) : 0;
+              return [row.district_name, pct];
+            })
+            .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
         } else {
         ranking = currentYearData
           .sort((a: any, b: any) => (valueFor(b, metric) ?? -Infinity) - (valueFor(a, metric) ?? -Infinity))
@@ -431,6 +442,17 @@ export async function GET(request: Request) {
               typeof row.max_lst === "number" ? row.max_lst : valueFor(row, metric),
             ])
             .sort((a: any, b: any) => (b[1] ?? -Infinity) - (a[1] ?? -Infinity));
+        }
+
+        if (metric === "vegetation") {
+          // density = green area as % of total district area (ratio field)
+          densityRanking = currentYearData
+            .map((row: any) => {
+              const ratio = typeof row.green_area_ratio === "number" ? row.green_area_ratio : null;
+              const pct = ratio !== null ? parseFloat((ratio * 100).toFixed(1)) : 0;
+              return [row.district_name, pct];
+            })
+            .sort((a: any, b: any) => (b[1] ?? 0) - (a[1] ?? 0));
         }
       }
     }
@@ -538,6 +560,7 @@ export async function GET(request: Request) {
         ranking,
         ndbiRanking,
         areaRanking,
+        densityRanking,
         maxRanking,
         min_lst: minValue !== Infinity ? minValue : metric === "vegetation" ? 0 : metric === "builtup" ? -0.2 : 30,
         max_lst: maxValue !== -Infinity ? maxValue : metric === "vegetation" ? 0.8 : metric === "builtup" ? 0.4 : 40,

@@ -278,7 +278,7 @@ export async function GET(request: Request) {
         max_delta: maxDelta !== -Infinity ? Number(maxDelta.toFixed(3)) : 10,
         dataSource: product === "monthly"
           ? `${MONTHLY_DATASET_ID} monthly avg_rad, cf_cvg >= ${MIN_CLOUD_FREE_COVERAGE}`
-          : `${ANNUAL_DATASET_ID} annual average_masked`,
+          : `${ANNUAL_V22_DATASET_ID} annual average_masked`,
         units: "nW/sr/cm²",
       },
     }, {

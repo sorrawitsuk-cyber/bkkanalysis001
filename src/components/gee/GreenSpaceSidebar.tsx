@@ -91,7 +91,7 @@ export default function GreenSpaceSidebar({
   granularity = "district",
 }: GreenSpaceSidebarProps) {
   const [showAll, setShowAll] = useState(false);
-  const [displayMode, setDisplayMode] = useState<"area" | "ndvi">("area");
+  const [displayMode, setDisplayMode] = useState<"area" | "ndvi" | "density">("area");
 
   const districtRows = useMemo(() => {
     return (geojsonData?.features || [])
@@ -112,9 +112,9 @@ export default function GreenSpaceSidebar({
 
   const rankingRows = useMemo(() => {
     if (districtRows.length) {
-      return displayMode === "ndvi"
-        ? [...districtRows].sort((a, b) => (b.ndvi || 0) - (a.ndvi || 0))
-        : [...districtRows].sort((a, b) => b.value - a.value);
+      if (displayMode === "ndvi") return [...districtRows].sort((a, b) => (b.ndvi || 0) - (a.ndvi || 0));
+      if (displayMode === "density") return [...districtRows].filter((r: any) => Number.isFinite(r.ratio)).sort((a: any, b: any) => (b.ratio || 0) - (a.ratio || 0));
+      return [...districtRows].sort((a, b) => b.value - a.value);
     }
     return (summary?.ranking || []).map(([district, value]: [string, number]) => ({ district, value }));
   }, [districtRows, summary?.ranking, displayMode]);
@@ -133,9 +133,9 @@ export default function GreenSpaceSidebar({
   }
 
   const isAreaMode = displayMode === "area";
-  const yearlyDisplayTrend = isAreaMode
-    ? (summary.greenAreaTrend?.length ? summary.greenAreaTrend : [])
-    : (summary.yearlyTrend?.length ? summary.yearlyTrend : []);
+  const yearlyDisplayTrend = displayMode === "ndvi"
+    ? (summary.yearlyTrend?.length ? summary.yearlyTrend : [])
+    : (summary.greenAreaTrend?.length ? summary.greenAreaTrend : []);
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxTrendValue = Math.max(1, ...trendValues);
   const averageValue = rankingRows.length
@@ -220,6 +220,12 @@ export default function GreenSpaceSidebar({
                 พื้นที่
               </button>
               <button
+                onClick={() => setDisplayMode("density")}
+                className={`px-2 py-1 transition-colors ${displayMode === "density" ? "bg-emerald-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                หนาแน่น
+              </button>
+              <button
                 onClick={() => setDisplayMode("ndvi")}
                 className={`px-2 py-1 transition-colors ${displayMode === "ndvi" ? "bg-emerald-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
               >
@@ -252,22 +258,26 @@ export default function GreenSpaceSidebar({
             <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
           </div>
           <p className="mt-2 text-[9px] text-slate-500 leading-snug">
-            {isAreaMode
-              ? "รวมพื้นที่สีเขียวทั้งกรุงเทพฯ (ไร่) รายปี"
-              : "ค่า NDVI เฉลี่ยทั้งกรุงเทพฯ รายปี (0.0–1.0)"}
+            {displayMode === "ndvi"
+              ? "ค่า NDVI เฉลี่ยทั้งกรุงเทพฯ รายปี (0.0–1.0)"
+              : "รวมพื้นที่สีเขียวทั้งกรุงเทพฯ (ไร่) รายปี"}
           </p>
         </section>
 
         <div className="h-px bg-slate-800/60" />
 
-        <NdviInsightsPanel summary={summary} areaRows={districtRows} displayMode={displayMode} />
+        <NdviInsightsPanel summary={summary} areaRows={districtRows} displayMode={displayMode === "density" ? "area" : displayMode} />
 
         <div className="h-px bg-slate-800/60" />
 
         <section className="flex-1 pb-10">
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
-              <MapPin className="w-3 h-3" /> {isAreaMode ? `ปริมาณพื้นที่สีเขียว${granularity === "subdistrict" ? "รายแขวง" : ""} (ไร่)` : `ค่าดัชนี NDVI ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
+              <MapPin className="w-3 h-3" /> {
+                displayMode === "ndvi" ? `ค่าดัชนี NDVI ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`
+                : displayMode === "density" ? `ความหนาแน่นพื้นที่สีเขียว${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"} (%)`
+                : `ปริมาณพื้นที่สีเขียว${granularity === "subdistrict" ? "รายแขวง" : ""} (ไร่)`
+              }
             </h3>
             <button
               onClick={() => setShowAll(!showAll)}
@@ -280,11 +290,15 @@ export default function GreenSpaceSidebar({
           <div className="space-y-1.5">
             {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, index: number) => {
               const isSelected = activeDistrict === row.district;
-              const rankVal = isAreaMode ? row.value : (Number.isFinite(row.ndvi) ? row.ndvi : 0);
+              const rankVal = displayMode === "area" ? row.value
+                : displayMode === "density" ? (Number.isFinite(row.ratio) ? (row.ratio as number) * 100 : 0)
+                : (Number.isFinite(row.ndvi) ? row.ndvi : 0);
               const rankMin = 0;
-              const rankMax = isAreaMode ? rankingMax : 0.6;
+              const rankMax = displayMode === "area" ? rankingMax : displayMode === "density" ? 100 : 0.6;
               const pct = ((rankVal - rankMin) / Math.max(0.01, rankMax - rankMin)) * 100;
-              const displayValue = isAreaMode ? formatRai(row.value) : (Number.isFinite(row.ndvi) ? row.ndvi.toFixed(3) : "N/A");
+              const displayValue = displayMode === "area" ? formatRai(row.value)
+                : displayMode === "density" ? (Number.isFinite(row.ratio) ? `${((row.ratio as number) * 100).toFixed(1)}%` : "N/A")
+                : (Number.isFinite(row.ndvi) ? row.ndvi.toFixed(3) : "N/A");
 
               return (
                 <button

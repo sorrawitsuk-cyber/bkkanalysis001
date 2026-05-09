@@ -17,7 +17,7 @@ interface BuiltUpSidebarProps {
 
 export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summary, loading, compareMode, granularity = "district", subdistrictFeatures }: BuiltUpSidebarProps) {
   const [showAll, setShowAll] = useState(false);
-  const [displayMode, setDisplayMode] = useState<'area' | 'ndbi'>('area');
+  const [displayMode, setDisplayMode] = useState<'area' | 'ndbi' | 'density'>('area');
 
   const subRows = useMemo(() => {
     if (granularity !== "subdistrict" || !subdistrictFeatures?.length) return null;
@@ -58,9 +58,12 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
 
   const ndbiRankingRows: [string, number][] = summary.ndbiRanking || [];
   const areaRankingRows: [string, number][] = summary.areaRanking || [];
+  const densityRankingRows: [string, number][] = summary.densityRanking || [];
   const rankingDisplayRows = compareMode
     ? (isAreaMode && areaRankingRows.length ? areaRankingRows : (summary.ranking || []))
-    : (displayMode === 'ndbi' && ndbiRankingRows.length ? ndbiRankingRows : (summary.ranking || []));
+    : (displayMode === 'ndbi' && ndbiRankingRows.length ? ndbiRankingRows
+      : displayMode === 'density' && densityRankingRows.length ? densityRankingRows
+      : (summary.ranking || []));
   const rankingValues = rankingDisplayRows.map((row: any) => Number(row[1])).filter(Number.isFinite);
   const rankingMin = 0;
   const rankingMaxAbs = rankingValues.length ? Math.max(...rankingValues.map((v: number) => Math.abs(v))) : 1;
@@ -131,7 +134,9 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                 : rankingValues.length
                   ? (displayMode === 'ndbi'
                     ? (rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length).toFixed(3)
-                    : formatRai(Math.round(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length)))
+                    : displayMode === 'density'
+                      ? `${(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length).toFixed(1)}%`
+                      : formatRai(Math.round(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length)))
                   : '--'}
             </div>
           </div>
@@ -145,7 +150,9 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                 : rankingValues.length
                   ? (displayMode === 'ndbi'
                     ? Math.max(...rankingValues).toFixed(3)
-                    : formatRai(Math.max(...rankingValues)))
+                    : displayMode === 'density'
+                      ? `${Math.max(...rankingValues).toFixed(1)}%`
+                      : formatRai(Math.max(...rankingValues)))
                   : '--'}
             </div>
           </div>
@@ -174,6 +181,12 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                   className={`px-2 py-1 transition-colors ${displayMode === 'area' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                   พื้นที่
+                </button>
+                <button
+                  onClick={() => setDisplayMode('density')}
+                  className={`px-2 py-1 transition-colors ${displayMode === 'density' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                  หนาแน่น
                 </button>
                 <button
                   onClick={() => setDisplayMode('ndbi')}
@@ -279,7 +292,9 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
               <MapPin className="w-3 h-3" /> {
                 compareMode
                   ? (isAreaMode ? `พื้นที่เปลี่ยนแปลง${levelLabel} (ไร่)` : `อันดับ NDBI เพิ่มขึ้น · Urban Growth`)
-                  : displayMode === 'ndbi' ? `อันดับค่าดัชนี NDBI ${levelLabel}` : `พื้นที่สิ่งปลูกสร้าง${levelLabel} (ไร่)`
+                  : displayMode === 'ndbi' ? `อันดับค่าดัชนี NDBI ${levelLabel}`
+                  : displayMode === 'density' ? `ความหนาแน่นสิ่งปลูกสร้าง${levelLabel} (%)`
+                  : `พื้นที่สิ่งปลูกสร้าง${levelLabel} (ไร่)`
               }
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
@@ -316,6 +331,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                     ? (val > 0 ? `+${formatRai(val)}` : val < 0 ? `-${formatRai(Math.abs(val))}` : `0 ไร่`)
                     : (val > 0 ? `+${val.toFixed(3)}` : val.toFixed(3)))
                   : displayMode === 'ndbi' ? val.toFixed(3)
+                  : displayMode === 'density' ? `${val.toFixed(1)}%`
                   : formatRai(Math.round(val));
               const colorClass = compareMode ? (val > 0 ? 'text-red-400' : 'text-emerald-400') : 'text-indigo-400';
               const barGradient = compareMode
