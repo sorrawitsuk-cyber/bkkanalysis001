@@ -192,7 +192,7 @@ export default function Home() {
             id="modules"
             className="min-h-0 overflow-y-auto pb-2 custom-scrollbar"
           >
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {analysisModules.map((module) => {
                 const Icon = module.icon;
                 return (
