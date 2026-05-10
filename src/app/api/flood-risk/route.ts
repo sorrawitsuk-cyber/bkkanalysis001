@@ -351,6 +351,31 @@ export async function GET(request: Request) {
     );
   } catch (err: any) {
     console.error("Flood Risk API Error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    // Return valid empty GeoJSON so the page never shows a broken state
+    const emptyFeatures = (geojson.features as any[]).map((feature: any) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        water_ratio: null, water_area_rai: null,
+        district_area_rai: districtAreaRaiMap.get(feature.properties.id) ?? null,
+        delta: null, compare_water_ratio: null,
+        ndwi_mean: null, mndwi_mean: null,
+        display_value: null, display_label: "NDWI",
+      },
+    }));
+    return NextResponse.json({
+      geojson: { type: "FeatureCollection", features: emptyFeatures },
+      invertedMask: null,
+      summary: {
+        selectedYear: 0, compareYear: null,
+        avgWaterRatio: null, avgDisplayValue: null,
+        totalWaterAreaRai: 0, baselineAvg: null, avgDelta: null,
+        topWet: [], topDry: [], ranking: [],
+        yearlyTrend: [], waterAreaTrend: [],
+        min_value: 0, max_value: 0.5,
+        displayLabel: "NDWI",
+        dataSource: `error: ${err.message}`,
+      },
+    });
   }
 }

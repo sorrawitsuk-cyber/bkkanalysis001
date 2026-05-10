@@ -208,13 +208,26 @@ export default function FloodRiskPage() {
         if (compareMode) params.append("compareYear", compareYearStr);
 
         const res = await fetch(`/api/flood-risk?${params}`);
-        if (!res.ok) throw new Error(`Flood Risk API error ${res.status}`);
-        const data = await res.json();
-        setGeojsonData(data.geojson);
-        setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
+        if (res.ok) {
+          const data = await res.json();
+          setGeojsonData(data.geojson);
+          setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
+        } else {
+          // API unavailable — show empty district outlines with no fill
+          const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
+          setGeojsonData(built.geojson);
+          setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
+        }
         setLoading(false);
       })
-      .catch((err) => { console.error(err); setLoading(false); });
+      .catch((err) => {
+        console.error(err);
+        // Show empty district outlines instead of blank map
+        const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
+        setGeojsonData(built.geojson);
+        setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
+        setLoading(false);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDistrict, selectedYear, compareMode, compareYear, cacheLayer]);
 
