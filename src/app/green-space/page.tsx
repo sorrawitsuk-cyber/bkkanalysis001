@@ -5,11 +5,11 @@ import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import A4Report from "@/components/gee/A4Report";
-import { Calendar, FileDown, Layers, RefreshCw } from "lucide-react";
+import { Layers } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import MonthYearPicker from "@/components/ui/MonthYearPicker";
+import ExportPanel from "@/components/ui/ExportPanel";
+import { buildPeriodLabel } from "@/lib/export-utils";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
@@ -31,8 +31,7 @@ export default function GreenSpacePage() {
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
 
-  const [isExporting, setIsExporting] = useState(false);
-  const [mapSnapshot, setMapSnapshot] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -71,52 +70,23 @@ export default function GreenSpacePage() {
     setGranularity("district");
     setOpacity(0.78);
     setBaseMap("dark");
+    setSelectedMonth(null);
     setNdviLayer("ndvi_mean");
   };
 
-  const handleExportPDF = async () => {
-    setIsExporting(true);
+  const ndviLayerLabel = ndviLayer === "green_area_rai" ? "ขนาดพื้นที่สีเขียว (ไร่)"
+    : ndviLayer === "green_area_ratio" ? "สัดส่วนพื้นที่สีเขียว (%)"
+    : "ค่า NDVI เฉลี่ย";
 
-    const mapContainer = document.querySelector(".leaflet-container") as HTMLElement;
-    let imgDataUrl: string | null = null;
-    if (mapContainer) {
-      try {
-        const mapCanvas = await html2canvas(mapContainer, { useCORS: true, allowTaint: true, scale: 2 });
-        imgDataUrl = mapCanvas.toDataURL("image/png");
-      } catch (err) {
-        console.warn("Map capture failed", err);
-      }
-    }
-    setMapSnapshot(imgDataUrl);
-
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const element = document.getElementById("a4-report");
-    if (element) {
-      try {
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          width: 794,
-          height: 1123,
-          windowWidth: 794,
-          windowHeight: 1123,
-        });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`BKK_Green_Space_Report_${selectedYear}_${activeDistrict}.pdf`);
-      } catch (err) {
-        console.error("Error generating PDF", err);
-        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
-      }
-    }
-    setMapSnapshot(null);
-    setIsExporting(false);
-  };
+  const rankingForExport: (string | number | null)[][] = ((geojsonData?.features ?? []) as any[])
+    .filter((f: any) => typeof f?.properties?.[ndviLayer] === "number")
+    .sort((a: any, b: any) => Number(b.properties[ndviLayer]) - Number(a.properties[ndviLayer]))
+    .map((f: any) => [
+      f.properties.name_th as string,
+      +Number(f.properties[ndviLayer]).toFixed(3),
+      ndviLayer === "green_area_rai" ? "ไร่" : ndviLayer === "green_area_ratio" ? "%" : "NDVI",
+      selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+    ]);
 
   const ndviSummary = summary?.ndviSummary;
   const districtCount = geojsonData?.features?.length || 50;
@@ -293,19 +263,6 @@ export default function GreenSpacePage() {
           </div>
         </div>
 
-        {/* Hidden A4 Report for PDF export */}
-        <A4Report
-          type="ndvi"
-          summary={summary}
-          geojsonData={geojsonData}
-          activeDistrict={activeDistrict}
-          selectedYear={selectedYear}
-          compareMode={compareMode}
-          compareYear={compareYear}
-          mapSnapshot={mapSnapshot}
-          mapMode={mapMode}
-        />
-
       </main>
 
       <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
@@ -359,22 +316,6 @@ export default function GreenSpacePage() {
               </button>
             </div>
 
-            {/* Export Button */}
-            <button
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              className={`mt-3 w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border flex items-center justify-center gap-2
-                ${isExporting
-                  ? "bg-slate-800 border-slate-700 text-slate-500 cursor-wait"
-                  : "bg-emerald-600/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-600 hover:text-white shadow-lg shadow-emerald-500/5"
-                }`}
-            >
-              {isExporting ? (
-                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังสร้างรายงาน...</>
-              ) : (
-                <><FileDown className="w-3.5 h-3.5" /> นำออกรายงานสรุป (PDF)</>
-              )}
-            </button>
 
             {mapMode === "district" && (
               <div className="mt-4">
@@ -449,51 +390,43 @@ export default function GreenSpacePage() {
             </div>
           </div>
 
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
-              </h4>
-              <button
-                onClick={() => setCompareMode(!compareMode)}
-                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
-              >
-                เปรียบเทียบปี
-              </button>
-            </div>
+          <MonthYearPicker
+            year={selectedYear}
+            month={selectedMonth}
+            minYear={2018}
+            maxYear={2026}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            accentColor="emerald"
+            compareMode={compareMode}
+            compareYear={compareYear}
+            onCompareModeChange={setCompareMode}
+            onCompareYearChange={setCompareYear}
+          />
 
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">2018</span>
-              <span className="text-lg font-bold text-emerald-400 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">2026</span>
-            </div>
-            <input
-              type="range"
-              min="2018"
-              max="2026"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mb-2"
-            />
+          <ExportPanel
+            accentColor="emerald"
+            csvFilename={`green-space_${ndviLayer}_${selectedYear}`}
+            csvHeaders={["เขต", ndviLayerLabel, "หน่วย", "ช่วงเวลา"]}
+            csvRows={rankingForExport}
+            reportData={{
+              title: "วิเคราะห์พื้นที่สีเขียวเมือง",
+              subtitle: "Sentinel-2 SR Harmonized · NDVI",
+              source: "Sentinel-2",
+              period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+              layer: ndviLayerLabel,
+              district: activeDistrict,
+              kpis: [
+                { label: "NDVI เฉลี่ย กทม.", value: ndviSummary?.avg_ndvi_mean !== null && ndviSummary?.avg_ndvi_mean !== undefined ? ndviSummary.avg_ndvi_mean.toFixed(3) : "–" },
+                { label: "พื้นที่สีเขียวรวม", value: formatRai(ndviSummary?.total_green_area_rai) },
+                { label: "เขตสีเขียวสูงสุด", value: ndviSummary?.best_district?.district_name ?? "–" },
+              ],
+              rankingHeaders: ["เขต", ndviLayerLabel],
+              rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+            }}
+          />
 
-            {compareMode && (
-              <div className="mt-4 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">ปีฐานที่ใช้เทียบ (Baseline)</h4>
-                  <span className="text-sm font-bold text-emerald-400 font-mono">{compareYear}</span>
-                </div>
-                <input
-                  type="range"
-                  min="2018"
-                  max="2026"
-                  value={compareYear}
-                  onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                />
-              </div>
-            )}
-          </div>
-          <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-emerald-500/20 shadow-2xl w-full">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-emerald-500/20 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest mb-2">NDVI คืออะไร</h4>
             <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
               <p>

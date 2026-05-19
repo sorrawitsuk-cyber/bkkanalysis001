@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import { Calendar, FileDown, Layers, Moon, RefreshCw } from "lucide-react";
+import { Calendar, Layers, Moon } from "lucide-react";
+import ExportPanel from "@/components/ui/ExportPanel";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -142,7 +143,6 @@ export default function NighttimeLightsPage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.82);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
-  const [isExporting, setIsExporting] = useState(false);
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
 
   // Derive year range dynamically from R2 index
@@ -271,12 +271,14 @@ export default function NighttimeLightsPage() {
     setBaseMap("dark");
   };
 
-  const handleExportPlaceholder = async () => {
-    setIsExporting(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setIsExporting(false);
-    alert("Nighttime Lights report export จะต่อกับ A4 report template ในรอบถัดไป");
-  };
+  const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
+    ([name, val]: [string, number | null]) => [
+      name,
+      val !== null && val !== undefined ? +Number(val).toFixed(3) : null,
+      "nW/sr/cm²",
+      periodLabel,
+    ],
+  );
 
   const isMonthlyPreview = dataProduct === "monthly";
   const monthLabel = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
@@ -467,22 +469,6 @@ export default function NighttimeLightsPage() {
               </button>
             </div>
 
-            {/* Export button */}
-            <button
-              onClick={handleExportPlaceholder}
-              disabled={isExporting}
-              className={`w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border flex items-center justify-center gap-2
-                ${isExporting
-                  ? "bg-slate-800 border-slate-700 text-slate-500 cursor-wait"
-                  : "bg-yellow-400/10 text-yellow-200 border-yellow-300/30 hover:bg-yellow-400 hover:text-slate-950 shadow-lg shadow-yellow-400/5"
-                }`}
-            >
-              {isExporting ? (
-                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังเตรียมรายงาน...</>
-              ) : (
-                <><FileDown className="w-3.5 h-3.5" /> นำออกรายงานสรุป</>
-              )}
-            </button>
           </div>
 
           {/* Card 2: Opacity (raster modes) */}
@@ -634,8 +620,30 @@ export default function NighttimeLightsPage() {
             )}
           </div>
 
+          <ExportPanel
+            accentColor="yellow"
+            csvFilename={`nighttime-lights_${isMonthlyPreview ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+            csvHeaders={["เขต", "ค่าแสง NTL (nW/sr/cm²)", "หน่วย", "ช่วงเวลา"]}
+            csvRows={rankingForExport}
+            reportData={{
+              title: "วิเคราะห์แสงกลางคืน",
+              subtitle: "VIIRS DNB Day/Night Band",
+              source: sourceDataset,
+              period: periodLabel,
+              layer: isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
+              district: activeDistrict,
+              kpis: [
+                { label: "ค่าแสงเฉลี่ย", value: formatRadiance(summary?.averageRadiance, 3) },
+                { label: "เขตสว่างสุด", value: summary?.maxDistrict ?? "–" },
+                { label: "ช่วงข้อมูล", value: periodLabel },
+              ],
+              rankingHeaders: ["เขต", "NTL (nW/sr/cm²)"],
+              rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+            }}
+          />
+
           {/* Card 5: Info */}
-          <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-yellow-300/20 shadow-2xl w-full">
+          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-yellow-300/20 shadow-2xl w-full">
             <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest mb-2 flex items-center gap-2">
               <Moon className="w-3.5 h-3.5" /> Nighttime Lights คืออะไร
             </h4>

@@ -5,11 +5,11 @@ import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import LSTSidebar from "@/components/gee/LSTSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import A4Report from "@/components/gee/A4Report";
-import { Layers, FileDown, RefreshCw, Calendar } from "lucide-react";
+import { Layers } from "lucide-react";
 import { formatLST, getLSTLegendItems } from "@/lib/lst";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import MonthYearPicker from "@/components/ui/MonthYearPicker";
+import ExportPanel from "@/components/ui/ExportPanel";
+import { buildPeriodLabel } from "@/lib/export-utils";
 
 // Use dynamic import for Map to prevent SSR issues with Leaflet
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
@@ -27,8 +27,7 @@ export default function HeatIslandPage() {
   const [loading, setLoading] = useState(true);
   const [opacity, setOpacity] = useState(0.8);
   const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
-  const [isExporting, setIsExporting] = useState(false);
-  const [mapSnapshot, setMapSnapshot] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -61,6 +60,7 @@ export default function HeatIslandPage() {
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setSelectedYear(2026);
+    setSelectedMonth(null);
     setCompareMode(false);
     setCompareYear(2018);
     setMapMode('idw');
@@ -69,57 +69,14 @@ export default function HeatIslandPage() {
     setBaseMap('dark');
   };
 
-  const handleExportPDF = async () => {
-    setIsExporting(true);
-    
-    // 1. Capture Map
-    const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
-    let imgDataUrl = null;
-    if (mapContainer) {
-      try {
-        const mapCanvas = await html2canvas(mapContainer, { useCORS: true, allowTaint: true, scale: 2 });
-        imgDataUrl = mapCanvas.toDataURL('image/png');
-      } catch (err) {
-        console.warn('Map capture failed', err);
-      }
-    }
-    setMapSnapshot(imgDataUrl);
-    
-    // Wait for react to render the image in the hidden report
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const element = document.getElementById("a4-report");
-    if (element) {
-      try {
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          width: 794,
-          height: 1123,
-          windowWidth: 794,
-          windowHeight: 1123,
-        });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
-          format: "a4",
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`BKK_Heat_Report_${selectedYear}_${activeDistrict}.pdf`);
-      } catch (err) {
-        console.error("Error generating PDF", err);
-        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
-      }
-    }
-    setMapSnapshot(null);
-    setIsExporting(false);
-  };
+  const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
+    ([name, val]: [string, number | null]) => [
+      name,
+      val !== null && val !== undefined ? +Number(val).toFixed(2) : null,
+      "°C",
+      selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+    ],
+  );
 
   const hottestDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
   const periodLabel = (() => {
@@ -229,19 +186,6 @@ export default function HeatIslandPage() {
           ))}
         </div>
 
-        {/* Hidden Report Component for PDF Export */}
-        <A4Report
-          type="lst"
-          summary={summary}
-          geojsonData={geojsonData}
-          activeDistrict={activeDistrict}
-          selectedYear={selectedYear}
-          compareMode={compareMode}
-          compareYear={compareYear}
-          mapSnapshot={mapSnapshot}
-          mapMode={mapMode}
-        />
-
         {/* Data Source Badge */}
         <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
           <div className="flex items-center gap-2 mb-1">
@@ -340,22 +284,6 @@ export default function HeatIslandPage() {
               </button>
             </div>
 
-            {/* Export Button - Full Width */}
-            <button 
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              className={`w-full py-2.5 rounded-xl text-[10px] font-bold tracking-widest transition-all border flex items-center justify-center gap-2
-                ${isExporting 
-                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-wait' 
-                  : 'bg-indigo-600/10 text-indigo-400 border-indigo-500/30 hover:bg-indigo-600 hover:text-white shadow-lg shadow-indigo-500/5'
-                }`}
-            >
-              {isExporting ? (
-                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> กำลังสร้างรายงาน...</>
-              ) : (
-                <><FileDown className="w-3.5 h-3.5" /> นำออกรายงานสรุป (PDF)</>
-              )}
-            </button>
           </div>
 
           {/* Opacity Slider (Only visible in GEE mode) */}
@@ -409,53 +337,42 @@ export default function HeatIslandPage() {
             </div>
           </div>
 
-          {/* Year Filter */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
-              </h4>
-              <button 
-                onClick={() => setCompareMode(!compareMode)}
-                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' : 'bg-transparent text-slate-500 border-slate-700 hover:border-slate-500'}`}
-              >
-                เปรียบเทียบปี
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">2018</span>
-              <span className="text-lg font-bold text-orange-400 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">2026</span>
-            </div>
-            <input 
-              type="range" 
-              min="2018" 
-              max="2026" 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mb-2"
-            />
+          <MonthYearPicker
+            year={selectedYear}
+            month={selectedMonth}
+            minYear={2018}
+            maxYear={2026}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            accentColor="red"
+            compareMode={compareMode}
+            compareYear={compareYear}
+            onCompareModeChange={setCompareMode}
+            onCompareYearChange={setCompareYear}
+          />
 
-            {compareMode && (
-              <div className="mt-4 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                    ปีฐานที่ใช้เทียบ (Baseline)
-                  </h4>
-                  <span className="text-sm font-bold text-indigo-400 font-mono">{compareYear}</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="2018" 
-                  max="2026" 
-                  value={compareYear}
-                  onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                />
-              </div>
-            )}
-          </div>
+          <ExportPanel
+            accentColor="red"
+            csvFilename={`heat-island_LST_${selectedYear}`}
+            csvHeaders={["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"]}
+            csvRows={rankingForExport}
+            reportData={{
+              title: "วิเคราะห์เกาะความร้อนเมือง",
+              subtitle: "Landsat 8/9 Land Surface Temperature",
+              source: "Landsat 8/9 Collection 2",
+              period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+              layer: "LST (Land Surface Temperature)",
+              district: activeDistrict,
+              kpis: [
+                { label: "LST เฉลี่ย", value: summary?.averageTemp !== null && summary?.averageTemp !== undefined ? formatLST(Number(summary.averageTemp)) : "–" },
+                { label: "LST สูงสุด", value: summary?.maxTemp !== null && summary?.maxTemp !== undefined ? formatLST(Number(summary.maxTemp)) : "–" },
+                { label: "เขตร้อนสุด", value: summary?.ranking?.[0]?.[0] ?? "–" },
+                { label: "ปีที่เลือก", value: String(selectedYear) },
+              ],
+              rankingHeaders: ["เขต", "LST (°C)"],
+              rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+            }}
+          />
 
           <div className="mt-auto space-y-3">
             {[

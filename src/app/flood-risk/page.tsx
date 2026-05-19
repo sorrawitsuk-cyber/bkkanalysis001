@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import * as turf from "@turf/turf";
-import { Calendar, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -15,6 +15,9 @@ import {
   type SatelliteCacheIndex,
   type SatelliteCacheMetadata,
 } from "@/lib/satellite-cache";
+import MonthYearPicker from "@/components/ui/MonthYearPicker";
+import ExportPanel from "@/components/ui/ExportPanel";
+import { buildPeriodLabel } from "@/lib/export-utils";
 
 const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false });
 
@@ -163,6 +166,7 @@ function buildFloodRiskView(
 export default function FloodRiskPage() {
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2018);
   const [mapMode, setMapMode] = useState<MapMode>("district");
@@ -181,11 +185,14 @@ export default function FloodRiskPage() {
   // Fetch district data — try R2 cache first, fall back to Supabase API
   useEffect(() => {
     setLoading(true);
-    const yearStr        = selectedYear.toString();
+    const cacheType   = selectedMonth ? "monthly" : "yearly";
+    const cachePeriod = selectedMonth
+      ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`
+      : selectedYear.toString();
     const compareYearStr = compareYear.toString();
 
     Promise.all([
-      fetchCacheMetadata("yearly", yearStr),
+      fetchCacheMetadata(cacheType, cachePeriod),
       compareMode ? fetchCacheMetadata("yearly", compareYearStr) : Promise.resolve(null),
     ])
       .then(async ([meta, baselineMeta]) => {
@@ -194,7 +201,6 @@ export default function FloodRiskPage() {
         const hasWaterCache = stats.some((r: any) => typeof r.water_ratio === "number");
 
         if (hasWaterCache) {
-          // R2 fast path — district_stats already in cache
           const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null, cacheLayer);
           setGeojsonData(built.geojson);
           setSummary(built.summary);
@@ -203,7 +209,7 @@ export default function FloodRiskPage() {
         }
 
         // Cache empty — fall back to Supabase API
-        const params = new URLSearchParams({ year: yearStr });
+        const params = new URLSearchParams({ year: selectedYear.toString() });
         if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
         if (compareMode) params.append("compareYear", compareYearStr);
 
@@ -229,7 +235,7 @@ export default function FloodRiskPage() {
         setLoading(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDistrict, selectedYear, compareMode, compareYear, cacheLayer]);
+  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer]);
 
   // Load satellite cache index on mount (Sentinel-2, no product param)
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
@@ -264,6 +270,7 @@ export default function FloodRiskPage() {
   const handleReset = () => {
     setActiveDistrict("ทั้งหมด");
     setSelectedYear(2026);
+    setSelectedMonth(null);
     setCompareMode(false);
     setCompareYear(2018);
     setMapMode("district");
@@ -340,9 +347,21 @@ export default function FloodRiskPage() {
     };
   })();
 
-  const periodLabel = selectedYear === new Date().getFullYear()
-    ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
-    : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+  const periodLabel = selectedMonth
+    ? buildPeriodLabel(selectedYear, selectedMonth)
+    : selectedYear === new Date().getFullYear()
+      ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+      : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+
+  const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
+    ([name, val, areaRai]: [string, number | null, number | null]) => [
+      name,
+      val !== null ? +val.toFixed(4) : null,
+      areaRai ?? null,
+      WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer,
+      selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear,
+    ],
+  );
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -530,55 +549,42 @@ export default function FloodRiskPage() {
             </div>
           </div>
 
-          {/* Year selector */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
-              </h4>
-              <button
-                onClick={() => setCompareMode(!compareMode)}
-                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? "bg-sky-500/20 text-sky-400 border-sky-500/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
-              >
-                เปรียบเทียบปี
-              </button>
-            </div>
+          <MonthYearPicker
+            year={selectedYear}
+            month={selectedMonth}
+            minYear={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
+            maxYear={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
+            availableMonths={cacheIndex?.monthly ?? []}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            accentColor="sky"
+            compareMode={compareMode}
+            compareYear={compareYear}
+            onCompareModeChange={setCompareMode}
+            onCompareYearChange={setCompareYear}
+          />
 
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">
-                {cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
-              </span>
-              <span className="text-lg font-bold text-sky-400 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">
-                {cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
-              max={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400 mb-2"
-            />
-
-            {compareMode && (
-              <div className="mt-4 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest">ปีฐาน (Baseline)</h4>
-                  <span className="text-sm font-bold text-sky-400 font-mono">{compareYear}</span>
-                </div>
-                <input
-                  type="range"
-                  min={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
-                  max={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
-                  value={compareYear}
-                  onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
-                />
-              </div>
-            )}
-          </div>
+          <ExportPanel
+            accentColor="sky"
+            csvFilename={`flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+            csvHeaders={["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)", "Layer", "ช่วงเวลา"]}
+            csvRows={rankingForExport}
+            reportData={{
+              title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
+              subtitle: "Sentinel-2 SR Harmonized",
+              source: "Sentinel-2 (R2 Cache)",
+              period: periodLabel,
+              layer: WATER_LAYER_LABELS[cacheLayer],
+              district: activeDistrict,
+              kpis: [
+                { label: "Water Ratio เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
+                { label: "พื้นที่น้ำรวม", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
+                { label: "ปีที่เลือก", value: String(selectedYear) },
+              ],
+              rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)"],
+              rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
+            }}
+          />
 
           {/* Info card */}
           <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-sky-500/20 shadow-2xl w-full">

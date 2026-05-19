@@ -9,6 +9,9 @@ import {
   Droplets, Flame, Home, Layers, MapPin,
   Moon, ShieldAlert, Trees, Wind,
 } from "lucide-react";
+import MonthYearPicker from "@/components/ui/MonthYearPicker";
+import ExportPanel from "@/components/ui/ExportPanel";
+import { buildPeriodLabel } from "@/lib/export-utils";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
@@ -39,6 +42,7 @@ function formatMetric(value: number | null | undefined, layer: AirLayer): string
 export default function AirQualityPage() {
   const [activeDistrict, setActiveDistrict]   = useState(ALL_DISTRICTS);
   const [selectedYear,   setSelectedYear]     = useState(LATEST_YEAR);
+  const [selectedMonth,  setSelectedMonth]    = useState<number | null>(null);
   const [compareMode,    setCompareMode]       = useState(false);
   const [compareYear,    setCompareYear]       = useState(FIRST_YEAR);
   const [mapMode,        setMapMode]           = useState<MapMode>("district");
@@ -55,6 +59,7 @@ export default function AirQualityPage() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({ year: String(selectedYear), metric: "air_pollution" });
+    if (selectedMonth) params.append("month", String(selectedMonth));
     if (activeDistrict !== ALL_DISTRICTS) params.append("district", activeDistrict);
     if (compareMode) params.append("compareYear", String(compareYear));
 
@@ -72,7 +77,7 @@ export default function AirQualityPage() {
         setSummary(null);
         setLoading(false);
       });
-  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear]);
 
   const features = geojsonData?.features ?? [];
 
@@ -99,15 +104,25 @@ export default function AirQualityPage() {
   const maxValue    = values.length ? Math.max(...values) : null;
   const topDistrict = rankingRows[0]?.[0] ?? null;
 
-  const latestLabel = selectedYear === new Date().getFullYear()
-    ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short" })} ${selectedYear} (YTD)`
-    : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+  const latestLabel = selectedMonth
+    ? buildPeriodLabel(selectedYear, selectedMonth)
+    : selectedYear === new Date().getFullYear()
+      ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short" })} ${selectedYear} (YTD)`
+      : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+
+  const rankingForExport: (string | number | null)[][] = rankingRows.map(([district, value]) => [
+    district,
+    value !== null && value !== undefined ? +Number(value).toFixed(6) : null,
+    layerMeta.unit,
+    selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear,
+  ]);
 
   const layerMeta = AIR_LAYERS.find((l) => l.id === airLayer) ?? AIR_LAYERS[0];
 
   const handleReset = () => {
     setActiveDistrict(ALL_DISTRICTS);
     setSelectedYear(LATEST_YEAR);
+    setSelectedMonth(null);
     setCompareMode(false);
     setCompareYear(FIRST_YEAR);
     setMapMode("district");
@@ -455,52 +470,41 @@ export default function AirQualityPage() {
             </div>
           </div>
 
-          {/* Year selector */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5" /> เลือกปี (Year)
-              </h4>
-              <button
-                onClick={() => setCompareMode(!compareMode)}
-                className={`text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold ${compareMode ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500"}`}
-              >
-                เปรียบเทียบปี
-              </button>
-            </div>
+          <MonthYearPicker
+            year={selectedYear}
+            month={selectedMonth}
+            minYear={FIRST_YEAR}
+            maxYear={LATEST_YEAR}
+            onYearChange={setSelectedYear}
+            onMonthChange={setSelectedMonth}
+            accentColor="cyan"
+            compareMode={compareMode}
+            compareYear={compareYear}
+            onCompareModeChange={setCompareMode}
+            onCompareYearChange={setCompareYear}
+          />
 
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">{FIRST_YEAR}</span>
-              <span className="text-lg font-bold text-cyan-400 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">{LATEST_YEAR}</span>
-            </div>
-            <input
-              type="range"
-              min={FIRST_YEAR}
-              max={LATEST_YEAR}
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 mb-1"
-            />
-            <p className="text-[9px] text-slate-500 leading-tight">{latestLabel}</p>
-
-            {compareMode && (
-              <div className="mt-4 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">ปีฐาน (Baseline)</h4>
-                  <span className="text-sm font-bold text-cyan-400 font-mono">{compareYear}</span>
-                </div>
-                <input
-                  type="range"
-                  min={FIRST_YEAR}
-                  max={selectedYear - 1}
-                  value={compareYear}
-                  onChange={(e) => setCompareYear(parseInt(e.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
-                />
-              </div>
-            )}
-          </div>
+          <ExportPanel
+            accentColor="cyan"
+            csvFilename={`air-quality_${layerMeta.id}_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+            csvHeaders={["เขต", `${layerMeta.label} (${layerMeta.unit})`, "หน่วย", "ช่วงเวลา"]}
+            csvRows={rankingForExport}
+            reportData={{
+              title: "มลพิษอากาศจากดาวเทียม",
+              subtitle: "Sentinel-5P TROPOMI",
+              source: "Sentinel-5P",
+              period: latestLabel,
+              layer: `${layerMeta.label} (${layerMeta.labelTh})`,
+              district: activeDistrict,
+              kpis: [
+                { label: `${layerMeta.label} เฉลี่ย`, value: avgValue !== null ? `${avgValue.toFixed(layerMeta.id === "co_mean" ? 4 : 6)} ${layerMeta.unit}` : "–" },
+                { label: "เขตสูงสุด", value: topDistrict ?? "–" },
+                { label: "ปีข้อมูล", value: compareMode ? `${selectedYear} vs ${compareYear}` : String(selectedYear) },
+              ],
+              rankingHeaders: ["เขต", `${layerMeta.label} (${layerMeta.unit})`],
+              rankingRows: rankingRows.map(([d, v]) => [d, v !== null && v !== undefined ? +Number(v).toFixed(6) : null]),
+            }}
+          />
 
           {/* Methodology */}
           <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-cyan-500/20 shadow-2xl w-full">
