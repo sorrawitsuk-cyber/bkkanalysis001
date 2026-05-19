@@ -14,17 +14,63 @@ import {
 import { getBangkokNdviSummaryFromRows } from "@/lib/district-statistics";
 import type { DistrictStatistic } from "@/types/district";
 
-export const dynamic = "force-dynamic";
+// Remove force-dynamic so Next.js can use route-level caching; rely on Cache-Control headers for CDN.
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
-// Actual district areas in rai (1 rai = 1,600 m²), computed once from GeoJSON geometry
+// --- Module-level caches (never change between requests) ---
+
 const districtAreaRaiMap = new Map<number, number>(
   (geojson.features as any[]).map((f: any) => [
     f.properties.id,
     Math.round(turf.area(f) / 1600),
   ])
 );
+
+const districtNameById = new Map<number, string>(
+  (geojson.features as any[]).map((f: any) => [f.properties.id, f.properties.name_th as string])
+);
+
+const geoJsonIdByName = new Map<string, number>(
+  (geojson.features as any[]).map((f: any) => [f.properties.name_th as string, f.properties.id as number])
+);
+
+// Computed once on first request; turf.union over 50 polygons is expensive.
+let _invertedMask: any = null;
+function getInvertedMask(): any {
+  if (_invertedMask) return _invertedMask;
+  try {
+    let bkkPolygon: any = geojson.features[0];
+    for (let i = 1; i < geojson.features.length; i++) {
+      bkkPolygon = turf.union(turf.featureCollection([bkkPolygon, geojson.features[i]]));
+    }
+    _invertedMask = turf.mask(bkkPolygon);
+  } catch (err) {
+    console.error("Mask generation failed:", err);
+    _invertedMask = null;
+  }
+  return _invertedMask;
+}
+
+// Supabase district ID→GeoJSON ID mapping: cached on success; retried each request on failure.
+let _geoJsonIdBySupabaseId: Map<number, number> | null = null;
+async function getGeoJsonIdBySupabaseId(): Promise<Map<number, number>> {
+  if (_geoJsonIdBySupabaseId) return _geoJsonIdBySupabaseId;
+  try {
+    const { data } = await supabase.from("districts").select("id, name_th");
+    const map = new Map<number, number>();
+    if (data && data.length > 0) {
+      data.forEach((d: any) => {
+        const geoId = geoJsonIdByName.get(d.name_th);
+        if (geoId !== undefined) map.set(d.id, geoId);
+      });
+      _geoJsonIdBySupabaseId = map; // only cache on success
+    }
+  } catch {
+    // do not cache — next request will retry
+  }
+  return _geoJsonIdBySupabaseId ?? new Map();
+}
 
 type DistrictMetric = "lst" | "vegetation" | "builtup" | "air_pollution";
 
@@ -79,7 +125,7 @@ function enrichVegetationRow(row: any): any {
   };
 }
 
-async function loadDbRows(year: number, districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
+async function loadDbRows(year: number): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase.from("district_statistics").select("*").eq("year", year);
   if (error || !data || data.length === 0) {
     if (error) console.warn("district_statistics fetch failed:", error.message);
@@ -91,7 +137,7 @@ async function loadDbRows(year: number, districtNameById: Map<number, string>): 
   }));
 }
 
-async function loadAllDbRows(districtNameById: Map<number, string>): Promise<DistrictStatistic[]> {
+async function loadAllDbRows(): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
     .select("*")
@@ -135,37 +181,10 @@ export async function GET(request: Request) {
     const compareYearStr = searchParams.get("compareYear");
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
 
-    let invertedMask = null;
-    try {
-      let bkkPolygon: any = geojson.features[0];
-      for (let i = 1; i < geojson.features.length; i++) {
-        bkkPolygon = turf.union(turf.featureCollection([bkkPolygon, geojson.features[i]]));
-      }
-      invertedMask = turf.mask(bkkPolygon);
-    } catch (error) {
-      console.error("Mask generation failed:", error);
-    }
+    const invertedMask = getInvertedMask();
+    const geoJsonIdBySupabaseId = await getGeoJsonIdBySupabaseId();
 
-    const districtNameById = new Map<number, string>();
-    const geoJsonIdByName = new Map<string, number>();
-    geojson.features.forEach((feature: any) => {
-      districtNameById.set(feature.properties.id, feature.properties.name_th);
-      geoJsonIdByName.set(feature.properties.name_th, feature.properties.id);
-    });
-
-    // Build supabase district_id → GeoJSON feature id mapping (they differ by a constant offset)
-    const geoJsonIdBySupabaseId = new Map<number, number>();
-    try {
-      const { data: supabaseDistricts } = await supabase.from("districts").select("id, name_th");
-      if (supabaseDistricts) {
-        supabaseDistricts.forEach((d: any) => {
-          const geoId = geoJsonIdByName.get(d.name_th);
-          if (geoId !== undefined) geoJsonIdBySupabaseId.set(d.id, geoId);
-        });
-      }
-    } catch (_e) { /* fall through — lstMap will just miss matches */ }
-
-    // Remap district_id in DB rows to use GeoJSON feature IDs so lstMap lookups work
+        // Remap district_id in DB rows to use GeoJSON feature IDs so lstMap lookups work
     function normalizeRows(rows: any[]): any[] {
       if (geoJsonIdBySupabaseId.size === 0) return rows;
       return rows.map((row) => {
@@ -175,9 +194,11 @@ export async function GET(request: Request) {
       });
     }
 
-    const dbYearRows = normalizeRows(await loadDbRows(year, districtNameById));
-    const dbCompareRows = compareYear ? normalizeRows(await loadDbRows(compareYear, districtNameById)) : [];
-    const dbAllRows = dbYearRows.length > 0 ? normalizeRows(await loadAllDbRows(districtNameById)) : [];
+    const [dbYearRows, dbCompareRows] = await Promise.all([
+      loadDbRows(year).then(normalizeRows),
+      compareYear ? loadDbRows(compareYear).then(normalizeRows) : Promise.resolve([]),
+    ]);
+    const dbAllRows = dbYearRows.length > 0 ? normalizeRows(await loadAllDbRows()) : [];
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 

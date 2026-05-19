@@ -212,44 +212,59 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             </div>
           ) : (
             <>
-              <div className="flex items-end gap-[3px] h-20 mb-2">
-                {yearlyDisplayTrend.map((item: any, i: number) => {
-                  const year = item[0];
-                  const temp = item[1];
-                  let pct: number;
-                  if (compareMode) {
-                    pct = Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100));
-                  } else if (isAreaMode) {
-                    pct = Math.max(4, Math.min(100, (temp / maxAbsTrend) * 100));
-                  } else {
-                    const minT = -0.1;
-                    const maxT = 0.3;
-                    pct = Math.max(4, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
-                  }
-                  const trendColor = compareMode
-                    ? (temp >= 0 ? 'from-indigo-600 to-red-500' : 'from-emerald-300 to-emerald-600')
-                    : isAreaMode ? 'from-slate-600 to-violet-400' : 'from-slate-600 to-indigo-400';
-                  const tooltip = compareMode
-                    ? temp.toFixed(3)
-                    : isAreaMode ? formatRai(Math.round(temp))
-                    : temp.toFixed(3);
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                      <div
-                        className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
-                        style={{ height: `${pct}%` }}
-                      />
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
-                        <span>{year}: {tooltip}</span>
+              {(() => {
+                const trendNums = yearlyDisplayTrend.map((it: any) => Number(it[1])).filter(Number.isFinite);
+                const dataMax = trendNums.length ? Math.max(...trendNums) : maxAbsTrend;
+                const dataMin = trendNums.length ? Math.min(...trendNums) : 0;
+                const fmtVal = (v: number) => compareMode ? (v > 0 ? `+${v.toFixed(3)}` : v.toFixed(3))
+                  : isAreaMode ? formatRai(Math.round(v)) : v.toFixed(3);
+                return (
+                  <div className="flex gap-1">
+                    <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 36 }}>
+                      <span className="text-[8px] font-mono text-slate-500 leading-tight">{fmtVal(dataMax)}</span>
+                      <span className="text-[8px] font-mono text-slate-500 leading-tight">{fmtVal(dataMin)}</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-end gap-[3px] h-20 mb-1">
+                        {yearlyDisplayTrend.map((item: any, i: number) => {
+                          const year = item[0];
+                          const temp = item[1];
+                          let pct: number;
+                          if (compareMode) {
+                            pct = Math.max(4, Math.min(100, (Math.abs(temp) / (maxAbsTrend || 1)) * 100));
+                          } else if (isAreaMode) {
+                            pct = Math.max(4, Math.min(100, (temp / (maxAbsTrend || 1)) * 100));
+                          } else {
+                            const minT = -0.1;
+                            const maxT = 0.3;
+                            pct = Math.max(4, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+                          }
+                          const trendColor = compareMode
+                            ? (temp >= 0 ? 'from-indigo-600 to-red-500' : 'from-emerald-300 to-emerald-600')
+                            : isAreaMode ? 'from-slate-600 to-violet-400' : 'from-slate-600 to-indigo-400';
+                          const tooltip = fmtVal(temp);
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                              <div
+                                className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
+                                style={{ height: `${pct}%` }}
+                              />
+                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
+                                <span className="font-bold">{year}</span>
+                                <span className="text-violet-300">{tooltip}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between text-[8px] text-slate-600 font-mono">
+                        <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
+                        <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-                <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
-                <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
-              </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </section>

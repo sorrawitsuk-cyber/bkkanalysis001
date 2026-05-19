@@ -1,1 +1,1 @@
-export { dynamic, GET } from "../district-metrics/route";
+export { GET } from "../district-metrics/route";

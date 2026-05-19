@@ -171,25 +171,42 @@ export default function NightLightsSidebar({
               ? `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} ในเดือนที่มีข้อมูลปี ${moYear}`
               : `ค่าเฉลี่ย radiance ของ${activeDistrict === ALL_DISTRICTS ? "กรุงเทพฯ ทั้งหมด" : activeDistrict} รายปี หน่วย nW/sr/cm²`}
           </p>
-          <div className="flex items-end gap-[3px] h-20 mb-2">
-            {(isMonthlyPreview ? monthlyTrend : yearlyTrend).map((item: any) => {
-              const [period, value, status] = item;
-              const pct = Math.max(4, Math.min(100, (Number(value) / maxTrend) * 100));
-              const isSelected = status === "selected";
-              return (
-                <div key={period} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                  <div className={`w-full rounded-t-sm ${isSelected ? "bg-gradient-to-t from-blue-700 via-yellow-300 to-white" : "bg-slate-700"} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${value === null ? 6 : pct}%` }} />
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono">
-                    {isMonthlyPreview ? `เดือน ${period}` : period}: {value === null ? "เลือกดูได้" : formatRadiance(value, 3)}
+          {(() => {
+            const displayTrend = isMonthlyPreview ? monthlyTrend : yearlyTrend;
+            const trendNums = displayTrend.map((it: any) => Number(it[1])).filter(Number.isFinite);
+            const dataMax = trendNums.length ? Math.max(...trendNums) : maxTrend;
+            const dataMin = trendNums.length ? Math.min(...trendNums) : 0;
+            return (
+              <div className="flex gap-1">
+                <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 32 }}>
+                  <span className="text-[8px] font-mono text-slate-500 leading-tight">{formatRadiance(dataMax, 1)}</span>
+                  <span className="text-[8px] font-mono text-slate-500 leading-tight">{formatRadiance(dataMin, 1)}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-end gap-[3px] h-20 mb-1">
+                    {displayTrend.map((item: any) => {
+                      const [period, value, status] = item;
+                      const pct = Math.max(4, Math.min(100, (Number(value) / (maxTrend || 1)) * 100));
+                      const isSelected = status === "selected";
+                      return (
+                        <div key={period} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                          <div className={`w-full rounded-t-sm ${isSelected ? "bg-gradient-to-t from-blue-700 via-yellow-300 to-white" : "bg-slate-700"} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${value === null ? 6 : pct}%` }} />
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
+                            <span className="font-bold">{isMonthlyPreview ? `เดือน ${period}` : period}</span>
+                            <span className="text-yellow-200">{value === null ? "เลือกดูได้" : formatRadiance(value, 3)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between text-[8px] text-slate-600 font-mono">
+                    <span>{isMonthlyPreview ? "ม.ค." : yearlyTrend?.[0]?.[0]}</span>
+                    <span>{isMonthlyPreview ? moMonthName : yearlyTrend?.[yearlyTrend?.length - 1]?.[0]}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-            <span>{isMonthlyPreview ? "ม.ค." : yearlyTrend?.[0]?.[0]}</span>
-            <span>{isMonthlyPreview ? moMonthName : yearlyTrend?.[yearlyTrend?.length - 1]?.[0]}</span>
-          </div>
+              </div>
+            );
+          })()}
         </section>
 
         <div className="h-px bg-slate-800/60" />

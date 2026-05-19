@@ -136,11 +136,28 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Trees className="w-3 h-3 text-emerald-400"/> {compareMode ? 'ช่วงปี' : 'ข้อมูลปี'}
+              <Trees className="w-3 h-3 text-emerald-400"/> {compareMode ? 'ช่วงปี' : 'ครอบคลุม'}
             </div>
-            <div className="text-sm font-bold text-emerald-400 font-mono leading-tight break-words">
-              {compareMode ? `${summary.selectedYear} vs ${summary.compareYear}` : summary.selectedYear}
-            </div>
+            {compareMode ? (
+              <div className="text-sm font-bold text-emerald-400 font-mono leading-tight break-words">
+                {summary.selectedYear} vs {summary.compareYear}
+              </div>
+            ) : (
+              (() => {
+                const total = granularity === "subdistrict" ? 180 : 50;
+                const withData = rankingDisplayRows.filter((r: any) => r[1] != null).length;
+                const pct = total > 0 ? Math.round((withData / total) * 100) : 0;
+                return (
+                  <>
+                    <div className="text-sm font-bold text-emerald-400 font-mono">{withData}/{total}</div>
+                    <div className="mt-1 w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="text-[8px] text-slate-600 mt-0.5">{pct}% มีข้อมูล</div>
+                  </>
+                );
+              })()
+            )}
           </div>
         </div>
 
@@ -179,42 +196,58 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               ผลต่าง LST เทียบกับปี {summary.compareYear}; สีแดงคือพื้นผิวร้อนขึ้น สีฟ้าคือพื้นผิวเย็นลง
             </p>
           )}
-          <div className="flex items-end gap-[3px] h-20 mb-2">
-            {yearlyDisplayTrend.map((item: any, i: number) => {
-              const year = item[0];
-              const temp = item[1];
-              const maxMonthIdx = item[2];
-              
-              const minT = trendMode === "max" && !compareMode ? 34 : 30;
-              const maxT = trendMode === "max" && !compareMode ? 46 : 40;
-              const pct = compareMode
-                ? Math.max(4, Math.min(100, (Math.abs(temp) / maxAbsTrend) * 100))
-                : Math.max(0, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
-              const trendColor = compareMode
-                ? (temp >= 0 ? 'from-orange-600 to-red-500' : 'from-blue-300 to-blue-600')
-                : 'from-orange-600 to-yellow-400';
-              
-              const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-              const peakText = maxMonthIdx !== undefined && maxMonthIdx >= 0 ? ` (พีกสุดเดือน ${months[maxMonthIdx]})` : '';
-
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                  <div
-                    className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
-                    style={{ height: `${pct}%` }}
-                  />
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center">
-                    <span>{year}: {temp}°C</span>
-                    {peakText && <span className="text-[8px] text-red-400">{peakText}</span>}
+          {(() => {
+            const minT = trendMode === "max" && !compareMode ? 34 : 30;
+            const maxT = trendMode === "max" && !compareMode ? 46 : 40;
+            const trendNums = yearlyDisplayTrend.map((it: any) => Number(it[1])).filter(Number.isFinite);
+            const dataMin = trendNums.length ? Math.min(...trendNums) : minT;
+            const dataMax = trendNums.length ? Math.max(...trendNums) : maxT;
+            const axisMin = compareMode ? 0 : dataMin;
+            const axisMax = compareMode ? dataMax : dataMax;
+            return (
+              <div className="flex gap-1">
+                {/* Y-axis labels */}
+                <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 28 }}>
+                  <span className="text-[8px] font-mono text-slate-500">{compareMode ? `+${dataMax.toFixed(1)}` : `${dataMax.toFixed(1)}°`}</span>
+                  <span className="text-[8px] font-mono text-slate-500">{compareMode ? `${dataMin.toFixed(1)}` : `${dataMin.toFixed(1)}°`}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-end gap-[3px] h-20 mb-1">
+                    {yearlyDisplayTrend.map((item: any, i: number) => {
+                      const yr = item[0];
+                      const temp = item[1];
+                      const maxMonthIdx = item[2];
+                      const pct = compareMode
+                        ? Math.max(4, Math.min(100, (Math.abs(temp) / (maxAbsTrend || 1)) * 100))
+                        : Math.max(2, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
+                      const trendColor = compareMode
+                        ? (temp >= 0 ? 'from-orange-600 to-red-500' : 'from-blue-300 to-blue-600')
+                        : 'from-orange-600 to-yellow-400';
+                      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                      const peakText = maxMonthIdx !== undefined && maxMonthIdx >= 0 ? `พีก: ${months[maxMonthIdx]}` : '';
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                          <div
+                            className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
+                            style={{ height: `${pct}%` }}
+                          />
+                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
+                            <span className="font-bold">{yr}</span>
+                            <span className="text-orange-300">{compareMode ? (temp > 0 ? `+${temp}` : `${temp}`) : `${temp}°C`}</span>
+                            {peakText && <span className="text-[8px] text-red-400">{peakText}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between text-[8px] text-slate-600 font-mono">
+                    <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
+                    <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-            <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
-            <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
-          </div>
+              </div>
+            );
+          })()}
         </section>
 
         {!compareMode && monthlyDisplayTrend.length > 0 && (
