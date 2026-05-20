@@ -125,28 +125,38 @@ function enrichVegetationRow(row: any): any {
   };
 }
 
+// Normalize a Supabase row: remap district_id to GeoJSON feature ID using
+// the embedded districts join (name_th), falling back to the pre-built ID map.
+function remapRow(row: any): DistrictStatistic {
+  // Primary: name from FK join (works regardless of auto-increment ID ordering)
+  const joinedName: string | undefined = row.districts?.name_th;
+  const geoIdByName = joinedName ? geoJsonIdByName.get(joinedName) : undefined;
+  // Secondary: pre-built Supabase→GeoJSON ID map (built when districts table is readable)
+  const geoIdByMap = _geoJsonIdBySupabaseId?.get(row.district_id);
+  const geoId = geoIdByName ?? geoIdByMap ?? row.district_id;
+  const name = joinedName ?? districtNameById.get(geoId) ?? row.district_name ?? null;
+  return { ...row, districts: undefined, district_id: geoId, district_name: name } as DistrictStatistic;
+}
+
 async function loadDbRows(year: number): Promise<DistrictStatistic[]> {
-  const { data, error } = await supabase.from("district_statistics").select("*").eq("year", year);
+  const { data, error } = await supabase
+    .from("district_statistics")
+    .select("*, districts(name_th)")
+    .eq("year", year);
   if (error || !data || data.length === 0) {
     if (error) console.warn("district_statistics fetch failed:", error.message);
     return [];
   }
-  return (data as DistrictStatistic[]).map((row) => ({
-    ...row,
-    district_name: districtNameById.get(row.district_id) || row.district_name || null,
-  }));
+  return (data as any[]).map(remapRow);
 }
 
 async function loadAllDbRows(): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
-    .select("*")
+    .select("*, districts(name_th)")
     .order("year", { ascending: true });
   if (error || !data || data.length === 0) return [];
-  return (data as DistrictStatistic[]).map((row) => ({
-    ...row,
-    district_name: districtNameById.get(row.district_id) || row.district_name || null,
-  }));
+  return (data as any[]).map(remapRow);
 }
 
 function hasLstData(rows: DistrictStatistic[]): boolean {
@@ -184,21 +194,11 @@ export async function GET(request: Request) {
     const invertedMask = getInvertedMask();
     const geoJsonIdBySupabaseId = await getGeoJsonIdBySupabaseId();
 
-        // Remap district_id in DB rows to use GeoJSON feature IDs so lstMap lookups work
-    function normalizeRows(rows: any[]): any[] {
-      if (geoJsonIdBySupabaseId.size === 0) return rows;
-      return rows.map((row) => {
-        const geoId = geoJsonIdBySupabaseId.get(row.district_id);
-        if (geoId === undefined) return row;
-        return { ...row, district_id: geoId, district_name: districtNameById.get(geoId) ?? row.district_name };
-      });
-    }
-
     const [dbYearRows, dbCompareRows] = await Promise.all([
-      loadDbRows(year).then(normalizeRows),
-      compareYear ? loadDbRows(compareYear).then(normalizeRows) : Promise.resolve([]),
+      loadDbRows(year),
+      compareYear ? loadDbRows(compareYear) : Promise.resolve([]),
     ]);
-    const dbAllRows = dbYearRows.length > 0 ? normalizeRows(await loadAllDbRows()) : [];
+    const dbAllRows = dbYearRows.length > 0 ? await loadAllDbRows() : [];
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 
