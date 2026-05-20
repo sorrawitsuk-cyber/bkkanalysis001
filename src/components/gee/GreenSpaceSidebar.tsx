@@ -138,6 +138,13 @@ export default function GreenSpaceSidebar({
     : (summary.greenAreaTrend?.length ? summary.greenAreaTrend : []);
   const trendValues = yearlyDisplayTrend.map((item: any) => Math.abs(Number(item[1]) || 0));
   const maxTrendValue = Math.max(1, ...trendValues);
+
+  // Chart axis values — computed here to avoid IIFE inside JSX
+  const chartTrendNums = yearlyDisplayTrend.map((it: any) => Number(it[1])).filter((v: number) => Number.isFinite(v));
+  const chartDataMax = chartTrendNums.length ? Math.max(...chartTrendNums) : 0;
+  const chartDataMin = chartTrendNums.length ? Math.min(...chartTrendNums) : 0;
+  const chartMaxLabel = isAreaMode ? formatRai(chartDataMax) : chartDataMax.toFixed(3);
+  const chartMinLabel = isAreaMode ? formatRai(chartDataMin) : chartDataMin.toFixed(3);
   const averageValue = rankingRows.length
     ? rankingRows.reduce((sum: number, row: any) => sum + row.value, 0) / rankingRows.length
     : (summary.averageTemp || 0);
@@ -233,48 +240,39 @@ export default function GreenSpaceSidebar({
               </button>
             </div>
           </div>
-          {(() => {
-            const trendNums = yearlyDisplayTrend.map((it: any) => Number(it[1])).filter(Number.isFinite);
-            const dataMax = trendNums.length ? Math.max(...trendNums) : 0;
-            const dataMin = trendNums.length ? Math.min(...trendNums) : 0;
-            const maxLabel = isAreaMode ? formatRai(dataMax) : dataMax.toFixed(3);
-            const minLabel = isAreaMode ? formatRai(dataMin) : dataMin.toFixed(3);
-            return (
-              <div className="flex gap-1">
-                <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 36 }}>
-                  <span className="text-[8px] font-mono text-slate-500 leading-tight">{maxLabel}</span>
-                  <span className="text-[8px] font-mono text-slate-500 leading-tight">{minLabel}</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-end gap-[3px] h-20 mb-1">
-                    {yearlyDisplayTrend.map((item: any, index: number) => {
-                      const year = item[0];
-                      const value = Number(item[1]) || 0;
-                      const pct = Math.max(4, Math.min(100, isAreaMode
-                        ? (value / (maxTrendValue || 1)) * 100
-                        : Math.max(0, Math.min(100, (value / 0.6) * 100))
-                      ));
-                      const trendColor = isAreaMode ? "from-lime-500 to-emerald-600" : "from-teal-600 to-emerald-400";
-                      const tooltip = isAreaMode ? formatRai(value) : value.toFixed(3);
-                      return (
-                        <div key={`${year}-${index}`} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                          <div className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${pct}%` }} />
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
-                            <span className="font-bold">{year}</span>
-                            <span className="text-emerald-300">{tooltip}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-600 font-mono">
-                    <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
-                    <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
-                  </div>
-                </div>
+          <div className="flex gap-1">
+            <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 36 }}>
+              <span className="text-[8px] font-mono text-slate-500 leading-tight">{chartMaxLabel}</span>
+              <span className="text-[8px] font-mono text-slate-500 leading-tight">{chartMinLabel}</span>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-end gap-[3px] h-20 mb-1">
+                {yearlyDisplayTrend.map((item: any, index: number) => {
+                  const barYear = item[0];
+                  const barValue = Number(item[1]) || 0;
+                  const pct = Math.max(4, Math.min(100, isAreaMode
+                    ? (barValue / (maxTrendValue || 1)) * 100
+                    : Math.max(0, Math.min(100, (barValue / 0.6) * 100))
+                  ));
+                  const trendColor = isAreaMode ? "from-lime-500 to-emerald-600" : "from-teal-600 to-emerald-400";
+                  const tooltip = isAreaMode ? formatRai(barValue) : barValue.toFixed(3);
+                  return (
+                    <div key={`${barYear}-${index}`} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                      <div className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`} style={{ height: `${pct}%` }} />
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
+                        <span className="font-bold">{barYear}</span>
+                        <span className="text-emerald-300">{tooltip}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })()}
+              <div className="flex justify-between text-[8px] text-slate-600 font-mono">
+                <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
+                <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
+              </div>
+            </div>
+          </div>
           <p className="mt-2 text-[9px] text-slate-500 leading-snug">
             {displayMode === "ndvi"
               ? "ค่า NDVI เฉลี่ยทั้งกรุงเทพฯ รายปี (0.0–1.0)"

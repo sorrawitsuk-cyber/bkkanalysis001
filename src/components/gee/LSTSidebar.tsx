@@ -67,6 +67,13 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
   const rankTotalCount = subRows ? 180 : 50;
   const levelLabel = subRows ? "รายแขวง" : "รายเขต";
 
+  // Chart axis values
+  const lstMinT = trendMode === "max" && !compareMode ? 34 : 30;
+  const lstMaxT = trendMode === "max" && !compareMode ? 46 : 40;
+  const lstChartNums = yearlyDisplayTrend.map((it: any) => Number(it[1])).filter((v: number) => Number.isFinite(v));
+  const lstChartMin = lstChartNums.length ? Math.min(...lstChartNums) : lstMinT;
+  const lstChartMax = lstChartNums.length ? Math.max(...lstChartNums) : lstMaxT;
+
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
       
@@ -196,58 +203,46 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
               ผลต่าง LST เทียบกับปี {summary.compareYear}; สีแดงคือพื้นผิวร้อนขึ้น สีฟ้าคือพื้นผิวเย็นลง
             </p>
           )}
-          {(() => {
-            const minT = trendMode === "max" && !compareMode ? 34 : 30;
-            const maxT = trendMode === "max" && !compareMode ? 46 : 40;
-            const trendNums = yearlyDisplayTrend.map((it: any) => Number(it[1])).filter(Number.isFinite);
-            const dataMin = trendNums.length ? Math.min(...trendNums) : minT;
-            const dataMax = trendNums.length ? Math.max(...trendNums) : maxT;
-            const axisMin = compareMode ? 0 : dataMin;
-            const axisMax = compareMode ? dataMax : dataMax;
-            return (
-              <div className="flex gap-1">
-                {/* Y-axis labels */}
-                <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 28 }}>
-                  <span className="text-[8px] font-mono text-slate-500">{compareMode ? `+${dataMax.toFixed(1)}` : `${dataMax.toFixed(1)}°`}</span>
-                  <span className="text-[8px] font-mono text-slate-500">{compareMode ? `${dataMin.toFixed(1)}` : `${dataMin.toFixed(1)}°`}</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-end gap-[3px] h-20 mb-1">
-                    {yearlyDisplayTrend.map((item: any, i: number) => {
-                      const yr = item[0];
-                      const temp = item[1];
-                      const maxMonthIdx = item[2];
-                      const pct = compareMode
-                        ? Math.max(4, Math.min(100, (Math.abs(temp) / (maxAbsTrend || 1)) * 100))
-                        : Math.max(2, Math.min(100, ((temp - minT) / (maxT - minT)) * 100));
-                      const trendColor = compareMode
-                        ? (temp >= 0 ? 'from-orange-600 to-red-500' : 'from-blue-300 to-blue-600')
-                        : 'from-orange-600 to-yellow-400';
-                      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                      const peakText = maxMonthIdx !== undefined && maxMonthIdx >= 0 ? `พีก: ${months[maxMonthIdx]}` : '';
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                          <div
-                            className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
-                            style={{ height: `${pct}%` }}
-                          />
-                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
-                            <span className="font-bold">{yr}</span>
-                            <span className="text-orange-300">{compareMode ? (temp > 0 ? `+${temp}` : `${temp}`) : `${temp}°C`}</span>
-                            {peakText && <span className="text-[8px] text-red-400">{peakText}</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex justify-between text-[8px] text-slate-600 font-mono">
-                    <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
-                    <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
-                  </div>
-                </div>
+          <div className="flex gap-1">
+            <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 28 }}>
+              <span className="text-[8px] font-mono text-slate-500">{compareMode ? `+${lstChartMax.toFixed(1)}` : `${lstChartMax.toFixed(1)}°`}</span>
+              <span className="text-[8px] font-mono text-slate-500">{compareMode ? `${lstChartMin.toFixed(1)}` : `${lstChartMin.toFixed(1)}°`}</span>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-end gap-[3px] h-20 mb-1">
+                {yearlyDisplayTrend.map((item: any, i: number) => {
+                  const barYr = item[0];
+                  const barTemp = item[1];
+                  const barMonthIdx = item[2];
+                  const pct = compareMode
+                    ? Math.max(4, Math.min(100, (Math.abs(barTemp) / (maxAbsTrend || 1)) * 100))
+                    : Math.max(2, Math.min(100, ((barTemp - lstMinT) / (lstMaxT - lstMinT)) * 100));
+                  const trendColor = compareMode
+                    ? (barTemp >= 0 ? 'from-orange-600 to-red-500' : 'from-blue-300 to-blue-600')
+                    : 'from-orange-600 to-yellow-400';
+                  const thMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                  const peakText = barMonthIdx !== undefined && barMonthIdx >= 0 ? `พีก: ${thMonths[barMonthIdx]}` : '';
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center group relative h-full justify-end">
+                      <div
+                        className={`w-full rounded-t-sm bg-gradient-to-t ${trendColor} min-h-[4px] transition-all duration-300 brightness-95 group-hover:brightness-110`}
+                        style={{ height: `${pct}%` }}
+                      />
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-[9px] px-2 py-1 rounded text-slate-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg font-mono flex flex-col items-center gap-0.5">
+                        <span className="font-bold">{barYr}</span>
+                        <span className="text-orange-300">{compareMode ? (barTemp > 0 ? `+${barTemp}` : `${barTemp}`) : `${barTemp}°C`}</span>
+                        {peakText && <span className="text-[8px] text-red-400">{peakText}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })()}
+              <div className="flex justify-between text-[8px] text-slate-600 font-mono">
+                <span>{yearlyDisplayTrend?.[0]?.[0]}</span>
+                <span>{yearlyDisplayTrend?.[yearlyDisplayTrend?.length - 1]?.[0]}</span>
+              </div>
+            </div>
+          </div>
         </section>
 
         {!compareMode && monthlyDisplayTrend.length > 0 && (
