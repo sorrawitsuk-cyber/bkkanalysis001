@@ -69,6 +69,14 @@ export default function HeatIslandPage() {
     setBaseMap('dark');
   };
 
+  const hottestDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
+  const _now = new Date();
+  const _currentYear = _now.getFullYear();
+  const _endLabel = selectedYear === _currentYear
+    ? _now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
+    : "31 ธ.ค.";
+  const periodLabel = `1 ม.ค. - ${_endLabel} ${selectedYear}`;
+
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val]: [string, number | null]) => [
       name,
@@ -77,16 +85,6 @@ export default function HeatIslandPage() {
       selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
     ],
   );
-
-  const hottestDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
-  const periodLabel = (() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const endLabel = selectedYear === currentYear
-      ? now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
-      : "31 ธ.ค.";
-    return `1 ม.ค. - ${endLabel} ${selectedYear}`;
-  })();
   const highLstDistrictCount = (geojsonData?.features || []).filter((feature: any) => {
     const value = feature?.properties?.mean_lst;
     return typeof value === "number" && value >= 36;
@@ -121,9 +119,8 @@ export default function HeatIslandPage() {
       value: compareMode ? `${selectedYear} vs ${compareYear}` : periodLabel,
     },
   ];
-  const legendConfig = (() => {
-    if (compareMode) {
-      return {
+  const legendConfig = compareMode
+    ? {
         title: "การเปลี่ยนแปลงอุณหภูมิพื้นผิว (LST)",
         description: `ค่า LST ปี ${selectedYear} ลบปีฐาน ${compareYear}; สีแดงคือพื้นผิวร้อนขึ้น สีฟ้าคือพื้นผิวเย็นลง`,
         note: "การเปรียบเทียบนี้เป็นผลต่าง LST ระหว่างปี ยังไม่ใช่ SUHI Intensity อย่างเป็นทางการ",
@@ -135,19 +132,16 @@ export default function HeatIslandPage() {
           { color: "#EF8A62", label: "ร้อนขึ้น", range: "+0.5 ถึง +1.5" },
           { color: "#B2182B", label: "ร้อนขึ้นมาก", range: "> +1.5" },
         ],
+      }
+    : {
+        title: "ระดับอุณหภูมิพื้นผิว (LST)",
+        description: mapMode === "idw"
+          ? "ค่า LST raster จาก Landsat 8/9 แบบ median รายปี หลังคัดกรองเมฆ"
+          : "ค่า LST เฉลี่ยรายเขตจากข้อมูลดาวเทียมในปีที่เลือก",
+        note: "เกณฑ์นี้ใช้เพื่อจัดกลุ่มอุณหภูมิพื้นผิวเชิงพื้นที่ ไม่ใช่เกณฑ์เตือนภัยสุขภาพหรืออุณหภูมิอากาศ",
+        unit: "°C",
+        items: getLSTLegendItems(),
       };
-    }
-
-    return {
-      title: "ระดับอุณหภูมิพื้นผิว (LST)",
-      description: mapMode === "idw"
-        ? "ค่า LST raster จาก Landsat 8/9 แบบ median รายปี หลังคัดกรองเมฆ"
-        : "ค่า LST เฉลี่ยรายเขตจากข้อมูลดาวเทียมในปีที่เลือก",
-      note: "เกณฑ์นี้ใช้เพื่อจัดกลุ่มอุณหภูมิพื้นผิวเชิงพื้นที่ ไม่ใช่เกณฑ์เตือนภัยสุขภาพหรืออุณหภูมิอากาศ",
-      unit: "°C",
-      items: getLSTLegendItems(),
-    };
-  })();
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -194,21 +188,14 @@ export default function HeatIslandPage() {
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
-            {(() => {
-              const now = new Date();
-              const currentYear = now.getFullYear();
-              const todayStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-              const endLabel = (y: number) => y === currentYear ? todayStr : 'Dec 31';
-              const suffix = (y: number) => y === currentYear ? ' (YTD)' : '';
-              return compareMode ? (
-                <>
-                  <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
-                  <p><span className="text-white">Period {compareYear}:</span> Jan 01 – {endLabel(selectedYear)}, {compareYear} <span className="text-amber-400">(same window)</span></p>
-                </>
-              ) : (
-                <p><span className="text-white">Period:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
-              );
-            })()}
+            {compareMode ? (
+              <>
+                <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}{selectedYear === _currentYear ? ' (YTD)' : ''}</p>
+                <p><span className="text-white">Period {compareYear}:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {compareYear} <span className="text-amber-400">(same window)</span></p>
+              </>
+            ) : (
+              <p><span className="text-white">Period:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}{selectedYear === _currentYear ? ' (YTD)' : ''}</p>
+            )}
             <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temperature)</p>
           </div>
         </div>

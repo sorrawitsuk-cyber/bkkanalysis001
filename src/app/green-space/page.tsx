@@ -78,6 +78,11 @@ export default function GreenSpacePage() {
     : ndviLayer === "green_area_ratio" ? "สัดส่วนพื้นที่สีเขียว (%)"
     : "ค่า NDVI เฉลี่ย";
 
+  const _gsNow = new Date();
+  const periodLabel = selectedYear === _gsNow.getFullYear()
+    ? `1 ม.ค. - ${_gsNow.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+    : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
+
   const rankingForExport: (string | number | null)[][] = ((geojsonData?.features ?? []) as any[])
     .filter((f: any) => typeof f?.properties?.[ndviLayer] === "number")
     .sort((a: any, b: any) => Number(b.properties[ndviLayer]) - Number(a.properties[ndviLayer]))
@@ -115,72 +120,62 @@ export default function GreenSpacePage() {
       value: ndviSummary?.worst_district?.district_name || ndviSummary?.worst_district?.name_th || "ไม่มีข้อมูล",
     },
   ];
-  const periodLabel = selectedYear === new Date().getFullYear()
-    ? `1 ม.ค. - ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
-    : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
-  const legendConfig = (() => {
-    if (compareMode) {
-      return {
-        title: "การเปลี่ยนแปลง NDVI รายปี",
-        description: `ค่า NDVI ปี ${selectedYear} ลบปีฐาน ${compareYear}; ค่าบวกหมายถึงพื้นที่เขียวเพิ่มขึ้น`,
-        unit: "NDVI",
-        items: [
-          { color: "#8B1E1E", label: "ลดลงมาก", range: "< -0.15" },
-          { color: "#F59E0B", label: "ลดลง", range: "-0.15 ถึง -0.05" },
-          { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" },
-          { color: "#86EFAC", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.15" },
-          { color: "#047857", label: "เพิ่มขึ้นมาก", range: "> +0.15" },
-        ],
-      };
-    }
-
-    if (mapMode === "idw") {
-      return {
-        title: "NDVI จากดาวเทียม Sentinel-2",
-        description: "ค่า NDVI raster จากภาพ Sentinel-2 แบบ median รายปี หลังคัดกรองเมฆ",
-        unit: "NDVI",
-        items: [
-          { color: "#7F1D1D", label: "เขียวน้อยมาก", range: "0.10 - 0.24" },
-          { color: "#B45309", label: "เขียวน้อย", range: "0.24 - 0.38" },
-          { color: "#FACC15", label: "ปานกลาง", range: "0.38 - 0.52" },
-          { color: "#84CC16", label: "ดี", range: "0.52 - 0.66" },
-          { color: "#16A34A", label: "ดีมาก", range: "0.66 - 0.80" },
-          { color: "#065F46", label: "หนาแน่นมาก", range: "> 0.80" },
-        ],
-      };
-    }
-
-    if (ndviLayer === "green_area_rai") {
-      return {
-        title: "ขนาดพื้นที่สีเขียวรายเขต",
-        description: "ประมาณพื้นที่ที่มี NDVI มากกว่า 0.30 แสดงเป็นไร่ต่อเขต",
-        unit: "ไร่",
-        items: [
-          { color: "#8c2d04", label: "น้อยมาก", range: "< 4,000" },
-          { color: "#d94801", label: "น้อย", range: "4,000 - 8,000" },
-          { color: "#f6e05e", label: "ปานกลาง", range: "8,000 - 12,000" },
-          { color: "#68d391", label: "มาก", range: "12,000 - 16,000" },
-          { color: "#238b45", label: "มากที่สุด", range: "> 16,000" },
-        ],
-      };
-    }
-
-    if (ndviLayer === "green_area_ratio") {
-      return {
-        title: "สัดส่วนพื้นที่สีเขียวรายเขต",
-        description: "สัดส่วนพื้นที่ที่มี NDVI มากกว่า 0.30 เมื่อเทียบกับพื้นที่เขต",
-        unit: "%",
-        items: [
-          { color: "#8c2d04", label: "น้อยมาก", range: "< 14%" },
-          { color: "#d94801", label: "น้อย", range: "14% - 28%" },
-          { color: "#f6e05e", label: "ปานกลาง", range: "28% - 42%" },
-          { color: "#68d391", label: "ดี", range: "42% - 56%" },
-          { color: "#238b45", label: "ดีมาก", range: "> 56%" },
-        ],
-      };
-    }
-
-    return {
+  let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
+  if (compareMode) {
+    legendConfig = {
+      title: "การเปลี่ยนแปลง NDVI รายปี",
+      description: `ค่า NDVI ปี ${selectedYear} ลบปีฐาน ${compareYear}; ค่าบวกหมายถึงพื้นที่เขียวเพิ่มขึ้น`,
+      unit: "NDVI",
+      items: [
+        { color: "#8B1E1E", label: "ลดลงมาก", range: "< -0.15" },
+        { color: "#F59E0B", label: "ลดลง", range: "-0.15 ถึง -0.05" },
+        { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" },
+        { color: "#86EFAC", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.15" },
+        { color: "#047857", label: "เพิ่มขึ้นมาก", range: "> +0.15" },
+      ],
+    };
+  } else if (mapMode === "idw") {
+    legendConfig = {
+      title: "NDVI จากดาวเทียม Sentinel-2",
+      description: "ค่า NDVI raster จากภาพ Sentinel-2 แบบ median รายปี หลังคัดกรองเมฆ",
+      unit: "NDVI",
+      items: [
+        { color: "#7F1D1D", label: "เขียวน้อยมาก", range: "0.10 - 0.24" },
+        { color: "#B45309", label: "เขียวน้อย", range: "0.24 - 0.38" },
+        { color: "#FACC15", label: "ปานกลาง", range: "0.38 - 0.52" },
+        { color: "#84CC16", label: "ดี", range: "0.52 - 0.66" },
+        { color: "#16A34A", label: "ดีมาก", range: "0.66 - 0.80" },
+        { color: "#065F46", label: "หนาแน่นมาก", range: "> 0.80" },
+      ],
+    };
+  } else if (ndviLayer === "green_area_rai") {
+    legendConfig = {
+      title: "ขนาดพื้นที่สีเขียวรายเขต",
+      description: "ประมาณพื้นที่ที่มี NDVI มากกว่า 0.30 แสดงเป็นไร่ต่อเขต",
+      unit: "ไร่",
+      items: [
+        { color: "#8c2d04", label: "น้อยมาก", range: "< 4,000" },
+        { color: "#d94801", label: "น้อย", range: "4,000 - 8,000" },
+        { color: "#f6e05e", label: "ปานกลาง", range: "8,000 - 12,000" },
+        { color: "#68d391", label: "มาก", range: "12,000 - 16,000" },
+        { color: "#238b45", label: "มากที่สุด", range: "> 16,000" },
+      ],
+    };
+  } else if (ndviLayer === "green_area_ratio") {
+    legendConfig = {
+      title: "สัดส่วนพื้นที่สีเขียวรายเขต",
+      description: "สัดส่วนพื้นที่ที่มี NDVI มากกว่า 0.30 เมื่อเทียบกับพื้นที่เขต",
+      unit: "%",
+      items: [
+        { color: "#8c2d04", label: "น้อยมาก", range: "< 14%" },
+        { color: "#d94801", label: "น้อย", range: "14% - 28%" },
+        { color: "#f6e05e", label: "ปานกลาง", range: "28% - 42%" },
+        { color: "#68d391", label: "ดี", range: "42% - 56%" },
+        { color: "#238b45", label: "ดีมาก", range: "> 56%" },
+      ],
+    };
+  } else {
+    legendConfig = {
       title: "ค่า NDVI เฉลี่ยรายเขต",
       description: "ค่า NDVI เฉลี่ยของแต่ละเขต ใช้แปลความหนาแน่นพืชพรรณในเมือง",
       unit: "NDVI",
@@ -192,7 +187,7 @@ export default function GreenSpacePage() {
         { color: "#238b45", label: "ดีมาก", range: "> 0.50" },
       ],
     };
-  })();
+  }
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">

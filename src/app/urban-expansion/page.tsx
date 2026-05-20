@@ -68,6 +68,15 @@ export default function UrbanExpansionPage() {
     setBaseMap('dark');
   };
 
+  const hasNdbiData = (summary?.yearlyTrend?.length ?? 0) > 0 || (summary?.ranking?.length ?? 0) > 0;
+  const highestDensityDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
+  const _ueNow = new Date();
+  const _ueCurrentYear = _ueNow.getFullYear();
+  const _ueEndLabel = selectedYear === _ueCurrentYear
+    ? _ueNow.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
+    : "31 ธ.ค.";
+  const periodLabel = `1 ม.ค. - ${_ueEndLabel} ${selectedYear}`;
+
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val]: [string, number | null]) => [
       name,
@@ -76,17 +85,6 @@ export default function UrbanExpansionPage() {
       selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
     ],
   );
-
-  const hasNdbiData = (summary?.yearlyTrend?.length ?? 0) > 0 || (summary?.ranking?.length ?? 0) > 0;
-  const highestDensityDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
-  const periodLabel = (() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const endLabel = selectedYear === currentYear
-      ? now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
-      : "31 ธ.ค.";
-    return `1 ม.ค. - ${endLabel} ${selectedYear}`;
-  })();
 
   const kpiCards = [
     {
@@ -113,9 +111,8 @@ export default function UrbanExpansionPage() {
     },
   ];
 
-  const legendConfig = (() => {
-    if (compareMode) {
-      return {
+  const legendConfig = compareMode
+    ? {
         title: "การขยายตัวของเมือง (Urban Expansion)",
         description: `ผลต่างค่า NDBI ปี ${selectedYear} ลบปีฐาน ${compareYear}; สีแดงคือเมืองขยายตัว สีเขียวคือพื้นที่สีเขียวเพิ่ม`,
         note: "การเปลี่ยนแปลงค่า NDBI สุทธิรายพิกเซล จากภาพถ่ายดาวเทียม Sentinel-2",
@@ -127,25 +124,22 @@ export default function UrbanExpansionPage() {
           { color: "#F59E0B", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.1" },
           { color: "#EF4444", label: "เพิ่มขึ้นมาก", range: "> +0.1" },
         ],
+      }
+    : {
+        title: "ดัชนีพื้นที่สิ่งปลูกสร้าง (NDBI)",
+        description: mapMode === "idw"
+          ? "ค่า NDBI raster จาก Sentinel-2 แบบ median รายปี"
+          : "ค่า NDBI เฉลี่ยรายเขต สะท้อนความหนาแน่นสิ่งปลูกสร้าง",
+        note: "ค่าที่สูงแสดงถึงพื้นที่ที่มีความหนาแน่นของอาคาร คอนกรีต และสิ่งปลูกสร้าง",
+        unit: "",
+        items: [
+          { color: "#16A34A", label: "หนาแน่นต่ำมาก", range: "< -0.2" },
+          { color: "#84CC16", label: "หนาแน่นต่ำ", range: "-0.2 ถึง 0.0" },
+          { color: "#F59E0B", label: "ปานกลาง", range: "0.0 ถึง 0.2" },
+          { color: "#EF4444", label: "หนาแน่นสูง", range: "0.2 ถึง 0.4" },
+          { color: "#7F1D1D", label: "หนาแน่นสูงมาก", range: "> 0.4" },
+        ],
       };
-    }
-
-    return {
-      title: "ดัชนีพื้นที่สิ่งปลูกสร้าง (NDBI)",
-      description: mapMode === "idw"
-        ? "ค่า NDBI raster จาก Sentinel-2 แบบ median รายปี"
-        : "ค่า NDBI เฉลี่ยรายเขต สะท้อนความหนาแน่นสิ่งปลูกสร้าง",
-      note: "ค่าที่สูงแสดงถึงพื้นที่ที่มีความหนาแน่นของอาคาร คอนกรีต และสิ่งปลูกสร้าง",
-      unit: "",
-      items: [
-        { color: "#16A34A", label: "หนาแน่นต่ำมาก", range: "< -0.2" },
-        { color: "#84CC16", label: "หนาแน่นต่ำ", range: "-0.2 ถึง 0.0" },
-        { color: "#F59E0B", label: "ปานกลาง", range: "0.0 ถึง 0.2" },
-        { color: "#EF4444", label: "หนาแน่นสูง", range: "0.2 ถึง 0.4" },
-        { color: "#7F1D1D", label: "หนาแน่นสูงมาก", range: "> 0.4" },
-      ]
-    };
-  })();
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
@@ -193,21 +187,14 @@ export default function UrbanExpansionPage() {
           </div>
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-            {(() => {
-              const now = new Date();
-              const currentYear = now.getFullYear();
-              const todayStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-              const endLabel = (y: number) => y === currentYear ? todayStr : 'Dec 31';
-              const suffix = (y: number) => y === currentYear ? ' (YTD)' : '';
-              return compareMode ? (
-                <>
-                  <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
-                  <p><span className="text-white">Period {compareYear}:</span> Jan 01 – {endLabel(selectedYear)}, {compareYear}</p>
-                </>
-              ) : (
-                <p><span className="text-white">Period:</span> Jan 01 – {endLabel(selectedYear)}, {selectedYear}{suffix(selectedYear)}</p>
-              );
-            })()}
+            {compareMode ? (
+              <>
+                <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {selectedYear === _ueCurrentYear ? _ueNow.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}{selectedYear === _ueCurrentYear ? ' (YTD)' : ''}</p>
+                <p><span className="text-white">Period {compareYear}:</span> Jan 01 – {selectedYear === _ueCurrentYear ? _ueNow.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {compareYear}</p>
+              </>
+            ) : (
+              <p><span className="text-white">Period:</span> Jan 01 – {selectedYear === _ueCurrentYear ? _ueNow.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}{selectedYear === _ueCurrentYear ? ' (YTD)' : ''}</p>
+            )}
             <p><span className="text-white">Resolution:</span> 10m per pixel (NDBI)</p>
           </div>
         </div>

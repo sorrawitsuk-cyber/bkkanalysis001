@@ -288,52 +288,48 @@ export default function FloodRiskPage() {
   );
 
   // Legend config
-  const legendConfig = (() => {
-    if (compareMode) {
-      return {
-        title: "การเปลี่ยนแปลงพื้นที่น้ำ",
-        description: `ค่าน้ำปี ${selectedYear} ลบปีฐาน ${compareYear} (บวก = น้ำเพิ่ม)`,
-        unit: "",
-        items: [
-          { color: "#1e3a5f", label: "น้ำเพิ่มมาก", range: "> +10%" },
-          { color: "#0369a1", label: "น้ำเพิ่ม", range: "+3% ถึง +10%" },
-          { color: "#94a3b8", label: "ใกล้เคียงเดิม", range: "-3% ถึง +3%" },
-          { color: "#b45309", label: "น้ำลด", range: "-10% ถึง -3%" },
-          { color: "#78350f", label: "น้ำลดมาก", range: "< -10%" },
-        ],
-      };
-    }
-
-    if (mapMode === "satellite-cache") {
-      if (cacheLayer === "ndwi_mean" || cacheLayer === "ndwi_max") {
-        return {
-          title: `NDWI — ดัชนีน้ำผิวดิน (${WATER_LAYER_LABELS[cacheLayer]})`,
-          description: "ค่าสูง = น้ำ/ความชื้นสูง  ค่าต่ำ = ดินแห้ง พืช หรือสิ่งปลูกสร้าง",
-          unit: "",
-          items: [
-            { color: "#92400E", label: "ดินแห้ง/พืช",   range: "< -0.30" },
-            { color: "#C4974A", label: "กึ่งแห้ง",      range: "-0.30 ถึง -0.10" },
-            { color: "#F7F7F7", label: "กลาง",           range: "-0.10 ถึง 0.10" },
-            { color: "#7EC8E3", label: "ชื้น/น้ำตื้น",  range: "0.10 ถึง 0.30" },
-            { color: "#0369A1", label: "น้ำผิวดิน",     range: "> 0.30" },
-          ],
-        };
-      }
-      return {
-        title: "MNDWI — ดัชนีน้ำในเมือง (mean)",
-        description: "แม่นกว่า NDWI ในพื้นที่เมือง ลดการรบกวนจากสิ่งปลูกสร้าง",
-        unit: "",
-        items: [
-          { color: "#92400E", label: "ดิน/พืช",       range: "< -0.30" },
-          { color: "#C4974A", label: "กึ่งแห้ง",      range: "-0.30 ถึง -0.10" },
-          { color: "#F7F7F7", label: "กลาง",           range: "-0.10 ถึง 0.10" },
-          { color: "#60ACD8", label: "น้ำตื้น/ชื้น",  range: "0.10 ถึง 0.30" },
-          { color: "#0284C7", label: "น้ำ/คลอง",      range: "> 0.30" },
-        ],
-      };
-    }
-
-    return {
+  let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
+  if (compareMode) {
+    legendConfig = {
+      title: "การเปลี่ยนแปลงพื้นที่น้ำ",
+      description: `ค่าน้ำปี ${selectedYear} ลบปีฐาน ${compareYear} (บวก = น้ำเพิ่ม)`,
+      unit: "",
+      items: [
+        { color: "#1e3a5f", label: "น้ำเพิ่มมาก", range: "> +10%" },
+        { color: "#0369a1", label: "น้ำเพิ่ม", range: "+3% ถึง +10%" },
+        { color: "#94a3b8", label: "ใกล้เคียงเดิม", range: "-3% ถึง +3%" },
+        { color: "#b45309", label: "น้ำลด", range: "-10% ถึง -3%" },
+        { color: "#78350f", label: "น้ำลดมาก", range: "< -10%" },
+      ],
+    };
+  } else if (mapMode === "satellite-cache" && (cacheLayer === "ndwi_mean" || cacheLayer === "ndwi_max")) {
+    legendConfig = {
+      title: `NDWI — ดัชนีน้ำผิวดิน (${WATER_LAYER_LABELS[cacheLayer]})`,
+      description: "ค่าสูง = น้ำ/ความชื้นสูง  ค่าต่ำ = ดินแห้ง พืช หรือสิ่งปลูกสร้าง",
+      unit: "",
+      items: [
+        { color: "#92400E", label: "ดินแห้ง/พืช",   range: "< -0.30" },
+        { color: "#C4974A", label: "กึ่งแห้ง",      range: "-0.30 ถึง -0.10" },
+        { color: "#F7F7F7", label: "กลาง",           range: "-0.10 ถึง 0.10" },
+        { color: "#7EC8E3", label: "ชื้น/น้ำตื้น",  range: "0.10 ถึง 0.30" },
+        { color: "#0369A1", label: "น้ำผิวดิน",     range: "> 0.30" },
+      ],
+    };
+  } else if (mapMode === "satellite-cache") {
+    legendConfig = {
+      title: "MNDWI — ดัชนีน้ำในเมือง (mean)",
+      description: "แม่นกว่า NDWI ในพื้นที่เมือง ลดการรบกวนจากสิ่งปลูกสร้าง",
+      unit: "",
+      items: [
+        { color: "#92400E", label: "ดิน/พืช",       range: "< -0.30" },
+        { color: "#C4974A", label: "กึ่งแห้ง",      range: "-0.30 ถึง -0.10" },
+        { color: "#F7F7F7", label: "กลาง",           range: "-0.10 ถึง 0.10" },
+        { color: "#60ACD8", label: "น้ำตื้น/ชื้น",  range: "0.10 ถึง 0.30" },
+        { color: "#0284C7", label: "น้ำ/คลอง",      range: "> 0.30" },
+      ],
+    };
+  } else {
+    legendConfig = {
       title: "สัดส่วนพื้นที่น้ำรายเขต",
       description: "สัดส่วนพิกเซลที่เป็นน้ำต่อพื้นที่เขต จาก Sentinel-2",
       unit: "%",
@@ -345,7 +341,7 @@ export default function FloodRiskPage() {
         { color: "#075985", label: "พื้นที่น้ำถาวร",         range: "> 40%" },
       ],
     };
-  })();
+  }
 
   const periodLabel = selectedMonth
     ? buildPeriodLabel(selectedYear, selectedMonth)
