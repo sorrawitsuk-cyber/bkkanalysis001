@@ -10,11 +10,14 @@ import { formatLST, getLSTLegendItems } from "@/lib/lst";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import { buildPeriodLabel } from "@/lib/export-utils";
+import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
+import StatsDashboard from "@/components/stats/StatsDashboard";
+import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
 
-// Use dynamic import for Map to prevent SSR issues with Leaflet
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
 export default function HeatIslandPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [selectedYear, setSelectedYear] = useState(2026);
   const [compareMode, setCompareMode] = useState(false);
@@ -31,10 +34,7 @@ export default function HeatIslandPage() {
 
   useEffect(() => {
     setLoading(true);
-    // Build query params dynamically
-    const params = new URLSearchParams({ 
-      year: selectedYear.toString(),
-    });
+    const params = new URLSearchParams({ year: selectedYear.toString() });
     if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
     if (compareMode) params.append('compareYear', compareYear.toString());
 
@@ -46,10 +46,7 @@ export default function HeatIslandPage() {
         setSummary(data.summary);
         setLoading(false);
       })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+      .catch(err => { console.error(err); setLoading(false); });
   }, [activeDistrict, selectedYear, compareMode, compareYear]);
 
   const displayGeoJson = useMemo(
@@ -122,7 +119,7 @@ export default function HeatIslandPage() {
   const legendConfig = compareMode
     ? {
         title: "การเปลี่ยนแปลงอุณหภูมิพื้นผิว (LST)",
-        description: `ค่า LST ปี ${selectedYear} ลบปีฐาน ${compareYear}; สีแดงคือพื้นผิวร้อนขึ้น สีฟ้าคือพื้นผิวเย็นลง`,
+        description: `ค่า LST ปี ${selectedYear} ลบปีฐาน ${compareYear}`,
         note: "การเปรียบเทียบนี้เป็นผลต่าง LST ระหว่างปี ยังไม่ใช่ SUHI Intensity อย่างเป็นทางการ",
         unit: "°C",
         items: [
@@ -143,6 +140,17 @@ export default function HeatIslandPage() {
         items: getLSTLegendItems(),
       };
 
+  // Table columns
+  const tableColumns: ColDef[] = [
+    { key: "name", label: "เขต", sortable: false },
+    { key: "mean_lst", label: "LST เฉลี่ย", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–" },
+    { key: "max_lst", label: "LST สูงสุด", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–" },
+    ...(compareMode
+      ? [{ key: "delta", label: "Δ LST", unit: "°C", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(2)}` : "–" } as ColDef]
+      : []
+    ),
+  ];
+
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       <LSTSidebar
@@ -155,240 +163,203 @@ export default function HeatIslandPage() {
         subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
       />
 
-      <main className="flex-1 min-w-0 relative">
-        <div className="absolute inset-0 z-0">
-            <DistrictMetricsMapView
-              geojsonData={displayGeoJson}
-              invertedMask={invertedMask}
-              activeDistrict={activeDistrict}
-              mapMode={mapMode}
-              compareMode={compareMode}
-              summary={summary}
-              opacity={opacity}
-              baseMap={baseMap}
-              dataPeriodLabel={periodLabel}
-              granularity={granularity}
-            />
+      {/* Main content area */}
+      <main className="flex-1 min-w-0 flex flex-col">
+
+        {/* Tab bar */}
+        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="orange" />
+          {loading && (
+            <span className="text-[10px] font-bold text-orange-400/70 uppercase tracking-widest animate-pulse">
+              กำลังโหลด…
+            </span>
+          )}
         </div>
 
-        <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-5 gap-2 max-w-5xl mx-auto">
-          {kpiCards.map((card) => (
-            <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
-              <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
-              <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
-            </div>
-          ))}
-        </div>
+        {/* Content */}
+        <div className="flex-1 min-h-0 flex">
+          {viewMode === "map" && (
+            <>
+              <div className="relative flex-1 min-w-0">
+                <div className="absolute inset-0 z-0">
+                  <DistrictMetricsMapView
+                    geojsonData={displayGeoJson}
+                    invertedMask={invertedMask}
+                    activeDistrict={activeDistrict}
+                    mapMode={mapMode}
+                    compareMode={compareMode}
+                    summary={summary}
+                    opacity={opacity}
+                    baseMap={baseMap}
+                    dataPeriodLabel={periodLabel}
+                    granularity={granularity}
+                  />
+                </div>
 
-        {/* Data Source Badge */}
-        <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
-          </div>
-          <div className="text-[11px] text-slate-400 leading-relaxed">
-            <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
-            {compareMode ? (
-              <>
-                <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}{selectedYear === _currentYear ? ' (YTD)' : ''}</p>
-                <p><span className="text-white">Period {compareYear}:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {compareYear} <span className="text-amber-400">(same window)</span></p>
-              </>
-            ) : (
-              <p><span className="text-white">Period:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}{selectedYear === _currentYear ? ' (YTD)' : ''}</p>
-            )}
-            <p><span className="text-white">Resolution:</span> 30m per pixel (Land Surface Temperature)</p>
-          </div>
-        </div>
+                {/* Floating KPI cards */}
+                <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-5 gap-2 max-w-5xl mx-auto">
+                  {kpiCards.map((card) => (
+                    <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
+                      <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
+                      <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
+                    </div>
+                  ))}
+                </div>
 
-        <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
-          <div className="mb-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
-            <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
-            <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
-          </div>
-          <div className="space-y-2">
-            {legendConfig.items.map((item) => (
-              <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
-                <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
-                <span className="min-w-0 truncate text-slate-300">{item.label}</span>
-                <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+                {/* Data Source Badge */}
+                <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
+                    {compareMode ? (
+                      <>
+                        <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}</p>
+                        <p><span className="text-white">Period {compareYear}:</span> Jan 01 – Dec 31, {compareYear}</p>
+                      </>
+                    ) : (
+                      <p><span className="text-white">Period:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}</p>
+                    )}
+                    <p><span className="text-white">Resolution:</span> 30m per pixel (LST)</p>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+                  <div className="mb-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
+                    <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
+                    <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
+                  </div>
+                  <div className="space-y-2">
+                    {legendConfig.items.map((item) => (
+                      <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
+                        <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
+                        <span className="min-w-0 truncate text-slate-300">{item.label}</span>
+                        <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 border-t border-slate-800 pt-2 text-[9px] leading-snug text-slate-500">{legendConfig.note}</p>
+                </div>
               </div>
-            ))}
-          </div>
-          <p className="mt-3 border-t border-slate-800 pt-2 text-[9px] leading-snug text-slate-500">{legendConfig.note}</p>
-        </div>
 
-      </main>
+              {/* Right aside (controls) — map mode only */}
+              <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+                <div className="flex min-h-full flex-col gap-3">
+                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
+                      </h4>
+                      <button onClick={handleReset} className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold">
+                        RESET
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
+                    <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                      {(["district", "subdistrict"] as const).map((g) => (
+                        <button key={g} onClick={() => setGranularity(g)} className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === g && mapMode === 'district' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-500 hover:text-slate-300"}`}>
+                          {g === "district" ? "เขต (50)" : "แขวง (180)"}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
+                    <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                      {(["district", "idw"] as const).map((m) => (
+                        <button key={m} onClick={() => setMapMode(m)} className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === m ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-300'}`}>
+                          {m === "district" ? "สถิติ" : "ดาวเทียม (GEE)"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
-        <div className="flex min-h-full flex-col gap-3">
-          
-          {/* Map Style & Main Controls */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
-              </h4>
-              <button 
-                onClick={handleReset}
-                className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
-              >
-                RESET
-              </button>
-            </div>
+                  {mapMode === 'idw' && (
+                    <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
+                        <span className="text-xs font-mono text-orange-500 font-bold bg-orange-500/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
+                      </div>
+                      <input type="range" min="0" max="1" step="0.01" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" />
+                    </div>
+                  )}
 
-            {/* Granularity Toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => setGranularity("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === 'district' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                เขต (50)
-              </button>
-              <button
-                onClick={() => setGranularity("subdistrict")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === 'district' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                แขวง (180)
-              </button>
-            </div>
+                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['dark','light','satellite','streets','none'] as const).map((m) => (
+                        <button key={m} onClick={() => setBaseMap(m)} className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === m ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/20' : 'bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300'}`}>
+                          {m.charAt(0).toUpperCase() + m.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-            {/* Mode Toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => setMapMode('district')}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === 'district' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                สถิติ
-              </button>
-              <button
-                onClick={() => setMapMode('idw')}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === 'idw' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                ดาวเทียม (GEE)
-              </button>
-            </div>
+                  <MonthYearPicker
+                    year={selectedYear} month={selectedMonth}
+                    minYear={2018} maxYear={2026}
+                    onYearChange={setSelectedYear} onMonthChange={setSelectedMonth}
+                    accentColor="red"
+                    compareMode={compareMode} compareYear={compareYear}
+                    onCompareModeChange={setCompareMode} onCompareYearChange={setCompareYear}
+                  />
 
-          </div>
-
-          {/* Opacity Slider (Only visible in GEE mode) */}
-          {mapMode === 'idw' && (
-            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  ความโปร่งใส (Opacity)
-                </h4>
-                <span className="text-xs font-mono text-orange-500 font-bold bg-orange-500/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
-              </div>
-              <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.01" 
-                value={opacity} 
-                onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
-              />
-            </div>
+                  <ExportPanel
+                    accentColor="red"
+                    csvFilename={`heat-island_LST_${selectedYear}`}
+                    csvHeaders={["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"]}
+                    csvRows={rankingForExport}
+                    reportData={{
+                      title: "วิเคราะห์เกาะความร้อนเมือง",
+                      subtitle: "Landsat 8/9 Land Surface Temperature",
+                      source: "Landsat 8/9 Collection 2",
+                      period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+                      layer: "LST (Land Surface Temperature)",
+                      district: activeDistrict,
+                      kpis: [
+                        { label: "LST เฉลี่ย", value: summary?.averageTemp != null ? formatLST(Number(summary.averageTemp)) : "–" },
+                        { label: "LST สูงสุด", value: summary?.maxTemp != null ? formatLST(Number(summary.maxTemp)) : "–" },
+                        { label: "เขตร้อนสุด", value: summary?.ranking?.[0]?.[0] ?? "–" },
+                        { label: "ปีที่เลือก", value: String(selectedYear) },
+                      ],
+                      rankingHeaders: ["เขต", "LST (°C)"],
+                      rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+                    }}
+                  />
+                </div>
+              </aside>
+            </>
           )}
 
-          {/* Base Map Selector */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
-              </div>
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: 'dark', label: 'Dark' },
-                { id: 'light', label: 'Light' },
-                { id: 'satellite', label: 'Satellite' },
-                { id: 'streets', label: 'Street' },
-                { id: 'none', label: 'None' }
-              ].map((map) => (
-                <button
-                  key={map.id}
-                  onClick={() => setBaseMap(map.id as any)}
-                  className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${
-                    baseMap === map.id 
-                      ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/20' 
-                      : 'bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  {map.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {viewMode === "stats" && (
+            <StatsDashboard
+              summary={summary}
+              metric="lst"
+              year={selectedYear}
+              compareMode={compareMode}
+              accentColor="orange"
+            />
+          )}
 
-          <MonthYearPicker
-            year={selectedYear}
-            month={selectedMonth}
-            minYear={2018}
-            maxYear={2026}
-            onYearChange={setSelectedYear}
-            onMonthChange={setSelectedMonth}
-            accentColor="red"
-            compareMode={compareMode}
-            compareYear={compareYear}
-            onCompareModeChange={setCompareMode}
-            onCompareYearChange={setCompareYear}
-          />
-
-          <ExportPanel
-            accentColor="red"
-            csvFilename={`heat-island_LST_${selectedYear}`}
-            csvHeaders={["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"]}
-            csvRows={rankingForExport}
-            reportData={{
-              title: "วิเคราะห์เกาะความร้อนเมือง",
-              subtitle: "Landsat 8/9 Land Surface Temperature",
-              source: "Landsat 8/9 Collection 2",
-              period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
-              layer: "LST (Land Surface Temperature)",
-              district: activeDistrict,
-              kpis: [
-                { label: "LST เฉลี่ย", value: summary?.averageTemp !== null && summary?.averageTemp !== undefined ? formatLST(Number(summary.averageTemp)) : "–" },
-                { label: "LST สูงสุด", value: summary?.maxTemp !== null && summary?.maxTemp !== undefined ? formatLST(Number(summary.maxTemp)) : "–" },
-                { label: "เขตร้อนสุด", value: summary?.ranking?.[0]?.[0] ?? "–" },
-                { label: "ปีที่เลือก", value: String(selectedYear) },
-              ],
-              rankingHeaders: ["เขต", "LST (°C)"],
-              rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-            }}
-          />
-
-          <div className="mt-auto space-y-3">
-            {[
-              {
-                title: "LST คืออะไร?",
-                body: "Land Surface Temperature (LST) คืออุณหภูมิของพื้นผิวโลกที่ประมวลผลจากข้อมูลดาวเทียมในช่วงคลื่นอินฟราเรดความร้อน ค่า LST สะท้อนความร้อนของพื้นผิว เช่น ถนน อาคาร หลังคา พื้นดิน พื้นที่สีเขียว และแหล่งน้ำ ไม่ใช่อุณหภูมิอากาศที่วัดจากสถานีอุตุนิยมวิทยา",
-              },
-              {
-                title: "ใช้ข้อมูลนี้เพื่ออะไร?",
-                body: "ข้อมูล LST เหมาะสำหรับวิเคราะห์รูปแบบความร้อนเชิงพื้นที่ ระบุบริเวณที่พื้นผิวเมืองสะสมความร้อนสูง เปรียบเทียบความแตกต่างระหว่างเขต และใช้ประกอบการวางแผนเพิ่มพื้นที่สีเขียว ร่มเงา หรือปรับวัสดุพื้นผิวเมือง",
-              },
-              {
-                title: "ข้อจำกัดของข้อมูล",
-                body: "ค่า LST ไม่ใช่อุณหภูมิอากาศ ไม่ใช่ Heat Index และไม่ใช่ค่าความร้อนที่ประชาชนรู้สึกโดยตรง ข้อมูลอาจได้รับผลจากเมฆ เงาเมฆ ฤดูกาล เวลาดาวเทียมผ่าน และความชื้นของพื้นผิว จึงควรใช้เพื่อวิเคราะห์เชิงพื้นที่ร่วมกับข้อมูลเมืองอื่น ๆ ไม่ควรใช้แทนการพยากรณ์อากาศหรือการแจ้งเตือนสุขภาพรายชั่วโมง",
-              },
-              {
-                title: "ต่อยอดสู่ SUHI",
-                body: "ข้อมูล LST ในหน้านี้สามารถใช้เป็นฐานสำหรับการวิเคราะห์ Surface Urban Heat Island (SUHI) ได้ในอนาคต โดย SUHI ต้องคำนวณจากผลต่างระหว่างอุณหภูมิพื้นผิวของพื้นที่เมืองกับพื้นที่อ้างอิง เช่น พื้นที่สีเขียว แหล่งน้ำ หรือพื้นที่รอบนอกเมือง ในเวอร์ชันปัจจุบัน ระบบแสดงค่า LST เพื่อระบุพื้นที่ที่มีแนวโน้มสะสมความร้อนสูง แต่ยังไม่แสดงค่า SUHI Intensity อย่างเป็นทางการ หากยังไม่มีการกำหนดพื้นที่อ้างอิงและคำนวณผลต่างตามหลักวิชาการ",
-              },
-            ].map((card) => (
-              <div key={card.title} className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-orange-500/20 shadow-2xl w-full">
-                <h4 className="text-[10px] font-bold text-orange-300 uppercase tracking-widest mb-2">{card.title}</h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed">{card.body}</p>
-              </div>
-            ))}
-          </div>
-
+          {viewMode === "table" && (
+            <DistrictDataTable
+              features={displayGeoJson?.features ?? []}
+              columns={tableColumns}
+              getRowData={(props) => ({
+                name: props.name_th,
+                mean_lst: props.mean_lst,
+                max_lst: props.max_lst,
+                delta: props.delta,
+              })}
+              csvFilename={`heat-island_${selectedYear}`}
+            />
+          )}
         </div>
-      </aside>
+      </main>
     </div>
   );
 }

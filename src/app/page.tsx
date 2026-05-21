@@ -6,244 +6,268 @@ import {
   Droplets,
   Flame,
   Layers,
-  MapPinned,
+  MapPin,
   Moon,
   Satellite,
   ShieldAlert,
   Trees,
   Wind,
+  Activity,
+  Map,
+  BarChart3,
+  Globe,
 } from "lucide-react";
 
-const analysisModules = [
+const modules = [
   {
-    title: "วิเคราะห์ปัญหาเมือง",
-    eyebrow: "ปัญหาเมือง · Traffy Fondue",
-    description: "ติดตามเรื่องร้องเรียน Traffy Fondue แยกตามเขต ประเภทปัญหา สถานะ และแนวโน้มรายวัน",
+    title: "ปัญหาเมือง",
+    subtitle: "Traffy Fondue",
+    description: "เรื่องร้องเรียนแยกตามเขต ประเภทปัญหา สถานะ และแนวโน้มรายวัน",
     href: "/traffy",
     icon: ShieldAlert,
     accent: "from-orange-500 to-rose-500",
+    accentBg: "bg-orange-500/10 border-orange-500/20",
+    accentText: "text-orange-400",
     metric: "Traffy",
+    metricLabel: "BigQuery Live",
+    tag: "complaint",
   },
   {
-    title: "วิเคราะห์เกาะความร้อนเมือง",
-    eyebrow: "เกาะความร้อน · Landsat",
-    description: "ค่า LST จาก Landsat วิเคราะห์พื้นที่สะสมความร้อนเชิงพื้นที่ โดยไม่ตีความเป็นอุณหภูมิอากาศ",
+    title: "เกาะความร้อนเมือง",
+    subtitle: "Heat Island · LST",
+    description: "ค่า LST จาก Landsat พื้นที่สะสมความร้อนเชิงพื้นที่ รายเขต รายปี",
     href: "/heat-island",
     icon: Flame,
     accent: "from-amber-500 to-red-600",
-    metric: "LST",
+    accentBg: "bg-amber-500/10 border-amber-500/20",
+    accentText: "text-amber-400",
+    metric: "°C",
+    metricLabel: "Landsat 8/9",
+    tag: "thermal",
   },
   {
-    title: "วิเคราะห์พื้นที่สีเขียวเมือง",
-    eyebrow: "พื้นที่สีเขียว · Sentinel-2",
-    description: "ประเมินพื้นที่สีเขียว ความหนาแน่นรายเขต ปริมาณไร่ และค่า NDVI ประกอบ",
+    title: "พื้นที่สีเขียวเมือง",
+    subtitle: "Green Space · NDVI",
+    description: "พื้นที่สีเขียว ความหนาแน่นรายเขต ปริมาณไร่ และดัชนี NDVI",
     href: "/green-space",
     icon: Trees,
     accent: "from-emerald-400 to-teal-600",
+    accentBg: "bg-emerald-500/10 border-emerald-500/20",
+    accentText: "text-emerald-400",
     metric: "NDVI",
+    metricLabel: "Sentinel-2",
+    tag: "vegetation",
   },
   {
-    title: "วิเคราะห์การขยายตัวของเมือง",
-    eyebrow: "การขยายตัวเมือง · Sentinel-2",
-    description: "ความหนาแน่นสิ่งปลูกสร้างด้วย NDBI เพื่อดูแนวโน้มการขยายตัวและเมืองที่เติบโตเร็ว",
+    title: "การขยายตัวของเมือง",
+    subtitle: "Urban Expansion · NDBI",
+    description: "ความหนาแน่นสิ่งปลูกสร้าง NDBI แนวโน้มการขยายตัว เขตที่เติบโตเร็ว",
     href: "/urban-expansion",
     icon: Building2,
     accent: "from-indigo-500 to-purple-600",
+    accentBg: "bg-indigo-500/10 border-indigo-500/20",
+    accentText: "text-indigo-400",
     metric: "NDBI",
+    metricLabel: "Sentinel-2",
+    tag: "builtup",
   },
   {
-    title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
-    eyebrow: "ความเสี่ยงน้ำท่วม · Sentinel-2",
-    description: "ติดตามพื้นที่น้ำ ความเสี่ยงรายเขต ด้วย NDWI/MNDWI และ Traffy Fondue",
+    title: "น้ำท่วม / แหล่งน้ำ",
+    subtitle: "Flood Risk · NDWI",
+    description: "สัดส่วนพื้นที่น้ำ ความเสี่ยงรายเขต NDWI/MNDWI จาก Sentinel-2",
     href: "/flood-risk",
     icon: Droplets,
     accent: "from-sky-500 to-cyan-500",
+    accentBg: "bg-sky-500/10 border-sky-500/20",
+    accentText: "text-sky-400",
     metric: "NDWI",
+    metricLabel: "Sentinel-2",
+    tag: "water",
   },
   {
-    title: "วิเคราะห์แสงกลางคืน",
-    eyebrow: "กิจกรรมเมืองกลางคืน · VIIRS",
-    description: "วิเคราะห์ความเข้มแสงกลางคืนจาก VIIRS DNB รายปี เพื่อดูศูนย์กิจกรรมและการเติบโตเมือง",
+    title: "แสงกลางคืน",
+    subtitle: "Nighttime Lights · VIIRS",
+    description: "ความเข้มแสงกลางคืนรายปี ศูนย์กิจกรรมเมือง แนวโน้มการเติบโต",
     href: "/nighttime-lights",
     icon: Moon,
     accent: "from-yellow-400 to-orange-500",
-    metric: "VIIRS",
+    accentBg: "bg-yellow-500/10 border-yellow-500/20",
+    accentText: "text-yellow-400",
+    metric: "nW/cm²",
+    metricLabel: "VIIRS DNB",
+    tag: "ntl",
   },
   {
-    title: "วิเคราะห์มลพิษอากาศ",
-    eyebrow: "มลพิษอากาศ · Sentinel-5P",
-    description: "ติดตาม NO₂, CO, SO₂ และ Aerosol รายเขต พร้อมภาพ raster สดจาก Google Earth Engine",
+    title: "มลพิษอากาศ",
+    subtitle: "Air Quality · Sentinel-5P",
+    description: "NO₂, CO, SO₂ และ Aerosol รายเขต ภาพ raster สดจาก Google Earth Engine",
     href: "/air-quality",
     icon: Wind,
     accent: "from-cyan-400 to-sky-600",
-    metric: "S5P",
+    accentBg: "bg-cyan-500/10 border-cyan-500/20",
+    accentText: "text-cyan-400",
+    metric: "NO₂",
+    metricLabel: "Sentinel-5P",
+    tag: "air",
   },
 ];
 
 const platformStats = [
-  { label: "พื้นที่วิเคราะห์",   value: "50 เขต / 180 แขวง", icon: Building2 },
-  { label: "แหล่งข้อมูล",       value: "Open Data + GEE",    icon: Database  },
-  { label: "ดาวเทียม",          value: "Sentinel / Landsat", icon: Satellite },
+  { label: "โมดูลวิเคราะห์", value: "7", icon: BarChart3, color: "text-cyan-400" },
+  { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
+  { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
+  { label: "ดาวเทียม",       value: "4 ดวง",  icon: Satellite, color: "text-purple-400" },
+];
+
+const dataSources = [
+  { src: "Landsat 8/9",      desc: "Land Surface Temp (LST)",    color: "text-orange-400" },
+  { src: "Sentinel-2 MSI",   desc: "NDVI · NDBI · NDWI",         color: "text-emerald-400" },
+  { src: "VIIRS DNB",        desc: "Nighttime Lights annual",     color: "text-yellow-400" },
+  { src: "Sentinel-5P TROPOMI", desc: "NO₂ · CO · SO₂",         color: "text-cyan-400" },
+  { src: "Traffy Fondue",    desc: "Complaint BigQuery",          color: "text-rose-400" },
+  { src: "GEE API",          desc: "Live raster processing",      color: "text-indigo-400" },
 ];
 
 export default function Home() {
   return (
-    <main className="h-screen overflow-hidden bg-[#08111f] text-slate-50 antialiased">
+    <div className="min-h-screen bg-[#07101e] text-slate-50 antialiased overflow-x-hidden">
 
-      {/* ── Background ─────────────────────────────────── */}
+      {/* Background glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-32 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-cyan-500/[0.055] blur-3xl" />
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(8,17,31,0.15),rgba(8,17,31,0.15)),url('https://a.basemaps.cartocdn.com/dark_all/12/3190/1856.png')",
-            backgroundSize: "256px 256px",
-            backgroundRepeat: "repeat",
-          }}
-        />
+        <div className="absolute -top-40 left-1/2 h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-cyan-500/[0.04] blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-[400px] w-[600px] rounded-full bg-indigo-500/[0.04] blur-3xl" />
       </div>
 
-      {/* ── Page wrapper ───────────────────────────────── */}
-      <div className="relative z-10 flex h-full flex-col px-5 py-4 sm:px-8 lg:px-10">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
 
-        {/* ── Header ─────────────────────────────────────── */}
-        <header className="flex shrink-0 items-center justify-between gap-4 rounded-2xl border border-slate-700/50 bg-slate-950/60 px-5 py-3 backdrop-blur-md">
+        {/* Header */}
+        <header className="flex items-center justify-between gap-4 rounded-2xl border border-slate-700/50 bg-slate-950/70 px-5 py-3.5 backdrop-blur-md mb-7">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
-              <Layers className="h-4.5 w-4.5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
+              <Layers className="h-4.5 w-4.5 text-cyan-300" />
             </div>
             <div>
-              <div className="text-[13px] font-bold tracking-wide text-slate-100">Bangkok District Analytics</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">City Intelligence Dashboard</div>
+              <div className="text-[14px] font-bold text-slate-100">Bangkok District Analytics</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">City Intelligence Platform</div>
             </div>
           </div>
-          <nav className="hidden items-center gap-1 text-[12px] text-slate-400 sm:flex">
-            <a href="#modules" className="rounded-lg px-3 py-1.5 transition-colors hover:bg-slate-800/70 hover:text-slate-100">ชุดวิเคราะห์</a>
-          </nav>
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-400">
+              <Activity className="h-3 w-3" /> Live Data
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-900/50 px-3 py-1 text-[10px] font-bold text-slate-500">
+              <Globe className="h-3 w-3" /> Bangkok, Thailand
+            </div>
+          </div>
         </header>
 
-        {/* ── Main 2-column grid — fills remaining height ── */}
-        <div className="mt-5 grid min-h-0 flex-1 items-start gap-8 lg:grid-cols-[1fr_1.6fr]">
-
-          {/* ── LEFT: Hero ──────────────────────────────── */}
-          <div className="flex h-full flex-col gap-6 pb-2">
-            <div>
-              {/* badge */}
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-                <MapPinned className="h-3.5 w-3.5" />
-                Bangkok Urban Analytics Hub
-              </div>
-
-              {/* heading */}
-              <h1 className="text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
-                ศูนย์วิเคราะห์เมือง
-                <span className="mt-1 block bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500 bg-clip-text text-transparent">
-                  กรุงเทพฯ
-                </span>
-                สำหรับตัดสินใจเชิงพื้นที่
-              </h1>
-
-              <p className="mt-4 max-w-md text-[13px] leading-7 text-slate-400">
-                รวมการวิเคราะห์ปัญหาเมือง เกาะความร้อน พื้นที่สีเขียว และสัญญาณดาวเทียม
-                ไว้ในที่เดียว เพื่อให้ผู้บริหารและนักวิเคราะห์เมืองเลือกดูข้อมูลได้เร็วขึ้น
-              </p>
+        {/* Hero section */}
+        <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_auto]">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+              <Map className="h-3.5 w-3.5" /> Geospatial Analytics Hub
             </div>
-
-            {/* stats */}
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-              {platformStats.map((stat) => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="flex items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/50 px-4 py-3 backdrop-blur-sm">
-                    <Icon className="h-4 w-4 shrink-0 text-cyan-400/80" />
-                    <div className="min-w-0">
-                      <div className="truncate text-[12px] font-black text-white">{stat.value}</div>
-                      <div className="text-[10px] uppercase tracking-widest text-slate-500">{stat.label}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* data sources */}
-            <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
-              <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">ข้อมูลที่ใช้วิเคราะห์</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-                {[
-                  ["Sentinel-2",   "NDVI · NDBI · NDWI"],
-                  ["Landsat 8/9",  "Land Surface Temp"],
-                  ["VIIRS DNB",    "Nighttime Lights"],
-                  ["Sentinel-5P",  "NO₂ · CO · SO₂"],
-                  ["Traffy Fondue","ร้องเรียนเมือง"],
-                  ["GEE API",      "ประมวลผล live"],
-                ].map(([src, desc]) => (
-                  <div key={src} className="flex items-baseline gap-1.5">
-                    <span className="shrink-0 font-mono text-[10px] text-cyan-400">{src}</span>
-                    <span className="truncate text-slate-500">{desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <h1 className="text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.6rem]">
+              ศูนย์วิเคราะห์เมือง
+              <span className="ml-2 bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-500 bg-clip-text text-transparent">กรุงเทพฯ</span>
+            </h1>
+            <p className="mt-2.5 max-w-2xl text-[13px] leading-7 text-slate-400">
+              รวมการวิเคราะห์สภาพเมืองจากดาวเทียมหลายดวงและ Open Data ไว้ในที่เดียว
+              แต่ละโมดูลมี Map / Statistics / Table view สำหรับวิเคราะห์ข้อมูลเชิงพื้นที่รายเขต
+            </p>
           </div>
 
-          {/* ── RIGHT: Module cards (internal scroll) ────── */}
-          <div
-            id="modules"
-            className="min-h-0 overflow-y-auto pb-2 custom-scrollbar"
-          >
-            <div className="grid grid-cols-2 gap-4">
-              {analysisModules.map((module) => {
-                const Icon = module.icon;
-                return (
-                  <Link
-                    key={module.href}
-                    href={module.href}
-                    className="group relative overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/65 p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-600/80 hover:bg-slate-900/85 hover:shadow-xl hover:shadow-black/40"
-                  >
-                    {/* accent top line */}
-                    <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${module.accent} opacity-70 transition-opacity group-hover:opacity-100`} />
-
-                    {/* top row */}
-                    <div className="mb-3 flex items-center gap-3">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${module.accent} shadow-md`}>
-                        <Icon className="h-5 w-5 text-white drop-shadow" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <span className="block truncate text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
-                          {module.eyebrow}
-                        </span>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-400">
-                        Live
-                      </span>
-                      <span className="shrink-0 rounded-md border border-slate-700/80 bg-slate-900/70 px-2.5 py-0.5 font-mono text-[11px] font-bold text-cyan-300">
-                        {module.metric}
-                      </span>
-                    </div>
-
-                    {/* title + description + arrow */}
-                    <div className="flex items-end justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-lg font-black leading-snug text-white">{module.title}</h2>
-                        <p className="mt-1.5 text-[12px] leading-relaxed text-slate-400">
-                          {module.description}
-                        </p>
-                      </div>
-                      <ArrowRight className="mb-0.5 h-5 w-5 shrink-0 text-slate-600 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-300" />
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+          {/* Platform stats */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 content-start">
+            {platformStats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="flex flex-col items-center rounded-2xl border border-slate-800 bg-slate-900/60 p-3.5 text-center">
+                  <Icon className={`mb-1 h-4 w-4 ${stat.color}`} />
+                  <div className={`text-xl font-black tabular-nums ${stat.color}`}>{stat.value}</div>
+                  <div className="text-[9px] uppercase tracking-widest text-slate-600 mt-0.5">{stat.label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* ── Footer ─────────────────────────────────────── */}
-        <footer className="mt-3 shrink-0 border-t border-slate-800/50 py-3 text-center text-[11px] text-slate-600">
-          Bangkok District Analytics · Open Data + Google Earth Engine
+        {/* Module cards */}
+        <section>
+          <div className="mb-4 flex items-center gap-3">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">โมดูลวิเคราะห์</h2>
+            <div className="flex-1 h-px bg-slate-800" />
+            <span className="text-[10px] text-slate-600">แต่ละโมดูลมี Map · Statistics · Table view</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {modules.map((mod) => {
+              const Icon = mod.icon;
+              return (
+                <Link
+                  key={mod.href}
+                  href={mod.href}
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/70 p-5 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-600/70 hover:bg-slate-900/80 hover:shadow-2xl hover:shadow-black/30"
+                >
+                  {/* Gradient top bar */}
+                  <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${mod.accent} opacity-60 transition-opacity group-hover:opacity-100`} />
+
+                  {/* Header row */}
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${mod.accent} shadow-md`}>
+                      <Icon className="h-5 w-5 text-white drop-shadow" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 truncate">{mod.subtitle}</div>
+                      <div className="text-[15px] font-black text-white leading-tight mt-0.5">{mod.title}</div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="flex-1 text-[12px] leading-relaxed text-slate-400 mb-4">
+                    {mod.description}
+                  </p>
+
+                  {/* Footer row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold ${mod.accentBg} ${mod.accentText}`}>
+                        {mod.metric}
+                      </span>
+                      <span className="text-[10px] text-slate-600">{mod.metricLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 group-hover:text-cyan-400 transition-colors">
+                      เปิด <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Data sources */}
+        <section className="mt-8 rounded-2xl border border-slate-800/60 bg-slate-900/30 p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <Database className="h-4 w-4 text-slate-500" />
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">แหล่งข้อมูลที่ใช้</h2>
+            <div className="flex-1 h-px bg-slate-800" />
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
+            {dataSources.map(({ src, desc, color }) => (
+              <div key={src} className="min-w-0">
+                <div className={`text-[11px] font-bold font-mono truncate ${color}`}>{src}</div>
+                <div className="text-[10px] text-slate-600 truncate mt-0.5">{desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="mt-6 pb-4 text-center text-[10px] text-slate-700">
+          Bangkok District Analytics · Open Data + Google Earth Engine · Cloudflare Workers
         </footer>
       </div>
-    </main>
+    </div>
   );
 }

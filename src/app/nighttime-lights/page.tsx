@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import { Calendar, Layers, Moon } from "lucide-react";
+import { Calendar, Layers, Moon, TrendingUp, TrendingDown } from "lucide-react";
 import ExportPanel from "@/components/ui/ExportPanel";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
@@ -15,6 +15,12 @@ import {
   type SatelliteCacheIndex,
   type SatelliteCacheMetadata,
 } from "@/lib/satellite-cache";
+import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
+import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+  AreaChart, Area, LineChart, Line,
+} from "recharts";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
 
@@ -129,7 +135,17 @@ function buildNightLightsView(
   };
 }
 
+function lerpColor(lo: [number, number, number], hi: [number, number, number], t: number): string {
+  const r = Math.round(lo[0] + (hi[0] - lo[0]) * t);
+  const g = Math.round(lo[1] + (hi[1] - lo[1]) * t);
+  const b = Math.round(lo[2] + (hi[2] - lo[2]) * t);
+  return `rgb(${r},${g},${b})`;
+}
+const BAR_LOW: [number, number, number] = [254, 240, 138];
+const BAR_HIGH: [number, number, number] = [180, 83, 9];
+
 export default function NighttimeLightsPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [dataProduct, setDataProduct] = useState<DataProduct>("annual");
   const [selectedYear, setSelectedYear] = useState(2024);
@@ -145,7 +161,6 @@ export default function NighttimeLightsPage() {
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
 
-  // Derive year range dynamically from R2 index
   const firstYear = useMemo(() => {
     if (!cacheIndex?.yearly?.length) return 2013;
     return Math.min(...cacheIndex.yearly.map(Number));
@@ -195,7 +210,6 @@ export default function NighttimeLightsPage() {
         setCacheMeta(meta);
         setCompareMeta(baselineMeta);
 
-        // R2 cache has district stats — use them directly (fast path)
         if ((meta?.district_stats?.length ?? 0) > 0) {
           const built = buildNightLightsView(meta, baselineMeta, selectedYear, selectedMonth, dataProduct);
           setGeojsonData(built.geojson);
@@ -204,7 +218,6 @@ export default function NighttimeLightsPage() {
           return;
         }
 
-        // Cache empty — fall back to GEE API
         const params = new URLSearchParams({ product: dataProduct, year: String(selectedYear) });
         if (dataProduct === "monthly") params.set("month", String(selectedMonth));
         if (compareMode && dataProduct === "annual") params.set("compareYear", String(compareYear));
@@ -226,7 +239,6 @@ export default function NighttimeLightsPage() {
       });
   }, [dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
 
-  // Load full yearly trend from all R2 cache years (parallel fetch, post-render)
   useEffect(() => {
     if (!cacheIndex?.yearly?.length || dataProduct !== "annual") return;
     Promise.all(
@@ -271,6 +283,13 @@ export default function NighttimeLightsPage() {
     setBaseMap("dark");
   };
 
+  const isMonthlyPreview = dataProduct === "monthly";
+  const monthLabel = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
+  const periodLabel = isMonthlyPreview ? `Monthly preview ${monthLabel}` : `Annual composite ${selectedYear}`;
+  const sourceDataset = cacheMeta?.source || (isMonthlyPreview ? "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG" : "NOAA/VIIRS/DNB/ANNUAL_V22");
+  const sourceBand = (cacheMeta as any)?.band || (isMonthlyPreview ? "avg_rad + cf_cvg mask" : "average_masked");
+  const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, "ntl_mean");
+
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val]: [string, number | null]) => [
       name,
@@ -280,30 +299,44 @@ export default function NighttimeLightsPage() {
     ],
   );
 
-  const isMonthlyPreview = dataProduct === "monthly";
-  const monthLabel = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1)).toLocaleDateString("th-TH", { month: "short", year: "numeric" });
-  const periodLabel = isMonthlyPreview ? `Monthly preview ${monthLabel}` : `Annual composite ${selectedYear}`;
-  const sourceDataset = cacheMeta?.source || (isMonthlyPreview ? "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG" : "NOAA/VIIRS/DNB/ANNUAL_V22");
-  const sourceBand = (cacheMeta as any)?.band || (isMonthlyPreview ? "avg_rad + cf_cvg mask" : "average_masked");
-  const cachePreviewUrl = getCacheLayerPreviewUrl(cacheMeta, "ntl_mean");
+  // Stats bar chart data — top 25 by ntl_mean
+  const statsBarData = useMemo(() => {
+    if (!geojsonData?.features) return [];
+    return (geojsonData.features as any[])
+      .map((f: any) => ({
+        name: f.properties.name_th ?? "–",
+        value: typeof f.properties.ntl_mean === "number" ? +f.properties.ntl_mean.toFixed(3) : null,
+      }))
+      .filter((d: any) => d.value !== null && d.name !== "–")
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 25);
+  }, [geojsonData]);
 
-  const kpiCards = [
-    {
-      label: compareMode && !isMonthlyPreview ? "ส่วนต่างแสงเฉลี่ย" : "ค่าแสงกลางคืนเฉลี่ย",
-      value: compareMode && !isMonthlyPreview ? `${(summary?.avgDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary?.avgDelta, 3)}` : formatRadiance(summary?.averageRadiance, 3),
-    },
-    {
-      label: compareMode && !isMonthlyPreview ? "เขตเพิ่มขึ้นสูงสุด" : "เขตสว่างที่สุด",
-      value: compareMode && !isMonthlyPreview ? summary?.fastestGrowthDistrict || "ไม่มีข้อมูล" : summary?.maxDistrict || "ไม่มีข้อมูล",
-    },
-    {
-      label: compareMode && !isMonthlyPreview ? "ส่วนต่างสูงสุด" : "ค่าสูงสุดรายเขต",
-      value: compareMode && !isMonthlyPreview ? `${(summary?.maxDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary?.maxDelta, 3)}` : formatRadiance(summary?.maxRadiance, 3),
-    },
-    {
-      label: "ช่วงข้อมูลดาวเทียม",
-      value: compareMode && !isMonthlyPreview ? `${selectedYear} vs ${compareYear}` : periodLabel,
-    },
+  const statsTrendData = useMemo(() => {
+    return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
+      year: String(year),
+      value: typeof val === "number" ? +val.toFixed(3) : null,
+    }));
+  }, [summary?.yearlyTrend]);
+
+  const statsMonthlyData = useMemo(() => {
+    if (!isMonthlyPreview) return [];
+    return (summary?.monthlyTrend ?? [])
+      .filter(([, v]: any) => v !== null)
+      .map(([month, val]: any) => ({
+        month: `เดือน ${month}`,
+        value: typeof val === "number" ? +val.toFixed(3) : null,
+      }));
+  }, [summary?.monthlyTrend, isMonthlyPreview]);
+
+  // Table columns
+  const tableColumns: ColDef[] = [
+    { key: "name", label: "เขต" },
+    { key: "ntl_mean", label: "NTL Mean", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–" },
+    { key: "ntl_max", label: "NTL Max", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–" },
+    ...(compareMode && !isMonthlyPreview
+      ? [{ key: "ntl_delta", label: "ส่วนต่าง", unit: "nW/sr/cm²", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${formatRadiance(v, 3)}` : "–" }]
+      : []),
   ];
 
   const legendConfig = compareMode && !isMonthlyPreview
@@ -350,311 +383,460 @@ export default function NighttimeLightsPage() {
         subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
       />
 
-      <main className="flex-1 min-w-0 relative">
-        <div className="absolute inset-0 z-0">
-          <DistrictMetricsMapView
-            geojsonData={displayGeoJson}
-            invertedMask={invertedMask}
-            activeDistrict={activeDistrict}
-            mapMode={mapMode}
-            compareMode={compareMode && !isMonthlyPreview}
-            summary={summary}
-            opacity={opacity}
-            baseMap={baseMap}
-            analysisType="nightlights"
-            dataPeriodLabel={periodLabel}
-            nightLightsProduct={dataProduct}
-            nightLightsMonth={selectedMonth}
-            satelliteCachePreviewUrl={cachePreviewUrl}
-            satelliteCacheBounds={cacheMeta?.bounds}
-            granularity={granularity}
-          />
-        </div>
-
-        {/* KPI cards */}
-        <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
-          {kpiCards.map((card) => (
-            <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
-              <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
-              <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Data source badge */}
-        <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 bg-yellow-300 rounded-full" />
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
-          </div>
-          <div className="text-[11px] text-slate-400 leading-relaxed">
-            <p><span className="text-white">Satellite:</span> Suomi NPP VIIRS Day/Night Band</p>
-            <p><span className="text-white">Source:</span> R2 cache · {sourceDataset}</p>
-            <p><span className="text-white">Period:</span> {periodLabel}</p>
-            <p><span className="text-white">Band:</span> {sourceBand} · nW/sr/cm²</p>
-            <p><span className="text-white">Resolution:</span> ~500m per pixel</p>
-            <p><span className="text-white">Cache:</span> {cacheMeta?.status === "ok" ? "พร้อมใช้งาน" : "ยังไม่มี cache สำหรับช่วงนี้"}</p>
-            {isMonthlyPreview && <p><span className="text-amber-300">Note:</span> monthly preview ไม่ใช่ annual trend</p>}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Tab bar */}
+        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur">
+          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="yellow" />
+          <div className="ml-auto text-[10px] text-slate-500">
+            {loading ? "กำลังโหลด…" : periodLabel}
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
-          <div className="mb-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
-            <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
-            <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
-          </div>
-          <div className="space-y-2">
-            {legendConfig.items.map((item) => (
-              <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
-                <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
-                <span className="min-w-0 truncate text-slate-300">{item.label}</span>
-                <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+        {/* Map view */}
+        {viewMode === "map" && (
+          <div className="flex flex-1 min-h-0">
+            <div className="relative flex-1 min-w-0">
+              <div className="absolute inset-0 z-0">
+                <DistrictMetricsMapView
+                  geojsonData={displayGeoJson}
+                  invertedMask={invertedMask}
+                  activeDistrict={activeDistrict}
+                  mapMode={mapMode}
+                  compareMode={compareMode && !isMonthlyPreview}
+                  summary={summary}
+                  opacity={opacity}
+                  baseMap={baseMap}
+                  analysisType="nightlights"
+                  dataPeriodLabel={periodLabel}
+                  nightLightsProduct={dataProduct}
+                  nightLightsMonth={selectedMonth}
+                  satelliteCachePreviewUrl={cachePreviewUrl}
+                  satelliteCacheBounds={cacheMeta?.bounds}
+                  granularity={granularity}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      </main>
 
-      {/* ── Right control panel ── */}
-      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
-        <div className="flex min-h-full flex-col gap-3">
-
-          {/* Card 1: Map mode + Export */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
-              </h4>
-              <button
-                onClick={handleReset}
-                className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
-              >
-                RESET
-              </button>
-            </div>
-
-            {/* Granularity Toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => setGranularity("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                เขต (50)
-              </button>
-              <button
-                onClick={() => setGranularity("subdistrict")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                แขวง (180)
-              </button>
-            </div>
-
-            {/* Map mode toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => setMapMode("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                สถิติ
-              </button>
-              <button
-                onClick={() => setMapMode("idw")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                ดาวเทียม (GEE)
-              </button>
-            </div>
-
-          </div>
-
-          {/* Card 2: Opacity (raster modes) */}
-          {(mapMode === "satellite-cache" || mapMode === "idw") && (
-            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
-                <span className="text-xs font-mono text-yellow-200 font-bold bg-yellow-300/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
+              {/* Data source badge */}
+              <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 bg-yellow-300 rounded-full" />
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
+                </div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  <p><span className="text-white">Satellite:</span> Suomi NPP VIIRS Day/Night Band</p>
+                  <p><span className="text-white">Source:</span> R2 cache · {sourceDataset}</p>
+                  <p><span className="text-white">Period:</span> {periodLabel}</p>
+                  <p><span className="text-white">Band:</span> {sourceBand} · nW/sr/cm²</p>
+                  <p><span className="text-white">Resolution:</span> ~500m per pixel</p>
+                  <p><span className="text-white">Cache:</span> {cacheMeta?.status === "ok" ? "พร้อมใช้งาน" : "ยังไม่มี cache สำหรับช่วงนี้"}</p>
+                  {isMonthlyPreview && <p><span className="text-amber-300">Note:</span> monthly preview ไม่ใช่ annual trend</p>}
+                </div>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={opacity}
-                onChange={(event) => setOpacity(parseFloat(event.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
-              />
-            </div>
-          )}
 
-          {/* Card 3: Base map */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: "dark", label: "Dark" },
-                { id: "light", label: "Light" },
-                { id: "satellite", label: "Satellite" },
-                { id: "streets", label: "Street" },
-                { id: "none", label: "None" },
-              ].map((map) => (
-                <button
-                  key={map.id}
-                  onClick={() => setBaseMap(map.id as any)}
-                  className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === map.id ? "bg-yellow-400 border-yellow-400 text-slate-950 shadow-md shadow-yellow-400/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
-                >
-                  {map.label}
-                </button>
-              ))}
+              {/* Legend */}
+              <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+                <div className="mb-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
+                  <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
+                  <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
+                </div>
+                <div className="space-y-2">
+                  {legendConfig.items.map((item) => (
+                    <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
+                      <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
+                      <span className="min-w-0 truncate text-slate-300">{item.label}</span>
+                      <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+
+            {/* Right control panel */}
+            <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+              <div className="flex min-h-full flex-col gap-3">
+
+                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
+                    </h4>
+                    <button
+                      onClick={handleReset}
+                      className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
+                    >
+                      RESET
+                    </button>
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
+                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                    <button
+                      onClick={() => setGranularity("district")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      เขต (50)
+                    </button>
+                    <button
+                      onClick={() => setGranularity("subdistrict")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      แขวง (180)
+                    </button>
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
+                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                    <button
+                      onClick={() => setMapMode("district")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      สถิติ
+                    </button>
+                    <button
+                      onClick={() => setMapMode("idw")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      ดาวเทียม (GEE)
+                    </button>
+                  </div>
+                </div>
+
+                {(mapMode === "satellite-cache" || mapMode === "idw") && (
+                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
+                      <span className="text-xs font-mono text-yellow-200 font-bold bg-yellow-300/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="1" step="0.01"
+                      value={opacity}
+                      onChange={(event) => setOpacity(parseFloat(event.target.value))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
+                    />
+                  </div>
+                )}
+
+                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "dark", label: "Dark" },
+                      { id: "light", label: "Light" },
+                      { id: "satellite", label: "Satellite" },
+                      { id: "streets", label: "Street" },
+                      { id: "none", label: "None" },
+                    ].map((map) => (
+                      <button
+                        key={map.id}
+                        onClick={() => setBaseMap(map.id as any)}
+                        className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === map.id ? "bg-yellow-400 border-yellow-400 text-slate-950 shadow-md shadow-yellow-400/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
+                      >
+                        {map.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5" /> ชุดข้อมูล &amp; ช่วงเวลา
+                  </h4>
+
+                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                    <button
+                      onClick={() => { setDataProduct("annual"); setSelectedYear(latestDataYear); }}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      Annual {firstYear}–{latestDataYear}
+                    </button>
+                    <button
+                      onClick={() => { setDataProduct("monthly"); setSelectedYear(latestMonthlyYear); setSelectedMonth(latestMonthlyMonth); setCompareMode(false); }}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      {latestMonthlyYear} Preview
+                    </button>
+                  </div>
+
+                  {isMonthlyPreview && (
+                    <div className="mb-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
+                      <div className="text-[10px] font-bold text-amber-100">ข้อมูลล่าสุดแบบรายเดือน</div>
+                      <p className="mt-1 text-[9px] leading-snug text-slate-400">
+                        ข้อมูลรายเดือนล่าสุดถึง {latestMonthlyMonth}/{latestMonthlyYear} ใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : firstYear}</span>
+                    <span className="text-lg font-bold text-yellow-200 font-mono">{selectedYear}</span>
+                    <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : latestDataYear}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={isMonthlyPreview ? latestMonthlyYear : firstYear}
+                    max={isMonthlyPreview ? latestMonthlyYear : latestDataYear}
+                    value={selectedYear}
+                    onChange={(event) => setSelectedYear(parseInt(event.target.value, 10))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300 mb-4"
+                  />
+
+                  {!isMonthlyPreview && (
+                    <button
+                      onClick={() => setCompareMode(!compareMode)}
+                      className={`w-full text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold mb-2 ${compareMode ? "bg-yellow-300/20 text-yellow-100 border-yellow-300/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500 hover:text-slate-300"}`}
+                    >
+                      {compareMode ? "✓ โหมดเปรียบเทียบปีเปิดอยู่" : "เปรียบเทียบปี (Compare Mode)"}
+                    </button>
+                  )}
+
+                  {compareMode && !isMonthlyPreview && (
+                    <div className="mt-2 pt-4 border-t border-slate-800/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest">ปีฐานที่ใช้เทียบ</h4>
+                        <span className="text-sm font-bold text-yellow-100 font-mono">{compareYear}</span>
+                      </div>
+                      <input
+                        type="range" min={firstYear} max={latestDataYear}
+                        value={compareYear}
+                        onChange={(event) => setCompareYear(parseInt(event.target.value, 10))}
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
+                      />
+                    </div>
+                  )}
+
+                  {isMonthlyPreview && (
+                    <div className="mt-2 pt-4 border-t border-slate-800/50">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">เดือน</h4>
+                        <span className="text-sm font-bold text-amber-100 font-mono">{selectedMonth}/{latestMonthlyYear}</span>
+                      </div>
+                      <input
+                        type="range" min={1} max={latestMonthlyMonth}
+                        value={selectedMonth}
+                        onChange={(event) => setSelectedMonth(parseInt(event.target.value, 10))}
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-300"
+                      />
+                      <div className="mt-2 flex justify-between text-[9px] text-slate-500 font-mono">
+                        <span>ม.ค.</span>
+                        <span>เดือน {latestMonthlyMonth}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <ExportPanel
+                  accentColor="yellow"
+                  csvFilename={`nighttime-lights_${isMonthlyPreview ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+                  csvHeaders={["เขต", "ค่าแสง NTL (nW/sr/cm²)", "หน่วย", "ช่วงเวลา"]}
+                  csvRows={rankingForExport}
+                  reportData={{
+                    title: "วิเคราะห์แสงกลางคืน",
+                    subtitle: "VIIRS DNB Day/Night Band",
+                    source: sourceDataset,
+                    period: periodLabel,
+                    layer: isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
+                    district: activeDistrict,
+                    kpis: [
+                      { label: "ค่าแสงเฉลี่ย", value: formatRadiance(summary?.averageRadiance, 3) },
+                      { label: "เขตสว่างสุด", value: summary?.maxDistrict ?? "–" },
+                      { label: "ช่วงข้อมูล", value: periodLabel },
+                    ],
+                    rankingHeaders: ["เขต", "NTL (nW/sr/cm²)"],
+                    rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+                  }}
+                />
+
+                <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-yellow-300/20 shadow-2xl w-full">
+                  <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Moon className="w-3.5 h-3.5" /> Nighttime Lights คืออะไร
+                  </h4>
+                  <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
+                    <p>VIIRS DNB วัดความสว่างกลางคืนของพื้นผิวโลก ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง ถนน อาคาร พาณิชยกรรม และพื้นที่ที่เปิดไฟต่อเนื่อง</p>
+                    <p>ข้อมูลนี้เหมาะสำหรับดูแนวโน้มความเข้มเมืองเชิงพื้นที่ แต่ไม่ควรตีความเป็นจำนวนประชากรหรือมูลค่าเศรษฐกิจโดยตรง เพราะแสงไฟถนน ท่าเรือ สนามบิน งานก่อสร้าง หรือแสงสะท้อนมีผลต่อค่าได้</p>
+                  </div>
+                </div>
+
+              </div>
+            </aside>
           </div>
+        )}
 
-          {/* Card 4: Data product + Year + Compare */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5" /> ชุดข้อมูล &amp; ช่วงเวลา
-            </h4>
+        {/* Stats view */}
+        {viewMode === "stats" && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <span className="text-slate-500 text-sm animate-pulse">กำลังโหลดข้อมูล…</span>
+              </div>
+            ) : !summary ? (
+              <div className="flex items-center justify-center h-64">
+                <span className="text-slate-600 text-sm">ไม่มีข้อมูลสำหรับช่วงเวลานี้</span>
+              </div>
+            ) : (
+              <div className="p-6 space-y-5">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-100">สถิติแสงกลางคืน (Nighttime Lights)</h2>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{periodLabel} · VIIRS DNB · nW/sr/cm²</p>
+                  </div>
+                  {compareMode && !isMonthlyPreview && summary.avgDelta !== null && (
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 ${summary.avgDelta > 0 ? "bg-yellow-500/10 text-yellow-400" : "bg-blue-500/10 text-blue-400"}`}>
+                      {summary.avgDelta > 0
+                        ? <TrendingUp className="w-3.5 h-3.5" />
+                        : <TrendingDown className="w-3.5 h-3.5" />}
+                      เทียบ {compareYear}: {summary.avgDelta > 0 ? "+" : ""}{formatRadiance(summary.avgDelta, 3)}
+                    </div>
+                  )}
+                </div>
 
-            {/* Data product toggle */}
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => {
-                  setDataProduct("annual");
-                  setSelectedYear(latestDataYear);
-                }}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "annual" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                Annual {firstYear}–{latestDataYear}
-              </button>
-              <button
-                onClick={() => {
-                  setDataProduct("monthly");
-                  setSelectedYear(latestMonthlyYear);
-                  setSelectedMonth(latestMonthlyMonth);
-                  setCompareMode(false);
-                }}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${dataProduct === "monthly" ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                {latestMonthlyYear} Preview
-              </button>
-            </div>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: compareMode && !isMonthlyPreview ? "ส่วนต่างเฉลี่ย" : "ค่าแสงเฉลี่ย",
+                      value: compareMode && !isMonthlyPreview
+                        ? `${(summary.avgDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary.avgDelta, 3)}`
+                        : formatRadiance(summary.averageRadiance, 3),
+                      sub: "nW/sr/cm²",
+                      color: "text-yellow-400",
+                      bg: "bg-yellow-500/10 border-yellow-500/20",
+                    },
+                    {
+                      label: compareMode && !isMonthlyPreview ? "เขตเพิ่มขึ้นสูงสุด" : "เขตสว่างที่สุด",
+                      value: compareMode && !isMonthlyPreview
+                        ? summary.fastestGrowthDistrict ?? "–"
+                        : summary.maxDistrict ?? "–",
+                      sub: compareMode && !isMonthlyPreview
+                        ? summary.maxDelta != null ? `+${formatRadiance(summary.maxDelta, 3)}` : ""
+                        : summary.maxRadiance != null ? formatRadiance(summary.maxRadiance, 3) : "",
+                      color: "text-amber-400",
+                      bg: "bg-amber-500/10 border-amber-500/20",
+                    },
+                    {
+                      label: compareMode && !isMonthlyPreview ? "ส่วนต่างสูงสุด" : "ค่าสูงสุดรายเขต",
+                      value: compareMode && !isMonthlyPreview
+                        ? `${(summary.maxDelta ?? 0) > 0 ? "+" : ""}${formatRadiance(summary.maxDelta, 3)}`
+                        : formatRadiance(summary.maxRadiance, 3),
+                      sub: "nW/sr/cm²",
+                      color: "text-orange-400",
+                      bg: "bg-orange-500/10 border-orange-500/20",
+                    },
+                    {
+                      label: "ช่วงข้อมูล",
+                      value: compareMode && !isMonthlyPreview ? `${selectedYear} vs ${compareYear}` : periodLabel,
+                      sub: "VIIRS NOAA",
+                      color: "text-slate-400",
+                      bg: "bg-slate-500/10 border-slate-500/20",
+                    },
+                  ].map((kpi) => (
+                    <div key={kpi.label} className={`rounded-2xl border p-4 ${kpi.bg}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">{kpi.label}</p>
+                      <p className={`text-2xl font-black tabular-nums truncate ${kpi.color}`}>{kpi.value}</p>
+                      {kpi.sub && <p className="text-[10px] text-slate-600 mt-0.5">{kpi.sub}</p>}
+                    </div>
+                  ))}
+                </div>
 
-            {/* Monthly info banner */}
-            {isMonthlyPreview && (
-              <div className="mb-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
-                <div className="text-[10px] font-bold text-amber-100">ข้อมูลล่าสุดแบบรายเดือน</div>
-                <p className="mt-1 text-[9px] leading-snug text-slate-400">
-                  ข้อมูลรายเดือนล่าสุดถึง {latestMonthlyMonth}/{latestMonthlyYear} ใช้เป็น preview ล่าสุด ไม่ใช้เปรียบเทียบแทน annual
-                </p>
+                {/* Bar Chart — Top 25 by ntl_mean */}
+                {statsBarData.length > 0 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
+                      Top {statsBarData.length} เขต — NTL Mean (nW/sr/cm²)
+                    </h3>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={statsBarData} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 10 }} tickLine={false} axisLine={false} width={90} />
+                        <Tooltip
+                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
+                          formatter={(v: any) => [v.toFixed(3), "NTL Mean"]}
+                          cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                        />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                          {statsBarData.map((_, i) => (
+                            <Cell key={i} fill={lerpColor(BAR_LOW, BAR_HIGH, i / Math.max(statsBarData.length - 1, 1))} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Yearly trend (annual mode) */}
+                {!isMonthlyPreview && statsTrendData.length > 1 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                      แนวโน้มรายปี — NTL Mean เฉลี่ยทุกเขต
+                    </h3>
+                    <p className="text-[10px] text-slate-600 mb-4">VIIRS annual average_masked composite</p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <AreaChart data={statsTrendData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                        <defs>
+                          <linearGradient id="ntlGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#facc15" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#facc15" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="year" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
+                          formatter={(v: any) => [v.toFixed(3), "NTL Mean (nW/sr/cm²)"]}
+                        />
+                        <Area type="monotone" dataKey="value" stroke="#facc15" strokeWidth={2} fill="url(#ntlGrad)" dot={{ fill: "#facc15", r: 3 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Monthly sparkline */}
+                {isMonthlyPreview && statsMonthlyData.length > 0 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
+                      แนวโน้มรายเดือน — {selectedYear}
+                    </h3>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <LineChart data={statsMonthlyData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 9 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
+                          formatter={(v: any) => [v.toFixed(3), "NTL Mean"]}
+                        />
+                        <Line type="monotone" dataKey="value" stroke="#fbbf24" strokeWidth={2} dot={{ fill: "#fbbf24", r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </div>
             )}
+          </div>
+        )}
 
-            {/* Year slider */}
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : firstYear}</span>
-              <span className="text-lg font-bold text-yellow-200 font-mono">{selectedYear}</span>
-              <span className="text-xs text-slate-400 font-mono">{isMonthlyPreview ? latestMonthlyYear : latestDataYear}</span>
-            </div>
-            <input
-              type="range"
-              min={isMonthlyPreview ? latestMonthlyYear : firstYear}
-              max={isMonthlyPreview ? latestMonthlyYear : latestDataYear}
-              value={selectedYear}
-              onChange={(event) => setSelectedYear(parseInt(event.target.value, 10))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300 mb-4"
+        {/* Table view */}
+        {viewMode === "table" && (
+          <div className="flex-1 min-h-0">
+            <DistrictDataTable
+              features={geojsonData?.features ?? []}
+              columns={tableColumns}
+              getRowData={(props) => ({
+                name: props.name_th,
+                ntl_mean: props.ntl_mean ?? null,
+                ntl_max: props.ntl_max ?? null,
+                ntl_delta: props.ntl_delta ?? null,
+              })}
+              csvFilename={`nighttime-lights_${isMonthlyPreview ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
             />
-
-            {/* Compare toggle (annual only) */}
-            {!isMonthlyPreview && (
-              <button
-                onClick={() => setCompareMode(!compareMode)}
-                className={`w-full text-[9px] px-3 py-1.5 rounded-lg transition-all border font-bold mb-2 ${compareMode ? "bg-yellow-300/20 text-yellow-100 border-yellow-300/50" : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-500 hover:text-slate-300"}`}
-              >
-                {compareMode ? "✓ โหมดเปรียบเทียบปีเปิดอยู่" : "เปรียบเทียบปี (Compare Mode)"}
-              </button>
-            )}
-
-            {/* Compare year slider */}
-            {compareMode && !isMonthlyPreview && (
-              <div className="mt-2 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest">ปีฐานที่ใช้เทียบ</h4>
-                  <span className="text-sm font-bold text-yellow-100 font-mono">{compareYear}</span>
-                </div>
-                <input
-                  type="range"
-                  min={firstYear}
-                  max={latestDataYear}
-                  value={compareYear}
-                  onChange={(event) => setCompareYear(parseInt(event.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
-                />
-              </div>
-            )}
-
-            {/* Month slider (monthly only) */}
-            {isMonthlyPreview && (
-              <div className="mt-2 pt-4 border-t border-slate-800/50">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">เดือน</h4>
-                  <span className="text-sm font-bold text-amber-100 font-mono">{selectedMonth}/{latestMonthlyYear}</span>
-                </div>
-                <input
-                  type="range"
-                  min={1}
-                  max={latestMonthlyMonth}
-                  value={selectedMonth}
-                  onChange={(event) => setSelectedMonth(parseInt(event.target.value, 10))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-300"
-                />
-                <div className="mt-2 flex justify-between text-[9px] text-slate-500 font-mono">
-                  <span>ม.ค.</span>
-                  <span>เดือน {latestMonthlyMonth}</span>
-                </div>
-              </div>
-            )}
           </div>
-
-          <ExportPanel
-            accentColor="yellow"
-            csvFilename={`nighttime-lights_${isMonthlyPreview ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
-            csvHeaders={["เขต", "ค่าแสง NTL (nW/sr/cm²)", "หน่วย", "ช่วงเวลา"]}
-            csvRows={rankingForExport}
-            reportData={{
-              title: "วิเคราะห์แสงกลางคืน",
-              subtitle: "VIIRS DNB Day/Night Band",
-              source: sourceDataset,
-              period: periodLabel,
-              layer: isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
-              district: activeDistrict,
-              kpis: [
-                { label: "ค่าแสงเฉลี่ย", value: formatRadiance(summary?.averageRadiance, 3) },
-                { label: "เขตสว่างสุด", value: summary?.maxDistrict ?? "–" },
-                { label: "ช่วงข้อมูล", value: periodLabel },
-              ],
-              rankingHeaders: ["เขต", "NTL (nW/sr/cm²)"],
-              rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-            }}
-          />
-
-          {/* Card 5: Info */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-yellow-300/20 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-yellow-100 uppercase tracking-widest mb-2 flex items-center gap-2">
-              <Moon className="w-3.5 h-3.5" /> Nighttime Lights คืออะไร
-            </h4>
-            <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
-              <p>VIIRS DNB วัดความสว่างกลางคืนของพื้นผิวโลก ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง ถนน อาคาร พาณิชยกรรม และพื้นที่ที่เปิดไฟต่อเนื่อง</p>
-              <p>ข้อมูลนี้เหมาะสำหรับดูแนวโน้มความเข้มเมืองเชิงพื้นที่ แต่ไม่ควรตีความเป็นจำนวนประชากรหรือมูลค่าเศรษฐกิจโดยตรง เพราะแสงไฟถนน ท่าเรือ สนามบิน งานก่อสร้าง หรือแสงสะท้อนมีผลต่อค่าได้</p>
-            </div>
-          </div>
-
-        </div>
-      </aside>
+        )}
+      </main>
     </div>
   );
 }

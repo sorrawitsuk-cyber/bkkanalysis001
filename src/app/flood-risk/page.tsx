@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import * as turf from "@turf/turf";
-import { Layers } from "lucide-react";
+import { Layers, TrendingUp, TrendingDown } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -18,6 +18,12 @@ import {
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import { buildPeriodLabel } from "@/lib/export-utils";
+import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
+import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+  AreaChart, Area,
+} from "recharts";
 
 const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false });
 
@@ -32,7 +38,6 @@ const WATER_LAYER_LABELS: Record<WaterCacheLayer, string> = {
   mndwi_mean: "MNDWI (mean)",
 };
 
-// Compute inverted mask (world minus Bangkok) once at module level for map clipping
 let _bkk: any = (bkkDistricts.features as any[])[0];
 for (let i = 1; i < (bkkDistricts.features as any[]).length; i++) {
   _bkk = turf.union(turf.featureCollection([_bkk, (bkkDistricts.features as any[])[i]]));
@@ -163,7 +168,17 @@ function buildFloodRiskView(
   };
 }
 
+function lerpColor(lo: [number, number, number], hi: [number, number, number], t: number): string {
+  const r = Math.round(lo[0] + (hi[0] - lo[0]) * t);
+  const g = Math.round(lo[1] + (hi[1] - lo[1]) * t);
+  const b = Math.round(lo[2] + (hi[2] - lo[2]) * t);
+  return `rgb(${r},${g},${b})`;
+}
+const BAR_LOW: [number, number, number] = [186, 230, 253];
+const BAR_HIGH: [number, number, number] = [3, 105, 161];
+
 export default function FloodRiskPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
@@ -177,12 +192,10 @@ export default function FloodRiskPage() {
   const [opacity, setOpacity] = useState(0.78);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
 
-  // Satellite cache state
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
   const [yearlyMeta, setYearlyMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
 
-  // Fetch district data — try R2 cache first, fall back to Supabase API
   useEffect(() => {
     setLoading(true);
     const cacheType   = selectedMonth ? "monthly" : "yearly";
@@ -208,7 +221,6 @@ export default function FloodRiskPage() {
           return;
         }
 
-        // Cache empty — fall back to Supabase API
         const params = new URLSearchParams({ year: selectedYear.toString() });
         if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
         if (compareMode) params.append("compareYear", compareYearStr);
@@ -219,7 +231,6 @@ export default function FloodRiskPage() {
           setGeojsonData(data.geojson);
           setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
         } else {
-          // API unavailable — show empty district outlines with no fill
           const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
           setGeojsonData(built.geojson);
           setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
@@ -228,7 +239,6 @@ export default function FloodRiskPage() {
       })
       .catch((err) => {
         console.error(err);
-        // Show empty district outlines instead of blank map
         const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
         setGeojsonData(built.geojson);
         setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
@@ -237,10 +247,8 @@ export default function FloodRiskPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer]);
 
-  // Load satellite cache index on mount (Sentinel-2, no product param)
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
 
-  // Build full yearly trend from all R2 cache years (parallel fetch, post-render injection)
   useEffect(() => {
     if (!cacheIndex?.yearly?.length) return;
     Promise.all(
@@ -286,6 +294,53 @@ export default function FloodRiskPage() {
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
     [geojsonData, granularity],
   );
+
+  const periodLabel = selectedMonth
+    ? buildPeriodLabel(selectedYear, selectedMonth)
+    : selectedYear === new Date().getFullYear()
+      ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+      : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+
+  const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
+    ([name, val, areaRai]: [string, number | null, number | null]) => [
+      name,
+      val !== null ? +val.toFixed(4) : null,
+      areaRai ?? null,
+      WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer,
+      selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear,
+    ],
+  );
+
+  // Stats bar chart data — top 25 districts by water_ratio
+  const statsBarData = useMemo(() => {
+    if (!geojsonData?.features) return [];
+    return (geojsonData.features as any[])
+      .map((f: any) => ({
+        name: f.properties.name_th ?? "–",
+        value: typeof f.properties.water_ratio === "number"
+          ? +(f.properties.water_ratio * 100).toFixed(2)
+          : null,
+      }))
+      .filter((d: any) => d.value !== null && d.name !== "–")
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 25);
+  }, [geojsonData]);
+
+  const statsTrendData = useMemo(() => {
+    return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
+      year: String(year),
+      value: typeof val === "number" ? +val.toFixed(4) : null,
+    }));
+  }, [summary?.yearlyTrend]);
+
+  // Table columns
+  const tableColumns: ColDef[] = [
+    { key: "name", label: "เขต" },
+    { key: "water_ratio", label: "สัดส่วนน้ำ", unit: "%", format: (v) => v != null ? (v * 100).toFixed(2) : "–" },
+    { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–" },
+    { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–" },
+    ...(compareMode ? [{ key: "delta", label: "เปลี่ยนแปลง", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–" }] : []),
+  ];
 
   // Legend config
   let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
@@ -343,22 +398,6 @@ export default function FloodRiskPage() {
     };
   }
 
-  const periodLabel = selectedMonth
-    ? buildPeriodLabel(selectedYear, selectedMonth)
-    : selectedYear === new Date().getFullYear()
-      ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
-      : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
-
-  const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
-    ([name, val, areaRai]: [string, number | null, number | null]) => [
-      name,
-      val !== null ? +val.toFixed(4) : null,
-      areaRai ?? null,
-      WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer,
-      selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear,
-    ],
-  );
-
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       <FloodRiskSidebar
@@ -372,237 +411,418 @@ export default function FloodRiskPage() {
         granularity={granularity}
       />
 
-      <main className="flex-1 min-w-0 relative">
-        <div className="absolute inset-0 z-0">
-          <FloodRiskMapView
-            geojsonData={displayGeoJson}
-            invertedMask={BKK_INVERTED_MASK}
-            activeDistrict={activeDistrict}
-            mapMode={mapMode}
-            compareMode={compareMode}
-            summary={summary}
-            opacity={opacity}
-            baseMap={baseMap}
-            satelliteCachePreviewUrl={cachePreviewUrl}
-            satelliteCacheBounds={yearlyMeta?.bounds}
-            granularity={granularity}
-            ndwiMetric={cacheLayer === "mndwi_mean" ? "mndwi" : "ndwi"}
-          />
-        </div>
-
-        {/* Data source info (bottom-left) */}
-        <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
-          <div className="flex items-center gap-2 mb-1">
-            <div className={`w-2 h-2 rounded-full ${mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
-          </div>
-          <div className="text-[11px] text-slate-400 leading-relaxed">
-            {mapMode === "idw" ? (
-              <>
-                <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-                <p><span className="text-white">Period:</span> {periodLabel}</p>
-                <p><span className="text-white">Layer:</span> {WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer} (GEE Live)</p>
-                <p><span className="text-white">Resolution:</span> 10m per pixel (real-time)</p>
-              </>
-            ) : (
-              <>
-                <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-                <p><span className="text-white">Period:</span> {periodLabel}</p>
-                <p><span className="text-white">Index:</span> water_ratio (NDWI-based)</p>
-                <p><span className="text-white">Resolution:</span> district-level</p>
-              </>
-            )}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Tab bar */}
+        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur">
+          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="sky" />
+          <div className="ml-auto text-[10px] text-slate-500">
+            {loading ? "กำลังโหลด…" : `${selectedYear}${selectedMonth ? `-${String(selectedMonth).padStart(2, "0")}` : ""} • ${WATER_LAYER_LABELS[cacheLayer]}`}
           </div>
         </div>
 
-        {/* Legend (bottom-right) */}
-        <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
-          <div className="mb-3">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
-            <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
-            <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
-          </div>
-          <div className="space-y-2">
-            {legendConfig.items.map((item) => (
-              <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
-                <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
-                <span className="min-w-0 truncate text-slate-300">{item.label}</span>
-                <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+        {/* Map view */}
+        {viewMode === "map" && (
+          <div className="flex flex-1 min-h-0">
+            <div className="relative flex-1 min-w-0">
+              <div className="absolute inset-0 z-0">
+                <FloodRiskMapView
+                  geojsonData={displayGeoJson}
+                  invertedMask={BKK_INVERTED_MASK}
+                  activeDistrict={activeDistrict}
+                  mapMode={mapMode}
+                  compareMode={compareMode}
+                  summary={summary}
+                  opacity={opacity}
+                  baseMap={baseMap}
+                  satelliteCachePreviewUrl={cachePreviewUrl}
+                  satelliteCacheBounds={yearlyMeta?.bounds}
+                  granularity={granularity}
+                  ndwiMetric={cacheLayer === "mndwi_mean" ? "mndwi" : "ndwi"}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      </main>
 
-      {/* Right control panel */}
-      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
-        <div className="flex min-h-full flex-col gap-3">
+              {/* Data source info */}
+              <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
+                </div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  {mapMode === "idw" ? (
+                    <>
+                      <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
+                      <p><span className="text-white">Period:</span> {periodLabel}</p>
+                      <p><span className="text-white">Layer:</span> {WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer} (GEE Live)</p>
+                      <p><span className="text-white">Resolution:</span> 10m per pixel (real-time)</p>
+                    </>
+                  ) : (
+                    <>
+                      <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
+                      <p><span className="text-white">Period:</span> {periodLabel}</p>
+                      <p><span className="text-white">Index:</span> water_ratio (NDWI-based)</p>
+                      <p><span className="text-white">Resolution:</span> district-level</p>
+                    </>
+                  )}
+                </div>
+              </div>
 
-          {/* Main controls */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
-              </h4>
-              <button
-                onClick={handleReset}
-                className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
-              >
-                RESET
-              </button>
+              {/* Legend */}
+              <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+                <div className="mb-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
+                  <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
+                  <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
+                </div>
+                <div className="space-y-2">
+                  {legendConfig.items.map((item) => (
+                    <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
+                      <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
+                      <span className="min-w-0 truncate text-slate-300">{item.label}</span>
+                      <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* Granularity Toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => setGranularity("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                เขต (50)
-              </button>
-              <button
-                onClick={() => setGranularity("subdistrict")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                แขวง (180)
-              </button>
-            </div>
+            {/* Right control panel */}
+            <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+              <div className="flex min-h-full flex-col gap-3">
 
-            {/* Map mode toggle */}
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-              <button
-                onClick={() => setMapMode("district")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                สถิติ
-              </button>
-              <button
-                onClick={() => setMapMode("idw")}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                ดาวเทียม (GEE)
-              </button>
-            </div>
-
-            {/* Live GEE layer picker */}
-            {mapMode === "idw" && (
-              <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
-                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (WATER)</p>
-                <div className="flex flex-col gap-1">
-                  {WATER_CACHE_LAYERS.map((key) => (
+                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
+                    </h4>
                     <button
-                      key={key}
-                      onClick={() => setCacheLayer(key)}
-                      className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
+                      onClick={handleReset}
+                      className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
                     >
-                      {WATER_LAYER_LABELS[key]}
+                      RESET
                     </button>
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
+                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                    <button
+                      onClick={() => setGranularity("district")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      เขต (50)
+                    </button>
+                    <button
+                      onClick={() => setGranularity("subdistrict")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      แขวง (180)
+                    </button>
+                  </div>
+
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
+                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+                    <button
+                      onClick={() => setMapMode("district")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      สถิติ
+                    </button>
+                    <button
+                      onClick={() => setMapMode("idw")}
+                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      ดาวเทียม (GEE)
+                    </button>
+                  </div>
+
+                  {mapMode === "idw" && (
+                    <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
+                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (WATER)</p>
+                      <div className="flex flex-col gap-1">
+                        {WATER_CACHE_LAYERS.map((key) => (
+                          <button
+                            key={key}
+                            onClick={() => setCacheLayer(key)}
+                            className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
+                          >
+                            {WATER_LAYER_LABELS[key]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {mapMode === "idw" && (
+                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
+                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full text-sky-400 bg-sky-500/10">{Math.round(opacity * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="1" step="0.01"
+                      value={opacity}
+                      onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
+                    />
+                  </div>
+                )}
+
+                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "dark",      label: "Dark" },
+                      { id: "light",     label: "Light" },
+                      { id: "satellite", label: "Satellite" },
+                      { id: "streets",   label: "Street" },
+                      { id: "none",      label: "None" },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => setBaseMap(m.id as any)}
+                        className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === m.id ? "bg-sky-500 border-sky-500 text-white shadow-md shadow-sky-500/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <MonthYearPicker
+                  year={selectedYear}
+                  month={selectedMonth}
+                  minYear={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
+                  maxYear={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
+                  availableMonths={cacheIndex?.monthly ?? []}
+                  onYearChange={setSelectedYear}
+                  onMonthChange={setSelectedMonth}
+                  accentColor="sky"
+                  compareMode={compareMode}
+                  compareYear={compareYear}
+                  onCompareModeChange={setCompareMode}
+                  onCompareYearChange={setCompareYear}
+                />
+
+                <ExportPanel
+                  accentColor="sky"
+                  csvFilename={`flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+                  csvHeaders={["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)", "Layer", "ช่วงเวลา"]}
+                  csvRows={rankingForExport}
+                  reportData={{
+                    title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
+                    subtitle: "Sentinel-2 SR Harmonized",
+                    source: "Sentinel-2 (R2 Cache)",
+                    period: periodLabel,
+                    layer: WATER_LAYER_LABELS[cacheLayer],
+                    district: activeDistrict,
+                    kpis: [
+                      { label: "Water Ratio เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
+                      { label: "พื้นที่น้ำรวม", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
+                      { label: "ปีที่เลือก", value: String(selectedYear) },
+                    ],
+                    rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)"],
+                    rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
+                  }}
+                />
+
+                <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-sky-500/20 shadow-2xl w-full">
+                  <h4 className="text-[10px] font-bold text-sky-300 uppercase tracking-widest mb-2">หลักวิชาการที่ใช้</h4>
+                  <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
+                    <p>
+                      <span className="text-slate-100 font-bold">NDWI</span> = (Green - NIR) / (Green + NIR) เป็นดัชนีตรวจสัญญาณน้ำผิวดินหรือความชื้นจากภาพดาวเทียม ไม่ใช่แบบจำลองน้ำท่วมโดยตรง
+                    </p>
+                    <p>
+                      <span className="text-slate-100 font-bold">MNDWI</span> = (Green - SWIR) / (Green + SWIR) มักเหมาะกับเมืองมากขึ้น เพราะลดการรบกวนจาก built-up surface เมื่อเทียบกับ NDWI
+                    </p>
+                    <p>
+                      <span className="text-sky-300 font-bold">Water ratio</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0 ใช้ประมาณปริมาณพื้นที่น้ำรวมและรายเขต/แขวง
+                    </p>
+                    <p className="text-slate-500">
+                      ค่า NDWI/MNDWI เป็นดัชนีดาวเทียม ควรอ่านร่วมกับฤดูกาล เมฆ และจำนวนภาพที่นำมาทำ composite
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </aside>
+          </div>
+        )}
+
+        {/* Stats view */}
+        {viewMode === "stats" && (
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <span className="text-slate-500 text-sm animate-pulse">กำลังโหลดข้อมูล…</span>
+              </div>
+            ) : !summary ? (
+              <div className="flex items-center justify-center h-64">
+                <span className="text-slate-600 text-sm">ไม่มีข้อมูลสำหรับช่วงเวลานี้</span>
+              </div>
+            ) : (
+              <div className="p-6 space-y-5">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-100">สถิติน้ำท่วม / แหล่งน้ำ</h2>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{summary.displayLabel} — {periodLabel}</p>
+                  </div>
+                  {compareMode && summary.avgDelta !== null && (
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 ${summary.avgDelta > 0 ? "bg-sky-500/10 text-sky-400" : "bg-amber-500/10 text-amber-400"}`}>
+                      {summary.avgDelta > 0
+                        ? <TrendingUp className="w-3.5 h-3.5" />
+                        : <TrendingDown className="w-3.5 h-3.5" />}
+                      เทียบ {compareYear}: {summary.avgDelta > 0 ? "+" : ""}{(summary.avgDelta * 100).toFixed(2)}%
+                    </div>
+                  )}
+                </div>
+
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Water Ratio เฉลี่ย",
+                      value: summary.avgWaterRatio != null ? `${(summary.avgWaterRatio * 100).toFixed(2)}%` : "–",
+                      sub: "สัดส่วนพื้นที่น้ำเฉลี่ยทุกเขต",
+                      color: "text-sky-400",
+                      bg: "bg-sky-500/10 border-sky-500/20",
+                    },
+                    {
+                      label: "พื้นที่น้ำรวม",
+                      value: summary.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()}` : "–",
+                      sub: "ไร่ (ทั่วกรุงเทพฯ)",
+                      color: "text-blue-400",
+                      bg: "bg-blue-500/10 border-blue-500/20",
+                    },
+                    {
+                      label: "เขตน้ำมากที่สุด",
+                      value: summary.topWet?.[0]?.[0] ?? "–",
+                      sub: summary.topWet?.[0]?.[1] != null ? `${(summary.topWet[0][1] * 100).toFixed(2)}%` : "",
+                      color: "text-cyan-400",
+                      bg: "bg-cyan-500/10 border-cyan-500/20",
+                    },
+                    {
+                      label: "เขตน้ำน้อยที่สุด",
+                      value: summary.topDry?.[0]?.[0] ?? "–",
+                      sub: summary.topDry?.[0]?.[1] != null ? `${(summary.topDry[0][1] * 100).toFixed(2)}%` : "",
+                      color: "text-slate-400",
+                      bg: "bg-slate-500/10 border-slate-500/20",
+                    },
+                  ].map((kpi) => (
+                    <div key={kpi.label} className={`rounded-2xl border p-4 ${kpi.bg}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">{kpi.label}</p>
+                      <p className={`text-2xl font-black tabular-nums ${kpi.color}`}>{kpi.value}</p>
+                      {kpi.sub && <p className="text-[10px] text-slate-600 mt-0.5">{kpi.sub}</p>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bar Chart — Top 25 districts */}
+                {statsBarData.length > 0 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
+                      Top {statsBarData.length} เขต — สัดส่วนน้ำ (%)
+                    </h3>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={statsBarData} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 10 }} tickLine={false} axisLine={false} width={90} />
+                        <Tooltip
+                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
+                          formatter={(v: any) => [`${v}%`, "Water Ratio"]}
+                          cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                        />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                          {statsBarData.map((_, i) => (
+                            <Cell key={i} fill={lerpColor(BAR_LOW, BAR_HIGH, i / Math.max(statsBarData.length - 1, 1))} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Yearly trend */}
+                {statsTrendData.length > 1 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                      แนวโน้มรายปี — {WATER_LAYER_LABELS[cacheLayer]} (เฉลี่ยทุกเขต)
+                    </h3>
+                    <p className="text-[10px] text-slate-600 mb-4">ค่าดัชนีเฉลี่ย คำนวณจาก Sentinel-2 composite รายปี</p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <AreaChart data={statsTrendData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                        <defs>
+                          <linearGradient id="floodGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="year" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
+                          formatter={(v: any) => [v.toFixed(4), WATER_LAYER_LABELS[cacheLayer]]}
+                        />
+                        <Area type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} fill="url(#floodGrad)" dot={{ fill: "#38bdf8", r: 3 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Top 5 wet / dry */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { title: "เขตน้ำมากที่สุด 5 อันดับ", data: summary.topWet ?? [], color: "text-sky-400", bg: "border-sky-500/20" },
+                    { title: "เขตน้ำน้อยที่สุด 5 อันดับ", data: summary.topDry ?? [], color: "text-slate-400", bg: "border-slate-500/20" },
+                  ].map(({ title, data, color, bg }) => (
+                    <div key={title} className={`rounded-2xl border ${bg} bg-slate-900/50 p-4`}>
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">{title}</h4>
+                      <ol className="space-y-2">
+                        {(data as any[]).map(([name, val, areaRai]: any, i: number) => (
+                          <li key={name} className="flex items-center gap-3">
+                            <span className="text-[10px] font-mono text-slate-600 w-4 shrink-0">{i + 1}</span>
+                            <span className="flex-1 text-[12px] text-slate-300 truncate">{name}</span>
+                            <span className={`text-[11px] font-mono font-bold ${color}`}>
+                              {val != null ? `${(val * 100).toFixed(2)}%` : "–"}
+                            </span>
+                            {areaRai != null && (
+                              <span className="text-[10px] text-slate-600 font-mono w-20 text-right shrink-0">
+                                {Number(areaRai).toLocaleString()} ไร่
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
+        )}
 
-          {/* Opacity slider (raster modes) */}
-          {mapMode === "idw" && (
-            <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full text-sky-400 bg-sky-500/10">{Math.round(opacity * 100)}%</span>
-              </div>
-              <input
-                type="range" min="0" max="1" step="0.01"
-                value={opacity}
-                onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
-              />
-            </div>
-          )}
-
-          {/* Base map */}
-          <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
-            </h4>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: "dark",      label: "Dark" },
-                { id: "light",     label: "Light" },
-                { id: "satellite", label: "Satellite" },
-                { id: "streets",   label: "Street" },
-                { id: "none",      label: "None" },
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setBaseMap(m.id as any)}
-                  className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === m.id ? "bg-sky-500 border-sky-500 text-white shadow-md shadow-sky-500/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
+        {/* Table view */}
+        {viewMode === "table" && (
+          <div className="flex-1 min-h-0">
+            <DistrictDataTable
+              features={geojsonData?.features ?? []}
+              columns={tableColumns}
+              getRowData={(props) => ({
+                name: props.name_th,
+                water_ratio: props.water_ratio ?? null,
+                water_area_rai: props.water_area_rai ?? null,
+                ndwi_mean: props.ndwi_mean ?? null,
+                delta: props.delta ?? null,
+              })}
+              csvFilename={`flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+            />
           </div>
-
-          <MonthYearPicker
-            year={selectedYear}
-            month={selectedMonth}
-            minYear={cacheIndex?.yearly?.length ? Math.min(...cacheIndex.yearly.map(Number)) : 2018}
-            maxYear={cacheIndex?.yearly?.length ? Math.max(...cacheIndex.yearly.map(Number)) : 2026}
-            availableMonths={cacheIndex?.monthly ?? []}
-            onYearChange={setSelectedYear}
-            onMonthChange={setSelectedMonth}
-            accentColor="sky"
-            compareMode={compareMode}
-            compareYear={compareYear}
-            onCompareModeChange={setCompareMode}
-            onCompareYearChange={setCompareYear}
-          />
-
-          <ExportPanel
-            accentColor="sky"
-            csvFilename={`flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
-            csvHeaders={["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)", "Layer", "ช่วงเวลา"]}
-            csvRows={rankingForExport}
-            reportData={{
-              title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
-              subtitle: "Sentinel-2 SR Harmonized",
-              source: "Sentinel-2 (R2 Cache)",
-              period: periodLabel,
-              layer: WATER_LAYER_LABELS[cacheLayer],
-              district: activeDistrict,
-              kpis: [
-                { label: "Water Ratio เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
-                { label: "พื้นที่น้ำรวม", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
-                { label: "ปีที่เลือก", value: String(selectedYear) },
-              ],
-              rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)"],
-              rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
-            }}
-          />
-
-          {/* Info card */}
-          <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-sky-500/20 shadow-2xl w-full">
-            <h4 className="text-[10px] font-bold text-sky-300 uppercase tracking-widest mb-2">หลักวิชาการที่ใช้</h4>
-            <div className="text-[10px] text-slate-400 leading-relaxed space-y-2">
-              <p>
-                <span className="text-slate-100 font-bold">NDWI</span> = (Green - NIR) / (Green + NIR) เป็นดัชนีตรวจสัญญาณน้ำผิวดินหรือความชื้นจากภาพดาวเทียม ไม่ใช่แบบจำลองน้ำท่วมโดยตรง
-              </p>
-              <p>
-                <span className="text-slate-100 font-bold">MNDWI</span> = (Green - SWIR) / (Green + SWIR) มักเหมาะกับเมืองมากขึ้น เพราะลดการรบกวนจาก built-up surface เมื่อเทียบกับ NDWI
-              </p>
-              <p>
-                <span className="text-sky-300 font-bold">Water ratio</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0 ใช้ประมาณปริมาณพื้นที่น้ำรวมและรายเขต/แขวง
-              </p>
-              <p className="text-slate-500">
-                ค่า NDWI/MNDWI เป็นดัชนีดาวเทียม ควรอ่านร่วมกับฤดูกาล เมฆ และจำนวนภาพที่นำมาทำ composite
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </aside>
+        )}
+      </main>
     </div>
   );
 }
