@@ -250,7 +250,7 @@ export default function StatsDashboard({ summary, metric, year, compareMode = fa
   const barBarHeight = Math.max(320, barData.length * 18);
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto custom-scrollbar bg-slate-950">
+    <div className="flex-1 w-full flex h-full flex-col overflow-y-auto custom-scrollbar bg-slate-950">
 
       {/* ── Stats summary strip ── */}
       <div className="shrink-0 grid grid-cols-3 sm:grid-cols-6 gap-0 border-b border-slate-800/60">

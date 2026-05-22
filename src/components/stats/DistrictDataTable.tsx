@@ -130,7 +130,7 @@ export default function DistrictDataTable({
   }
 
   return (
-    <div className="flex h-full flex-col bg-slate-950">
+    <div className="flex-1 w-full flex h-full flex-col bg-slate-950">
 
       {/* Toolbar */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-800/60 bg-slate-900/30">

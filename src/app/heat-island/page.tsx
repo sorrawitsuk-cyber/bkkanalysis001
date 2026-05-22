@@ -143,8 +143,8 @@ export default function HeatIslandPage() {
   // Table columns
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
-    { key: "mean_lst", label: "LST เฉลี่ย", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–" },
-    { key: "max_lst", label: "LST สูงสุด", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–" },
+    { key: "mean_lst", label: "LST เฉลี่ย", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#f97316" },
+    { key: "max_lst", label: "LST สูงสุด", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#ef4444" },
     ...(compareMode
       ? [{ key: "delta", label: "Δ LST", unit: "°C", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(2)}` : "–" } as ColDef]
       : []
@@ -153,15 +153,17 @@ export default function HeatIslandPage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <LSTSidebar
-        onDistrictSelect={setActiveDistrict}
-        activeDistrict={activeDistrict}
-        summary={summary}
-        loading={loading}
-        compareMode={compareMode}
-        granularity={granularity}
-        subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
-      />
+      {viewMode === "map" && (
+        <LSTSidebar
+          onDistrictSelect={setActiveDistrict}
+          activeDistrict={activeDistrict}
+          summary={summary}
+          loading={loading}
+          compareMode={compareMode}
+          granularity={granularity}
+          subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
+        />
+      )}
 
       {/* Main content area */}
       <main className="flex-1 min-w-0 flex flex-col">
