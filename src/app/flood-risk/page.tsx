@@ -336,9 +336,9 @@ export default function FloodRiskPage() {
   // Table columns
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต" },
-    { key: "water_ratio", label: "สัดส่วนน้ำ", unit: "%", format: (v) => v != null ? (v * 100).toFixed(2) : "–" },
-    { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–" },
-    { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–" },
+    { key: "water_ratio", label: "สัดส่วนน้ำ", unit: "%", format: (v) => v != null ? (v * 100).toFixed(2) : "–", heatmap: true, heatmapHex: "#3b82f6" },
+    { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#60a5fa" },
+    { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#06b6d4" },
     ...(compareMode ? [{ key: "delta", label: "เปลี่ยนแปลง", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–" }] : []),
   ];
 
@@ -400,16 +400,18 @@ export default function FloodRiskPage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <FloodRiskSidebar
-        onDistrictSelect={setActiveDistrict}
-        activeDistrict={activeDistrict}
-        summary={summary}
-        geojsonData={displayGeoJson}
-        loading={loading}
-        compareMode={compareMode}
-        mapMode={mapMode}
-        granularity={granularity}
-      />
+      {viewMode === "map" && (
+        <FloodRiskSidebar
+          onDistrictSelect={setActiveDistrict}
+          activeDistrict={activeDistrict}
+          summary={summary}
+          geojsonData={displayGeoJson}
+          loading={loading}
+          compareMode={compareMode}
+          mapMode={mapMode}
+          granularity={granularity}
+        />
+      )}
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}

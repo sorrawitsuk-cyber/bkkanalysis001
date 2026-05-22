@@ -126,17 +126,17 @@ export default function AirQualityPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
-    { key: "no2_mean", label: "NO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–" },
-    { key: "co_mean", label: "CO", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–" },
-    { key: "so2_mean", label: "SO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–" },
-    { key: "pollution_score", label: "Score", unit: "0–10", format: (v) => v != null ? Number(v).toFixed(2) : "–" },
+    { key: "no2_mean", label: "NO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
+    { key: "co_mean", label: "CO", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#fb923c" },
+    { key: "so2_mean", label: "SO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#facc15" },
+    { key: "pollution_score", label: "Score", unit: "0–10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
   ];
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-50">
 
-      {/* ── LEFT Sidebar ── */}
-      <div className="w-80 shrink-0 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 shadow-2xl overflow-y-auto custom-scrollbar hidden md:flex">
+      {/* ── LEFT Sidebar (map mode only) ── */}
+      {viewMode === "map" && <div className="w-80 shrink-0 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 shadow-2xl overflow-y-auto custom-scrollbar hidden md:flex">
         <div className="p-5 border-b border-slate-800/60 sticky top-0 bg-[#0f172a]/95 backdrop-blur z-20">
           <Link href="/" className="mb-4 inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-400 hover:text-cyan-300 transition-colors">
             <Home className="h-3 w-3" /> Bangkok Analytics
@@ -266,7 +266,7 @@ export default function AirQualityPage() {
             </Link>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* ── Main: tab bar + content ── */}
       <main className="flex-1 min-w-0 flex flex-col">

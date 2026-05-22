@@ -83,22 +83,24 @@ export default function UrbanExpansionPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
-    { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–" },
-    { key: "builtup_area_rai", label: "พื้นที่สิ่งปลูกสร้าง", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–" },
+    { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b" },
+    { key: "builtup_area_rai", label: "พื้นที่สิ่งปลูกสร้าง", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#ef4444" },
     ...(compareMode ? [{ key: "delta", label: "Δ NDBI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–" } as ColDef] : []),
   ];
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <BuiltUpSidebar
-        onDistrictSelect={setActiveDistrict}
-        activeDistrict={activeDistrict}
-        summary={summary}
-        loading={loading}
-        compareMode={compareMode}
-        granularity={granularity}
-        subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
-      />
+      {viewMode === "map" && (
+        <BuiltUpSidebar
+          onDistrictSelect={setActiveDistrict}
+          activeDistrict={activeDistrict}
+          summary={summary}
+          loading={loading}
+          compareMode={compareMode}
+          granularity={granularity}
+          subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
+        />
+      )}
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}

@@ -118,25 +118,27 @@ export default function GreenSpacePage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
-    { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–" },
-    { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–" },
-    { key: "green_area_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–" },
-    { key: "priority_score", label: "Priority Score", format: (v) => v != null ? Number(v).toFixed(2) : "–" },
+    { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981" },
+    { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981" },
+    { key: "green_area_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
+    { key: "priority_score", label: "Priority Score", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#f97316", heatmapInvert: true },
     ...(compareMode ? [{ key: "delta", label: "Δ NDVI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–" } as ColDef] : []),
   ];
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <GreenSpaceSidebar
-        onDistrictSelect={setActiveDistrict}
-        activeDistrict={activeDistrict}
-        summary={summary}
-        geojsonData={displayGeoJson}
-        ndviLayer={ndviLayer}
-        loading={loading}
-        compareMode={compareMode}
-        granularity={granularity}
-      />
+      {viewMode === "map" && (
+        <GreenSpaceSidebar
+          onDistrictSelect={setActiveDistrict}
+          activeDistrict={activeDistrict}
+          summary={summary}
+          geojsonData={displayGeoJson}
+          ndviLayer={ndviLayer}
+          loading={loading}
+          compareMode={compareMode}
+          granularity={granularity}
+        />
+      )}
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}

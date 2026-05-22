@@ -332,8 +332,8 @@ export default function NighttimeLightsPage() {
   // Table columns
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต" },
-    { key: "ntl_mean", label: "NTL Mean", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–" },
-    { key: "ntl_max", label: "NTL Max", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–" },
+    { key: "ntl_mean", label: "NTL Mean", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#fbbf24" },
+    { key: "ntl_max", label: "NTL Max", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#f59e0b" },
     ...(compareMode && !isMonthlyPreview
       ? [{ key: "ntl_delta", label: "ส่วนต่าง", unit: "nW/sr/cm²", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${formatRadiance(v, 3)}` : "–" }]
       : []),
@@ -369,19 +369,21 @@ export default function NighttimeLightsPage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <NightLightsSidebar
-        onDistrictSelect={setActiveDistrict}
-        activeDistrict={activeDistrict}
-        summary={summary}
-        loading={loading}
-        compareMode={compareMode && !isMonthlyPreview}
-        firstYear={firstYear}
-        latestDataYear={latestDataYear}
-        latestMonthlyYear={latestMonthlyYear}
-        latestMonthlyMonth={latestMonthlyMonth}
-        granularity={granularity}
-        subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
-      />
+      {viewMode === "map" && (
+        <NightLightsSidebar
+          onDistrictSelect={setActiveDistrict}
+          activeDistrict={activeDistrict}
+          summary={summary}
+          loading={loading}
+          compareMode={compareMode && !isMonthlyPreview}
+          firstYear={firstYear}
+          latestDataYear={latestDataYear}
+          latestMonthlyYear={latestMonthlyYear}
+          latestMonthlyMonth={latestMonthlyMonth}
+          granularity={granularity}
+          subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
+        />
+      )}
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}
