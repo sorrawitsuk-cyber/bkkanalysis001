@@ -16,6 +16,7 @@ import {
   Map,
   BarChart3,
   Globe,
+  FileSearch,
 } from "lucide-react";
 
 const modules = [
@@ -191,6 +192,23 @@ export default function Home() {
             })}
           </div>
         </div>
+
+        {/* District Analysis featured card */}
+        <Link
+          href="/district-analysis"
+          className="group mb-6 relative flex items-center gap-5 overflow-hidden rounded-2xl border border-cyan-700/30 bg-gradient-to-r from-cyan-950/60 to-slate-950/80 p-5 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-600/50 hover:shadow-2xl hover:shadow-cyan-900/20"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 opacity-70 group-hover:opacity-100 transition-opacity" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 shadow-lg shadow-cyan-900/40">
+            <FileSearch className="h-7 w-7 text-white drop-shadow" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-500 mb-0.5">Cross-Module · District Profile</div>
+            <div className="text-[17px] font-black text-white">วิเคราะห์รายเขต — ครบทุกมิติ</div>
+            <div className="text-[12px] text-slate-400 mt-1">เลือกเขตดูข้อมูลทุกตัวชี้วัดในที่เดียว: อุณหภูมิ · พื้นที่สีเขียว · สิ่งปลูกสร้าง · คุณภาพอากาศ · แสงไฟ เปรียบเทียบกับค่าเฉลี่ยกรุงเทพฯ และ export รายงานได้</div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-cyan-400 shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
 
         {/* Module cards */}
         <section>
