@@ -274,13 +274,13 @@ export default function HeatIslandPage() {
                     year={selectedYear} month={selectedMonth}
                     minYear={2018} maxYear={2026}
                     onYearChange={setSelectedYear} onMonthChange={setSelectedMonth}
-                    accentColor="red"
+                    accentColor="orange"
                     compareMode={compareMode} compareYear={compareYear}
                     onCompareModeChange={setCompareMode} onCompareYearChange={setCompareYear}
                   />
 
                   <ExportPanel
-                    accentColor="red"
+                    accentColor="orange"
                     csvFilename={`heat-island_LST_${selectedYear}`}
                     csvHeaders={["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"]}
                     csvRows={rankingForExport}
