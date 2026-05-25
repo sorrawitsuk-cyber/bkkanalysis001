@@ -3,9 +3,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import MapSkeleton from "@/components/ui/MapSkeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import MapControlPanel from "@/components/map/MapControlPanel";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import { Calendar, Layers, Moon, TrendingUp, TrendingDown } from "lucide-react";
+import { Calendar, Moon, TrendingUp, TrendingDown } from "lucide-react";
 import ExportPanel from "@/components/ui/ExportPanel";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
@@ -22,7 +25,7 @@ import {
   AreaChart, Area, LineChart, Line,
 } from "recharts";
 
-const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
+const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
 type MapMode = "district" | "satellite-cache" | "idw";
 type DataProduct = "annual" | "monthly";
@@ -399,23 +402,25 @@ export default function NighttimeLightsPage() {
           <div className="flex flex-1 min-h-0">
             <div className="relative flex-1 min-w-0">
               <div className="absolute inset-0 z-0">
-                <DistrictMetricsMapView
-                  geojsonData={displayGeoJson}
-                  invertedMask={invertedMask}
-                  activeDistrict={activeDistrict}
-                  mapMode={mapMode}
-                  compareMode={compareMode && !isMonthlyPreview}
-                  summary={summary}
-                  opacity={opacity}
-                  baseMap={baseMap}
-                  analysisType="nightlights"
-                  dataPeriodLabel={periodLabel}
-                  nightLightsProduct={dataProduct}
-                  nightLightsMonth={selectedMonth}
-                  satelliteCachePreviewUrl={cachePreviewUrl}
-                  satelliteCacheBounds={cacheMeta?.bounds}
-                  granularity={granularity}
-                />
+                <ErrorBoundary>
+                  <DistrictMetricsMapView
+                    geojsonData={displayGeoJson}
+                    invertedMask={invertedMask}
+                    activeDistrict={activeDistrict}
+                    mapMode={mapMode}
+                    compareMode={compareMode && !isMonthlyPreview}
+                    summary={summary}
+                    opacity={opacity}
+                    baseMap={baseMap}
+                    analysisType="nightlights"
+                    dataPeriodLabel={periodLabel}
+                    nightLightsProduct={dataProduct}
+                    nightLightsMonth={selectedMonth}
+                    satelliteCachePreviewUrl={cachePreviewUrl}
+                    satelliteCacheBounds={cacheMeta?.bounds}
+                    granularity={granularity}
+                  />
+                </ErrorBoundary>
               </div>
 
               {/* Data source badge */}
@@ -458,89 +463,20 @@ export default function NighttimeLightsPage() {
             <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
               <div className="flex min-h-full flex-col gap-3">
 
-                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
-                    </h4>
-                    <button
-                      onClick={handleReset}
-                      className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
-                    >
-                      RESET
-                    </button>
-                  </div>
-
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                    <button
-                      onClick={() => setGranularity("district")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      เขต (50)
-                    </button>
-                    <button
-                      onClick={() => setGranularity("subdistrict")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      แขวง (180)
-                    </button>
-                  </div>
-
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                    <button
-                      onClick={() => setMapMode("district")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      สถิติ
-                    </button>
-                    <button
-                      onClick={() => setMapMode("idw")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-yellow-400 text-slate-950 shadow-lg shadow-yellow-400/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      ดาวเทียม (GEE)
-                    </button>
-                  </div>
-                </div>
-
-                {(mapMode === "satellite-cache" || mapMode === "idw") && (
-                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส (Opacity)</h4>
-                      <span className="text-xs font-mono text-yellow-200 font-bold bg-yellow-300/10 px-2 py-0.5 rounded-full">{Math.round(opacity * 100)}%</span>
-                    </div>
-                    <input
-                      type="range" min="0" max="1" step="0.01"
-                      value={opacity}
-                      onChange={(event) => setOpacity(parseFloat(event.target.value))}
-                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-yellow-300"
-                    />
-                  </div>
-                )}
-
-                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: "dark", label: "Dark" },
-                      { id: "light", label: "Light" },
-                      { id: "satellite", label: "Satellite" },
-                      { id: "streets", label: "Street" },
-                      { id: "none", label: "None" },
-                    ].map((map) => (
-                      <button
-                        key={map.id}
-                        onClick={() => setBaseMap(map.id as any)}
-                        className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === map.id ? "bg-yellow-400 border-yellow-400 text-slate-950 shadow-md shadow-yellow-400/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
-                      >
-                        {map.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <MapControlPanel
+                  accent="yellow"
+                  granularity={granularity}
+                  onGranularityChange={setGranularity}
+                  mapMode={mapMode}
+                  mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                  onMapModeChange={(m) => setMapMode(m as MapMode)}
+                  showOpacity={mapMode === "satellite-cache" || mapMode === "idw"}
+                  opacity={opacity}
+                  onOpacityChange={setOpacity}
+                  baseMap={baseMap}
+                  onBaseMapChange={setBaseMap}
+                  onReset={handleReset}
+                />
 
                 <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">

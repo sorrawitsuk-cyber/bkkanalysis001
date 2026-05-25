@@ -2,8 +2,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Activity, ChevronRight, Flame, Home, MapPin, Droplets, Trees, Building2 } from "lucide-react";
+import { Activity, Droplets, MapPin } from "lucide-react";
+import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
+import SidebarFooter from "@/components/gee/SidebarFooter";
 
 interface FloodRiskSidebarProps {
   onDistrictSelect: (district: string) => void;
@@ -116,18 +117,7 @@ export default function FloodRiskSidebar({
   const trendMin = Math.min(0, ...trendData.map((d) => d[1]));
   const maxTrend = Math.max(1, ...trendData.map((d) => d[1]));
 
-  if (loading || !summary) {
-    return (
-      <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 p-5 flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto hidden md:flex">
-        <div className="animate-pulse space-y-6">
-          <div className="h-10 bg-slate-800/50 rounded w-3/4" />
-          <div className="h-24 bg-slate-800/50 rounded" />
-          <div className="h-40 bg-slate-800/50 rounded" />
-          <div className="h-64 bg-slate-800/50 rounded" />
-        </div>
-      </div>
-    );
-  }
+  if (loading || !summary) return <SidebarSkeleton />;
 
   return (
     <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
@@ -321,21 +311,7 @@ export default function FloodRiskSidebar({
         </section>
       </div>
 
-      {/* Footer navigation */}
-      <div className="p-4 border-t border-slate-800/60 text-center flex flex-col items-center gap-2">
-        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest">
-          <Home className="w-3 h-3" /> หน้า Home ศูนย์วิเคราะห์เมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/heat-island" className="inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest">
-          <Flame className="w-3 h-3" /> วิเคราะห์เกาะความร้อนเมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/green-space" className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors uppercase tracking-widest">
-          <Trees className="w-3 h-3" /> วิเคราะห์พื้นที่สีเขียวเมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/urban-expansion" className="inline-flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">
-          <Building2 className="w-3 h-3" /> วิเคราะห์การขยายตัวเมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-      </div>
+      <SidebarFooter exclude={["traffy", "flood-risk"]} />
     </div>
   );
 }

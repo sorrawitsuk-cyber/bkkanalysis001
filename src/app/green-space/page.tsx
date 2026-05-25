@@ -3,6 +3,9 @@
 
 import { useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
+import MapSkeleton from "@/components/ui/MapSkeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import MapControlPanel from "@/components/map/MapControlPanel";
 import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { Layers } from "lucide-react";
@@ -14,7 +17,7 @@ import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
 
-const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
+const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 type MapMode = "district" | "idw";
@@ -152,19 +155,21 @@ export default function GreenSpacePage() {
             <>
               <div className="relative flex-1 min-w-0">
                 <div className="absolute inset-0 z-0">
-                  <DistrictMetricsMapView
-                    geojsonData={displayGeoJson}
-                    invertedMask={invertedMask}
-                    activeDistrict={activeDistrict}
-                    mapMode={mapMode}
-                    compareMode={compareMode}
-                    summary={summary}
-                    opacity={opacity}
-                    baseMap={baseMap}
-                    analysisType="green"
-                    ndviLayer={ndviLayer}
-                    granularity={granularity}
-                  />
+                  <ErrorBoundary>
+                    <DistrictMetricsMapView
+                      geojsonData={displayGeoJson}
+                      invertedMask={invertedMask}
+                      activeDistrict={activeDistrict}
+                      mapMode={mapMode}
+                      compareMode={compareMode}
+                      summary={summary}
+                      opacity={opacity}
+                      baseMap={baseMap}
+                      analysisType="green"
+                      ndviLayer={ndviLayer}
+                      granularity={granularity}
+                    />
+                  </ErrorBoundary>
                 </div>
 
                 {/* Floating KPI cards */}
@@ -212,57 +217,27 @@ export default function GreenSpacePage() {
               {/* Right aside — map mode only */}
               <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
                 <div className="flex min-h-full flex-col gap-3">
-                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
-                      </h4>
-                      <button onClick={handleReset} className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold">
-                        RESET
-                      </button>
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-                    <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                      {(["district", "subdistrict"] as const).map((g) => (
-                        <button key={g} onClick={() => setGranularity(g)} className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === g && mapMode === "district" ? "bg-emerald-500 text-white" : "text-slate-500 hover:text-slate-300"}`}>
-                          {g === "district" ? "เขต (50)" : "แขวง (180)"}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-                    <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                      <button onClick={() => setMapMode("district")} className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-emerald-500 text-white" : "text-slate-500 hover:text-slate-300"}`}>สถิติ</button>
-                      <button onClick={() => { setMapMode("idw"); setNdviLayer("ndvi_mean"); }} className={`text-[9px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-emerald-500 text-white" : "text-slate-500 hover:text-slate-300"}`}>GEE Live</button>
-                    </div>
-                    {mapMode === "district" && (
+                  <MapControlPanel
+                    accent="emerald"
+                    granularity={granularity}
+                    onGranularityChange={setGranularity}
+                    mapMode={mapMode}
+                    mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "GEE Live" }]}
+                    onMapModeChange={(m) => { setMapMode(m as MapMode); if (m === "idw") setNdviLayer("ndvi_mean"); }}
+                    showOpacity={mapMode === "idw"}
+                    opacity={opacity}
+                    onOpacityChange={setOpacity}
+                    baseMap={baseMap}
+                    onBaseMapChange={setBaseMap}
+                    onReset={handleReset}
+                    extraControls={mapMode === "district" ? (
                       <div className="mt-2 grid grid-cols-1 gap-1.5">
-                        {[["green_area_rai", "ขนาดพื้นที่สีเขียว"], ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"], ["ndvi_mean", "ค่า NDVI เฉลี่ย"]].map(([id, label]) => (
+                        {([["green_area_rai", "ขนาดพื้นที่สีเขียว"], ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"], ["ndvi_mean", "ค่า NDVI เฉลี่ย"]] as const).map(([id, label]) => (
                           <button key={id} onClick={() => setNdviLayer(id as NdviLayer)} className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}>{label}</button>
                         ))}
                       </div>
-                    )}
-                  </div>
-
-                  {mapMode === "idw" && (
-                    <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full text-emerald-400 bg-emerald-500/10">{Math.round(opacity * 100)}%</span>
-                      </div>
-                      <input type="range" min="0" max="1" step="0.01" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
-                    </div>
-                  )}
-
-                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Layers className="w-3.5 h-3.5" /> แผนที่ฐาน</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(["dark","light","satellite","streets","none"] as const).map((m) => (
-                        <button key={m} onClick={() => setBaseMap(m)} className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === m ? "bg-emerald-500 border-emerald-500 text-white" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}>
-                          {m.charAt(0).toUpperCase() + m.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                    ) : undefined}
+                  />
 
                   <MonthYearPicker
                     year={selectedYear} month={selectedMonth} minYear={2018} maxYear={2026}

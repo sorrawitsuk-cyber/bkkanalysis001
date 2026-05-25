@@ -3,6 +3,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import MapSkeleton from "@/components/ui/MapSkeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import MapControlPanel from "@/components/map/MapControlPanel";
 import Link from "next/link";
 import {
   Activity, Building2, Calendar, ChevronRight,
@@ -17,7 +20,7 @@ import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
 
-const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false });
+const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
 type MapMode = "district" | "idw";
 type AirLayer = "no2_mean" | "co_mean" | "so2_mean" | "aerosol_index_mean" | "pollution_score";
@@ -280,20 +283,22 @@ export default function AirQualityPage() {
           {viewMode === "map" && (
             <>
               <div className="relative min-w-0 flex-1">
-                <DistrictMetricsMapView
-                  geojsonData={displayGeoJson}
-                  invertedMask={invertedMask}
-                  activeDistrict={activeDistrict}
-                  mapMode={mapMode}
-                  compareMode={compareMode}
-                  summary={summary}
-                  opacity={opacity}
-                  baseMap={baseMap}
-                  analysisType="air"
-                  airPollutionLayer={airLayer}
-                  dataPeriodLabel={latestLabel}
-                  granularity={granularity}
-                />
+                <ErrorBoundary>
+                  <DistrictMetricsMapView
+                    geojsonData={displayGeoJson}
+                    invertedMask={invertedMask}
+                    activeDistrict={activeDistrict}
+                    mapMode={mapMode}
+                    compareMode={compareMode}
+                    summary={summary}
+                    opacity={opacity}
+                    baseMap={baseMap}
+                    analysisType="air"
+                    airPollutionLayer={airLayer}
+                    dataPeriodLabel={latestLabel}
+                    granularity={granularity}
+                  />
+                </ErrorBoundary>
                 <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] max-w-xs rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 text-[10px] leading-5 text-slate-400 shadow-xl backdrop-blur">
                   <div className="mb-1 flex items-center gap-2 font-bold uppercase tracking-widest text-slate-300 text-[9px]">
                     <Activity className="h-3 w-3 text-cyan-300" /> ข้อมูลดาวเทียม (Satellite Proxy)
@@ -305,43 +310,21 @@ export default function AirQualityPage() {
               {/* Right aside */}
               <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
                 <div className="flex min-h-full flex-col gap-3">
-                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2"><Layers className="w-3.5 h-3.5" /> แผงควบคุม</h4>
-                      <button onClick={handleReset} className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold">RESET</button>
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-                    <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                      {(["district", "subdistrict"] as const).map((g) => (
-                        <button key={g} onClick={() => setGranularity(g)} className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === g ? "bg-cyan-500 text-white" : "text-slate-500 hover:text-slate-300"}`}>{g === "district" ? "เขต (50)" : "แขวง (180)"}</button>
-                      ))}
-                    </div>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-                    <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                      {(["district", "idw"] as const).map((m) => (
-                        <button key={m} onClick={() => setMapMode(m)} className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === m ? "bg-cyan-500 text-white" : "text-slate-500 hover:text-slate-300"}`}>{m === "district" ? "สถิติ" : "ดาวเทียม (GEE)"}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {mapMode === "idw" && (
-                    <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
-                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full text-cyan-400 bg-cyan-500/10">{Math.round(opacity * 100)}%</span>
-                      </div>
-                      <input type="range" min="0" max="1" step="0.01" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400" />
-                    </div>
-                  )}
-
-                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Layers className="w-3.5 h-3.5" /> แผนที่ฐาน</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(["dark","light","satellite","streets","none"] as const).map((m) => (
-                        <button key={m} onClick={() => setBaseMap(m)} className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === m ? "bg-cyan-500 border-cyan-500 text-white" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}>{m.charAt(0).toUpperCase() + m.slice(1)}</button>
-                      ))}
-                    </div>
-                  </div>
+                  <MapControlPanel
+                    accent="cyan"
+                    granularity={granularity}
+                    onGranularityChange={setGranularity}
+                    granularityAlwaysActive
+                    mapMode={mapMode}
+                    mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                    onMapModeChange={(m) => setMapMode(m as MapMode)}
+                    showOpacity={mapMode === "idw"}
+                    opacity={opacity}
+                    onOpacityChange={setOpacity}
+                    baseMap={baseMap}
+                    onBaseMapChange={setBaseMap}
+                    onReset={handleReset}
+                  />
 
                   <MonthYearPicker
                     year={selectedYear} month={selectedMonth} minYear={FIRST_YEAR} maxYear={LATEST_YEAR}

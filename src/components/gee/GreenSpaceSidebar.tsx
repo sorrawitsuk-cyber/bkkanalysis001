@@ -2,9 +2,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Activity, Calendar, ChevronRight, Flame, Home, Leaf, MapPin, ShieldAlert, Trees, Building2, Droplets } from "lucide-react";
+import { Activity, Calendar, Leaf, MapPin, Trees } from "lucide-react";
 import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
+import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
+import SidebarFooter from "@/components/gee/SidebarFooter";
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 
@@ -119,18 +120,7 @@ export default function GreenSpaceSidebar({
     return (summary?.ranking || []).map(([district, value]: [string, number]) => ({ district, value }));
   }, [districtRows, summary?.ranking, displayMode]);
 
-  if (loading || !summary) {
-    return (
-      <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 p-5 flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto hidden md:flex">
-        <div className="animate-pulse space-y-6">
-          <div className="h-10 bg-slate-800/50 rounded w-3/4" />
-          <div className="h-24 bg-slate-800/50 rounded" />
-          <div className="h-40 bg-slate-800/50 rounded" />
-          <div className="h-64 bg-slate-800/50 rounded" />
-        </div>
-      </div>
-    );
-  }
+  if (loading || !summary) return <SidebarSkeleton />;
 
   const isAreaMode = displayMode === "area";
   const yearlyDisplayTrend = displayMode === "ndvi"
@@ -344,23 +334,7 @@ export default function GreenSpaceSidebar({
         </section>
       </div>
 
-      <div className="p-4 border-t border-slate-800/60 text-center flex flex-col items-center gap-2">
-        <Link href="/" className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:text-cyan-300 transition-colors uppercase tracking-widest">
-          <Home className="w-3 h-3" /> หน้า Home ศูนย์วิเคราะห์เมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/traffy" className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors uppercase tracking-widest">
-          <ShieldAlert className="w-3 h-3" /> วิเคราะห์ปัญหาเมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/heat-island" className="inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 transition-colors uppercase tracking-widest">
-          <Flame className="w-3 h-3" /> วิเคราะห์เกาะความร้อนเมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/urban-expansion" className="inline-flex items-center gap-1 text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest">
-          <Building2 className="w-3 h-3" /> วิเคราะห์การขยายตัวเมือง <ChevronRight className="w-3 h-3" />
-        </Link>
-        <Link href="/flood-risk" className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 transition-colors uppercase tracking-widest">
-          <Droplets className="w-3 h-3" /> วิเคราะห์น้ำท่วม/แหล่งน้ำ <ChevronRight className="w-3 h-3" />
-        </Link>
-      </div>
+      <SidebarFooter exclude={["green-space"]} />
     </div>
   );
 }

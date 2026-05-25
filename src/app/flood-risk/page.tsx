@@ -3,10 +3,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import MapSkeleton from "@/components/ui/MapSkeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import MapControlPanel from "@/components/map/MapControlPanel";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import * as turf from "@turf/turf";
-import { Layers, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -25,7 +28,7 @@ import {
   AreaChart, Area,
 } from "recharts";
 
-const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false });
+const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
 type MapMode = "district" | "satellite-cache" | "idw";
 
@@ -135,13 +138,16 @@ function buildFloodRiskView(
       const districtId = Number(r.district_id);
       const areaRai = DISTRICT_AREA_RAI.get(districtId) ?? null;
       const waterAreaRai = typeof r.water_ratio === "number" && areaRai !== null ? Math.round(r.water_ratio * areaRai) : null;
-      return [r.district_name ?? "ไม่ระบุ", getLayerValue(r, selectedLayer), waterAreaRai];
+      // Use water_ratio as the percentage-displayable value; fall back to index value only if unavailable
+      return [r.district_name ?? "ไม่ระบุ", r.water_ratio ?? getLayerValue(r, selectedLayer), waterAreaRai];
     });
-  const totalWaterAreaRai = waterRows.reduce((sum: number, row: any) => {
-    const districtId = Number(row.district_id);
-    const areaRai = DISTRICT_AREA_RAI.get(districtId);
-    return sum + (typeof row.water_ratio === "number" && areaRai ? Math.round(row.water_ratio * areaRai) : 0);
-  }, 0);
+  const totalWaterAreaRai = waterRows.length > 0
+    ? waterRows.reduce((sum: number, row: any) => {
+        const districtId = Number(row.district_id);
+        const areaRai = DISTRICT_AREA_RAI.get(districtId);
+        return sum + (typeof row.water_ratio === "number" && areaRai ? Math.round(row.water_ratio * areaRai) : 0);
+      }, 0)
+    : null;
 
   return {
     geojson: { type: "FeatureCollection", features },
@@ -195,6 +201,7 @@ export default function FloodRiskPage() {
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
   const [yearlyMeta, setYearlyMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
+  const [cacheDataMissing, setCacheDataMissing] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -204,6 +211,7 @@ export default function FloodRiskPage() {
       : selectedYear.toString();
     const compareYearStr = compareYear.toString();
 
+    setCacheDataMissing(false);
     Promise.all([
       fetchCacheMetadata(cacheType, cachePeriod),
       compareMode ? fetchCacheMetadata("yearly", compareYearStr) : Promise.resolve(null),
@@ -220,6 +228,9 @@ export default function FloodRiskPage() {
           setLoading(false);
           return;
         }
+
+        // No cache data for this period — flag it so the UI can warn the user
+        if (selectedMonth) setCacheDataMissing(true);
 
         const params = new URLSearchParams({ year: selectedYear.toString() });
         if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
@@ -239,6 +250,7 @@ export default function FloodRiskPage() {
       })
       .catch((err) => {
         console.error(err);
+        if (selectedMonth) setCacheDataMissing(true);
         const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
         setGeojsonData(built.geojson);
         setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
@@ -286,6 +298,7 @@ export default function FloodRiskPage() {
     setOpacity(0.78);
     setBaseMap("dark");
     setCacheLayer("ndwi_mean");
+    setCacheDataMissing(false);
   };
 
   const cachePreviewUrl = getCacheLayerPreviewUrl(yearlyMeta, cacheLayer);
@@ -427,20 +440,22 @@ export default function FloodRiskPage() {
           <div className="flex flex-1 min-h-0">
             <div className="relative flex-1 min-w-0">
               <div className="absolute inset-0 z-0">
-                <FloodRiskMapView
-                  geojsonData={displayGeoJson}
-                  invertedMask={BKK_INVERTED_MASK}
-                  activeDistrict={activeDistrict}
-                  mapMode={mapMode}
-                  compareMode={compareMode}
-                  summary={summary}
-                  opacity={opacity}
-                  baseMap={baseMap}
-                  satelliteCachePreviewUrl={cachePreviewUrl}
-                  satelliteCacheBounds={yearlyMeta?.bounds}
-                  granularity={granularity}
-                  ndwiMetric={cacheLayer === "mndwi_mean" ? "mndwi" : "ndwi"}
-                />
+                <ErrorBoundary>
+                  <FloodRiskMapView
+                    geojsonData={displayGeoJson}
+                    invertedMask={BKK_INVERTED_MASK}
+                    activeDistrict={activeDistrict}
+                    mapMode={mapMode}
+                    compareMode={compareMode}
+                    summary={summary}
+                    opacity={opacity}
+                    baseMap={baseMap}
+                    satelliteCachePreviewUrl={cachePreviewUrl}
+                    satelliteCacheBounds={yearlyMeta?.bounds}
+                    granularity={granularity}
+                    ndwiMetric={cacheLayer === "mndwi_mean" ? "mndwi" : "ndwi"}
+                  />
+                </ErrorBoundary>
               </div>
 
               {/* Data source info */}
@@ -491,106 +506,32 @@ export default function FloodRiskPage() {
             <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
               <div className="flex min-h-full flex-col gap-3">
 
-                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5" /> แผงควบคุมหลัก
-                    </h4>
-                    <button
-                      onClick={handleReset}
-                      className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
-                    >
-                      RESET
-                    </button>
-                  </div>
-
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
-                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                    <button
-                      onClick={() => setGranularity("district")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "district" && mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      เขต (50)
-                    </button>
-                    <button
-                      onClick={() => setGranularity("subdistrict")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${granularity === "subdistrict" && mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      แขวง (180)
-                    </button>
-                  </div>
-
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
-                  <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-                    <button
-                      onClick={() => setMapMode("district")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "district" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      สถิติ
-                    </button>
-                    <button
-                      onClick={() => setMapMode("idw")}
-                      className={`text-[10px] py-2 rounded-lg transition-all font-bold ${mapMode === "idw" ? "bg-sky-500 text-white shadow-lg shadow-sky-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      ดาวเทียม (GEE)
-                    </button>
-                  </div>
-
-                  {mapMode === "idw" && (
+                <MapControlPanel
+                  accent="sky"
+                  granularity={granularity}
+                  onGranularityChange={setGranularity}
+                  mapMode={mapMode}
+                  mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                  onMapModeChange={(m) => setMapMode(m as MapMode)}
+                  showOpacity={mapMode === "idw"}
+                  opacity={opacity}
+                  onOpacityChange={setOpacity}
+                  baseMap={baseMap}
+                  onBaseMapChange={setBaseMap}
+                  onReset={handleReset}
+                  extraControls={
                     <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
                       <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (WATER)</p>
                       <div className="flex flex-col gap-1">
                         {WATER_CACHE_LAYERS.map((key) => (
-                          <button
-                            key={key}
-                            onClick={() => setCacheLayer(key)}
-                            className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}
-                          >
+                          <button key={key} onClick={() => setCacheLayer(key)} className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}>
                             {WATER_LAYER_LABELS[key]}
                           </button>
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
-
-                {mapMode === "idw" && (
-                  <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full text-sky-400 bg-sky-500/10">{Math.round(opacity * 100)}%</span>
-                    </div>
-                    <input
-                      type="range" min="0" max="1" step="0.01"
-                      value={opacity}
-                      onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400"
-                    />
-                  </div>
-                )}
-
-                <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5" /> แผนที่ฐาน (Base Map)
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: "dark",      label: "Dark" },
-                      { id: "light",     label: "Light" },
-                      { id: "satellite", label: "Satellite" },
-                      { id: "streets",   label: "Street" },
-                      { id: "none",      label: "None" },
-                    ].map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => setBaseMap(m.id as any)}
-                        className={`text-[9px] py-2 rounded-lg border transition-all font-bold ${baseMap === m.id ? "bg-sky-500 border-sky-500 text-white shadow-md shadow-sky-500/20" : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"}`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                  }
+                />
 
                 <MonthYearPicker
                   year={selectedYear}
@@ -606,6 +547,21 @@ export default function FloodRiskPage() {
                   onCompareModeChange={setCompareMode}
                   onCompareYearChange={setCompareYear}
                 />
+
+                {cacheDataMissing && selectedMonth !== null && !loading && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-950/30 p-3">
+                    <p className="text-[10px] font-bold text-amber-300 mb-1">ไม่มีข้อมูลรายเดือน</p>
+                    <p className="text-[9px] text-slate-400 leading-snug">
+                      ยังไม่มีข้อมูลแคชสำหรับ {buildPeriodLabel(selectedYear, selectedMonth)} กำลังแสดงข้อมูลรายปี {selectedYear} แทน หรือเลือกเดือนที่มีไฮไลต์ในปฏิทิน
+                    </p>
+                    <button
+                      onClick={() => setSelectedMonth(null)}
+                      className="mt-2 text-[9px] px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold hover:bg-amber-500/30 transition-colors"
+                    >
+                      ดูข้อมูลรายปี {selectedYear}
+                    </button>
+                  </div>
+                )}
 
                 <ExportPanel
                   accentColor="sky"

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import MapSkeleton from "@/components/ui/MapSkeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import Sidebar from "@/components/Sidebar";
 import { Flame, Layers } from "lucide-react";
 
-const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false });
+const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
 export default function Home() {
   const [activeTag, setActiveTag] = useState("ทั้งหมด");
@@ -75,7 +77,9 @@ export default function Home() {
 
       <main className="flex-1 relative">
         <div className="absolute inset-0 z-0">
-          <MapView activeTag={activeTag} traffyData={traffyData} mapMode={mapMode} />
+          <ErrorBoundary>
+            <MapView activeTag={activeTag} traffyData={traffyData} mapMode={mapMode} />
+          </ErrorBoundary>
         </div>
 
         {/* Top-right floating panel: Legend + Controls */}
