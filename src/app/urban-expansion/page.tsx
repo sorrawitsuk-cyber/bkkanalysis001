@@ -10,7 +10,8 @@ import BuiltUpSidebar from "@/components/gee/BuiltUpSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
-import { buildPeriodLabel } from "@/lib/export-utils";
+import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
@@ -83,6 +84,29 @@ export default function UrbanExpansionPage() {
     ? { title: "การขยายตัวของเมือง (Urban Expansion)", description: `ผลต่างค่า NDBI ปี ${selectedYear} ลบปีฐาน ${compareYear}`, note: "", unit: "", items: [{ color: "#16A34A", label: "ลดลงมาก", range: "< -0.1" }, { color: "#84CC16", label: "ลดลง", range: "-0.1 ถึง -0.05" }, { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" }, { color: "#F59E0B", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.1" }, { color: "#EF4444", label: "เพิ่มขึ้นมาก", range: "> +0.1" }] }
     : { title: "ดัชนีพื้นที่สิ่งปลูกสร้าง (NDBI)", description: mapMode === "idw" ? "ค่า NDBI raster จาก Sentinel-2 แบบ median รายปี" : "ค่า NDBI เฉลี่ยรายเขต สะท้อนความหนาแน่นสิ่งปลูกสร้าง", note: "ค่าที่สูงแสดงถึงความหนาแน่นของอาคารและคอนกรีต", unit: "", items: [{ color: "#16A34A", label: "หนาแน่นต่ำมาก", range: "< -0.2" }, { color: "#84CC16", label: "หนาแน่นต่ำ", range: "-0.2 ถึง 0.0" }, { color: "#F59E0B", label: "ปานกลาง", range: "0.0 ถึง 0.2" }, { color: "#EF4444", label: "หนาแน่นสูง", range: "0.2 ถึง 0.4" }, { color: "#7F1D1D", label: "หนาแน่นสูงมาก", range: "> 0.4" }] };
 
+  const allDistricts = useMemo((): string[] =>
+    [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [geojsonData],
+  );
+
+  const csvFilename = `urban-expansion_NDBI_${selectedYear}`;
+  const csvHeaders = ["เขต", "NDBI เฉลี่ย", "ดัชนี", "ช่วงเวลา"];
+  const reportData = useMemo((): PDFReportData => ({
+    title: "วิเคราะห์การขยายตัวเมือง",
+    subtitle: "Sentinel-2 · Normalized Difference Built-up Index",
+    source: "Sentinel-2",
+    period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+    layer: "NDBI (Built-up Index)",
+    district: activeDistrict,
+    kpis: [
+      { label: "NDBI เฉลี่ย", value: summary?.averageTemp != null ? summary.averageTemp.toFixed(3) : "–" },
+      { label: "เขตหนาแน่นสุด", value: highestDensityDistrict },
+    ],
+    rankingHeaders: ["เขต", "NDBI"],
+    rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+  }), [selectedYear, selectedMonth, periodLabel, activeDistrict, summary, highestDensityDistrict, rankingForExport]);
+
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
     { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b" },
@@ -106,9 +130,52 @@ export default function UrbanExpansionPage() {
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="indigo" />
-          {loading && <span className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-widest animate-pulse">กำลังโหลด…</span>}
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={allDistricts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {allDistricts.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {loading && <span className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-widest animate-pulse ml-1">กำลังโหลด…</span>}
+          <div className="flex-1" />
+          {!loading && summary && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => downloadCSV(csvHeaders, rankingForExport, csvFilename)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => printReport(reportData)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-indigo-700/40 bg-indigo-900/20 px-2.5 py-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 flex">
@@ -201,23 +268,10 @@ export default function UrbanExpansionPage() {
 
                   <ExportPanel
                     accentColor="indigo"
-                    csvFilename={`urban-expansion_NDBI_${selectedYear}`}
-                    csvHeaders={["เขต", "NDBI เฉลี่ย", "ดัชนี", "ช่วงเวลา"]}
+                    csvFilename={csvFilename}
+                    csvHeaders={csvHeaders}
                     csvRows={rankingForExport}
-                    reportData={{
-                      title: "วิเคราะห์การขยายตัวเมือง",
-                      subtitle: "Sentinel-2 · Normalized Difference Built-up Index",
-                      source: "Sentinel-2",
-                      period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
-                      layer: "NDBI (Built-up Index)",
-                      district: activeDistrict,
-                      kpis: [
-                        { label: "NDBI เฉลี่ย", value: summary?.averageTemp != null ? summary.averageTemp.toFixed(3) : "–" },
-                        { label: "เขตหนาแน่นสุด", value: highestDensityDistrict },
-                      ],
-                      rankingHeaders: ["เขต", "NDBI"],
-                      rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-                    }}
+                    reportData={reportData}
                   />
                 </div>
               </aside>
@@ -225,7 +279,7 @@ export default function UrbanExpansionPage() {
           )}
 
           {viewMode === "stats" && (
-            <StatsDashboard summary={summary} metric="builtup" year={selectedYear} compareMode={compareMode} accentColor="indigo" />
+            <StatsDashboard summary={summary} metric="builtup" year={selectedYear} compareMode={compareMode} accentColor="indigo" activeDistrict={activeDistrict} />
           )}
 
           {viewMode === "table" && (

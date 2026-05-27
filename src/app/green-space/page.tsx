@@ -12,7 +12,8 @@ import { Layers } from "lucide-react";
 import { formatRai } from "@/lib/ndvi";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
-import { buildPeriodLabel } from "@/lib/export-utils";
+import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
@@ -119,6 +120,30 @@ export default function GreenSpacePage() {
     legendConfig = { title: "ค่า NDVI เฉลี่ยรายเขต", description: "ค่า NDVI เฉลี่ยของแต่ละเขต ใช้แปลความหนาแน่นพืชพรรณในเมือง", unit: "NDVI", items: [{ color: "#8c2d04", label: "เขียวน้อยมาก", range: "< 0.20" }, { color: "#d94801", label: "เขียวน้อย", range: "0.20 - 0.30" }, { color: "#f6e05e", label: "ปานกลาง", range: "0.30 - 0.40" }, { color: "#68d391", label: "ดี", range: "0.40 - 0.50" }, { color: "#238b45", label: "ดีมาก", range: "> 0.50" }] };
   }
 
+  const allDistricts = useMemo((): string[] =>
+    [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [geojsonData],
+  );
+
+  const csvFilename = `green-space_${ndviLayer}_${selectedYear}`;
+  const csvHeaders = ["เขต", ndviLayerLabel, "หน่วย", "ช่วงเวลา"];
+  const reportData = useMemo((): PDFReportData => ({
+    title: "วิเคราะห์พื้นที่สีเขียวเมือง",
+    subtitle: "Sentinel-2 SR Harmonized · NDVI",
+    source: "Sentinel-2",
+    period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+    layer: ndviLayerLabel,
+    district: activeDistrict,
+    kpis: [
+      { label: "NDVI เฉลี่ย กทม.", value: ndviSummary?.avg_ndvi_mean != null ? ndviSummary.avg_ndvi_mean.toFixed(3) : "–" },
+      { label: "พื้นที่สีเขียวรวม", value: formatRai(ndviSummary?.total_green_area_rai) },
+      { label: "เขตสีเขียวสูงสุด", value: ndviSummary?.best_district?.district_name ?? "–" },
+    ],
+    rankingHeaders: ["เขต", ndviLayerLabel],
+    rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+  }), [selectedYear, selectedMonth, periodLabel, ndviLayerLabel, activeDistrict, ndviSummary, rankingForExport]);
+
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
     { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981" },
@@ -145,9 +170,52 @@ export default function GreenSpacePage() {
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="emerald" />
-          {loading && <span className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-widest animate-pulse">กำลังโหลด…</span>}
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={allDistricts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {allDistricts.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {loading && <span className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-widest animate-pulse ml-1">กำลังโหลด…</span>}
+          <div className="flex-1" />
+          {!loading && summary && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => downloadCSV(csvHeaders, rankingForExport, csvFilename)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => printReport(reportData)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-2.5 py-1.5 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 flex">
@@ -249,24 +317,10 @@ export default function GreenSpacePage() {
 
                   <ExportPanel
                     accentColor="emerald"
-                    csvFilename={`green-space_${ndviLayer}_${selectedYear}`}
-                    csvHeaders={["เขต", ndviLayerLabel, "หน่วย", "ช่วงเวลา"]}
+                    csvFilename={csvFilename}
+                    csvHeaders={csvHeaders}
                     csvRows={rankingForExport}
-                    reportData={{
-                      title: "วิเคราะห์พื้นที่สีเขียวเมือง",
-                      subtitle: "Sentinel-2 SR Harmonized · NDVI",
-                      source: "Sentinel-2",
-                      period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
-                      layer: ndviLayerLabel,
-                      district: activeDistrict,
-                      kpis: [
-                        { label: "NDVI เฉลี่ย กทม.", value: ndviSummary?.avg_ndvi_mean != null ? ndviSummary.avg_ndvi_mean.toFixed(3) : "–" },
-                        { label: "พื้นที่สีเขียวรวม", value: formatRai(ndviSummary?.total_green_area_rai) },
-                        { label: "เขตสีเขียวสูงสุด", value: ndviSummary?.best_district?.district_name ?? "–" },
-                      ],
-                      rankingHeaders: ["เขต", ndviLayerLabel],
-                      rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-                    }}
+                    reportData={reportData}
                   />
                 </div>
               </aside>
@@ -274,7 +328,7 @@ export default function GreenSpacePage() {
           )}
 
           {viewMode === "stats" && (
-            <StatsDashboard summary={summary} metric="vegetation" year={selectedYear} compareMode={compareMode} accentColor="emerald" />
+            <StatsDashboard summary={summary} metric="vegetation" year={selectedYear} compareMode={compareMode} accentColor="emerald" activeDistrict={activeDistrict} />
           )}
 
           {viewMode === "table" && (

@@ -11,7 +11,8 @@ import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { formatLST, getLSTLegendItems } from "@/lib/lst";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
-import { buildPeriodLabel } from "@/lib/export-utils";
+import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
@@ -142,6 +143,31 @@ export default function HeatIslandPage() {
         items: getLSTLegendItems(),
       };
 
+  const allDistricts = useMemo((): string[] =>
+    [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [geojsonData],
+  );
+
+  const csvFilename = `heat-island_LST_${selectedYear}`;
+  const csvHeaders = ["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"];
+  const reportData = useMemo((): PDFReportData => ({
+    title: "วิเคราะห์เกาะความร้อนเมือง",
+    subtitle: "Landsat 8/9 Land Surface Temperature",
+    source: "Landsat 8/9 Collection 2",
+    period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
+    layer: "LST (Land Surface Temperature)",
+    district: activeDistrict,
+    kpis: [
+      { label: "LST เฉลี่ย", value: summary?.averageTemp != null ? formatLST(Number(summary.averageTemp)) : "–" },
+      { label: "LST สูงสุด", value: summary?.maxTemp != null ? formatLST(Number(summary.maxTemp)) : "–" },
+      { label: "เขตร้อนสุด", value: summary?.ranking?.[0]?.[0] ?? "–" },
+      { label: "ปีที่เลือก", value: String(selectedYear) },
+    ],
+    rankingHeaders: ["เขต", "LST (°C)"],
+    rankingRows: rankingForExport.map(([n, v]) => [n, v]),
+  }), [selectedYear, selectedMonth, periodLabel, activeDistrict, summary, rankingForExport]);
+
   // Table columns
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
@@ -171,12 +197,55 @@ export default function HeatIslandPage() {
       <main className="flex-1 min-w-0 flex flex-col">
 
         {/* Tab bar */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="orange" />
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={allDistricts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-orange-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {allDistricts.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
           {loading && (
-            <span className="text-[10px] font-bold text-orange-400/70 uppercase tracking-widest animate-pulse">
+            <span className="text-[10px] font-bold text-orange-400/70 uppercase tracking-widest animate-pulse ml-1">
               กำลังโหลด…
             </span>
+          )}
+          <div className="flex-1" />
+          {!loading && summary && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => downloadCSV(csvHeaders, rankingForExport, csvFilename)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => printReport(reportData)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-orange-700/40 bg-orange-900/20 px-2.5 py-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
           )}
         </div>
 
@@ -281,25 +350,10 @@ export default function HeatIslandPage() {
 
                   <ExportPanel
                     accentColor="orange"
-                    csvFilename={`heat-island_LST_${selectedYear}`}
-                    csvHeaders={["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"]}
+                    csvFilename={csvFilename}
+                    csvHeaders={csvHeaders}
                     csvRows={rankingForExport}
-                    reportData={{
-                      title: "วิเคราะห์เกาะความร้อนเมือง",
-                      subtitle: "Landsat 8/9 Land Surface Temperature",
-                      source: "Landsat 8/9 Collection 2",
-                      period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
-                      layer: "LST (Land Surface Temperature)",
-                      district: activeDistrict,
-                      kpis: [
-                        { label: "LST เฉลี่ย", value: summary?.averageTemp != null ? formatLST(Number(summary.averageTemp)) : "–" },
-                        { label: "LST สูงสุด", value: summary?.maxTemp != null ? formatLST(Number(summary.maxTemp)) : "–" },
-                        { label: "เขตร้อนสุด", value: summary?.ranking?.[0]?.[0] ?? "–" },
-                        { label: "ปีที่เลือก", value: String(selectedYear) },
-                      ],
-                      rankingHeaders: ["เขต", "LST (°C)"],
-                      rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-                    }}
+                    reportData={reportData}
                   />
                 </div>
               </aside>
@@ -313,6 +367,7 @@ export default function HeatIslandPage() {
               year={selectedYear}
               compareMode={compareMode}
               accentColor="orange"
+              activeDistrict={activeDistrict}
             />
           )}
 

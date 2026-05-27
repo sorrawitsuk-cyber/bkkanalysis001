@@ -16,7 +16,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Lightbulb, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Lightbulb, Activity, MapPin } from "lucide-react";
 
 type Metric = "lst" | "vegetation" | "builtup" | "air_pollution";
 
@@ -26,6 +26,7 @@ interface StatsDashboardProps {
   year: number;
   compareMode?: boolean;
   accentColor?: string;
+  activeDistrict?: string;
 }
 
 function getConfig(metric: Metric) {
@@ -183,7 +184,7 @@ function lerpColor(hex1: string, hex2: string, t: number): string {
 
 const TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
-export default function StatsDashboard({ summary, metric, year, compareMode = false }: StatsDashboardProps) {
+export default function StatsDashboard({ summary, metric, year, compareMode = false, accentColor = "cyan", activeDistrict }: StatsDashboardProps) {
   if (!summary) {
     return <div className="flex h-full items-center justify-center text-slate-500 text-sm">ไม่มีข้อมูลสำหรับแสดง</div>;
   }
@@ -249,8 +250,25 @@ export default function StatsDashboard({ summary, metric, year, compareMode = fa
 
   const barBarHeight = Math.max(320, barData.length * 18);
 
+  const accentColors: Record<string, { bg: string; border: string; text: string; sub: string }> = {
+    orange:  { bg: "bg-orange-950/40",  border: "border-orange-900/30",  text: "text-orange-300",  sub: "text-orange-400/60" },
+    emerald: { bg: "bg-emerald-950/40", border: "border-emerald-900/30", text: "text-emerald-300", sub: "text-emerald-400/60" },
+    indigo:  { bg: "bg-indigo-950/40",  border: "border-indigo-900/30",  text: "text-indigo-300",  sub: "text-indigo-400/60" },
+    cyan:    { bg: "bg-cyan-950/40",    border: "border-cyan-900/30",    text: "text-cyan-300",    sub: "text-cyan-400/60" },
+  };
+  const ac = accentColors[accentColor] ?? accentColors.cyan;
+
   return (
     <div className="flex-1 w-full flex h-full flex-col overflow-y-auto custom-scrollbar bg-slate-950">
+
+      {/* District filter banner */}
+      {activeDistrict && activeDistrict !== "ทั้งหมด" && (
+        <div className={`shrink-0 flex items-center gap-2 px-5 py-2 ${ac.bg} border-b ${ac.border}`}>
+          <MapPin className={`h-3 w-3 ${ac.text} shrink-0`} />
+          <span className={`text-[11px] font-bold ${ac.text}`}>กรองเฉพาะเขต: {activeDistrict}</span>
+          <span className="text-[10px] text-slate-500">· แนวโน้มและสถิติแสดงเฉพาะเขตนี้</span>
+        </div>
+      )}
 
       {/* ── Stats summary strip ── */}
       <div className="shrink-0 grid grid-cols-3 sm:grid-cols-6 gap-0 border-b border-slate-800/60">

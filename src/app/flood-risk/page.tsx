@@ -9,7 +9,7 @@ import MapControlPanel from "@/components/map/MapControlPanel";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import * as turf from "@turf/turf";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, MapPin, X, Download, FileText } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -20,7 +20,7 @@ import {
 } from "@/lib/satellite-cache";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
-import { buildPeriodLabel } from "@/lib/export-utils";
+import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import {
@@ -304,6 +304,12 @@ export default function FloodRiskPage() {
 
   const cachePreviewUrl = getCacheLayerPreviewUrl(yearlyMeta, cacheLayer);
 
+  const allDistricts = useMemo((): string[] =>
+    [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [geojsonData],
+  );
+
   const displayGeoJson = useMemo(
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
     [geojsonData, granularity],
@@ -315,6 +321,9 @@ export default function FloodRiskPage() {
       ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
       : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
 
+  const csvFilename = `flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
+  const csvHeaders = ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)", "Layer", "ช่วงเวลา"];
+
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val, areaRai]: [string, number | null, number | null]) => [
       name,
@@ -324,6 +333,22 @@ export default function FloodRiskPage() {
       selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear,
     ],
   );
+
+  const reportData = useMemo((): PDFReportData => ({
+    title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
+    subtitle: "Sentinel-2 SR Harmonized",
+    source: "Sentinel-2 (R2 Cache)",
+    period: periodLabel,
+    layer: WATER_LAYER_LABELS[cacheLayer],
+    district: activeDistrict,
+    kpis: [
+      { label: "Water Ratio เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
+      { label: "พื้นที่น้ำรวม", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
+      { label: "ปีที่เลือก", value: String(selectedYear) },
+    ],
+    rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)"],
+    rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
+  }), [periodLabel, cacheLayer, activeDistrict, summary, selectedYear, rankingForExport]);
 
   // Stats bar chart data — top 25 districts by water_ratio
   const statsBarData = useMemo(() => {
@@ -335,10 +360,10 @@ export default function FloodRiskPage() {
           ? +(f.properties.water_ratio * 100).toFixed(2)
           : null,
       }))
-      .filter((d: any) => d.value !== null && d.name !== "–")
+      .filter((d: any) => d.value !== null && d.name !== "–" && (activeDistrict === "ทั้งหมด" || d.name === activeDistrict))
       .sort((a: any, b: any) => b.value - a.value)
       .slice(0, 25);
-  }, [geojsonData]);
+  }, [geojsonData, activeDistrict]);
 
   const statsTrendData = useMemo(() => {
     return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
@@ -431,6 +456,40 @@ export default function FloodRiskPage() {
         {/* Tab bar */}
         <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="sky" />
+          <div className="flex items-center gap-1.5">
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              className="h-7 rounded-lg border border-slate-700 bg-slate-900/80 px-2 text-[11px] text-slate-300 focus:border-slate-500 focus:outline-none"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {allDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex items-center justify-center h-7 w-7 rounded-lg border border-slate-700 bg-slate-900/80 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {viewMode !== "map" && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => downloadCSV(csvHeaders, rankingForExport, csvFilename)}
+                className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-slate-700 bg-slate-900/80 text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => printReport(reportData)}
+                className="flex items-center gap-1 h-7 px-2.5 rounded-lg border border-sky-700/50 bg-sky-950/30 text-[11px] text-sky-400 hover:text-sky-200 transition-colors"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
           <div className="ml-auto text-[10px] text-slate-500">
             {loading ? "กำลังโหลด…" : `${selectedYear}${selectedMonth ? `-${String(selectedMonth).padStart(2, "0")}` : ""} • ${WATER_LAYER_LABELS[cacheLayer]}`}
           </div>
@@ -566,24 +625,10 @@ export default function FloodRiskPage() {
 
                 <ExportPanel
                   accentColor="sky"
-                  csvFilename={`flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
-                  csvHeaders={["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)", "Layer", "ช่วงเวลา"]}
+                  csvFilename={csvFilename}
+                  csvHeaders={csvHeaders}
                   csvRows={rankingForExport}
-                  reportData={{
-                    title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
-                    subtitle: "Sentinel-2 SR Harmonized",
-                    source: "Sentinel-2 (R2 Cache)",
-                    period: periodLabel,
-                    layer: WATER_LAYER_LABELS[cacheLayer],
-                    district: activeDistrict,
-                    kpis: [
-                      { label: "Water Ratio เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
-                      { label: "พื้นที่น้ำรวม", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
-                      { label: "ปีที่เลือก", value: String(selectedYear) },
-                    ],
-                    rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)"],
-                    rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
-                  }}
+                  reportData={reportData}
                 />
 
                 <div className="mt-auto bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-sky-500/20 shadow-2xl w-full">
@@ -612,6 +657,13 @@ export default function FloodRiskPage() {
         {/* Stats view */}
         {viewMode === "stats" && (
           <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {activeDistrict !== "ทั้งหมด" && (
+              <div className="shrink-0 flex items-center gap-2 px-5 py-2 bg-sky-950/40 border-b border-sky-900/30">
+                <MapPin className="h-3 w-3 text-sky-300 shrink-0" />
+                <span className="text-[11px] font-bold text-sky-300">กรองเฉพาะเขต: {activeDistrict}</span>
+                <span className="text-[10px] text-slate-500">· แนวโน้มและสถิติแสดงเฉพาะเขตนี้</span>
+              </div>
+            )}
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <span className="text-slate-500 text-sm animate-pulse">กำลังโหลดข้อมูล…</span>
@@ -682,7 +734,7 @@ export default function FloodRiskPage() {
                 {statsBarData.length > 0 && (
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
                     <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
-                      Top {statsBarData.length} เขต — สัดส่วนน้ำ (%)
+                      {activeDistrict !== "ทั้งหมด" ? `เขต${activeDistrict} — สัดส่วนน้ำ (%)` : `Top ${statsBarData.length} เขต — สัดส่วนน้ำ (%)`}
                     </h3>
                     <ResponsiveContainer width="100%" height={320}>
                       <BarChart data={statsBarData} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
@@ -777,7 +829,8 @@ export default function FloodRiskPage() {
                 ndwi_mean: props.ndwi_mean ?? null,
                 delta: props.delta ?? null,
               })}
-              csvFilename={`flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
+              csvFilename={csvFilename}
+              filterDistrict={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
             />
           </div>
         )}

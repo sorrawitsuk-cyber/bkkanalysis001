@@ -8,10 +8,10 @@ import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import AirQualitySidebar from "@/components/gee/AirQualitySidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import { Activity } from "lucide-react";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
-import { buildPeriodLabel } from "@/lib/export-utils";
+import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { Activity, MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
@@ -117,6 +117,15 @@ export default function AirQualityPage() {
     setGranularity("district");
   };
 
+  const allDistricts = useMemo((): string[] =>
+    [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [geojsonData],
+  );
+
+  const csvFilename = `air-quality_${layerMeta.id}_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
+  const csvHeaders = ["เขต", `${layerMeta.label} (${layerMeta.unit})`, "หน่วย", "ช่วงเวลา"];
+
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
     { key: "no2_mean", label: "NO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
@@ -127,6 +136,21 @@ export default function AirQualityPage() {
 
   const avgValue    = rankingRows.length ? rankingRows.reduce((s, [, v]) => s + v, 0) / rankingRows.length : null;
   const topDistrict = rankingRows[0]?.[0] ?? null;
+
+  const reportData = useMemo((): PDFReportData => ({
+    title: "มลพิษอากาศจากดาวเทียม",
+    subtitle: "Sentinel-5P TROPOMI",
+    source: "Sentinel-5P",
+    period: latestLabel,
+    layer: `${layerMeta.label} (${layerMeta.labelTh})`,
+    district: activeDistrict,
+    kpis: [
+      { label: `${layerMeta.label} เฉลี่ย`, value: avgValue !== null ? `${formatMetric(avgValue, airLayer)} ${layerMeta.unit}` : "–" },
+      { label: "เขตสูงสุด", value: topDistrict ?? "–" },
+    ],
+    rankingHeaders: ["เขต", `${layerMeta.label} (${layerMeta.unit})`],
+    rankingRows: rankingRows.map(([d, v]) => [d, v != null ? +Number(v).toFixed(6) : null]),
+  }), [latestLabel, layerMeta, activeDistrict, avgValue, airLayer, topDistrict, rankingRows]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-50">
@@ -149,9 +173,52 @@ export default function AirQualityPage() {
 
       {/* ── Main: tab bar + content ── */}
       <main className="flex-1 min-w-0 flex flex-col">
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="cyan" />
-          {loading && <span className="text-[10px] font-bold text-cyan-400/70 uppercase tracking-widest animate-pulse">กำลังโหลด…</span>}
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={allDistricts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {allDistricts.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict(ALL_DISTRICTS)}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {loading && <span className="text-[10px] font-bold text-cyan-400/70 uppercase tracking-widest animate-pulse ml-1">กำลังโหลด…</span>}
+          <div className="flex-1" />
+          {!loading && summary && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => downloadCSV(csvHeaders, rankingForExport, csvFilename)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => printReport(reportData)}
+                disabled={rankingForExport.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-700/40 bg-cyan-900/20 px-2.5 py-1.5 text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-h-0 flex">
@@ -211,20 +278,10 @@ export default function AirQualityPage() {
 
                   <ExportPanel
                     accentColor="cyan"
-                    csvFilename={`air-quality_${layerMeta.id}_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`}
-                    csvHeaders={["เขต", `${layerMeta.label} (${layerMeta.unit})`, "หน่วย", "ช่วงเวลา"]}
+                    csvFilename={csvFilename}
+                    csvHeaders={csvHeaders}
                     csvRows={rankingForExport}
-                    reportData={{
-                      title: "มลพิษอากาศจากดาวเทียม", subtitle: "Sentinel-5P TROPOMI",
-                      source: "Sentinel-5P", period: latestLabel, layer: `${layerMeta.label} (${layerMeta.labelTh})`,
-                      district: activeDistrict,
-                      kpis: [
-                        { label: `${layerMeta.label} เฉลี่ย`, value: avgValue !== null ? `${formatMetric(avgValue, airLayer)} ${layerMeta.unit}` : "–" },
-                        { label: "เขตสูงสุด", value: topDistrict ?? "–" },
-                      ],
-                      rankingHeaders: ["เขต", `${layerMeta.label} (${layerMeta.unit})`],
-                      rankingRows: rankingRows.map(([d, v]) => [d, v != null ? +Number(v).toFixed(6) : null]),
-                    }}
+                    reportData={reportData}
                   />
                 </div>
               </aside>
@@ -232,7 +289,7 @@ export default function AirQualityPage() {
           )}
 
           {viewMode === "stats" && (
-            <StatsDashboard summary={summary} metric="air_pollution" year={selectedYear} compareMode={compareMode} accentColor="cyan" />
+            <StatsDashboard summary={summary} metric="air_pollution" year={selectedYear} compareMode={compareMode} accentColor="cyan" activeDistrict={activeDistrict} />
           )}
 
           {viewMode === "table" && (

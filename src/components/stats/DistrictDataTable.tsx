@@ -21,6 +21,7 @@ interface DistrictDataTableProps {
   getRowData: (props: any) => Record<string, any>;
   csvFilename?: string;
   showStatsFooter?: boolean;
+  filterDistrict?: string;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -34,6 +35,7 @@ export default function DistrictDataTable({
   getRowData,
   csvFilename = "district_data",
   showStatsFooter = true,
+  filterDistrict,
 }: DistrictDataTableProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<string>(columns[1]?.key ?? columns[0]?.key);
@@ -73,8 +75,12 @@ export default function DistrictDataTable({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return q ? rows.filter((r) => String(r.name).toLowerCase().includes(q)) : rows;
-  }, [rows, search]);
+    let result = q ? rows.filter((r) => String(r.name).toLowerCase().includes(q)) : rows;
+    if (filterDistrict && filterDistrict !== "ทั้งหมด") {
+      result = result.filter((r) => r.name === filterDistrict);
+    }
+    return result;
+  }, [rows, search, filterDistrict]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
