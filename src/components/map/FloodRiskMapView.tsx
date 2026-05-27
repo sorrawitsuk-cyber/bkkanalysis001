@@ -25,11 +25,12 @@ const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13
 
 function getWaterColor(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "#334155";
-  if (value > 0.40) return "#075985";
-  if (value > 0.25) return "#0284c7";
-  if (value > 0.15) return "#38bdf8";
-  if (value > 0.05) return "#7dd3fc";
-  return "#e0f2fe";
+  // Scale tuned for Bangkok's actual water_ratio range (0–20%)
+  if (value > 0.15) return "#075985";   // > 15%: major water body / river
+  if (value > 0.08) return "#0369a1";   // 8–15%: significant water / canal-rich
+  if (value > 0.04) return "#0ea5e9";   // 4–8%: moderate water
+  if (value > 0.015) return "#7dd3fc";  // 1.5–4%: some water
+  return "#bae6fd";                      // < 1.5%: mostly dry
 }
 
 function getDeltaColor(delta: number | null | undefined): string {
@@ -167,8 +168,9 @@ export default function FloodRiskMapView({
 
   const getFeatureColor = useCallback((feature: any) => {
     if (compareMode) return getDeltaColor(feature?.properties?.delta);
-    return getWaterColor(feature?.properties?.display_value ?? feature?.properties?.water_ratio);
-  }, [compareMode, mapMode]);
+    const value = feature?.properties?.seasonal_water_ratio ?? feature?.properties?.water_ratio;
+    return getWaterColor(value);
+  }, [compareMode]);
 
   // GeoJSON district layer
   useEffect(() => {

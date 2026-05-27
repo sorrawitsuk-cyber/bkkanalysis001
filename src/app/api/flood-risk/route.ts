@@ -83,7 +83,12 @@ async function computeGeeWaterStats(year: number): Promise<any[]> {
   const mndwiMean = collection.select("mndwi").mean().rename("mndwi_mean");
   const waterMask = ndwiMean.gt(0.05).rename("water_ratio");
 
-  const stacked = ndwiMean.addBands(mndwiMean).addBands(waterMask);
+  // Exclude permanent water (JRC occurrence >= 70%) — removes Chao Phraya and major canals
+  const jrcPermanent = ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+    .select("occurrence").gte(70).unmask(0);
+  const seasonalWaterMask = ndwiMean.gt(0.05).and(jrcPermanent.not()).rename("seasonal_water_ratio");
+
+  const stacked = ndwiMean.addBands(mndwiMean).addBands(waterMask).addBands(seasonalWaterMask);
   const districts = getDistrictFeatureCollection();
 
   const result = await evaluateEe<any>(stacked.reduceRegions({
@@ -97,11 +102,12 @@ async function computeGeeWaterStats(year: number): Promise<any[]> {
     const p = feat.properties ?? {};
     const toNum = (v: any) => (typeof v === "number" && Number.isFinite(v) ? +v.toFixed(4) : null);
     return {
-      district_id:  p.id,
-      district_name: p.name_th,
-      ndwi_mean:    toNum(p.ndwi_mean),
-      mndwi_mean:   toNum(p.mndwi_mean),
-      water_ratio:  toNum(p.water_ratio),
+      district_id:           p.id,
+      district_name:         p.name_th,
+      ndwi_mean:             toNum(p.ndwi_mean),
+      mndwi_mean:            toNum(p.mndwi_mean),
+      water_ratio:           toNum(p.water_ratio),
+      seasonal_water_ratio:  toNum(p.seasonal_water_ratio),
     };
   });
 }
@@ -232,19 +238,22 @@ export async function GET(request: Request) {
         maxValue = Math.max(maxValue, waterRatio);
       }
 
+      const seasonalWaterRatio: number | null = row?.seasonal_water_ratio ?? null;
+
       return {
         ...feature,
         properties: {
           ...feature.properties,
-          water_ratio:          waterRatio,
-          water_area_rai:       waterAreaRai,
-          district_area_rai:    areaRai,
+          water_ratio:           waterRatio,
+          seasonal_water_ratio:  seasonalWaterRatio,
+          water_area_rai:        waterAreaRai,
+          district_area_rai:     areaRai,
           delta,
-          compare_water_ratio:  compareRatio,
-          ndwi_mean:            ndwiMean,
-          mndwi_mean:           mndwiMean,
-          display_value:        ndwiMean ?? waterRatio,
-          display_label:        "NDWI",
+          compare_water_ratio:   compareRatio,
+          ndwi_mean:             ndwiMean,
+          mndwi_mean:            mndwiMean,
+          display_value:         ndwiMean ?? waterRatio,
+          display_label:         "NDWI",
         },
       };
     });

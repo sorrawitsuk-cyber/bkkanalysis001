@@ -102,6 +102,7 @@ function buildFloodRiskView(
       properties: {
         ...feature.properties,
         water_ratio: waterRatio,
+        seasonal_water_ratio: row?.seasonal_water_ratio ?? null,
         water_area_rai: waterAreaRai,
         district_area_rai: districtAreaRai,
         delta,
@@ -398,15 +399,15 @@ export default function FloodRiskPage() {
     };
   } else {
     legendConfig = {
-      title: "สัดส่วนพื้นที่น้ำรายเขต",
-      description: "สัดส่วนพิกเซลที่เป็นน้ำต่อพื้นที่เขต จาก Sentinel-2",
+      title: "สัดส่วนพื้นที่น้ำรายเขต (ไม่รวมแม่น้ำถาวร)",
+      description: "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต ยกเว้นแม่น้ำเจ้าพระยา (JRC ≥ 70%)",
       unit: "%",
       items: [
-        { color: "#e0f2fe", label: "พื้นที่แห้ง",            range: "< 5%" },
-        { color: "#7dd3fc", label: "มีน้ำน้อย",              range: "5% – 15%" },
-        { color: "#38bdf8", label: "พื้นที่ชื้น",            range: "15% – 25%" },
-        { color: "#0284c7", label: "แหล่งน้ำ / เสี่ยงท่วม", range: "25% – 40%" },
-        { color: "#075985", label: "พื้นที่น้ำถาวร",         range: "> 40%" },
+        { color: "#bae6fd", label: "แห้งมาก",       range: "< 1.5%" },
+        { color: "#7dd3fc", label: "มีน้ำน้อย",     range: "1.5% – 4%" },
+        { color: "#0ea5e9", label: "มีน้ำปานกลาง", range: "4% – 8%" },
+        { color: "#0369a1", label: "มีน้ำมาก",      range: "8% – 15%" },
+        { color: "#075985", label: "แหล่งน้ำ/แม่น้ำ", range: "> 15%" },
       ],
     };
   }
