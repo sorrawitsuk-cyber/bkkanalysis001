@@ -51,14 +51,14 @@ export async function GET(request: Request) {
         supabase
           .from("district_statistics")
           .select(
-            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, water_area_rai, ndwi_mean, ntl_mean, ntl_max"
+            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, ndwi_mean, ntl_mean, ntl_max"
           )
           .eq("district_id", districtId)
           .order("year", { ascending: true }),
         supabase
           .from("district_statistics")
           .select(
-            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, water_area_rai, ndwi_mean, ntl_mean, ntl_max"
+            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, ndwi_mean, ntl_mean, ntl_max"
           )
           .order("year", { ascending: true }),
       ]);
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
         so2_mean: avgOf(rows, "so2_mean"),
         pollution_score: avgOf(rows, "pollution_score"),
         water_ratio: avgOf(rows, "water_ratio"),
-        water_area_rai: avgOf(rows, "water_area_rai"),
+        water_area_rai: null,
         ndwi_mean: avgOf(rows, "ndwi_mean"),
         ntl_mean: avgOf(rows, "ntl_mean"),
         ntl_max: avgOf(rows, "ntl_max"),
@@ -101,6 +101,7 @@ export async function GET(request: Request) {
         ndbi !== null && areaRai > 0
           ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai)
           : null;
+      const waterRatio = row.water_ratio ?? null;
       metrics[row.year] = {
         mean_lst: row.mean_lst ?? null,
         max_lst: row.max_lst ?? null,
@@ -113,20 +114,24 @@ export async function GET(request: Request) {
         co_mean: row.co_mean ?? null,
         so2_mean: row.so2_mean ?? null,
         pollution_score: row.pollution_score ?? null,
-        water_ratio: row.water_ratio ?? null,
-        water_area_rai: row.water_area_rai ?? null,
+        water_ratio: waterRatio,
+        water_area_rai: waterRatio !== null && areaRai > 0 ? Math.round(waterRatio * areaRai) : null,
         ndwi_mean: row.ndwi_mean ?? null,
         ntl_mean: row.ntl_mean ?? null,
         ntl_max: row.ntl_max ?? null,
       };
     });
 
-    // Compute BKK built-up area per year using the same formula (avg across districts)
-    for (const [yr, avg] of Object.entries(bkkAverages)) {
+    // Compute BKK derived area fields per year (avg across districts, using selected district's area as reference)
+    for (const avg of Object.values(bkkAverages)) {
       const ndbi = avg.ndbi_mean;
       avg.builtup_area_rai =
         ndbi !== null && areaRai > 0
           ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai)
+          : null;
+      avg.water_area_rai =
+        avg.water_ratio !== null && areaRai > 0
+          ? Math.round((avg.water_ratio as number) * areaRai)
           : null;
     }
 
