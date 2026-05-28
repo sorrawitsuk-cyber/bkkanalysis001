@@ -38,20 +38,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Resolve district_id from districts table
-    const { data: districtRow, error: distErr } = await supabase
-      .from("districts")
-      .select("id")
-      .eq("name_th", districtName)
-      .single();
-
-    if (distErr || !districtRow) {
+    // Resolve district_id from geojson (district_statistics uses geojson IDs directly)
+    const districtId = geoJsonIdByName.get(districtName);
+    if (!districtId) {
       return NextResponse.json({ error: "ไม่พบเขต: " + districtName }, { status: 404 });
     }
-
-    const districtId: number = districtRow.id;
-    const geoId = geoJsonIdByName.get(districtName);
-    const areaRai = geoId ? (districtAreaRaiMap.get(geoId) ?? 0) : 0;
+    const areaRai = districtAreaRaiMap.get(districtId) ?? 0;
 
     // Fetch all years for this district + all rows for BKK averages in parallel
     const [{ data: distRows, error: distStatsErr }, { data: allRows, error: allErr }] =
@@ -59,7 +51,7 @@ export async function GET(request: Request) {
         supabase
           .from("district_statistics")
           .select(
-            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, ndbi_max, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, water_area_rai, ndwi_mean, ntl_mean, ntl_max"
+            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, water_area_rai, ndwi_mean, ntl_mean, ntl_max"
           )
           .eq("district_id", districtId)
           .order("year", { ascending: true }),
