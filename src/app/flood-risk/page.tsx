@@ -25,8 +25,9 @@ import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  AreaChart, Area,
+  AreaChart, Area, ReferenceLine,
 } from "recharts";
+import { Lightbulb, Activity as ActivityIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -350,20 +351,81 @@ export default function FloodRiskPage() {
     rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
   }), [periodLabel, cacheLayer, activeDistrict, summary, selectedYear, rankingForExport]);
 
-  // Stats bar chart data — top 25 districts by water_ratio
-  const statsBarData = useMemo(() => {
+  // ── Stats computed data ───────────────────────────────────────────────────
+  const statsAllFeatures = useMemo(() => {
     if (!geojsonData?.features) return [];
     return (geojsonData.features as any[])
       .map((f: any) => ({
         name: f.properties.name_th ?? "–",
-        value: typeof f.properties.water_ratio === "number"
-          ? +(f.properties.water_ratio * 100).toFixed(2)
-          : null,
+        water_ratio: typeof f.properties.water_ratio === "number" ? f.properties.water_ratio : null,
+        water_ratio_pct: typeof f.properties.water_ratio === "number" ? +(f.properties.water_ratio * 100).toFixed(2) : null,
+        water_area_rai: f.properties.water_area_rai ?? null,
+        district_area_rai: f.properties.district_area_rai ?? null,
+        ndwi_mean: f.properties.ndwi_mean ?? null,
+        ndwi_max: f.properties.ndwi_max ?? null,
+        mndwi_mean: f.properties.mndwi_mean ?? null,
+        display_value: f.properties.display_value ?? null,
+        delta: f.properties.delta ?? null,
+        compare_water_ratio: f.properties.compare_water_ratio ?? null,
       }))
-      .filter((d: any) => d.value !== null && d.name !== "–" && (activeDistrict === "ทั้งหมด" || d.name === activeDistrict))
-      .sort((a: any, b: any) => b.value - a.value)
-      .slice(0, 25);
-  }, [geojsonData, activeDistrict]);
+      .filter((d: any) => d.name !== "–")
+      .sort((a: any, b: any) => (b.water_ratio_pct ?? -Infinity) - (a.water_ratio_pct ?? -Infinity));
+  }, [geojsonData]);
+
+  const statsBarData = useMemo(() => {
+    const base = activeDistrict === "ทั้งหมด"
+      ? statsAllFeatures
+      : statsAllFeatures.filter((d: any) => d.name === activeDistrict);
+    return base.filter((d: any) => d.water_ratio_pct !== null);
+  }, [statsAllFeatures, activeDistrict]);
+
+  // Statistical summary of water_ratio values
+  const statsComputed = useMemo(() => {
+    const vals = statsAllFeatures.map((d: any) => d.water_ratio).filter((v: any): v is number => v != null);
+    if (!vals.length) return null;
+    const sorted = [...vals].sort((a, b) => a - b);
+    const n = sorted.length;
+    const mean = vals.reduce((s: number, v: number) => s + v, 0) / n;
+    const median = n % 2 === 0 ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 : sorted[Math.floor(n / 2)];
+    const stdDev = Math.sqrt(vals.reduce((s: number, v: number) => s + (v - mean) ** 2, 0) / n);
+    const q1 = sorted[Math.floor(n * 0.25)];
+    const q3 = sorted[Math.floor(n * 0.75)];
+    const aboveThreshold = vals.filter((v: number) => v * 100 >= 4).length; // ≥4% water
+    return { mean, median, min: sorted[0], max: sorted[n - 1], stdDev, q1, q3, n, aboveThreshold };
+  }, [statsAllFeatures]);
+
+  // Distribution histogram (8 bins over water_ratio_pct)
+  const statsDistribution = useMemo(() => {
+    const vals = statsAllFeatures.map((d: any) => d.water_ratio_pct).filter((v: any): v is number => v != null);
+    if (!vals.length) return [];
+    const min = Math.min(...vals); const max = Math.max(...vals);
+    if (min === max) return [{ label: `${min.toFixed(1)}%`, count: vals.length }];
+    const step = (max - min) / 8;
+    const buckets = Array.from({ length: 8 }, (_, i) => ({ label: `${(min + step * i).toFixed(1)}`, count: 0 }));
+    vals.forEach((v) => { const idx = Math.min(Math.floor((v - min) / step), 7); buckets[idx].count++; });
+    return buckets;
+  }, [statsAllFeatures]);
+
+  // Auto-insights
+  const statsInsights = useMemo(() => {
+    if (!statsComputed || !statsBarData.length) return [];
+    const insights: string[] = [];
+    const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
+    insights.push(`ค่าเฉลี่ย water ratio ทุกเขต: ${pct(statsComputed.mean)} (Median: ${pct(statsComputed.median)})`);
+    if (statsBarData[0]) insights.push(`${statsBarData[0].name} มีพื้นที่น้ำมากที่สุด: ${pct(statsBarData[0].water_ratio ?? 0)}`);
+    if (statsComputed.aboveThreshold > 0)
+      insights.push(`${statsComputed.aboveThreshold} เขต (${Math.round(statsComputed.aboveThreshold / statsComputed.n * 100)}%) มีสัดส่วนน้ำ ≥ 4% ของพื้นที่เขต`);
+    const cv = (statsComputed.stdDev / statsComputed.mean) * 100;
+    insights.push(`การกระจาย: ${cv < 20 ? "ใกล้เคียงกัน" : cv < 50 ? "กระจายปานกลาง" : "กระจายสูงมาก"} (CV = ${cv.toFixed(1)}%)`);
+    const trendRows: [string, number][] = summary?.yearlyTrend ?? [];
+    if (trendRows.length >= 2) {
+      const first = Number(trendRows[0][1]);
+      const last = Number(trendRows[trendRows.length - 1][1]);
+      const delta = last - first;
+      insights.push(`แนวโน้ม ${trendRows[0][0]}–${trendRows[trendRows.length - 1][0]}: ${delta > 0 ? "น้ำเพิ่มขึ้น" : "น้ำลดลง"} ${Math.abs(delta * 100).toFixed(2)}pp`);
+    }
+    return insights.slice(0, 5);
+  }, [statsComputed, statsBarData, summary?.yearlyTrend]);
 
   const statsTrendData = useMemo(() => {
     return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
@@ -372,13 +434,32 @@ export default function FloodRiskPage() {
     }));
   }, [summary?.yearlyTrend]);
 
-  // Table columns
+  // Yearly trend for water_area_rai (computed from trend + avg district area)
+  const avgDistrictAreaRai = useMemo(() => {
+    const areas = statsAllFeatures.map((d: any) => d.district_area_rai).filter((v: any): v is number => v != null);
+    return areas.length ? areas.reduce((s: number, v: number) => s + v, 0) / areas.length : 19600;
+  }, [statsAllFeatures]);
+
+  const statsTrendAreaData = useMemo(() => {
+    return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
+      year: String(year),
+      value: typeof val === "number" ? Math.round(val * avgDistrictAreaRai * 50) : null, // approx total
+    }));
+  }, [summary?.yearlyTrend, avgDistrictAreaRai]);
+
+  // Table columns — comprehensive
   const tableColumns: ColDef[] = [
-    { key: "name", label: "เขต" },
+    { key: "name", label: "เขต", sortable: false },
     { key: "water_ratio", label: "สัดส่วนน้ำ", unit: "%", format: (v) => v != null ? (v * 100).toFixed(2) : "–", heatmap: true, heatmapHex: "#3b82f6" },
     { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#60a5fa" },
     { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#06b6d4" },
-    ...(compareMode ? [{ key: "delta", label: "เปลี่ยนแปลง", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–" }] : []),
+    { key: "ndwi_max",  label: "NDWI max",  format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#0284c7", hideable: true },
+    { key: "mndwi_mean",label: "MNDWI mean",format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#7c3aed", hideable: true },
+    { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
+    ...(compareMode ? [
+      { key: "delta", label: "Δ water ratio", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–", heatmap: true, heatmapHex: "#f59e0b", heatmapInvert: false } as ColDef,
+      { key: "compare_water_ratio", label: `ปี ${compareYear}`, unit: "%", format: (v: any) => v != null ? `${(v * 100).toFixed(2)}` : "–", hideable: true } as ColDef,
+    ] : []),
   ];
 
   // Legend config
@@ -654,162 +735,264 @@ export default function FloodRiskPage() {
           </div>
         )}
 
-        {/* Stats view */}
+        {/* ── Stats view — comprehensive ────────────────────────────────────── */}
         {viewMode === "stats" && (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {activeDistrict !== "ทั้งหมด" && (
-              <div className="shrink-0 flex items-center gap-2 px-5 py-2 bg-sky-950/40 border-b border-sky-900/30">
-                <MapPin className="h-3 w-3 text-sky-300 shrink-0" />
-                <span className="text-[11px] font-bold text-sky-300">กรองเฉพาะเขต: {activeDistrict}</span>
-                <span className="text-[10px] text-slate-500">· แนวโน้มและสถิติแสดงเฉพาะเขตนี้</span>
+          <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
+
+            {/* Inline controls */}
+            <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-slate-700/60 bg-slate-900/50">
+              {/* Year stepper */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-600">ปี</span>
+                <button onClick={() => setSelectedYear((y) => Math.max(2018, y - 1))} disabled={selectedYear <= 2018}
+                  className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-sm font-black font-mono text-sky-300 min-w-[3rem] text-center">{selectedYear}</span>
+                <button onClick={() => setSelectedYear((y) => Math.min(2026, y + 1))} disabled={selectedYear >= 2026}
+                  className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
               </div>
-            )}
+              <div className="h-4 w-px bg-slate-700/60 shrink-0" />
+              {/* District selector */}
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 text-sky-400 shrink-0" />
+                <select value={activeDistrict} onChange={(e) => setActiveDistrict(e.target.value)}
+                  className="h-7 rounded border border-slate-700 bg-slate-900/60 px-2 text-[11px] text-slate-300 focus:outline-none focus:border-sky-500/50">
+                  <option value="ทั้งหมด">ทุกเขต (50 เขต)</option>
+                  {allDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+                {activeDistrict !== "ทั้งหมด" && (
+                  <button onClick={() => setActiveDistrict("ทั้งหมด")} className="h-5 w-5 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+              {/* Layer selector */}
+              <div className="flex items-center gap-1 border border-slate-700/80 rounded-lg overflow-hidden">
+                {WATER_CACHE_LAYERS.map((key) => (
+                  <button key={key} onClick={() => setCacheLayer(key)}
+                    className={`px-2.5 py-1 text-[9px] font-bold transition-colors ${cacheLayer === key ? "bg-sky-600 text-white" : "text-slate-500 hover:text-slate-300"}`}>
+                    {WATER_LAYER_LABELS[key]}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1" />
+              <span className="text-[9px] text-slate-600">{summary?.dataSource ?? "R2 Cache"} · {periodLabel}</span>
+              {compareMode && summary?.avgDelta != null && (
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${summary.avgDelta > 0 ? "bg-sky-500/10 text-sky-400" : "bg-amber-500/10 text-amber-400"}`}>
+                  {summary.avgDelta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  เทียบ {compareYear}: {summary.avgDelta > 0 ? "+" : ""}{(summary.avgDelta * 100).toFixed(2)}pp
+                </div>
+              )}
+            </div>
+
             {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <span className="text-slate-500 text-sm animate-pulse">กำลังโหลดข้อมูล…</span>
-              </div>
+              <div className="flex flex-1 items-center justify-center"><span className="text-slate-500 animate-pulse">กำลังโหลด…</span></div>
             ) : !summary ? (
-              <div className="flex items-center justify-center h-64">
-                <span className="text-slate-600 text-sm">ไม่มีข้อมูลสำหรับช่วงเวลานี้</span>
-              </div>
+              <div className="flex flex-1 items-center justify-center"><span className="text-slate-600">ไม่มีข้อมูลช่วงนี้</span></div>
             ) : (
-              <div className="p-6 space-y-5">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-100">สถิติน้ำท่วม / แหล่งน้ำ</h2>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{summary.displayLabel} — {periodLabel}</p>
-                  </div>
-                  {compareMode && summary.avgDelta !== null && (
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 ${summary.avgDelta > 0 ? "bg-sky-500/10 text-sky-400" : "bg-amber-500/10 text-amber-400"}`}>
-                      {summary.avgDelta > 0
-                        ? <TrendingUp className="w-3.5 h-3.5" />
-                        : <TrendingDown className="w-3.5 h-3.5" />}
-                      เทียบ {compareYear}: {summary.avgDelta > 0 ? "+" : ""}{(summary.avgDelta * 100).toFixed(2)}%
-                    </div>
-                  )}
-                </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
 
-                {/* KPI Cards */}
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                {/* ── Stats strip ─────────────────────────────────────── */}
+                <div className="grid grid-cols-3 sm:grid-cols-6 border-b border-slate-800/60">
                   {[
-                    {
-                      label: "Water Ratio เฉลี่ย",
-                      value: summary.avgWaterRatio != null ? `${(summary.avgWaterRatio * 100).toFixed(2)}%` : "–",
-                      sub: "สัดส่วนพื้นที่น้ำเฉลี่ยทุกเขต",
-                      color: "text-sky-400",
-                      bg: "bg-sky-500/10 border-sky-500/20",
-                    },
-                    {
-                      label: "พื้นที่น้ำรวม",
-                      value: summary.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()}` : "–",
-                      sub: "ไร่ (ทั่วกรุงเทพฯ)",
-                      color: "text-blue-400",
-                      bg: "bg-blue-500/10 border-blue-500/20",
-                    },
-                    {
-                      label: "เขตน้ำมากที่สุด",
-                      value: summary.topWet?.[0]?.[0] ?? "–",
-                      sub: summary.topWet?.[0]?.[1] != null ? `${(summary.topWet[0][1] * 100).toFixed(2)}%` : "",
-                      color: "text-cyan-400",
-                      bg: "bg-cyan-500/10 border-cyan-500/20",
-                    },
-                    {
-                      label: "เขตน้ำน้อยที่สุด",
-                      value: summary.topDry?.[0]?.[0] ?? "–",
-                      sub: summary.topDry?.[0]?.[1] != null ? `${(summary.topDry[0][1] * 100).toFixed(2)}%` : "",
-                      color: "text-slate-400",
-                      bg: "bg-slate-500/10 border-slate-500/20",
-                    },
-                  ].map((kpi) => (
-                    <div key={kpi.label} className={`rounded-2xl border p-4 ${kpi.bg}`}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">{kpi.label}</p>
-                      <p className={`text-2xl font-black tabular-nums ${kpi.color}`}>{kpi.value}</p>
-                      {kpi.sub && <p className="text-[10px] text-slate-600 mt-0.5">{kpi.sub}</p>}
+                    { label: "ค่าเฉลี่ย", value: statsComputed ? `${(statsComputed.mean * 100).toFixed(2)}%` : "–", color: "text-slate-200" },
+                    { label: "Median", value: statsComputed ? `${(statsComputed.median * 100).toFixed(2)}%` : "–", color: "text-slate-200" },
+                    { label: "สูงสุด", value: statsComputed ? `${(statsComputed.max * 100).toFixed(2)}%` : "–", color: "text-sky-400" },
+                    { label: "ต่ำสุด", value: statsComputed ? `${(statsComputed.min * 100).toFixed(2)}%` : "–", color: "text-slate-400" },
+                    { label: "Std Dev (σ)", value: statsComputed ? `${(statsComputed.stdDev * 100).toFixed(2)}pp` : "–", color: "text-amber-400" },
+                    { label: "พื้นที่น้ำรวม", value: summary.totalWaterAreaRai ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–", color: "text-blue-400" },
+                  ].map((s, i) => (
+                    <div key={i} className={`px-4 py-3 border-r border-slate-800/60 last:border-r-0 ${i % 2 === 0 ? "bg-slate-900/40" : "bg-slate-900/20"}`}>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-0.5">{s.label}</div>
+                      <div className={`text-base font-black tabular-nums ${s.color}`}>{s.value}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* Bar Chart — Top 25 districts */}
-                {statsBarData.length > 0 && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
-                      {activeDistrict !== "ทั้งหมด" ? `เขต${activeDistrict} — สัดส่วนน้ำ (%)` : `Top ${statsBarData.length} เขต — สัดส่วนน้ำ (%)`}
-                    </h3>
-                    <ResponsiveContainer width="100%" height={320}>
-                      <BarChart data={statsBarData} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                        <XAxis type="number" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-                        <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 10 }} tickLine={false} axisLine={false} width={90} />
-                        <Tooltip
-                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
-                          formatter={(v: any) => [`${v}%`, "Water Ratio"]}
-                          cursor={{ fill: "rgba(255,255,255,0.04)" }}
-                        />
-                        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={14}>
-                          {statsBarData.map((_, i) => (
-                            <Cell key={i} fill={lerpColor(BAR_LOW, BAR_HIGH, i / Math.max(statsBarData.length - 1, 1))} />
+                {/* ── Main section: bar chart + right column ─────────── */}
+                <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] border-b border-slate-800/60">
+
+                  {/* Full 50-district bar chart */}
+                  <div className="border-r border-slate-800/60 flex flex-col">
+                    <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-800/40">
+                      <div>
+                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
+                          สัดส่วนพื้นที่น้ำรายเขต (Water Ratio %)
+                        </h3>
+                        <p className="text-[10px] text-slate-600 mt-0.5">
+                          {activeDistrict !== "ทั้งหมด" ? `กรองเฉพาะเขต: ${activeDistrict}` : "50 เขตกรุงเทพฯ เรียงจากมากไปน้อย"} · ปี {selectedYear}
+                        </p>
+                      </div>
+                      <div className="text-[9px] px-2 py-0.5 rounded-full border border-sky-500/40 text-sky-400 bg-sky-500/10 font-bold">
+                        เกณฑ์ 4%
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-2 py-2" style={{ minHeight: 320 }}>
+                      <div style={{ height: Math.max(340, statsBarData.length * 18) }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={statsBarData.map((d: any) => ({ ...d, value: d.water_ratio_pct }))} layout="vertical" margin={{ top: 0, right: 52, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                            <XAxis type="number" domain={[0, "auto"]} tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 9.5, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                            <Tooltip
+                              content={({ active, payload, label }) => {
+                                if (!active || !payload?.length) return null;
+                                const entry = statsBarData.find((d: any) => d.name === label);
+                                return (
+                                  <div className="rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 text-[11px] shadow-xl">
+                                    <p className="font-bold text-slate-200">{label}</p>
+                                    <p className="text-sky-400 font-mono">Water Ratio: {Number(payload[0].value).toFixed(2)}%</p>
+                                    {entry?.water_area_rai != null && <p className="text-slate-500">พื้นที่น้ำ: {Number(entry.water_area_rai).toLocaleString()} ไร่</p>}
+                                    {entry?.ndwi_mean != null && <p className="text-cyan-400 font-mono">NDWI mean: {entry.ndwi_mean.toFixed(4)}</p>}
+                                    {statsComputed && <p className="text-slate-600">vs เฉลี่ย: {entry?.water_ratio != null ? `${((entry.water_ratio - statsComputed.mean) * 100).toFixed(2)}pp` : "–"}</p>}
+                                  </div>
+                                );
+                              }}
+                              cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                            />
+                            <ReferenceLine x={4} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1.5} />
+                            <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={13}
+                              label={{ position: "right", fontSize: 8, fill: "#64748b", formatter: (v: unknown) => `${Number(v).toFixed(1)}%` }}>
+                              {statsBarData.map((_: any, i: number) => (
+                                <Cell key={i} fill={lerpColor(BAR_LOW, BAR_HIGH, i / Math.max(statsBarData.length - 1, 1))} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: trend + distribution + insights */}
+                  <div className="flex flex-col divide-y divide-slate-800/60 overflow-y-auto custom-scrollbar">
+
+                    {/* Yearly trend (index) */}
+                    <div className="px-5 py-4">
+                      <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+                        แนวโน้มรายปี — {WATER_LAYER_LABELS[cacheLayer]}
+                      </h3>
+                      {statsTrendData.length < 2 ? (
+                        <div className="flex h-28 items-center justify-center text-slate-700 text-xs">ไม่มีข้อมูลรายปี (ต้องโหลด cache หลายปี)</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={160}>
+                          <AreaChart data={statsTrendData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+                            <defs><linearGradient id="floodGradS" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} /><stop offset="95%" stopColor="#38bdf8" stopOpacity={0} /></linearGradient></defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                            <XAxis dataKey="year" tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                            <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }}
+                              formatter={(v: any) => [Number(v).toFixed(4), WATER_LAYER_LABELS[cacheLayer]]} />
+                            <Area type="monotone" dataKey="value" stroke="#38bdf8" fill="url(#floodGradS)" strokeWidth={2} dot={{ r: 3, fill: "#38bdf8", strokeWidth: 0 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+
+                    {/* Distribution histogram */}
+                    {statsDistribution.length > 0 && (
+                      <div className="px-5 py-4">
+                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">การกระจายค่า (Distribution)</h3>
+                        <p className="text-[9px] text-slate-600 mb-3">จำนวนเขตในแต่ละช่วง Water Ratio (%)</p>
+                        <ResponsiveContainer width="100%" height={100}>
+                          <BarChart data={statsDistribution} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                            <XAxis dataKey="label" tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                            <YAxis tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }}
+                              formatter={(v: any) => [`${v} เขต`, ""]} />
+                            <Bar dataKey="count" radius={[2, 2, 0, 0]} fill="#38bdf8" opacity={0.8} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Insights */}
+                    {statsInsights.length > 0 && (
+                      <div className="px-5 py-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Lightbulb className="w-3.5 h-3.5 text-sky-400" />
+                          <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400">ข้อสังเกตจากข้อมูล</h3>
+                        </div>
+                        <ul className="space-y-2">
+                          {statsInsights.map((ins, i) => (
+                            <li key={i} className="flex items-start gap-2 text-[11px] text-slate-400">
+                              <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-slate-700 bg-slate-800">{i + 1}</span>
+                              {ins}
+                            </li>
                           ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                        </ul>
+                      </div>
+                    )}
 
-                {/* Yearly trend */}
-                {statsTrendData.length > 1 && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">
-                      แนวโน้มรายปี — {WATER_LAYER_LABELS[cacheLayer]} (เฉลี่ยทุกเขต)
-                    </h3>
-                    <p className="text-[10px] text-slate-600 mb-4">ค่าดัชนีเฉลี่ย คำนวณจาก Sentinel-2 composite รายปี</p>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <AreaChart data={statsTrendData} margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
-                        <defs>
-                          <linearGradient id="floodGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="year" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} />
-                        <Tooltip
-                          contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: "8px", fontSize: 11 }}
-                          formatter={(v: any) => [v.toFixed(4), WATER_LAYER_LABELS[cacheLayer]]}
-                        />
-                        <Area type="monotone" dataKey="value" stroke="#38bdf8" strokeWidth={2} fill="url(#floodGrad)" dot={{ fill: "#38bdf8", r: 3 }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
                   </div>
-                )}
+                </div>
 
-                {/* Top 5 wet / dry */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { title: "เขตน้ำมากที่สุด 5 อันดับ", data: summary.topWet ?? [], color: "text-sky-400", bg: "border-sky-500/20" },
-                    { title: "เขตน้ำน้อยที่สุด 5 อันดับ", data: summary.topDry ?? [], color: "text-slate-400", bg: "border-slate-500/20" },
-                  ].map(({ title, data, color, bg }) => (
-                    <div key={title} className={`rounded-2xl border ${bg} bg-slate-900/50 p-4`}>
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">{title}</h4>
-                      <ol className="space-y-2">
-                        {(data as any[]).map(([name, val, areaRai]: any, i: number) => (
-                          <li key={name} className="flex items-center gap-3">
-                            <span className="text-[10px] font-mono text-slate-600 w-4 shrink-0">{i + 1}</span>
-                            <span className="flex-1 text-[12px] text-slate-300 truncate">{name}</span>
-                            <span className={`text-[11px] font-mono font-bold ${color}`}>
-                              {val != null ? `${(val * 100).toFixed(2)}%` : "–"}
-                            </span>
-                            {areaRai != null && (
-                              <span className="text-[10px] text-slate-600 font-mono w-20 text-right shrink-0">
-                                {Number(areaRai).toLocaleString()} ไร่
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ol>
+                {/* ── Bottom: Top5 / Bot5 / Quartile ─────────────────── */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 divide-x divide-slate-800/60 border-t border-slate-800/60">
+
+                  {/* Top 5 wet */}
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">น้ำมากที่สุด 5 เขต</h4>
                     </div>
-                  ))}
+                    <ol className="space-y-1.5">
+                      {statsBarData.slice(0, 5).map((row: any, i: number) => (
+                        <li key={row.name + i} className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono text-slate-700 w-4 shrink-0">{i + 1}</span>
+                          <span className="flex-1 text-[12px] text-slate-300 truncate">{row.name}</span>
+                          <span className="font-mono text-[11px] font-bold text-sky-400">{row.water_ratio_pct?.toFixed(2)}%</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  {/* Bot 5 wet (driest) */}
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingDown className="w-3.5 h-3.5 text-slate-400" />
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">น้ำน้อยที่สุด 5 เขต</h4>
+                    </div>
+                    <ol className="space-y-1.5">
+                      {[...statsBarData].reverse().slice(0, 5).map((row: any, i: number) => (
+                        <li key={row.name + i} className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono text-slate-700 w-4 shrink-0">{i + 1}</span>
+                          <span className="flex-1 text-[12px] text-slate-300 truncate">{row.name}</span>
+                          <span className="font-mono text-[11px] font-bold text-slate-400">{row.water_ratio_pct?.toFixed(2)}%</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  {/* Quartile stats */}
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ActivityIcon className="w-3.5 h-3.5 text-slate-500" />
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">สถิติสรุป</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {statsComputed && [
+                        ["Q1 (25%)", `${(statsComputed.q1 * 100).toFixed(2)}%`],
+                        ["Q2 Median", `${(statsComputed.median * 100).toFixed(2)}%`],
+                        ["Q3 (75%)", `${(statsComputed.q3 * 100).toFixed(2)}%`],
+                        ["IQR (Q3-Q1)", `${((statsComputed.q3 - statsComputed.q1) * 100).toFixed(2)}pp`],
+                        ["Std Dev (σ)", `${(statsComputed.stdDev * 100).toFixed(2)}pp`],
+                        ["N เขต", String(statsComputed.n)],
+                      ].map(([label, val]) => (
+                        <div key={label} className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-600">{label}</span>
+                          <span className="font-mono font-bold text-slate-300">{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-slate-800/60 text-[9px] text-slate-700">
+                      ที่มา: {summary?.dataSource ?? "Sentinel-2 R2 Cache"} · ปี {selectedYear}
+                    </div>
+                  </div>
+
                 </div>
               </div>
             )}
@@ -827,7 +1010,11 @@ export default function FloodRiskPage() {
                 water_ratio: props.water_ratio ?? null,
                 water_area_rai: props.water_area_rai ?? null,
                 ndwi_mean: props.ndwi_mean ?? null,
+                ndwi_max: props.ndwi_max ?? null,
+                mndwi_mean: props.mndwi_mean ?? null,
+                district_area_rai: props.district_area_rai ?? null,
                 delta: props.delta ?? null,
+                compare_water_ratio: props.compare_water_ratio ?? null,
               })}
               csvFilename={csvFilename}
               filterDistrict={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}

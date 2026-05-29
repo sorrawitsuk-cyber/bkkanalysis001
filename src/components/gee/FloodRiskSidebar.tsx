@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Activity, Droplets, MapPin } from "lucide-react";
 import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
 import SidebarFooter from "@/components/gee/SidebarFooter";
+import DataSourceBadge from "@/components/ui/DataSourceBadge";
 
 interface FloodRiskSidebarProps {
   onDistrictSelect: (district: string) => void;
@@ -158,38 +159,42 @@ export default function FloodRiskSidebar({
       </div>
 
       <div className="p-5 flex-1 flex flex-col gap-6">
-        {/* KPI Cards */}
+        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
+
+        {/* KPI Cards — 2×3 grid */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่น้ำรวม
+          {/* Row 1 */}
+          <div className="col-span-3 min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่น้ำรวม (กทม.)
             </div>
-            <div className="text-sm font-bold font-mono text-slate-100 leading-tight">
+            <div className="text-base font-bold font-mono text-slate-100">
               {formatRai(summary.totalWaterAreaRai)}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Droplets className="w-3 h-3 text-cyan-400 shrink-0" /> ค่าเฉลี่ย
-            </div>
-            <div className="text-base font-bold font-mono text-sky-400">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 leading-tight">ค่าเฉลี่ย</div>
+            <div className="text-sm font-bold font-mono text-sky-400">
               {formatIndex(summary.avgDisplayValue ?? summary.avgWaterRatio)}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
-            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Activity className="w-3 h-3 text-indigo-400 shrink-0" />
-              {compareMode ? "เปลี่ยนแปลง" : "ค่าสูงสุด"}
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 leading-tight">ค่าสูงสุด</div>
+            <div className="text-sm font-bold font-mono text-sky-300 truncate">
+              {compareMode && summary.avgDelta !== null
+                ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(1)}%`
+                : formatIndex(rankingRows[0]?.displayValue ?? rankingRows[0]?.waterRatio)}
             </div>
-            {compareMode ? (
-              <div className={`text-base font-bold font-mono ${(summary.avgDelta ?? 0) >= 0 ? "text-sky-400" : "text-amber-400"}`}>
-                {summary.avgDelta !== null ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(1)}%` : "–"}
-              </div>
-            ) : (
-              <div className="text-base font-bold font-mono text-sky-300 truncate">
-                {formatIndex(rankingRows[0]?.displayValue ?? rankingRows[0]?.waterRatio)}
-              </div>
-            )}
+          </div>
+          <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
+            <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 leading-tight">
+              {compareMode ? "เปลี่ยนแปลง" : "ต่ำสุด"}
+            </div>
+            <div className="text-sm font-bold font-mono text-slate-400 truncate">
+              {compareMode
+                ? (summary.avgDelta !== null ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(2)}pp` : "–")
+                : formatIndex(rankingRows[rankingRows.length - 1]?.displayValue ?? rankingRows[rankingRows.length - 1]?.waterRatio)}
+            </div>
           </div>
         </div>
 
