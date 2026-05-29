@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Download, SlidersHorizontal, Calendar, Eye, EyeOff, Layers } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Download, SlidersHorizontal, Calendar, Eye, EyeOff, Layers, X } from "lucide-react";
 
 export type ColDef = {
   key: string;
@@ -31,6 +31,14 @@ interface DistrictDataTableProps {
   // District name for multi-year fetch (when filterDistrict is set, load all years)
   enableMultiYear?: boolean;
   accentColor?: string;
+  // Compare controls
+  compareMode?: boolean;
+  onCompareModeChange?: (v: boolean) => void;
+  compareYear?: number;
+  onCompareYearChange?: (y: number) => void;
+  // District selector
+  onDistrictChange?: (d: string) => void;
+  districts?: string[];
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -55,6 +63,12 @@ export default function DistrictDataTable({
   maxYear = 2026,
   enableMultiYear = false,
   accentColor = "cyan",
+  compareMode = false,
+  onCompareModeChange,
+  compareYear,
+  onCompareYearChange,
+  onDistrictChange,
+  districts = [],
 }: DistrictDataTableProps) {
   const [search, setSearch]           = useState("");
   const [sortKey, setSortKey]         = useState<string>(columns[1]?.key ?? columns[0]?.key);
@@ -327,6 +341,46 @@ export default function DistrictDataTable({
             </div>
           )}
         </div>
+
+        {/* District selector */}
+        {onDistrictChange && districts.length > 0 && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <select
+              value={filterDistrict ?? "ทั้งหมด"}
+              onChange={(e) => onDistrictChange(e.target.value)}
+              className="h-8 rounded-lg border border-slate-800 bg-slate-900/80 px-2 text-[11px] text-slate-300 focus:outline-none focus:border-slate-600"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            {filterDistrict && filterDistrict !== "ทั้งหมด" && (
+              <button onClick={() => onDistrictChange("ทั้งหมด")} className="h-7 w-7 rounded-lg border border-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-200 transition-colors">
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Compare toggle + baseline year */}
+        {onCompareModeChange && (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => onCompareModeChange(!compareMode)}
+              className={`h-8 px-3 rounded-lg border text-[11px] font-bold transition-colors ${compareMode ? "border-sky-700/60 bg-sky-950/40 text-sky-400" : "border-slate-700 bg-slate-900/60 text-slate-500 hover:text-slate-300"}`}
+            >
+              {compareMode ? "เทียบปีฐาน ON" : "เทียบปีฐาน"}
+            </button>
+            {compareMode && onCompareYearChange && compareYear != null && (
+              <>
+                <button onClick={() => onCompareYearChange(Math.max(minYear, compareYear - 1))} disabled={compareYear <= minYear}
+                  className="h-8 w-8 rounded border border-slate-700 text-slate-500 hover:text-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">‹</button>
+                <span className="text-[11px] font-bold font-mono text-sky-300 min-w-[3rem] text-center">{compareYear}</span>
+                <button onClick={() => onCompareYearChange(Math.min((year ?? maxYear) - 1, compareYear + 1))} disabled={compareYear >= (year ?? maxYear) - 1}
+                  className="h-8 w-8 rounded border border-slate-700 text-slate-500 hover:text-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">›</button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Export CSV */}
         <button

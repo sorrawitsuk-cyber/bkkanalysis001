@@ -397,6 +397,12 @@ export default function HeatIslandPage() {
               maxYear={2026}
               enableMultiYear
               accentColor="orange"
+              compareMode={compareMode}
+              onCompareModeChange={setCompareMode}
+              compareYear={compareYear}
+              onCompareYearChange={setCompareYear}
+              onDistrictChange={setActiveDistrict}
+              districts={allDistricts}
             />
           )}
         </div>

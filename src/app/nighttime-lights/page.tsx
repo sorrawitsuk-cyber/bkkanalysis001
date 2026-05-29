@@ -894,6 +894,12 @@ export default function NighttimeLightsPage() {
               year={selectedYear} onYearChange={setSelectedYear}
               minYear={2014} maxYear={2026}
               enableMultiYear accentColor="orange"
+              compareMode={compareMode}
+              onCompareModeChange={setCompareMode}
+              compareYear={compareYear}
+              onCompareYearChange={setCompareYear}
+              onDistrictChange={setActiveDistrict}
+              districts={allDistricts}
             />
           </div>
         )}

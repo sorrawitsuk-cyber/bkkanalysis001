@@ -318,6 +318,12 @@ export default function AirQualityPage() {
               year={selectedYear} onYearChange={setSelectedYear}
               minYear={2019} maxYear={LATEST_YEAR}
               enableMultiYear accentColor="cyan"
+              compareMode={compareMode}
+              onCompareModeChange={setCompareMode}
+              compareYear={compareYear}
+              onCompareYearChange={setCompareYear}
+              onDistrictChange={setActiveDistrict}
+              districts={allDistricts}
             />
           )}
         </div>
