@@ -56,9 +56,10 @@ function computeCompositeScore(m: any): number | null {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const districtId = parseInt(params.id, 10);
+  const { id } = await params;
+  const districtId = parseInt(id, 10);
   if (isNaN(districtId) || districtId < 1) {
     return NextResponse.json({ error: "district id ไม่ถูกต้อง" }, { status: 400 });
   }
