@@ -6,6 +6,7 @@ import { Activity, Calendar, Leaf, MapPin, Trees } from "lucide-react";
 import NdviInsightsPanel from "@/components/gee/NdviInsightsPanel";
 import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
 import SidebarFooter from "@/components/gee/SidebarFooter";
+import DataSourceBadge from "@/components/ui/DataSourceBadge";
 
 type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
 
@@ -158,6 +159,7 @@ export default function GreenSpaceSidebar({
             <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Bangkok Green Space Area</p>
           </div>
         </div>
+        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <MapPin className="w-3 h-3" /> พื้นที่ (District)

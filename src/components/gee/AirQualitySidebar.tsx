@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Activity, Calendar, Layers, MapPin, Wind } from "lucide-react";
 import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
 import SidebarFooter from "@/components/gee/SidebarFooter";
+import DataSourceBadge from "@/components/ui/DataSourceBadge";
 
 type AirLayer = "no2_mean" | "co_mean" | "so2_mean" | "aerosol_index_mean" | "pollution_score";
 
@@ -103,6 +104,7 @@ export default function AirQualitySidebar({
             <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Sentinel-5P TROPOMI</p>
           </div>
         </div>
+        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <MapPin className="w-3 h-3" /> พื้นที่ (District)

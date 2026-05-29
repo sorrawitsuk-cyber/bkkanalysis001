@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { ThermometerSun, MapPin, Calendar, Activity, Trees } from "lucide-react";
 import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
 import SidebarFooter from "@/components/gee/SidebarFooter";
+import DataSourceBadge from "@/components/ui/DataSourceBadge";
 
 interface LSTSidebarProps {
   onDistrictSelect: (district: string) => void;
@@ -80,13 +81,14 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
           แสดงอุณหภูมิของพื้นผิวเมือง เช่น ถนน อาคาร หลังคา พื้นดิน พื้นที่สีเขียว และแหล่งน้ำ จากข้อมูลดาวเทียม เพื่อใช้วิเคราะห์พื้นที่สะสมความร้อนในกรุงเทพมหานคร
         </p>
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {["Satellite-derived LST", "ไม่ใช่อุณหภูมิอากาศ", "ใช้วิเคราะห์เชิงพื้นที่"].map((badge) => (
             <span key={badge} className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[9px] font-bold text-orange-200">
               {badge}
             </span>
           ))}
         </div>
+        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
 
         {/* District Filter */}
         <div>

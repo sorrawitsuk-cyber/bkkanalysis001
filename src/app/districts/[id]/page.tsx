@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Leaf, Target } from "lucide-react";
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Line, LineChart, RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   calculatePriorityScore,
   formatPercent,
@@ -23,6 +23,7 @@ export default function DistrictDetailPage() {
   const [rows, setRows] = useState<DistrictStatistic[]>([]);
   const [rankInfo, setRankInfo] = useState<{ ndviRank?: number; priorityRank?: number; total?: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState<any>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -33,6 +34,16 @@ export default function DistrictDetailPage() {
   }, [params.id]);
 
   const latest = useMemo(() => [...rows].sort((a, b) => b.year - a.year)[0], [rows]);
+
+  // Fetch district profile (composite score + multi-metric) when district name is known
+  useEffect(() => {
+    if (!latest?.district_name && !latest?.name_th) return;
+    const name = latest.district_name || latest.name_th || "";
+    fetch(`/api/district-profile?district=${encodeURIComponent(name)}`)
+      .then((res) => res.json())
+      .then((data) => { if (!data.error) setProfileData(data); })
+      .catch(() => {});
+  }, [latest?.district_name, latest?.name_th]);
   const ndviMean = resolveNdviMean(latest);
   const ndviScore = latest?.ndvi_score ?? normalizeNdviScore(ndviMean);
   const ndviClass = latest?.ndvi_class || getNdviClass(ndviMean);
@@ -74,6 +85,54 @@ export default function DistrictDetailPage() {
         {loading ? (
           <div className="text-slate-400">กำลังโหลดข้อมูล...</div>
         ) : (
+          <>
+          {/* Composite Score Summary */}
+          {profileData?.compositeScores && (() => {
+            const latestYr = Math.max(...Object.keys(profileData.compositeScores).map(Number));
+            const score = profileData.compositeScores[latestYr];
+            const radarData = [
+              { subject: "NDVI", value: Math.min(100, ((profileData.metrics?.[latestYr]?.ndvi_mean ?? 0) / 0.5) * 100) },
+              { subject: "ความเย็น", value: Math.max(0, 100 - (((profileData.metrics?.[latestYr]?.mean_lst ?? 35) - 28) / 20) * 100) },
+              { subject: "อากาศ", value: Math.max(0, 100 - ((profileData.metrics?.[latestYr]?.no2_mean ?? 0) / 0.0003) * 100) },
+              { subject: "สีเขียว", value: Math.min(100, (profileData.metrics?.[latestYr]?.green_area_ratio ?? 0) * 400) },
+              { subject: "กลางคืน", value: Math.max(0, 100 - Math.abs((profileData.metrics?.[latestYr]?.ntl_mean ?? 30) - 30) / 30 * 50) },
+            ].map(d => ({ ...d, value: Math.round(d.value) }));
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="w-4 h-4 text-sky-400" />
+                    <h2 className="text-sm font-bold">คะแนนสุขภาพเมือง {latestYr}</h2>
+                  </div>
+                  <div className="text-5xl font-black text-center mb-2 text-sky-300">{score?.toFixed(1) ?? "–"}</div>
+                  <div className="text-xs text-slate-400 text-center mb-4">/ 100 (NDVI 30% · LST 25% · อากาศ 20% · NTL 15% · พื้นที่เขียว 10%)</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="#334155" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                      <Radar dataKey="value" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.3} />
+                      <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Leaf className="w-4 h-4 text-sky-400" />
+                    <h2 className="text-sm font-bold">คะแนนสุขภาพเมืองรายปี</h2>
+                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={Object.keys(profileData.compositeScores).sort().map(yr => ({ year: Number(yr), score: profileData.compositeScores[Number(yr)] }))}>
+                      <XAxis dataKey="year" stroke="#64748b" />
+                      <YAxis stroke="#64748b" domain={[0, 100]} />
+                      <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", color: "#f8fafc" }} />
+                      <Line type="monotone" dataKey="score" stroke="#38bdf8" strokeWidth={2} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <section className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-lg p-5">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -132,6 +191,7 @@ export default function DistrictDetailPage() {
               </div>
             </aside>
           </div>
+          </>
         )}
       </div>
     </main>

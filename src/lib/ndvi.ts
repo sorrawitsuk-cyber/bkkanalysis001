@@ -1,20 +1,20 @@
 import type { DistrictStatistic, NdviClass } from "@/types/district";
 
 const NDVI_CLASS_THAI: Record<NdviClass, string> = {
-  "Very Low": "เขียวน้อยมาก",
-  Low: "เขียวน้อย",
-  Moderate: "ปานกลาง",
-  Good: "ดี",
-  "Very Good": "ดีมาก",
+  "Very Low": "พื้นผิวแข็ง/ไม่มีพืช",
+  Low: "พืชพรรณเบาบาง",
+  "Urban Green": "สีเขียวในเมือง",
+  Park: "สวน/ต้นไม้หนาแน่น",
+  Forest: "ป่า/พืชพรรณหนาแน่น",
   Unknown: "ไม่มีข้อมูล",
 };
 
 const NDVI_CLASS_COLORS: Record<NdviClass, string> = {
   "Very Low": "#8c2d04",
   Low: "#d94801",
-  Moderate: "#f6e05e",
-  Good: "#68d391",
-  "Very Good": "#238b45",
+  "Urban Green": "#f6e05e",
+  Park: "#68d391",
+  Forest: "#238b45",
   Unknown: "#9ca3af",
 };
 
@@ -43,11 +43,17 @@ export function resolveNdviMean(stat: Partial<DistrictStatistic> | null | undefi
 export function getNdviClass(ndviMean: number | null | undefined): NdviClass {
   const ndvi = toNumber(ndviMean);
   if (ndvi === null) return "Unknown";
-  if (ndvi < 0.15) return "Very Low";
-  if (ndvi < 0.25) return "Low";
-  if (ndvi < 0.35) return "Moderate";
-  if (ndvi < 0.50) return "Good";
-  return "Very Good";
+  if (ndvi < 0.10) return "Very Low";
+  if (ndvi < 0.20) return "Low";
+  if (ndvi < 0.35) return "Urban Green";
+  if (ndvi < 0.50) return "Park";
+  return "Forest";
+}
+
+// Whether NDVI qualifies as meaningful urban green (≥ 0.20, per literature)
+export function isUrbanGreen(ndviMean: number | null | undefined): boolean {
+  const ndvi = toNumber(ndviMean);
+  return ndvi !== null && ndvi >= 0.20;
 }
 
 export function getNdviClassThai(className: NdviClass | string | null | undefined): string {
@@ -90,9 +96,11 @@ export function getNdviRecommendation(stat: DistrictStatistic): string[] {
     return ["ยังไม่มีข้อมูล NDVI เพียงพอ ควรตรวจสอบ pipeline และข้อมูลดาวเทียมของเขตนี้"];
   }
 
-  if (ndviMean < 0.25) {
-    recommendations.push("ควรพิจารณาเพิ่มพื้นที่สีเขียวขนาดเล็ก เช่น pocket park หรือสวนหย่อมชุมชน");
+  if (ndviMean < 0.20) {
+    recommendations.push("พืชพรรณน้อยกว่าเกณฑ์ urban green (NDVI < 0.20) — ควรพิจารณาเพิ่ม pocket park หรือสวนหย่อมชุมชน");
     recommendations.push("ควรเพิ่มแนวต้นไม้ริมถนนและพื้นที่ร่มเงาในจุดเมืองหนาแน่น");
+  } else if (ndviMean < 0.35) {
+    recommendations.push("พื้นที่อยู่ในระดับ Urban Green — ควรเพิ่มพื้นที่สีเขียวให้ถึงระดับ Park (NDVI ≥ 0.35)");
   }
 
   if ((stat.green_area_ratio ?? 1) < 0.15) {
@@ -115,7 +123,8 @@ export function getNdviRecommendation(stat: DistrictStatistic): string[] {
 export function getPriorityReasons(stat: DistrictStatistic): string[] {
   const reasons: string[] = [];
   const ndviMean = resolveNdviMean(stat);
-  if (ndviMean !== null && ndviMean < 0.25) reasons.push("NDVI ต่ำ");
+  if (ndviMean !== null && ndviMean < 0.20) reasons.push("NDVI ต่ำกว่าเกณฑ์ urban green");
+  else if (ndviMean !== null && ndviMean < 0.35) reasons.push("NDVI อยู่ระดับ urban green เท่านั้น");
   if ((stat.green_area_ratio ?? 1) < 0.15 || (stat.low_green_ratio ?? 0) > 0.5) reasons.push("พื้นที่สีเขียวน้อย");
   if ((stat.ntl_mean ?? 0) > 35) reasons.push("ความเข้มข้นกิจกรรมเมืองสูง");
   return reasons.length ? reasons : ["ควรติดตามต่อเนื่อง"];

@@ -43,6 +43,12 @@ export interface PDFReportData {
   kpis: { label: string; value: string }[];
   rankingHeaders: string[];
   rankingRows: (string | number | null)[][];
+  /** Optional: data vintage description (e.g. "Supabase district_statistics" or "local fallback") */
+  dataVintage?: string;
+  /** Optional: data generation timestamp (ISO string) */
+  generatedAt?: string;
+  /** Optional: spatial resolution description */
+  resolution?: string;
 }
 
 /** Opens a new window with a formatted A4 report and triggers print dialog */
@@ -120,6 +126,8 @@ export function printReport(data: PDFReportData) {
     <span class="badge">${esc(data.source)}</span>
     <span class="badge">ช่วงเวลา: ${esc(data.period)}</span>
     <span class="badge">พื้นที่: ${esc(data.district)}</span>
+    ${data.resolution ? `<span class="badge">ความละเอียด: ${esc(data.resolution)}</span>` : ""}
+    ${data.dataVintage ? `<span class="badge" style="background:#fef3c7;color:#92400e">${esc(data.dataVintage)}</span>` : ""}
   </div>
   <div class="kpi-row">${kpiHTML}</div>
   <h2>อันดับรายเขต</h2>
@@ -129,7 +137,7 @@ export function printReport(data: PDFReportData) {
   </table>
   <div class="footer">
     <span>Bangkok Urban Analytics Hub · bkkanalysis.vercel.app</span>
-    <span>ข้อมูล: ${esc(data.source)}</span>
+    <span>ข้อมูล: ${esc(data.source)} · ดึงข้อมูล: ${data.generatedAt ? new Date(data.generatedAt).toLocaleString("th-TH") : new Date().toLocaleString("th-TH")}${data.dataVintage ? ` · แหล่ง: ${esc(data.dataVintage)}` : ""}</span>
   </div>
 </body>
 </html>`;

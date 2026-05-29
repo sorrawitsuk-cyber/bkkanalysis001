@@ -84,6 +84,7 @@ function valueFor(row: any, metric: DistrictMetric): number | null {
 
 function toVegetationFallbackRow(row: any): DistrictStatistic {
   const ndviMean = typeof row.vegetation_index === "number" ? row.vegetation_index : null;
+  // Urban green threshold 0.20 (Zhu et al. 2023): fraction of pixels with NDVI ≥ 0.20
   const greenAreaRatio = ndviMean === null ? null : Math.max(0.03, Math.min(0.65, ndviMean - 0.08));
   const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 19600; // ~BKK avg if unknown
   return {

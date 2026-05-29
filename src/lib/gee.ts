@@ -4,12 +4,20 @@ const { google } = require('googleapis');
 
 const GEE_SCOPE = 'https://www.googleapis.com/auth/earthengine';
 
-function getAccessToken(email: string, key: string): Promise<string> {
+function getAccessToken(email: string, key: string, retries = 2): Promise<string> {
   return new Promise((resolve, reject) => {
     const jwtAuth = new google.auth.JWT(email, null, key, [GEE_SCOPE]);
     jwtAuth.getAccessToken((err: any, token: string | null) => {
-      if (err || !token) reject(err ?? new Error('No token returned'));
-      else resolve(token);
+      if (err || !token) {
+        if (retries > 0) {
+          // Short delay before retry to handle transient Google OAuth failures
+          setTimeout(() => getAccessToken(email, key, retries - 1).then(resolve).catch(reject), 500);
+        } else {
+          reject(new Error(`GEE auth failed after retries: ${err?.message ?? 'No token returned'}`));
+        }
+      } else {
+        resolve(token);
+      }
     });
   });
 }
@@ -38,7 +46,10 @@ export const initGEE = async (): Promise<void> => {
   (ee.apiclient as any).setAuthTokenRefresher((_args: any, cb: any) => {
     getAccessToken(clientEmail, privateKey)
       .then((t) => cb({ token_type: 'Bearer', access_token: t, expires_in: 3500 }))
-      .catch(() => cb(null));
+      .catch((e) => {
+        console.error('❌ GEE token refresh failed:', e?.message);
+        cb(null); // GEE SDK will surface the error on the next API call
+      });
   });
 
   await new Promise<void>((resolve, reject) => {

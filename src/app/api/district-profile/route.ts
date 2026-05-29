@@ -51,14 +51,14 @@ export async function GET(request: Request) {
         supabase
           .from("district_statistics")
           .select(
-            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, ndwi_mean, ntl_mean, ntl_max"
+            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, water_area_rai, ndwi_mean, ntl_mean, ntl_max"
           )
           .eq("district_id", districtId)
           .order("year", { ascending: true }),
         supabase
           .from("district_statistics")
           .select(
-            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, ndwi_mean, ntl_mean, ntl_max"
+            "year, mean_lst, max_lst, ndvi_mean, green_area_rai, green_area_ratio, ndbi_mean, no2_mean, co_mean, so2_mean, pollution_score, water_ratio, water_area_rai, ndwi_mean, ntl_mean, ntl_max"
           )
           .order("year", { ascending: true }),
       ]);
@@ -102,6 +102,9 @@ export async function GET(request: Request) {
           ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai)
           : null;
       const waterRatio = row.water_ratio ?? null;
+      // Prefer DB water_area_rai; fall back to exact computation using district's actual area
+      const waterAreaRai = row.water_area_rai ??
+        (waterRatio !== null && areaRai > 0 ? Math.round(waterRatio * areaRai) : null);
       metrics[row.year] = {
         mean_lst: row.mean_lst ?? null,
         max_lst: row.max_lst ?? null,
@@ -115,7 +118,7 @@ export async function GET(request: Request) {
         so2_mean: row.so2_mean ?? null,
         pollution_score: row.pollution_score ?? null,
         water_ratio: waterRatio,
-        water_area_rai: waterRatio !== null && areaRai > 0 ? Math.round(waterRatio * areaRai) : null,
+        water_area_rai: waterAreaRai,
         ndwi_mean: row.ndwi_mean ?? null,
         ntl_mean: row.ntl_mean ?? null,
         ntl_max: row.ntl_max ?? null,
@@ -137,8 +140,38 @@ export async function GET(request: Request) {
 
     const years = Object.keys(metrics).map(Number).sort();
 
+    // Composite score per year (0–100, higher = better urban health):
+    // NDVI 30%, LST inverse 25%, air quality inverse 20%, nightlights 15%, green area 10%
+    const compositeScores: Record<number, number | null> = {};
+    for (const yr of years) {
+      const m = metrics[yr];
+      const bkk = bkkAverages[yr];
+      if (!m || !bkk) { compositeScores[yr] = null; continue; }
+
+      const ndviScore   = m.ndvi_mean   !== null ? Math.min(100, (m.ndvi_mean / 0.5) * 100) : null;
+      const lstScore    = m.mean_lst    !== null ? Math.max(0, 100 - ((m.mean_lst - 28) / 20) * 100) : null;
+      const airScore    = m.no2_mean    !== null ? Math.max(0, 100 - (m.no2_mean / 0.0003) * 100) : null;
+      const ntlScore    = m.ntl_mean    !== null
+        // Inverse of NTL: very high light = poor "dark sky" score, but moderate = urban vitality
+        // Use a balanced sigmoid approach: 30 nW is neutral
+        ? Math.max(0, 100 - Math.abs(m.ntl_mean - 30) / 30 * 50) : null;
+      const greenScore  = m.green_area_ratio !== null ? Math.min(100, m.green_area_ratio * 400) : null;
+
+      const weights: [number | null, number][] = [
+        [ndviScore,  0.30],
+        [lstScore,   0.25],
+        [airScore,   0.20],
+        [ntlScore,   0.15],
+        [greenScore, 0.10],
+      ];
+      const totalWeight = weights.filter(([v]) => v !== null).reduce((s, [, w]) => s + w, 0);
+      if (totalWeight < 0.3) { compositeScores[yr] = null; continue; }
+      const weighted = weights.filter(([v]) => v !== null).reduce((s, [v, w]) => s + (v as number) * w, 0);
+      compositeScores[yr] = Math.round((weighted / totalWeight) * 10) / 10;
+    }
+
     return NextResponse.json(
-      { district: districtName, areaRai, years, metrics, bkkAverages },
+      { district: districtName, areaRai, years, metrics, bkkAverages, compositeScores },
       { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=1800" } }
     );
   } catch (err: any) {

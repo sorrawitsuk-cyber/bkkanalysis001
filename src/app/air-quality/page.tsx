@@ -140,17 +140,20 @@ export default function AirQualityPage() {
   const reportData = useMemo((): PDFReportData => ({
     title: "มลพิษอากาศจากดาวเทียม",
     subtitle: "Sentinel-5P TROPOMI",
-    source: "Sentinel-5P",
+    source: "Sentinel-5P TROPOMI (OFFL L3)",
     period: latestLabel,
     layer: `${layerMeta.label} (${layerMeta.labelTh})`,
     district: activeDistrict,
+    resolution: "1,000 m (ตีความระดับเขตด้วยความระมัดระวัง)",
+    dataVintage: summary?.dataSource ?? undefined,
+    generatedAt: new Date().toISOString(),
     kpis: [
       { label: `${layerMeta.label} เฉลี่ย`, value: avgValue !== null ? `${formatMetric(avgValue, airLayer)} ${layerMeta.unit}` : "–" },
       { label: "เขตสูงสุด", value: topDistrict ?? "–" },
     ],
     rankingHeaders: ["เขต", `${layerMeta.label} (${layerMeta.unit})`],
     rankingRows: rankingRows.map(([d, v]) => [d, v != null ? +Number(v).toFixed(6) : null]),
-  }), [latestLabel, layerMeta, activeDistrict, avgValue, airLayer, topDistrict, rankingRows]);
+  }), [latestLabel, layerMeta, activeDistrict, avgValue, airLayer, topDistrict, rankingRows, summary?.dataSource]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-50">

@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { Activity, Building2, Calendar, MapPin, Moon } from "lucide-react";
 import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
 import SidebarFooter from "@/components/gee/SidebarFooter";
+import DataSourceBadge from "@/components/ui/DataSourceBadge";
 
 interface NightLightsSidebarProps {
   onDistrictSelect: (district: string) => void;
@@ -96,7 +97,7 @@ export default function NightLightsSidebar({
         <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
           วิเคราะห์ค่า radiance เฉลี่ยรายปีจากแสงกลางคืน เพื่อดูศูนย์กลางกิจกรรมเมือง พื้นที่พาณิชยกรรม และการเปลี่ยนแปลงความเข้มเมืองรายเขต
         </p>
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {[
             "VIIRS DNB",
             isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
@@ -108,6 +109,7 @@ export default function NightLightsSidebar({
             </span>
           ))}
         </div>
+        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <MapPin className="w-3 h-3" /> พื้นที่ (District)

@@ -28,6 +28,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing coordinates' }, { status: 400 });
   }
 
+  // Sentinel-5P TROPOMI available from 2018 only
+  const S5P_MIN_YEAR = 2018;
+  if (metric === 'air_pollution' && year < S5P_MIN_YEAR) {
+    return NextResponse.json(
+      { error: `Sentinel-5P TROPOMI ไม่มีข้อมูลก่อนปี ${S5P_MIN_YEAR}` },
+      { status: 400 }
+    );
+  }
+
   try {
     await initGEE();
 
@@ -102,10 +111,31 @@ export async function GET(request: Request) {
         .filterDate(startDate, endDate)
         .filter(ee.Filter.lt('CLOUD_COVER', 20));
 
-      const image = collection.median();
-      const kelvin = image.select('ST_B10').multiply(0.00341802).add(149.0);
-      const celsius = kelvin.subtract(273.15);
-      return celsius.rename('LST');
+      const landsatImg = collection.median();
+      const bt = landsatImg.select('ST_B10').multiply(0.00341802).add(149.0); // Kelvin
+
+      // NDVI-based emissivity (Sobrino et al. 2004) at 30m to match Landsat
+      const ndviForEmis = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(point)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((img: any) => {
+          const nir = img.select('B8').divide(10000);
+          const red = img.select('B4').divide(10000);
+          return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+        })
+        .median()
+        .reproject({ crs: 'EPSG:4326', scale: 30 });
+
+      const pv = ndviForEmis.subtract(0.2).divide(0.3).clamp(0, 1).pow(2);
+      const emissivity = pv.multiply(0.004).add(0.986);
+      const lambda = 10.895;
+      const rho = 14380;
+      const lstK = bt.divide(
+        ee.Image(1).add(bt.multiply(lambda / rho).multiply(emissivity.log()))
+      );
+      return lstK.subtract(273.15).rename('LST');
     };
 
     const getNightLightsImage = (targetYear: number) => {
@@ -221,7 +251,7 @@ export async function GET(request: Request) {
 
     const value = metric === 'vegetation' ? result.NDVI : metric === 'builtup' ? result.NDBI : metric === 'nightlights' ? result.NTL : metric === 'air_pollution' ? result.AIR : result.LST;
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' || metric === 'nightlights' ? 3 : metric === 'air_pollution' ? 6 : 2)) : null,
       metric,
       lat,
@@ -229,6 +259,8 @@ export async function GET(request: Request) {
       year,
       baselineYear: isCompare ? baselineYear : null,
       compare: isCompare,
+      sceneCount: imageCount,
+      lowSceneWarning: imageCount < 5,
       dataSource: metric === 'vegetation'
         ? 'Sentinel-2 SR Harmonized yearly median NDVI'
         : metric === 'builtup'
@@ -236,8 +268,8 @@ export async function GET(request: Request) {
           : metric === 'nightlights'
             ? nightLightsProduct === 'monthly' ? 'VIIRS DNB monthly avg_rad preview' : 'VIIRS DNB Annual V2.2 average_masked'
             : metric === 'air_pollution'
-              ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()}`
-            : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+              ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()} (ความละเอียด 1,000m — ตีความระดับเขตด้วยความระมัดระวัง)`
+            : 'Landsat 8/9 C2 L2 yearly median LST (emissivity-corrected)',
       resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30
     });
 

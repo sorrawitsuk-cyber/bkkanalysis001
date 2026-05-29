@@ -1,9 +1,15 @@
+// Urban-context NDVI classes (Zhu et al. 2023 adapted thresholds):
+// Very Low  < 0.10 — bare/impervious
+// Low       0.10–0.20 — sparse urban green
+// Urban     0.20–0.35 — urban canopy / mixed vegetation
+// Park      0.35–0.50 — park / dense urban tree cover
+// Forest    ≥ 0.50 — dense forest / water-adjacent vegetation
 export type NdviClass =
   | "Very Low"
   | "Low"
-  | "Moderate"
-  | "Good"
-  | "Very Good"
+  | "Urban Green"
+  | "Park"
+  | "Forest"
   | "Unknown";
 
 export interface DistrictStatistic {

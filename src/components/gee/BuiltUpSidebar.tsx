@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { Building2, MapPin, Calendar, Activity, Trees, ShieldAlert } from "lucide-react";
 import SidebarSkeleton from "@/components/gee/SidebarSkeleton";
 import SidebarFooter from "@/components/gee/SidebarFooter";
+import DataSourceBadge from "@/components/ui/DataSourceBadge";
 
 interface BuiltUpSidebarProps {
   onDistrictSelect: (district: string) => void;
@@ -88,13 +89,14 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
         <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
           แสดงความหนาแน่นของสิ่งปลูกสร้าง อาคาร และคอนกรีต จากข้อมูลดาวเทียม Sentinel-2 (ความละเอียด 10 เมตร) เพื่อวิเคราะห์การขยายตัวของเมือง
         </p>
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div className="mb-3 flex flex-wrap gap-1.5">
           {["Sentinel-2 10m", "Urban Expansion", "NDBI Index"].map((badge) => (
             <span key={badge} className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-[9px] font-bold text-indigo-200">
               {badge}
             </span>
           ))}
         </div>
+        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
 
         {/* District Filter */}
         <div>

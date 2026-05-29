@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server';
 import ee, { initGEE } from '@/lib/gee';
 import bkkBoundaryData from '@/data/bkk_districts.json';
 
+// In-process tile cache: keyed by canonical param string, TTL 55 min (GEE tokens expire in ~60 min)
+interface TileCacheEntry { payload: Record<string, unknown>; expiresAt: number; }
+const TILE_CACHE = new Map<string, TileCacheEntry>();
+const TILE_TTL_MS = 55 * 60 * 1000;
+
+function makeCacheKey(params: Record<string, string | number | boolean>): string {
+  return Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join('&');
+}
+
+function pruneExpiredEntries() {
+  const now = Date.now();
+  for (const [key, entry] of TILE_CACHE) {
+    if (entry.expiresAt < now) TILE_CACHE.delete(key);
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   
@@ -19,6 +35,28 @@ export async function GET(request: Request) {
   const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
   const nightLightsMonth = Math.max(1, Math.min(3, parseInt(searchParams.get('month') || '3', 10)));
 
+  // Sentinel-5P TROPOMI launched April 2018; data quality acceptable from July 2018 onward
+  const S5P_MIN_YEAR = 2018;
+  if (metric === 'air_pollution' && year < S5P_MIN_YEAR) {
+    return NextResponse.json(
+      { error: `Sentinel-5P TROPOMI ไม่มีข้อมูลก่อนปี ${S5P_MIN_YEAR} (เปิดตัว เมษายน 2018)` },
+      { status: 400 }
+    );
+  }
+
+  // Cache lookup — skip cache for current year (data changes daily)
+  const currentYear = new Date().getFullYear();
+  const cacheKey = makeCacheKey({ year, baselineYear, isCompare: String(isCompare), metric, pollutant, nightLightsProduct, nightLightsMonth });
+  pruneExpiredEntries();
+  if (year < currentYear) {
+    const cached = TILE_CACHE.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return NextResponse.json(cached.payload, {
+        headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800', 'X-Cache': 'HIT' }
+      });
+    }
+  }
+
   try {
     await initGEE();
 
@@ -27,7 +65,7 @@ export async function GET(request: Request) {
 
     const today = new Date().toISOString().split('T')[0];
     const todayMMDD = today.slice(5); // "MM-DD"
-    const currentYear = new Date().getFullYear();
+    // currentYear already declared above for cache logic
 
     // endMMDD lets compare mode cap both years to the same seasonal window
     const getDateRange = (y: number, endMMDD = '12-31') => ({
@@ -198,10 +236,36 @@ export async function GET(request: Request) {
           .clip(bkkBoundary);
       }
 
-      // ST_B10 is Surface Temperature band (Kelvin)
-      // Scale: 0.00341802, Offset: 149.0
-      const image = getLandsatImage(y, endMMDD);
-      return image.select('ST_B10').multiply(0.00341802).add(149.0).subtract(273.15);
+      // LST retrieval following Wan & Dozier (1996) emissivity correction:
+      // 1. Convert DN → Brightness Temperature (K)
+      // 2. Estimate emissivity from NDVI (Sobrino et al. 2004):
+      //    pv = ((NDVI - 0.2) / (0.5 - 0.2))²  (clamped 0–1)
+      //    ε = 0.004 * pv + 0.986
+      // 3. LST = BT / (1 + (λ*BT/ρ)*ln(ε)) where λ=10.895μm, ρ=14380 μm·K
+      const landsatImg = getLandsatImage(y, endMMDD);
+      const bt = landsatImg.select('ST_B10').multiply(0.00341802).add(149.0); // Kelvin
+
+      const ndviForEmis = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(bkkBoundary)
+        .filterDate(...Object.values(getDateRange(y, endMMDD)) as [string, string])
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((img: any) => {
+          const nir = img.select('B8').divide(10000);
+          const red = img.select('B4').divide(10000);
+          return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+        })
+        .median()
+        .reproject({ crs: 'EPSG:4326', scale: 30 });
+
+      const pv = ndviForEmis.subtract(0.2).divide(0.3).clamp(0, 1).pow(2);
+      const emissivity = pv.multiply(0.004).add(0.986);
+      const lambda = 10.895; // μm (Landsat 8/9 Band 10 central wavelength)
+      const rho = 14380;     // μm·K (h*c/σ)
+      const lstK = bt.divide(
+        ee.Image(1).add(bt.multiply(lambda / rho).multiply(emissivity.log()))
+      );
+      return lstK.subtract(273.15).rename('LST').clip(bkkBoundary);
     };
 
     let resultImage;
@@ -246,18 +310,47 @@ export async function GET(request: Request) {
               : { min: 25, max: 45, palette: ['#FFEDA0', '#FED976', '#FD8D3C', '#E31A1C', '#BD0026', '#800026'] };
     }
 
-    // Get Map ID from GEE
-    const mapIdData: any = await new Promise((resolve, reject) => {
-      resultImage.getMapId(visParams, (data: any, err: any) => {
-        if (err) reject(err);
-        else resolve(data);
-      });
-    });
+    // Scene count for the primary year collection (Sentinel-2 / Landsat)
+    const MIN_SCENE_COUNT = 5;
+    const getPrimaryCollection = () => {
+      const { startDate, endDate } = getDateRange(year, isCompare ? todayMMDD : '12-31');
+      if (metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi') {
+        return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+          .filterBounds(bkkBoundary)
+          .filterDate(startDate, endDate)
+          .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40));
+      }
+      if (metric === 'lst') {
+        const lc08 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2');
+        return (year >= 2022 ? lc08.merge(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')) : lc08)
+          .filterBounds(bkkBoundary)
+          .filterDate(startDate, endDate)
+          .filter(ee.Filter.lt('CLOUD_COVER', 20));
+      }
+      return null;
+    };
 
-    return NextResponse.json({
+    const primaryCol = getPrimaryCollection();
+    const [mapIdData, sceneCount]: [any, number] = await Promise.all([
+      new Promise((resolve, reject) => {
+        resultImage.getMapId(visParams, (data: any, err: any) => {
+          if (err) reject(err);
+          else resolve(data);
+        });
+      }),
+      primaryCol
+        ? new Promise<number>((resolve) => {
+            primaryCol.size().evaluate((val: number, err: any) => resolve(err || val == null ? -1 : val));
+          })
+        : Promise.resolve(-1),
+    ]);
+
+    const responsePayload: Record<string, unknown> = {
       urlFormat: mapIdData.urlFormat,
       mapid: mapIdData.mapid,
       token: mapIdData.token,
+      sceneCount,
+      lowSceneWarning: sceneCount >= 0 && sceneCount < MIN_SCENE_COUNT,
       dataSource: metric === 'vegetation'
         ? 'Sentinel-2 SR Harmonized yearly median NDVI'
         : metric === 'builtup'
@@ -267,21 +360,34 @@ export async function GET(request: Request) {
               ? 'VIIRS DNB monthly avg_rad preview'
               : 'VIIRS DNB Annual V2.2 average_masked'
             : metric === 'air_pollution'
-              ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()}`
+              ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()} (ความละเอียด 1,000m — ตีความระดับเขตด้วยความระมัดระวัง)`
             : metric === 'ndwi'
               ? 'Sentinel-2 SR Harmonized yearly median NDWI'
               : metric === 'mndwi'
                 ? 'Sentinel-2 SR Harmonized yearly median MNDWI'
-                : 'Landsat 8/9 Collection 2 Level 2 yearly median LST',
+                : 'Landsat 8/9 C2 L2 yearly median LST (emissivity-corrected)',
       resolutionMeters: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30,
-    }, {
+    };
+
+    // Store in cache for past years (current year excluded — data changes daily)
+    if (year < currentYear) {
+      TILE_CACHE.set(cacheKey, { payload: responsePayload, expiresAt: Date.now() + TILE_TTL_MS });
+    }
+
+    return NextResponse.json(responsePayload, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800'
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800',
+        'X-Cache': 'MISS',
       }
     });
 
   } catch (error: any) {
-    console.error('❌ GEE API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const msg: string = error?.message ?? String(error);
+    console.error('❌ GEE API Error:', msg);
+    const isAuthError = msg.includes('auth') || msg.includes('token') || msg.includes('credentials') || msg.includes('401') || msg.includes('403');
+    return NextResponse.json(
+      { error: isAuthError ? 'GEE authentication failed — check service account credentials' : msg },
+      { status: isAuthError ? 503 : 500 }
+    );
   }
 }

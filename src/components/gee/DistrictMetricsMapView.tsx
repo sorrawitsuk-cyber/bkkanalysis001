@@ -28,6 +28,8 @@ interface DistrictMetricsMapViewProps {
   satelliteCacheBounds?: [[number, number], [number, number]];
   /** "district" renders 50 district polygons; "subdistrict" renders 180 แขวง polygons. */
   granularity?: "district" | "subdistrict";
+  /** Called when GEE tile metadata is received (sceneCount, lowSceneWarning, dataSource) */
+  onTileMetadata?: (meta: { sceneCount: number; lowSceneWarning: boolean; dataSource: string }) => void;
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -67,6 +69,7 @@ export default function DistrictMetricsMapView({
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
   granularity = "district",
+  onTileMetadata,
 }: DistrictMetricsMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
@@ -325,10 +328,18 @@ export default function DistrictMetricsMapView({
       if (mapMode === "idw" && summary?.selectedYear) {
         try {
           const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? `&metric=nightlights&product=${nightLightsProduct}${nightLightsMonth ? `&month=${nightLightsMonth}` : ""}` : analysisType === "air" ? `&metric=air_pollution&pollutant=${airPollutant}` : "";
-          const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}`);
+          const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
+          const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}${compareParam}`);
           const data = await res.json();
           if (data.urlFormat) {
             geeLayerRef.current = L.tileLayer(data.urlFormat, { maxZoom: 20, opacity }).addTo(mapRef.current);
+          }
+          if (onTileMetadata && data.dataSource !== undefined) {
+            onTileMetadata({
+              sceneCount: data.sceneCount ?? -1,
+              lowSceneWarning: data.lowSceneWarning ?? false,
+              dataSource: data.dataSource ?? "",
+            });
           }
         } catch (error) {
           console.error("Failed to load GEE tiles:", error);
@@ -336,7 +347,7 @@ export default function DistrictMetricsMapView({
       }
     };
     updateGeeLayer();
-  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType, opacity, nightLightsMonth, nightLightsProduct, airPollutant]);
+  }, [mapMode, summary?.selectedYear, compareMode, summary?.compareYear, analysisType, opacity, nightLightsMonth, nightLightsProduct, airPollutant, onTileMetadata]);
 
   useEffect(() => {
     if (geeLayerRef.current) geeLayerRef.current.setOpacity(opacity);
