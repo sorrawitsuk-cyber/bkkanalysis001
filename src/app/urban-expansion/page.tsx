@@ -279,7 +279,12 @@ export default function UrbanExpansionPage() {
           )}
 
           {viewMode === "stats" && (
-            <StatsDashboard summary={summary} metric="builtup" year={selectedYear} compareMode={compareMode} accentColor="indigo" activeDistrict={activeDistrict} />
+            <StatsDashboard
+              summary={summary} metric="builtup" year={selectedYear} compareMode={compareMode}
+              accentColor="indigo" activeDistrict={activeDistrict}
+              onYearChange={setSelectedYear} onDistrictChange={setActiveDistrict}
+              districts={allDistricts} minYear={2018} maxYear={2026}
+            />
           )}
 
           {viewMode === "table" && (
@@ -293,6 +298,10 @@ export default function UrbanExpansionPage() {
                 delta: props.delta,
               })}
               csvFilename={`urban-expansion_${selectedYear}`}
+              filterDistrict={activeDistrict}
+              year={selectedYear} onYearChange={setSelectedYear}
+              minYear={2018} maxYear={2026}
+              enableMultiYear accentColor="indigo"
             />
           )}
         </div>

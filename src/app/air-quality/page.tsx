@@ -292,7 +292,12 @@ export default function AirQualityPage() {
           )}
 
           {viewMode === "stats" && (
-            <StatsDashboard summary={summary} metric="air_pollution" year={selectedYear} compareMode={compareMode} accentColor="cyan" activeDistrict={activeDistrict} />
+            <StatsDashboard
+              summary={summary} metric="air_pollution" year={selectedYear} compareMode={compareMode}
+              accentColor="cyan" activeDistrict={activeDistrict}
+              onYearChange={setSelectedYear} onDistrictChange={setActiveDistrict}
+              districts={allDistricts} minYear={2019} maxYear={LATEST_YEAR}
+            />
           )}
 
           {viewMode === "table" && (
@@ -307,6 +312,10 @@ export default function AirQualityPage() {
                 pollution_score: props.pollution_score,
               })}
               csvFilename={`air-quality_${selectedYear}`}
+              filterDistrict={activeDistrict}
+              year={selectedYear} onYearChange={setSelectedYear}
+              minYear={2019} maxYear={LATEST_YEAR}
+              enableMultiYear accentColor="cyan"
             />
           )}
         </div>

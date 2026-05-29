@@ -825,6 +825,9 @@ export default function NighttimeLightsPage() {
               })}
               csvFilename={csvFilename}
               filterDistrict={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
+              year={selectedYear} onYearChange={setSelectedYear}
+              minYear={2014} maxYear={2026}
+              enableMultiYear accentColor="orange"
             />
           </div>
         )}

@@ -368,6 +368,11 @@ export default function HeatIslandPage() {
               compareMode={compareMode}
               accentColor="orange"
               activeDistrict={activeDistrict}
+              onYearChange={setSelectedYear}
+              onDistrictChange={setActiveDistrict}
+              districts={allDistricts}
+              minYear={2018}
+              maxYear={2026}
             />
           )}
 
@@ -382,6 +387,13 @@ export default function HeatIslandPage() {
                 delta: props.delta,
               })}
               csvFilename={`heat-island_${selectedYear}`}
+              filterDistrict={activeDistrict}
+              year={selectedYear}
+              onYearChange={setSelectedYear}
+              minYear={2018}
+              maxYear={2026}
+              enableMultiYear
+              accentColor="orange"
             />
           )}
         </div>

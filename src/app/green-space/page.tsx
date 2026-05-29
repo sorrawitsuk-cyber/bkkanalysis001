@@ -328,7 +328,12 @@ export default function GreenSpacePage() {
           )}
 
           {viewMode === "stats" && (
-            <StatsDashboard summary={summary} metric="vegetation" year={selectedYear} compareMode={compareMode} accentColor="emerald" activeDistrict={activeDistrict} />
+            <StatsDashboard
+              summary={summary} metric="vegetation" year={selectedYear} compareMode={compareMode}
+              accentColor="emerald" activeDistrict={activeDistrict}
+              onYearChange={setSelectedYear} onDistrictChange={setActiveDistrict}
+              districts={allDistricts} minYear={2018} maxYear={2026}
+            />
           )}
 
           {viewMode === "table" && (
@@ -344,6 +349,10 @@ export default function GreenSpacePage() {
                 delta: props.vegetation_delta ?? props.delta,
               })}
               csvFilename={`green-space_${selectedYear}`}
+              filterDistrict={activeDistrict}
+              year={selectedYear} onYearChange={setSelectedYear}
+              minYear={2018} maxYear={2026}
+              enableMultiYear accentColor="emerald"
             />
           )}
         </div>

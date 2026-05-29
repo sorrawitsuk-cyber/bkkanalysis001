@@ -831,6 +831,9 @@ export default function FloodRiskPage() {
               })}
               csvFilename={csvFilename}
               filterDistrict={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
+              year={selectedYear} onYearChange={setSelectedYear}
+              minYear={2018} maxYear={2026}
+              enableMultiYear accentColor="cyan"
             />
           </div>
         )}
