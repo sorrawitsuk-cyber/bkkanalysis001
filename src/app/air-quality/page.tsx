@@ -297,6 +297,8 @@ export default function AirQualityPage() {
               accentColor="cyan" activeDistrict={activeDistrict}
               onYearChange={setSelectedYear} onDistrictChange={setActiveDistrict}
               districts={allDistricts} minYear={2019} maxYear={LATEST_YEAR}
+              onCompareModeChange={setCompareMode}
+              compareYear={compareYear} onCompareYearChange={setCompareYear}
             />
           )}
 

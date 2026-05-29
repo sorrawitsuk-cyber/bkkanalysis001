@@ -34,6 +34,10 @@ interface StatsDashboardProps {
   maxYear?: number;
   onDistrictChange?: (district: string) => void;
   districts?: string[];
+  // Compare controls
+  onCompareModeChange?: (v: boolean) => void;
+  compareYear?: number;
+  onCompareYearChange?: (y: number) => void;
 }
 
 function getConfig(metric: Metric) {
@@ -316,6 +320,7 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac }: {
 export default function StatsDashboard({
   summary, metric, year, compareMode = false, accentColor = "cyan", activeDistrict,
   onYearChange, minYear = 2018, maxYear = 2026, onDistrictChange, districts = [],
+  onCompareModeChange, compareYear = minYear, onCompareYearChange,
 }: StatsDashboardProps) {
   if (!summary) {
     return <div className="flex h-full items-center justify-center text-slate-500 text-sm">ไม่มีข้อมูลสำหรับแสดง</div>;
@@ -428,8 +433,42 @@ export default function StatsDashboard({
             </div>
           )}
 
+          {/* Compare toggle + baseline year */}
+          {onCompareModeChange && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => onCompareModeChange(!compareMode)}
+                className={`h-7 px-3 rounded-lg border text-[11px] font-bold transition-colors ${compareMode ? "border-sky-600 bg-sky-900/40 text-sky-300" : "border-slate-700 bg-slate-900/60 text-slate-500 hover:text-slate-300"}`}
+              >
+                {compareMode ? "เทียบปีฐาน ON" : "เทียบปีฐาน"}
+              </button>
+              {compareMode && onCompareYearChange && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] text-slate-600 font-bold">ฐาน</span>
+                  <button
+                    onClick={() => onCompareYearChange(Math.max(minYear, compareYear - 1))}
+                    disabled={compareYear <= minYear}
+                    className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors"
+                  >
+                    <ChevronLeft className="h-3 w-3" />
+                  </button>
+                  <span className="text-[11px] font-bold font-mono text-sky-300 min-w-[3rem] text-center">{compareYear}</span>
+                  <button
+                    onClick={() => onCompareYearChange(Math.min(year - 1, compareYear + 1))}
+                    disabled={compareYear >= year - 1}
+                    className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex-1" />
-          <span className="text-[9px] text-slate-600">ที่มา: {summary.dataSource ?? "Supabase"} · ปี {year}</span>
+          <span className="text-[9px] text-slate-600">
+            {compareMode ? `${year} vs ${compareYear}` : `ปี ${year}`} · {summary.dataSource ?? "Supabase"}
+          </span>
         </div>
       )}
 

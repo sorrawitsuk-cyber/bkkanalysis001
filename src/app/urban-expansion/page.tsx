@@ -284,6 +284,8 @@ export default function UrbanExpansionPage() {
               accentColor="indigo" activeDistrict={activeDistrict}
               onYearChange={setSelectedYear} onDistrictChange={setActiveDistrict}
               districts={allDistricts} minYear={2018} maxYear={2026}
+              onCompareModeChange={setCompareMode}
+              compareYear={compareYear} onCompareYearChange={setCompareYear}
             />
           )}
 

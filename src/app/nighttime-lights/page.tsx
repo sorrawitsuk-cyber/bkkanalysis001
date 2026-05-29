@@ -648,41 +648,106 @@ export default function NighttimeLightsPage() {
           </div>
         )}
 
-        {/* Stats view */}
+        {/* ── Stats view — with full inline controls ─────────────────────────── */}
         {viewMode === "stats" && (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {activeDistrict !== "ทั้งหมด" && (
-              <div className="shrink-0 flex items-center gap-2 px-5 py-2 bg-yellow-950/40 border-b border-yellow-900/30">
-                <MapPin className="h-3 w-3 text-yellow-300 shrink-0" />
-                <span className="text-[11px] font-bold text-yellow-300">กรองเฉพาะเขต: {activeDistrict}</span>
-                <span className="text-[10px] text-slate-500">· แนวโน้มและสถิติแสดงเฉพาะเขตนี้</span>
+          <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
+
+            {/* Inline controls bar */}
+            <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-slate-700/60 bg-slate-900/50">
+
+              {/* Product toggle */}
+              <div className="flex items-center gap-0 rounded-lg border border-slate-700/80 overflow-hidden shrink-0">
+                <button onClick={() => setDataProduct("annual")}
+                  className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${dataProduct === "annual" ? "bg-yellow-600 text-black" : "text-slate-500 hover:text-slate-300"}`}>
+                  รายปี
+                </button>
+                <button onClick={() => setDataProduct("monthly")}
+                  className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${dataProduct === "monthly" ? "bg-yellow-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>
+                  รายเดือน
+                </button>
               </div>
-            )}
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <span className="text-slate-500 text-sm animate-pulse">กำลังโหลดข้อมูล…</span>
+
+              {/* Year stepper */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => setSelectedYear((y) => Math.max(firstYear, y - 1))} disabled={selectedYear <= firstYear}
+                  className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">‹</button>
+                <span className="text-sm font-black font-mono text-yellow-300 min-w-[3rem] text-center">{selectedYear}</span>
+                <button onClick={() => setSelectedYear((y) => Math.min(dataProduct === "annual" ? latestDataYear : latestMonthlyYear, y + 1))}
+                  disabled={selectedYear >= (dataProduct === "annual" ? latestDataYear : latestMonthlyYear)}
+                  className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">›</button>
               </div>
-            ) : !summary ? (
-              <div className="flex items-center justify-center h-64">
-                <span className="text-slate-600 text-sm">ไม่มีข้อมูลสำหรับช่วงเวลานี้</span>
+
+              {/* Month stepper (monthly mode only) */}
+              {dataProduct === "monthly" && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Calendar className="h-3 w-3 text-slate-600" />
+                  <button onClick={() => setSelectedMonth((m) => Math.max(1, m - 1))} disabled={selectedMonth <= 1}
+                    className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">‹</button>
+                  <span className="text-[11px] font-bold font-mono text-amber-300 min-w-[4rem] text-center">เดือน {selectedMonth}</span>
+                  <button onClick={() => setSelectedMonth((m) => Math.min(latestMonthlyMonth, m + 1))}
+                    disabled={selectedMonth >= latestMonthlyMonth}
+                    className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 hover:border-slate-500 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">›</button>
+                </div>
+              )}
+
+              {/* District selector */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <MapPin className="h-3 w-3 text-yellow-400 shrink-0" />
+                <select value={activeDistrict} onChange={(e) => setActiveDistrict(e.target.value)}
+                  className="h-7 rounded border border-slate-700 bg-slate-900/60 px-2 text-[11px] text-slate-300 focus:outline-none focus:border-yellow-500/50">
+                  <option value="ทั้งหมด">ทุกเขต (50 เขต)</option>
+                  {allDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+                {activeDistrict !== "ทั้งหมด" && (
+                  <button onClick={() => setActiveDistrict("ทั้งหมด")} className="h-5 w-5 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="p-6 space-y-5">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-100">สถิติแสงกลางคืน (Nighttime Lights)</h2>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{periodLabel} · VIIRS DNB · nW/sr/cm²</p>
-                  </div>
-                  {compareMode && !isMonthlyPreview && summary.avgDelta !== null && (
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold shrink-0 ${summary.avgDelta > 0 ? "bg-yellow-500/10 text-yellow-400" : "bg-blue-500/10 text-blue-400"}`}>
-                      {summary.avgDelta > 0
-                        ? <TrendingUp className="w-3.5 h-3.5" />
-                        : <TrendingDown className="w-3.5 h-3.5" />}
-                      เทียบ {compareYear}: {summary.avgDelta > 0 ? "+" : ""}{formatRadiance(summary.avgDelta, 3)}
+
+              {/* Compare toggle (annual only) */}
+              {dataProduct === "annual" && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => setCompareMode((v) => !v)}
+                    className={`h-7 px-3 rounded-lg border text-[11px] font-bold transition-colors ${compareMode ? "border-yellow-600 bg-yellow-900/40 text-yellow-300" : "border-slate-700 bg-slate-900/60 text-slate-500 hover:text-slate-300"}`}>
+                    {compareMode ? "เทียบปีฐาน ON" : "เทียบปีฐาน"}
+                  </button>
+                  {compareMode && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-slate-600 font-bold">ฐาน</span>
+                      <button onClick={() => setCompareYear((y) => Math.max(firstYear, y - 1))} disabled={compareYear <= firstYear}
+                        className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">‹</button>
+                      <span className="text-[11px] font-bold font-mono text-sky-300 min-w-[3rem] text-center">{compareYear}</span>
+                      <button onClick={() => setCompareYear((y) => Math.min(selectedYear - 1, y + 1))} disabled={compareYear >= selectedYear - 1}
+                        className="h-6 w-6 rounded border border-slate-700 text-slate-500 hover:text-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors text-xs">›</button>
                     </div>
                   )}
                 </div>
+              )}
+
+              <div className="flex-1" />
+              <span className="text-[9px] text-slate-600">
+                VIIRS DNB · {compareMode && !isMonthlyPreview ? `${selectedYear} vs ${compareYear}` : periodLabel}
+              </span>
+              {compareMode && !isMonthlyPreview && summary?.avgDelta !== null && (
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 ${(summary?.avgDelta ?? 0) > 0 ? "bg-yellow-500/10 text-yellow-400" : "bg-blue-500/10 text-blue-400"}`}>
+                  {(summary?.avgDelta ?? 0) > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  เทียบ {compareYear}: {(summary?.avgDelta ?? 0) > 0 ? "+" : ""}{formatRadiance(summary?.avgDelta, 3)}
+                </div>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="flex flex-1 items-center justify-center">
+                <span className="text-slate-500 animate-pulse">กำลังโหลด…</span>
+              </div>
+            ) : !summary ? (
+              <div className="flex flex-1 items-center justify-center">
+                <span className="text-slate-600">ไม่มีข้อมูลสำหรับช่วงเวลานี้</span>
+              </div>
+            ) : (
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="p-6 space-y-5">
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -807,6 +872,7 @@ export default function NighttimeLightsPage() {
                   </div>
                 )}
               </div>
+            </div>
             )}
           </div>
         )}

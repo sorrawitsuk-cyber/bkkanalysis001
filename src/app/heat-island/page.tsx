@@ -373,6 +373,9 @@ export default function HeatIslandPage() {
               districts={allDistricts}
               minYear={2018}
               maxYear={2026}
+              onCompareModeChange={setCompareMode}
+              compareYear={compareYear}
+              onCompareYearChange={setCompareYear}
             />
           )}
 
