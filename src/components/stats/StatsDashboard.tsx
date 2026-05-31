@@ -17,7 +17,8 @@ import {
   Line,
   ComposedChart,
 } from "recharts";
-import { TrendingUp, TrendingDown, Activity, MapPin, Lightbulb, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, MapPin, Lightbulb, ChevronLeft, ChevronRight, X, Database, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 
 type Metric = "lst" | "vegetation" | "builtup" | "air_pollution";
 
@@ -144,12 +145,42 @@ const ACCENT_COLORS: Record<string, { bg: string; border: string; text: string; 
   cyan:    { bg: "bg-cyan-950/40",    border: "border-cyan-900/30",    text: "text-cyan-300",    sub: "text-cyan-400/60" },
 };
 
+// ─── Metric → profile field mapping ─────────────────────────────────────────
+function metricFieldFromProfile(metric: Metric, m: any): number | null {
+  if (!m) return null;
+  if (metric === "lst")           return m.mean_lst        ?? null;
+  if (metric === "vegetation")    return m.ndvi_mean        ?? null;
+  if (metric === "builtup")       return m.ndbi_mean        ?? null;
+  if (metric === "air_pollution") return m.no2_mean ?? m.pollution_score ?? null;
+  return null;
+}
+
+function secondaryFieldFromProfile(metric: Metric, m: any): number | null {
+  if (!m) return null;
+  if (metric === "vegetation") return m.green_area_rai != null ? Math.round(m.green_area_rai) : null;
+  if (metric === "builtup")    return m.builtup_area_rai ?? null;
+  return null;
+}
+
 // ─── District-mode sub-component ─────────────────────────────────────────────
-function DistrictModeView({ summary, cfg, metric, year, accentColor, ac }: {
-  summary: any; cfg: ReturnType<typeof getConfig>; metric: Metric; year: number; accentColor: string; ac: typeof ACCENT_COLORS[string];
+function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profileData }: {
+  summary: any; cfg: ReturnType<typeof getConfig>; metric: Metric; year: number;
+  accentColor: string; ac: typeof ACCENT_COLORS[string]; profileData: any;
 }) {
-  const trendRows: [string, number][] = summary.yearlyTrend ?? [];
-  const trendData = trendRows.filter(([, v]) => v != null).map(([yr, v]) => ({ year: yr, value: Number(v) }));
+  // Build trend data: prefer district-profile API (real per-district data), fall back to summary.yearlyTrend
+  const profileTrendRows: [string, number][] = profileData?.years
+    ? profileData.years
+        .map((yr: number) => {
+          const val = metricFieldFromProfile(metric, profileData.metrics?.[yr]);
+          return val !== null ? [String(yr), val] : null;
+        })
+        .filter(Boolean) as [string, number][]
+    : [];
+
+  const summaryTrendRows: [string, number][] = summary.yearlyTrend ?? [];
+  const trendSourceRows = profileTrendRows.length > 0 ? profileTrendRows : summaryTrendRows;
+  const trendData = trendSourceRows.filter(([, v]) => v != null).map(([yr, v]) => ({ year: yr, value: Number(v) }));
+  const hasProfileData = profileTrendRows.length > 0;
 
   // Year-by-year table using trendData
   const currentEntry = trendData.find((d) => Number(d.year) === year);
@@ -168,9 +199,19 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac }: {
   const allValues = trendData.map((d) => d.value);
   const stats = computeStats(allValues);
 
-  const secondaryTrendRows: [string, number][] =
+  // Secondary trend (green area rai / builtup area rai) — prefer profile data
+  const profileSecondaryRows: [string, number][] = profileData?.years
+    ? profileData.years
+        .map((yr: number) => {
+          const val = secondaryFieldFromProfile(metric, profileData.metrics?.[yr]);
+          return val !== null ? [String(yr), val] : null;
+        })
+        .filter(Boolean) as [string, number][]
+    : [];
+  const summarySecondaryRows: [string, number][] =
     metric === "vegetation" ? (summary.greenAreaTrend ?? []) :
     metric === "builtup"    ? (summary.builtupAreaTrend ?? []) : [];
+  const secondaryTrendRows = profileSecondaryRows.length > 0 ? profileSecondaryRows : summarySecondaryRows;
   const secondaryTrend = secondaryTrendRows.filter(([, v]) => v != null).map(([yr, v]) => ({ year: yr, value: Number(v) }));
 
   const monthlyData = metric === "lst" && Array.isArray(summary.monthlyTrend)
@@ -183,7 +224,13 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac }: {
       {/* Left: Multi-year trend for this district */}
       <div className="border-r border-slate-800/60 flex flex-col">
         <div className="shrink-0 px-5 py-3 border-b border-slate-800/40">
-          <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-300">{cfg.trendTitle} (เขตนี้)</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-300">{cfg.trendTitle} (เขตนี้)</h3>
+            {hasProfileData
+              ? <span className="text-[9px] px-2 py-0.5 rounded-full border border-emerald-700/40 bg-emerald-950/30 text-emerald-400 font-bold">ข้อมูลจริง · Supabase</span>
+              : <span className="text-[9px] px-2 py-0.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 font-bold">ยังไม่มีสถิติรายปีในDB</span>
+            }
+          </div>
           <p className="text-[10px] text-slate-600 mt-0.5">ค่ารายปีเปรียบเทียบกับปีก่อนหน้า</p>
         </div>
         <div className="flex-1 px-3 py-3" style={{ minHeight: 280 }}>
@@ -322,6 +369,22 @@ export default function StatsDashboard({
   onYearChange, minYear = 2018, maxYear = 2026, onDistrictChange, districts = [],
   onCompareModeChange, compareYear = minYear, onCompareYearChange,
 }: StatsDashboardProps) {
+  // ── Fetch district profile (real per-district multi-year data) ─────────────
+  const [profileData, setProfileData] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const isDistrictModeCheck = !!(activeDistrict && activeDistrict !== "ทั้งหมด");
+
+  useEffect(() => {
+    if (!isDistrictModeCheck) { setProfileData(null); return; }
+    setProfileLoading(true);
+    fetch(`/api/district-profile?district=${encodeURIComponent(activeDistrict!)}`)
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setProfileData(d); else setProfileData(null); })
+      .catch(() => setProfileData(null))
+      .finally(() => setProfileLoading(false));
+  }, [activeDistrict, isDistrictModeCheck]);
+
   if (!summary) {
     return <div className="flex h-full items-center justify-center text-slate-500 text-sm">ไม่มีข้อมูลสำหรับแสดง</div>;
   }
@@ -330,6 +393,12 @@ export default function StatsDashboard({
   const rawRanking: any[] = summary.ranking ?? [];
   const ac = ACCENT_COLORS[accentColor] ?? ACCENT_COLORS.cyan;
   const isDistrictMode = !!(activeDistrict && activeDistrict !== "ทั้งหมด");
+
+  // Detect when DB has no stats for this metric (builtup, air_pollution without data seeded)
+  const hasNoDbStats = !!(
+    summary.dataSource &&
+    (summary.dataSource.includes("no district_statistics") || summary.dataSource === "no district_statistics rows")
+  );
 
   const values: number[] = rawRanking
     .map((r: any) => r[1]).filter((v: any) => v != null && Number.isFinite(Number(v))).map(Number);
@@ -481,6 +550,24 @@ export default function StatsDashboard({
         </div>
       )}
 
+      {/* ── No-stats banner (DB empty for this metric) ────────────────────────── */}
+      {hasNoDbStats && !isDistrictMode && (
+        <div className="shrink-0 flex items-start gap-3 px-5 py-3 bg-amber-950/30 border-b border-amber-800/40">
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[11px] font-bold text-amber-300">ยังไม่มีสถิติรายเขตในฐานข้อมูล</p>
+            <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+              ข้อมูลสถิติ <span className="font-bold text-slate-200">{cfg.barTitle}</span> ยังไม่ถูกประมวลผลใส่ Supabase
+              — แผนที่ GEE แสดงค่าจริงจากดาวเทียม เลือกเขตจากแผนที่เพื่อดูค่า pixel จริงได้เลย
+            </p>
+          </div>
+          <div className="ml-auto shrink-0 flex items-center gap-1">
+            <Database className="h-3 w-3 text-slate-600" />
+            <span className="text-[9px] text-slate-600">Supabase: ไม่มีข้อมูล</span>
+          </div>
+        </div>
+      )}
+
       {/* ── Stats strip ───────────────────────────────────────────────────────── */}
       <div className="shrink-0 grid grid-cols-3 sm:grid-cols-6 gap-0 border-b border-slate-800/60">
         {statStrip.map((s, i) => (
@@ -494,7 +581,14 @@ export default function StatsDashboard({
 
       {/* ── Main section: District mode vs All-districts mode ─────────────────── */}
       {isDistrictMode ? (
-        <DistrictModeView summary={summary} cfg={cfg} metric={metric} year={year} accentColor={accentColor} ac={ac} />
+        profileLoading ? (
+          <div className="flex flex-1 items-center justify-center gap-2 text-slate-500 text-sm">
+            <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-600 border-t-cyan-400 rounded-full" />
+            กำลังโหลดข้อมูลจริงจาก Supabase…
+          </div>
+        ) : (
+          <DistrictModeView summary={summary} cfg={cfg} metric={metric} year={year} accentColor={accentColor} ac={ac} profileData={profileData} />
+        )
       ) : (
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-0 border-b border-slate-800/60">
 

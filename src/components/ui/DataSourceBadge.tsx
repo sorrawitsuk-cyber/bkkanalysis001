@@ -11,14 +11,25 @@ interface DataSourceBadgeProps {
 export default function DataSourceBadge({ dataSource, className = "" }: DataSourceBadgeProps) {
   if (!dataSource) return null;
 
+  // "local fallback (mock)" → truly fake data (LST fallback)
   const isMock = dataSource.includes("mock") || dataSource.includes("fallback");
-  const isNoData = dataSource.includes("no district_statistics") || dataSource === "no district_statistics rows";
+  // "no district_statistics rows" → DB exists but metric not yet seeded
+  const isNoDbData = dataSource.includes("no district_statistics") || dataSource === "no district_statistics rows";
 
-  if (isMock || isNoData) {
+  if (isNoDbData) {
+    return (
+      <div className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-800/40 px-2.5 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest ${className}`}>
+        <Database className="h-3 w-3 shrink-0" />
+        <span>สถิติยังไม่ถูกประมวลผล</span>
+      </div>
+    );
+  }
+
+  if (isMock) {
     return (
       <div className={`inline-flex items-center gap-1.5 rounded-lg border border-amber-700/50 bg-amber-950/40 px-2.5 py-1 text-[9px] font-bold text-amber-400 uppercase tracking-widest ${className}`}>
         <AlertTriangle className="h-3 w-3 shrink-0" />
-        <span>ข้อมูลจำลอง (Mock)</span>
+        <span>ข้อมูลจำลอง (Fallback)</span>
       </div>
     );
   }
