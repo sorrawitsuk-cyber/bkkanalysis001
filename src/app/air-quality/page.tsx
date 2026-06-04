@@ -128,10 +128,11 @@ export default function AirQualityPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
+    { key: "pollution_score", label: "คะแนนมลพิษ", unit: "0–10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "no2_mean", label: "NO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
     { key: "co_mean", label: "CO", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#fb923c" },
     { key: "so2_mean", label: "SO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#facc15" },
-    { key: "pollution_score", label: "Score", unit: "0–10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
+    { key: "aerosol_index_mean", label: "Aerosol", unit: "index", format: (v) => v != null ? Number(v).toFixed(3) : "–", heatmap: true, heatmapHex: "#8b5cf6", hideable: true },
   ];
 
   const avgValue    = rankingRows.length ? rankingRows.reduce((s, [, v]) => s + v, 0) / rankingRows.length : null;
@@ -311,6 +312,7 @@ export default function AirQualityPage() {
                 no2_mean: props.no2_mean,
                 co_mean: props.co_mean,
                 so2_mean: props.so2_mean,
+                aerosol_index_mean: props.aerosol_index_mean,
                 pollution_score: props.pollution_score,
               })}
               csvFilename={`air-quality_${selectedYear}`}

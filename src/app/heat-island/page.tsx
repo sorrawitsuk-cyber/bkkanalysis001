@@ -38,6 +38,7 @@ export default function HeatIslandPage() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({ year: selectedYear.toString() });
+    if (selectedMonth) params.append('month', String(selectedMonth));
     if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
     if (compareMode) params.append('compareYear', compareYear.toString());
 
@@ -50,7 +51,7 @@ export default function HeatIslandPage() {
         setLoading(false);
       })
       .catch(err => { console.error(err); setLoading(false); });
-  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear]);
 
   const displayGeoJson = useMemo(
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
@@ -72,10 +73,11 @@ export default function HeatIslandPage() {
   const hottestDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
   const _now = new Date();
   const _currentYear = _now.getFullYear();
-  const _endLabel = selectedYear === _currentYear
-    ? _now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
-    : "31 ธ.ค.";
-  const periodLabel = `1 ม.ค. - ${_endLabel} ${selectedYear}`;
+  const periodLabel = selectedMonth
+    ? buildPeriodLabel(selectedYear, selectedMonth)
+    : selectedYear === _currentYear
+      ? `1 ม.ค. - ${_now.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+      : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
 
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val]: [string, number | null]) => [
@@ -173,8 +175,10 @@ export default function HeatIslandPage() {
     { key: "name", label: "เขต", sortable: false },
     { key: "mean_lst", label: "LST เฉลี่ย", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#f97316" },
     { key: "max_lst", label: "LST สูงสุด", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#ef4444" },
+    { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981", hideable: true },
+    { key: "green_area_ratio", label: "สัดส่วนเขียว", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399", hideable: true },
     ...(compareMode
-      ? [{ key: "delta", label: "Δ LST", unit: "°C", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(2)}` : "–" } as ColDef]
+      ? [{ key: "delta", label: "Δ LST", unit: "°C", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#f97316" } as ColDef]
       : []
     ),
   ];
@@ -387,6 +391,8 @@ export default function HeatIslandPage() {
                 name: props.name_th,
                 mean_lst: props.mean_lst,
                 max_lst: props.max_lst,
+                green_area_rai: props.green_area_rai ?? null,
+                green_area_ratio: props.green_area_ratio ?? null,
                 delta: props.delta,
               })}
               csvFilename={`heat-island_${selectedYear}`}

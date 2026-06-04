@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Download, SlidersHorizontal, Calendar, Eye, EyeOff, Layers, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Download, SlidersHorizontal, Calendar, Eye, EyeOff, Layers, X, TrendingUp } from "lucide-react";
 
 export type ColDef = {
   key: string;
@@ -41,6 +41,18 @@ interface DistrictDataTableProps {
   districts?: string[];
 }
 
+function fmtDelta(delta: number): string {
+  const abs = Math.abs(delta);
+  const sign = delta > 0 ? "+" : "";
+  if (abs < 1e-8)   return "±0";
+  if (abs < 0.0001) return sign + delta.toExponential(1);
+  if (abs < 0.001)  return sign + delta.toFixed(5);
+  if (abs < 1)      return sign + delta.toFixed(4);
+  if (abs < 10)     return sign + delta.toFixed(2);
+  if (abs < 1000)   return sign + Math.round(delta).toString();
+  return sign + Math.round(delta).toLocaleString();
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
@@ -76,6 +88,7 @@ export default function DistrictDataTable({
   const [showRank, setShowRank]       = useState(true);
   const [hiddenCols, setHiddenCols]   = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
+  const [showDelta, setShowDelta]     = useState(false);
 
   // ── Multi-year district mode ──────────────────────────────────────────────
   const [multiYearMode, setMultiYearMode] = useState(false);
@@ -135,6 +148,29 @@ export default function DistrictDataTable({
     setMultiYearMode(false);
     setMultiYearRows([]);
   }, [filterDistrict]);
+
+  // Reset delta when leaving multi-year mode
+  useEffect(() => {
+    if (!multiYearMode) setShowDelta(false);
+  }, [multiYearMode]);
+
+  // Delta map: for each year row, compute delta vs previous chronological year
+  const deltaMap = useMemo(() => {
+    if (!multiYearMode || multiYearRows.length === 0) return {} as Record<number, Record<string, number | null>>;
+    const byYear = [...multiYearRows].sort((a, b) => a.year - b.year);
+    const map: Record<number, Record<string, number | null>> = {};
+    byYear.forEach((row, i) => {
+      map[row.year] = {};
+      if (i === 0) return;
+      columns.forEach((col) => {
+        const curr = row[col.key];
+        const prev = byYear[i - 1][col.key];
+        map[row.year][col.key] =
+          typeof curr === "number" && typeof prev === "number" ? curr - prev : null;
+      });
+    });
+    return map;
+  }, [multiYearMode, multiYearRows, columns]);
 
   // ── Visible columns ────────────────────────────────────────────────────────
   const visibleColumns = useMemo(
@@ -295,6 +331,17 @@ export default function DistrictDataTable({
           >
             <Layers className="h-3.5 w-3.5" />
             {multiYearLoading ? "กำลังโหลด…" : multiYearMode ? "ดูแค่ปีนี้" : "ดูทุกปี"}
+          </button>
+        )}
+
+        {/* Delta toggle (multi-year mode only) */}
+        {multiYearMode && multiYearRows.length > 0 && (
+          <button
+            onClick={() => setShowDelta((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition-colors ${showDelta ? "border-emerald-700/60 bg-emerald-950/40 text-emerald-400" : "border-slate-700 bg-slate-900/60 text-slate-500 hover:text-slate-300"}`}
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            Δ ปีก่อน
           </button>
         )}
 
@@ -461,13 +508,34 @@ export default function DistrictDataTable({
                     const isName = col.key === "name";
                     const isNum = typeof v === "number";
                     const { bg, color } = getCellStyle(col, v);
+
+                    // Delta vs previous year
+                    const delta = (showDelta && multiYearMode && row.year != null && isNum)
+                      ? (deltaMap[row.year]?.[col.key] ?? undefined)
+                      : undefined;
+                    const hasDelta = delta !== undefined && delta !== null;
+                    const deltaIsZero = hasDelta && Math.abs(delta!) < 1e-8;
+                    const deltaIsGood = hasDelta && !deltaIsZero && (col.heatmapInvert ? delta! < 0 : delta! > 0);
+                    const deltaColor = deltaIsZero
+                      ? "text-slate-600"
+                      : deltaIsGood ? "text-emerald-400" : "text-red-400";
+
                     return (
                       <td
                         key={col.key}
                         style={{ backgroundColor: bg, color }}
-                        className={`px-4 py-2.5 ${isName ? "font-semibold text-slate-200" : isNum ? "font-mono tabular-nums text-slate-300" : "text-slate-400"}`}
+                        className={`px-4 py-2 ${isName ? "font-semibold text-slate-200" : isNum ? "font-mono tabular-nums text-slate-300" : "text-slate-400"}`}
                       >
-                        {display === "–" ? <span className="text-slate-700">–</span> : display}
+                        {display === "–" ? (
+                          <span className="text-slate-700">–</span>
+                        ) : hasDelta ? (
+                          <div className="flex flex-col leading-tight gap-0.5">
+                            <span>{display}</span>
+                            <span className={`text-[9px] font-bold tabular-nums ${deltaColor}`}>
+                              {deltaIsZero ? "=" : fmtDelta(delta!)}
+                            </span>
+                          </div>
+                        ) : display}
                       </td>
                     );
                   })}

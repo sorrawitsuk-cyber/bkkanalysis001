@@ -434,19 +434,6 @@ export default function FloodRiskPage() {
     }));
   }, [summary?.yearlyTrend]);
 
-  // Yearly trend for water_area_rai (computed from trend + avg district area)
-  const avgDistrictAreaRai = useMemo(() => {
-    const areas = statsAllFeatures.map((d: any) => d.district_area_rai).filter((v: any): v is number => v != null);
-    return areas.length ? areas.reduce((s: number, v: number) => s + v, 0) / areas.length : 19600;
-  }, [statsAllFeatures]);
-
-  const statsTrendAreaData = useMemo(() => {
-    return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
-      year: String(year),
-      value: typeof val === "number" ? Math.round(val * avgDistrictAreaRai * 50) : null, // approx total
-    }));
-  }, [summary?.yearlyTrend, avgDistrictAreaRai]);
-
   // Table columns — comprehensive
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
@@ -457,7 +444,7 @@ export default function FloodRiskPage() {
     { key: "mndwi_mean",label: "MNDWI mean",format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#7c3aed", hideable: true },
     { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
     ...(compareMode ? [
-      { key: "delta", label: "Δ water ratio", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–", heatmap: true, heatmapHex: "#f59e0b", heatmapInvert: false } as ColDef,
+      { key: "delta", label: "Δ สัดส่วนน้ำ", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–", heatmap: true, heatmapHex: "#f59e0b" } as ColDef,
       { key: "compare_water_ratio", label: `ปี ${compareYear}`, unit: "%", format: (v: any) => v != null ? `${(v * 100).toFixed(2)}` : "–", hideable: true } as ColDef,
     ] : []),
   ];

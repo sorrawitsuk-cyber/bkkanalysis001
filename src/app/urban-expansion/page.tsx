@@ -37,6 +37,7 @@ export default function UrbanExpansionPage() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams({ year: selectedYear.toString(), metric: 'builtup' });
+    if (selectedMonth) params.append('month', String(selectedMonth));
     if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
     if (compareMode) params.append('compareYear', compareYear.toString());
 
@@ -49,7 +50,7 @@ export default function UrbanExpansionPage() {
         setLoading(false);
       })
       .catch(err => { console.error(err); setLoading(false); });
-  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear]);
 
   const displayGeoJson = useMemo(
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
@@ -65,9 +66,11 @@ export default function UrbanExpansionPage() {
   const highestDensityDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
   const _ueNow = new Date();
   const _ueCurrentYear = _ueNow.getFullYear();
-  const periodLabel = selectedYear === _ueCurrentYear
-    ? `1 ม.ค. - ${_ueNow.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
-    : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
+  const periodLabel = selectedMonth
+    ? buildPeriodLabel(selectedYear, selectedMonth)
+    : selectedYear === _ueCurrentYear
+      ? `1 ม.ค. - ${_ueNow.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
+      : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
 
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val]: [string, number | null]) => [name, val !== null && val !== undefined ? +Number(val).toFixed(3) : null, "NDBI", selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel],
@@ -111,7 +114,9 @@ export default function UrbanExpansionPage() {
     { key: "name", label: "เขต", sortable: false },
     { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b" },
     { key: "builtup_area_rai", label: "พื้นที่สิ่งปลูกสร้าง", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#ef4444" },
-    ...(compareMode ? [{ key: "delta", label: "Δ NDBI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–" } as ColDef] : []),
+    { key: "builtup_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f97316", hideable: true },
+    { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
+    ...(compareMode ? [{ key: "delta", label: "Δ NDBI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–", heatmap: true, heatmapHex: "#f59e0b" } as ColDef] : []),
   ];
 
   return (
@@ -297,6 +302,8 @@ export default function UrbanExpansionPage() {
                 name: props.name_th,
                 ndbi_mean: props.ndbi_mean,
                 builtup_area_rai: props.builtup_area_rai,
+                builtup_ratio: props.builtup_ratio ?? null,
+                district_area_rai: props.district_area_rai ?? null,
                 delta: props.delta,
               })}
               csvFilename={`urban-expansion_${selectedYear}`}

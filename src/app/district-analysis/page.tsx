@@ -61,7 +61,7 @@ function fmtPct(v: number | null | undefined): string {
 function DeltaBadge({ delta, invert = false, unit = "" }: { delta: number | null; invert?: boolean; unit?: string }) {
   if (delta == null || !Number.isFinite(delta)) return <span className="text-slate-600 text-[10px]">–</span>;
   const isPositive = delta > 0;
-  const isBad = invert ? isPositive : isPositive;
+  const isBad = invert ? !isPositive : isPositive;
   const abs = Math.abs(delta);
   const disp = abs < 0.0001 ? abs.toExponential(2) : abs.toFixed(Math.abs(delta) < 1 ? 4 : 2);
   if (Math.abs(delta) < 0.00001) return <span className="text-slate-500 text-[10px] flex items-center gap-0.5"><Minus className="h-3 w-3" />เท่าเดิม</span>;
@@ -70,6 +70,31 @@ function DeltaBadge({ delta, invert = false, unit = "" }: { delta: number | null
   return (
     <span className={`flex items-center gap-0.5 text-[10px] font-bold ${color}`}>
       <Icon className="h-3 w-3" />{isPositive ? "+" : "-"}{disp}{unit}
+    </span>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────
+// Delta helper
+// ────────────────────────────────────────────────────────────────
+function DeltaSpan({ delta, lowerIsBetter = false, unit = "", scientific = false }: {
+  delta: number; lowerIsBetter?: boolean; unit?: string; scientific?: boolean;
+}) {
+  const abs = Math.abs(delta);
+  if (abs < 1e-8) return <span className="text-[9px] text-slate-600 block">±0</span>;
+  const isGood = lowerIsBetter ? delta < 0 : delta > 0;
+  const sign = delta > 0 ? "+" : "";
+  let str: string;
+  if (scientific || abs < 0.0001) str = sign + delta.toExponential(1);
+  else if (abs < 0.001)           str = sign + delta.toFixed(5);
+  else if (abs < 1)               str = sign + delta.toFixed(4);
+  else if (abs < 10)              str = sign + delta.toFixed(2);
+  else if (abs < 1000)            str = sign + Math.round(delta).toString();
+  else                            str = sign + Math.round(delta).toLocaleString();
+  if (unit) str += " " + unit;
+  return (
+    <span className={`text-[9px] font-bold block leading-none mt-0.5 tabular-nums ${isGood ? "text-emerald-400" : "text-red-400"}`}>
+      {str}
     </span>
   );
 }
@@ -121,12 +146,12 @@ function TrendChart({
             contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 11 }}
             formatter={(v: unknown, name: unknown) => [
               typeof v === "number" ? `${v.toFixed(decimals)} ${unit}` : "–",
-              name === "district" ? "เขตนี้" : "เฉลี่ย กทม.",
+              name === districtKey ? "เขตนี้" : "เฉลี่ย กทม.",
             ] as [string, string]}
           />
-          <Legend wrapperStyle={{ fontSize: 10 }} formatter={(v) => v === "district" ? "เขตนี้" : "เฉลี่ย กทม."} />
-          <Line type="monotone" dataKey="district" stroke={color} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={connectNulls} name="district" />
-          <Line type="monotone" dataKey="bkk" stroke="#475569" strokeWidth={1.5} strokeDasharray="4 2" dot={false} connectNulls={connectNulls} name="bkk" />
+          <Legend wrapperStyle={{ fontSize: 10 }} formatter={(v) => v === districtKey ? "เขตนี้" : "เฉลี่ย กทม."} />
+          <Line type="monotone" dataKey={districtKey} stroke={color} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={connectNulls} name={districtKey} />
+          <Line type="monotone" dataKey={bkkKey} stroke="#475569" strokeWidth={1.5} strokeDasharray="4 2" dot={false} connectNulls={connectNulls} name={bkkKey} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -148,6 +173,7 @@ export default function DistrictAnalysisPage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTableDelta, setShowTableDelta] = useState(false);
 
   // Load district list on mount
   useEffect(() => {
@@ -220,6 +246,27 @@ export default function DistrictAnalysisPage() {
     ];
     return candidates.filter((m): m is typeof m & { district: number; bkk: number } => m.district != null && m.bkk != null);
   }, [cur, data, selectedYear]);
+
+  // Year-over-year deltas: delta[yr][key] = metrics[yr][key] - metrics[prevYr][key]
+  const yearlyDeltas = useMemo(() => {
+    if (!data) return {} as Record<number, Partial<YearMetrics>>;
+    const sorted = [...data.years].sort((a, b) => a - b);
+    const out: Record<number, Partial<YearMetrics>> = {};
+    sorted.forEach((yr, i) => {
+      if (i === 0) return;
+      const curr = data.metrics[yr];
+      const prev = data.metrics[sorted[i - 1]];
+      if (!curr || !prev) return;
+      const entry: Partial<YearMetrics> = {};
+      (Object.keys(curr) as (keyof YearMetrics)[]).forEach((key) => {
+        const c = curr[key] as number | null;
+        const p = prev[key] as number | null;
+        (entry as any)[key] = c != null && p != null ? c - p : null;
+      });
+      out[yr] = entry;
+    });
+    return out;
+  }, [data]);
 
   const exportCSV = useCallback(() => {
     if (!data) return;
@@ -501,8 +548,26 @@ export default function DistrictAnalysisPage() {
 
             {/* ── All-years data table ── */}
             <div className="rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">ข้อมูลทุกปี</span>
+              <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-3 flex-wrap">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">ข้อมูลทุกปี เปรียบเทียบรายปี</span>
+                <button
+                  onClick={() => setShowTableDelta((v) => !v)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                    showTableDelta
+                      ? "border-emerald-700/60 bg-emerald-950/40 text-emerald-400"
+                      : "border-slate-700 bg-slate-900/60 text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  <TrendingUp className="h-3 w-3" />
+                  {showTableDelta ? "ซ่อน Δ ปีก่อน" : "แสดง Δ ปีก่อน"}
+                </button>
+                {showTableDelta && (
+                  <span className="text-[9px] text-slate-600">
+                    <span className="text-emerald-400 font-bold">เขียว</span> = ดีขึ้น ·{" "}
+                    <span className="text-red-400 font-bold">แดง</span> = แย่ลง
+                  </span>
+                )}
+                <div className="flex-1" />
                 <button onClick={exportCSV} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-300 transition-colors">
                   <Download className="h-3 w-3" /> Export CSV
                 </button>
@@ -517,8 +582,9 @@ export default function DistrictAnalysisPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.years.map((yr) => {
+                    {[...data.years].sort((a, b) => a - b).map((yr) => {
                       const m = data.metrics[yr];
+                      const d = yearlyDeltas[yr];
                       const isSelected = yr === selectedYear;
                       const isCompare = yr === compareYear;
                       return (
@@ -526,37 +592,70 @@ export default function DistrictAnalysisPage() {
                           key={yr}
                           className={`border-b border-slate-800/40 hover:bg-slate-800/20 ${isSelected ? "bg-cyan-950/20" : ""}`}
                         >
-                          <td className="px-3 py-2 font-black tabular-nums">
+                          <td className="px-3 py-2 font-black tabular-nums whitespace-nowrap">
                             <span className={isSelected ? "text-cyan-400" : isCompare ? "text-slate-400" : "text-slate-500"}>{yr}</span>
                             {isSelected && <span className="ml-1.5 text-[8px] font-bold text-cyan-600 bg-cyan-950/60 px-1.5 py-0.5 rounded-full">เลือก</span>}
                             {isCompare && !isSelected && <span className="ml-1.5 text-[8px] font-bold text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded-full">เปรียบ</span>}
                           </td>
-                          <td className="px-3 py-2 tabular-nums text-orange-400 font-mono">{fmt(m?.mean_lst, 2, " °C")}</td>
-                          <td className="px-3 py-2 tabular-nums text-red-400 font-mono">{fmt(m?.max_lst, 2, " °C")}</td>
-                          <td className="px-3 py-2 tabular-nums text-emerald-400 font-mono">{fmt(m?.ndvi_mean, 4)}</td>
-                          <td className="px-3 py-2 tabular-nums text-emerald-300 font-mono">{m?.green_area_rai != null ? Math.round(m.green_area_rai).toLocaleString() : "–"}</td>
-                          <td className="px-3 py-2 tabular-nums text-slate-400 font-mono">{fmtPct(m?.green_area_ratio)}</td>
-                          <td className="px-3 py-2 tabular-nums text-amber-400 font-mono">{fmt(m?.ndbi_mean, 4)}</td>
-                          <td className="px-3 py-2 tabular-nums text-amber-300 font-mono">{m?.builtup_area_rai != null ? Math.round(m.builtup_area_rai).toLocaleString() : "–"}</td>
-                          <td className="px-3 py-2 tabular-nums text-purple-400 font-mono">{m?.no2_mean != null ? m.no2_mean.toExponential(3) : "–"}</td>
-                          <td className="px-3 py-2 tabular-nums text-purple-300 font-mono">{fmt(m?.pollution_score, 2)}</td>
-                          <td className="px-3 py-2 tabular-nums text-sky-400 font-mono">{fmtPct(m?.water_ratio)}</td>
-                          <td className="px-3 py-2 tabular-nums text-yellow-400 font-mono">{fmt(m?.ntl_mean, 2)}</td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-orange-400">{fmt(m?.mean_lst, 2, "°C")}</span>
+                            {showTableDelta && d?.mean_lst != null && <DeltaSpan delta={d.mean_lst} lowerIsBetter unit="°C" />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-red-400">{fmt(m?.max_lst, 2, "°C")}</span>
+                            {showTableDelta && d?.max_lst != null && <DeltaSpan delta={d.max_lst} lowerIsBetter unit="°C" />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-emerald-400">{fmt(m?.ndvi_mean, 4)}</span>
+                            {showTableDelta && d?.ndvi_mean != null && <DeltaSpan delta={d.ndvi_mean} />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-emerald-300">{m?.green_area_rai != null ? Math.round(m.green_area_rai).toLocaleString() : "–"}</span>
+                            {showTableDelta && d?.green_area_rai != null && <DeltaSpan delta={d.green_area_rai} unit="ไร่" />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-slate-400">{fmtPct(m?.green_area_ratio)}</span>
+                            {showTableDelta && d?.green_area_ratio != null && <DeltaSpan delta={d.green_area_ratio * 100} unit="%" />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-amber-400">{fmt(m?.ndbi_mean, 4)}</span>
+                            {showTableDelta && d?.ndbi_mean != null && <DeltaSpan delta={d.ndbi_mean} lowerIsBetter />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-amber-300">{m?.builtup_area_rai != null ? Math.round(m.builtup_area_rai).toLocaleString() : "–"}</span>
+                            {showTableDelta && d?.builtup_area_rai != null && <DeltaSpan delta={d.builtup_area_rai} lowerIsBetter unit="ไร่" />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-purple-400">{m?.no2_mean != null ? m.no2_mean.toExponential(3) : "–"}</span>
+                            {showTableDelta && d?.no2_mean != null && <DeltaSpan delta={d.no2_mean} lowerIsBetter scientific />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-purple-300">{fmt(m?.pollution_score, 2)}</span>
+                            {showTableDelta && d?.pollution_score != null && <DeltaSpan delta={d.pollution_score} lowerIsBetter />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-sky-400">{fmtPct(m?.water_ratio)}</span>
+                            {showTableDelta && d?.water_ratio != null && <DeltaSpan delta={d.water_ratio * 100} unit="%" />}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono">
+                            <span className="text-yellow-400">{fmt(m?.ntl_mean, 2)}</span>
+                            {showTableDelta && d?.ntl_mean != null && <DeltaSpan delta={d.ntl_mean} />}
+                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
-                  {/* BKK Average comparison row */}
+                  {/* BKK Average footer row */}
                   {data.bkkAverages[selectedYear] && (
                     <tfoot className="border-t border-slate-700/60 bg-slate-900/90">
                       <tr>
-                        <td className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-slate-600">เฉลี่ย กทม.</td>
+                        <td className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-slate-600 whitespace-nowrap">เฉลี่ย กทม. {selectedYear}</td>
                         {(() => {
                           const b = data.bkkAverages[selectedYear];
                           return (
                             <>
-                              <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.mean_lst, 2, " °C")}</td>
-                              <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.max_lst, 2, " °C")}</td>
+                              <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.mean_lst, 2, "°C")}</td>
+                              <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.max_lst, 2, "°C")}</td>
                               <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.ndvi_mean, 4)}</td>
                               <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{b.green_area_rai != null ? Math.round(b.green_area_rai).toLocaleString() : "–"}</td>
                               <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmtPct(b.green_area_ratio)}</td>

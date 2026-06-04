@@ -321,7 +321,15 @@ export async function GET(request: Request) {
           pollution_class: row?.pollution_class ?? null,
           air_quality_source: row?.air_quality_source ?? null,
           air_quality_note: row?.air_quality_note ?? null,
+          district_area_rai: districtAreaRai || null,
           builtup_area_rai: builtupAreaRai,
+          builtup_ratio: builtupAreaRai != null && districtAreaRai > 0
+            ? builtupAreaRai / districtAreaRai : null,
+          water_area_rai: row?.water_area_rai != null
+            ? Math.round(row.water_area_rai)
+            : (row?.water_ratio != null && districtAreaRai > 0
+              ? Math.round(row.water_ratio * districtAreaRai)
+              : null),
           delta,
           vegetation_index: ndviMean,
           ndvi: ndviMean,
@@ -333,6 +341,7 @@ export async function GET(request: Request) {
           low_green_ratio: row?.low_green_ratio ?? null,
           water_ratio: row?.water_ratio ?? null,
           ntl_mean: row?.ntl_mean ?? null,
+          ntl_max: row?.ntl_max ?? null,
           priority_score: metric === "vegetation" && row ? calculatePriorityScore(row) : null,
           priority_reasons: metric === "vegetation" && row ? getPriorityReasons(row) : [],
           vegetation_delta: delta,
