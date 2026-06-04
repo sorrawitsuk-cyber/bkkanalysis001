@@ -4,6 +4,7 @@ import * as turf from "@turf/turf";
 import geojson from "@/data/bkk_districts.json";
 import lstData from "@/data/lst_data.json";
 import { supabaseServer as supabase } from "@/lib/supabase/server";
+import ee, { initGEE } from "@/lib/gee";
 import {
   calculatePriorityScore,
   getNdviClass,
@@ -15,6 +16,7 @@ import { getBangkokNdviSummaryFromRows } from "@/lib/district-statistics";
 import type { DistrictStatistic } from "@/types/district";
 
 // Remove force-dynamic so Next.js can use route-level caching; rely on Cache-Control headers for CDN.
+export const maxDuration = 60;
 
 const ALL_DISTRICTS = "ทั้งหมด";
 
@@ -148,7 +150,6 @@ const MAP_COLUMNS = [
   "no2_mean", "no2_max", "co_mean", "co_max", "so2_mean", "so2_max",
   "aerosol_index_mean", "aerosol_index_max", "pollution_score", "pollution_class",
   "air_quality_source", "air_quality_note",
-  "districts(name_th)",
 ].join(", ");
 
 // Columns for trend summary (subset — no heavy geometry/class fields)
@@ -158,7 +159,6 @@ const TREND_COLUMNS = [
   "ndvi_mean", "ndvi_score", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
   "ndbi_mean",
   "no2_mean", "pollution_score",
-  "districts(name_th)",
 ].join(", ");
 
 async function loadDbRows(year: number): Promise<DistrictStatistic[]> {
@@ -216,6 +216,122 @@ function hasAirPollutionData(rows: any[]): boolean {
   return rows.some((r) => typeof r.no2_mean === "number" || typeof r.pollution_score === "number");
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`GEE timeout after ${ms}ms`)), ms)),
+  ]);
+}
+
+function evaluateEe<T>(eeObject: any): Promise<T> {
+  return new Promise((resolve, reject) => {
+    eeObject.evaluate((value: T, error: any) => {
+      if (error) reject(error);
+      else resolve(value);
+    });
+  });
+}
+
+function getDistrictFeatureCollection() {
+  return ee.FeatureCollection(
+    (geojson.features as any[]).map((feature: any) =>
+      ee.Feature(ee.Geometry(feature.geometry).simplify(250), {
+        id: feature.properties.id,
+        name_th: feature.properties.name_th,
+      })
+    )
+  );
+}
+
+function airPollutionScore(row: any): number | null {
+  const parts: [number, number][] = [];
+  if (typeof row.no2_mean === "number") parts.push([Math.min(Math.max(row.no2_mean / 0.00030, 0), 1), 0.50]);
+  if (typeof row.co_mean === "number") parts.push([Math.min(Math.max((row.co_mean - 0.015) / 0.04, 0), 1), 0.20]);
+  if (typeof row.so2_mean === "number") parts.push([Math.min(Math.max(row.so2_mean / 0.00060, 0), 1), 0.15]);
+  if (typeof row.aerosol_index_mean === "number") parts.push([Math.min(Math.max((row.aerosol_index_mean + 1) / 3, 0), 1), 0.15]);
+  if (parts.length === 0) return null;
+  const weighted = parts.reduce((sum, [value, weight]) => sum + value * weight, 0);
+  const totalWeight = parts.reduce((sum, [, weight]) => sum + weight, 0);
+  return parseFloat(((weighted / totalWeight) * 10).toFixed(2));
+}
+
+function airPollutionClass(score: number | null): string | null {
+  if (score === null) return null;
+  if (score >= 8) return "very_high";
+  if (score >= 6) return "high";
+  if (score >= 4) return "moderate";
+  if (score >= 2) return "low";
+  return "very_low";
+}
+
+function cleanGeeNumber(value: any, digits: number): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return parseFloat(value.toFixed(digits));
+}
+
+async function computeGeeAirPollutionRows(year: number): Promise<DistrictStatistic[]> {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const startDate = `${year}-01-01`;
+  const endDate = year >= currentYear ? today.toISOString().split("T")[0] : `${year}-12-31`;
+  const bkkBbox = ee.Geometry.BBox(100.329, 13.494, 100.935, 13.956);
+
+  const no2 = ee.ImageCollection("COPERNICUS/S5P/OFFL/L3_NO2")
+    .filterBounds(bkkBbox)
+    .filterDate(startDate, endDate)
+    .select("tropospheric_NO2_column_number_density")
+    .mean()
+    .rename("no2");
+  const co = ee.ImageCollection("COPERNICUS/S5P/OFFL/L3_CO")
+    .filterBounds(bkkBbox)
+    .filterDate(startDate, endDate)
+    .select("CO_column_number_density")
+    .mean()
+    .rename("co");
+  const so2 = ee.ImageCollection("COPERNICUS/S5P/OFFL/L3_SO2")
+    .filterBounds(bkkBbox)
+    .filterDate(startDate, endDate)
+    .select("SO2_column_number_density")
+    .mean()
+    .rename("so2");
+  const aerosol = ee.ImageCollection("COPERNICUS/S5P/OFFL/L3_AER_AI")
+    .filterBounds(bkkBbox)
+    .filterDate(startDate, endDate)
+    .select("absorbing_aerosol_index")
+    .mean()
+    .rename("aerosol");
+
+  const stacked = no2.addBands(co).addBands(so2).addBands(aerosol);
+  const result = await evaluateEe<any>(stacked.reduceRegions({
+    collection: getDistrictFeatureCollection(),
+    reducer: ee.Reducer.mean().combine(ee.Reducer.max(), "", true),
+    scale: 1000,
+    tileScale: 2,
+  }));
+
+  return (result?.features ?? []).map((feature: any) => {
+    const p = feature.properties ?? {};
+    const row: any = {
+      district_id: p.id,
+      district_name: p.name_th,
+      year,
+      no2_mean: cleanGeeNumber(p.no2_mean, 8),
+      no2_max: cleanGeeNumber(p.no2_max, 8),
+      co_mean: cleanGeeNumber(p.co_mean, 6),
+      co_max: cleanGeeNumber(p.co_max, 6),
+      so2_mean: cleanGeeNumber(p.so2_mean, 8),
+      so2_max: cleanGeeNumber(p.so2_max, 8),
+      aerosol_index_mean: cleanGeeNumber(p.aerosol_mean, 4),
+      aerosol_index_max: cleanGeeNumber(p.aerosol_max, 4),
+      air_quality_source: "GEE live Sentinel-5P OFFL yearly mean",
+      air_quality_note: "Satellite column-density proxy, not ground-station AQI.",
+    };
+    row.pollution_score = airPollutionScore(row);
+    row.pollution_class = airPollutionClass(row.pollution_score);
+    return row as DistrictStatistic;
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -233,7 +349,7 @@ export async function GET(request: Request) {
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
 
     const invertedMask = getInvertedMask();
-    const geoJsonIdBySupabaseId = await getGeoJsonIdBySupabaseId();
+    await getGeoJsonIdBySupabaseId();
 
     // Resolve district filter to a numeric GeoJSON ID (used for efficient DB query)
     const filteredDistrictId =
@@ -258,16 +374,51 @@ export async function GET(request: Request) {
     const localYearRows = lstData.filter((row: any) => row.year === year);
     const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 
-    const useDbYear = metric === "vegetation" ? hasNdviData(dbYearRows) : metric === "builtup" ? hasNdbiData(dbYearRows) : metric === "air_pollution" ? hasAirPollutionData(dbYearRows) : hasLstData(dbYearRows);
-    const useDbCompare = metric === "vegetation" ? hasNdviData(dbCompareRows) : metric === "builtup" ? hasNdbiData(dbCompareRows) : metric === "air_pollution" ? hasAirPollutionData(dbCompareRows) : hasLstData(dbCompareRows);
-    const useDbAll = metric === "vegetation" ? hasNdviData(dbAllRows) : metric === "builtup" ? hasNdbiData(dbAllRows) : metric === "air_pollution" ? hasAirPollutionData(dbAllRows) : dbAllRows.some((r) => typeof r.mean_lst === "number");
+    let effectiveYearRows = dbYearRows;
+    let effectiveCompareRows = dbCompareRows;
+    let effectiveAllRows = dbAllRows;
+    let airDataSource = "supabase district_statistics";
+
+    let useDbYear = metric === "vegetation" ? hasNdviData(effectiveYearRows) : metric === "builtup" ? hasNdbiData(effectiveYearRows) : metric === "air_pollution" ? hasAirPollutionData(effectiveYearRows) : hasLstData(effectiveYearRows);
+    let useDbCompare = metric === "vegetation" ? hasNdviData(effectiveCompareRows) : metric === "builtup" ? hasNdbiData(effectiveCompareRows) : metric === "air_pollution" ? hasAirPollutionData(effectiveCompareRows) : hasLstData(effectiveCompareRows);
+    let useDbAll = metric === "vegetation" ? hasNdviData(effectiveAllRows) : metric === "builtup" ? hasNdbiData(effectiveAllRows) : metric === "air_pollution" ? hasAirPollutionData(effectiveAllRows) : effectiveAllRows.some((r) => typeof r.mean_lst === "number");
+
+    if (metric === "air_pollution" && !useDbYear) {
+      try {
+        await initGEE();
+        const [geeYearResult, geeCompareResult] = await Promise.allSettled([
+          withTimeout(computeGeeAirPollutionRows(year), 50000),
+          compareYear && !useDbCompare
+            ? withTimeout(computeGeeAirPollutionRows(compareYear), 50000)
+            : Promise.resolve([]),
+        ]);
+        const geeYearRows = geeYearResult.status === "fulfilled" ? geeYearResult.value : [];
+        const geeCompareRows = geeCompareResult.status === "fulfilled" ? geeCompareResult.value : [];
+
+        if (hasAirPollutionData(geeYearRows)) {
+          effectiveYearRows = geeYearRows;
+          useDbYear = true;
+          airDataSource = "GEE live Sentinel-5P";
+        }
+        if (compareYear && !useDbCompare && hasAirPollutionData(geeCompareRows)) {
+          effectiveCompareRows = geeCompareRows;
+          useDbCompare = true;
+        }
+        if (!useDbAll && hasAirPollutionData(geeYearRows)) {
+          effectiveAllRows = [...geeYearRows, ...geeCompareRows];
+          useDbAll = true;
+        }
+      } catch (geeErr) {
+        console.warn("GEE air-pollution district stats failed:", geeErr);
+      }
+    }
 
     const yearData: any[] = metric === "vegetation"
-      ? (useDbYear ? dbYearRows.map(enrichVegetationRow) : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
-      : (useDbYear ? dbYearRows : localYearRows);
+      ? (useDbYear ? effectiveYearRows.map(enrichVegetationRow) : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
+      : (useDbYear ? effectiveYearRows : localYearRows);
     const compareData: any[] = metric === "vegetation"
-      ? (useDbCompare ? dbCompareRows.map(enrichVegetationRow) : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
-      : (useDbCompare ? dbCompareRows : localCompareRows);
+      ? (useDbCompare ? effectiveCompareRows.map(enrichVegetationRow) : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
+      : (useDbCompare ? effectiveCompareRows : localCompareRows);
 
     const lstMap = new Map<number, any>();
     yearData.forEach((row) => lstMap.set(row.district_id, row));
@@ -349,21 +500,22 @@ export async function GET(request: Request) {
       };
     });
 
-    const hasAnyDbLst = dbAllRows.some((r) => typeof r.mean_lst === "number");
-    const hasAnyDbNdbi = dbAllRows.some((r) => typeof r.ndbi_mean === "number");
-    const hasAnyDbAir = hasAirPollutionData(dbAllRows);
-    // When filteredDistrictId is set, dbAllRows is already scoped to that one district
-    // (loaded via get_district_trend RPC), so the JS-level filter is skipped.
+    const hasAnyDbLst = effectiveAllRows.some((r) => typeof r.mean_lst === "number");
+    const hasAnyDbNdbi = effectiveAllRows.some((r) => typeof r.ndbi_mean === "number");
+    const hasAnyDbAir = hasAirPollutionData(effectiveAllRows);
     let summaryData: any[] = metric === "vegetation"
-      ? (useDbAll ? dbAllRows.map(enrichVegetationRow) : lstData.map((r: any) => toVegetationFallbackRow(r)))
+      ? (useDbAll ? effectiveAllRows.map(enrichVegetationRow) : lstData.map((r: any) => toVegetationFallbackRow(r)))
       : metric === "builtup"
-        ? (hasAnyDbNdbi ? dbAllRows : [])
+        ? (hasAnyDbNdbi ? effectiveAllRows : [])
         : metric === "air_pollution"
-          ? (hasAnyDbAir ? dbAllRows : [])
-          : (hasAnyDbLst ? dbAllRows : lstData);
-    // Only apply JS-level name filter when district is set BUT we fell back to lstData (no DB rows)
-    if (filteredDistrictId === null && districtFilter && districtFilter !== ALL_DISTRICTS) {
-      summaryData = summaryData.filter((row: any) => row.district_name === districtFilter || `เขต${row.district_name}` === districtFilter);
+          ? (hasAnyDbAir ? effectiveAllRows : [])
+          : (hasAnyDbLst ? effectiveAllRows : lstData);
+    if (districtFilter && districtFilter !== ALL_DISTRICTS) {
+      summaryData = summaryData.filter((row: any) =>
+        (filteredDistrictId !== null && row.district_id === filteredDistrictId) ||
+        row.district_name === districtFilter ||
+        `เขต${row.district_name}` === districtFilter
+      );
     }
 
     const trendData = summaryData.reduce((acc: any, row: any) => {
@@ -697,7 +849,11 @@ export async function GET(request: Request) {
         lowestNdviRanking,
         priorityRanking,
         encroachmentRanking,
-        dataSource: useDbYear ? "supabase district_statistics" : metric === "air_pollution" || metric === "builtup" ? "no district_statistics rows" : "local fallback (mock)",
+        dataSource: useDbYear
+          ? (metric === "air_pollution" ? airDataSource : "supabase district_statistics")
+          : metric === "air_pollution" || metric === "builtup"
+            ? "no district_statistics rows"
+            : "local fallback (mock)",
       },
     }, {
       headers: {
