@@ -60,6 +60,20 @@ function fmtPct(v: number | null | undefined): string {
   if (v == null) return "–";
   return `${(v * 100).toFixed(1)}%`;
 }
+// NO₂ in mol/m² → displayed as ×10⁻⁴ (more readable than 1.23e-4)
+function fmtNo2(v: number | null | undefined, long = false): string {
+  if (v == null) return "–";
+  const scaled = v * 10000;
+  return long ? `${scaled.toFixed(3)} ×10⁻⁴ mol/m²` : `${scaled.toFixed(2)} ×10⁻⁴`;
+}
+function pollutionLabel(score: number | null | undefined): string {
+  if (score == null) return "";
+  if (score >= 8) return "สูงมาก";
+  if (score >= 6) return "สูง";
+  if (score >= 4) return "ปานกลาง";
+  if (score >= 2) return "ต่ำ";
+  return "ต่ำมาก";
+}
 function numAvg(arr: (number | null | undefined)[]): number | null {
   const ns = arr.filter((v): v is number => typeof v === "number" && isFinite(v));
   return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null;
@@ -998,12 +1012,15 @@ export default function DistrictAnalysisPage() {
                   delta={delta("builtup_area_rai")} deltaInvert deltaUnit=" ไร่"
                   rank={profileDistrictId ? getRank(profileDistrictId, "ndbi_mean") : undefined} />
                 <MetricCard icon={Wind} label="มลพิษอากาศ" color="text-purple-400" iconBg="bg-purple-500/10"
-                  value={fmt(cur.pollution_score, 2, " /10")} sub={`NO₂ ${cur.no2_mean != null ? cur.no2_mean.toExponential(2) : "–"}`}
+                  value={`${fmt(cur.pollution_score, 2)} /10`}
+                  sub={`${pollutionLabel(cur.pollution_score)} · NO₂ ${fmtNo2(cur.no2_mean)}`}
                   delta={delta("pollution_score")} deltaInvert
                   rank={profileDistrictId ? getRank(profileDistrictId, "pollution_score") : undefined} />
                 <MetricCard icon={Droplets} label="พื้นที่น้ำ" color="text-sky-400" iconBg="bg-sky-500/10"
-                  value={fmtPct(cur.water_ratio)} sub={`NDWI ${fmt(cur.ndwi_mean, 4)}`}
-                  delta={delta("water_ratio")} />
+                  value={cur.water_area_rai != null ? `${Math.round(cur.water_area_rai).toLocaleString()} ไร่` : fmtPct(cur.water_ratio)}
+                  sub={`${fmtPct(cur.water_ratio)} พื้นที่ · NDWI ${fmt(cur.ndwi_mean, 4)}`}
+                  delta={delta("water_ratio") != null ? (delta("water_ratio") as number) * 100 : null}
+                  deltaUnit="%" />
                 <MetricCard icon={Moon} label="แสงไฟกลางคืน" color="text-yellow-400" iconBg="bg-yellow-500/10"
                   value={fmt(cur.ntl_mean, 2)} sub="nW/sr/cm²"
                   delta={delta("ntl_mean")}
@@ -1082,7 +1099,7 @@ export default function DistrictAnalysisPage() {
                 <table className="w-full text-[11px] border-collapse">
                   <thead className="bg-slate-900/80">
                     <tr className="border-b border-slate-800">
-                      {["ปี","LST เฉลี่ย","LST สูงสุด","NDVI","พื้นที่เขียว (ไร่)","สัดส่วนเขียว","NDBI","สิ่งปลูกสร้าง (ไร่)","NO₂","คะแนนมลพิษ","สัดส่วนน้ำ","NTL Mean"].map(h => (
+                      {["ปี","LST เฉลี่ย","LST สูงสุด","NDVI","พื้นที่เขียว (ไร่)","สัดส่วนเขียว","NDBI","สิ่งปลูกสร้าง (ไร่)","NO₂ (×10⁻⁴ mol/m²)","คะแนนมลพิษ (/10)","สัดส่วนน้ำ","NTL Mean"].map(h => (
                         <th key={h} className="px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-slate-600 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -1105,9 +1122,9 @@ export default function DistrictAnalysisPage() {
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-slate-400">{fmtPct(m?.green_area_ratio)}</span>{showTableDelta && d?.green_area_ratio != null && <DeltaSpan delta={d.green_area_ratio * 100} unit="%" />}</td>
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-amber-400">{fmt(m?.ndbi_mean, 4)}</span>{showTableDelta && d?.ndbi_mean != null && <DeltaSpan delta={d.ndbi_mean} lower />}</td>
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-amber-300">{m?.builtup_area_rai != null ? Math.round(m.builtup_area_rai).toLocaleString() : "–"}</span>{showTableDelta && d?.builtup_area_rai != null && <DeltaSpan delta={d.builtup_area_rai} lower unit="ไร่" />}</td>
-                          <td className="px-3 py-2 tabular-nums font-mono"><span className="text-purple-400">{m?.no2_mean != null ? m.no2_mean.toExponential(3) : "–"}</span>{showTableDelta && d?.no2_mean != null && <DeltaSpan delta={d.no2_mean} lower sci />}</td>
+                          <td className="px-3 py-2 tabular-nums font-mono"><span className="text-purple-400">{fmtNo2(m?.no2_mean, true)}</span>{showTableDelta && d?.no2_mean != null && <DeltaSpan delta={d.no2_mean * 10000} lower unit="×10⁻⁴" />}</td>
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-purple-300">{fmt(m?.pollution_score, 2)}</span>{showTableDelta && d?.pollution_score != null && <DeltaSpan delta={d.pollution_score} lower />}</td>
-                          <td className="px-3 py-2 tabular-nums font-mono"><span className="text-sky-400">{fmtPct(m?.water_ratio)}</span>{showTableDelta && d?.water_ratio != null && <DeltaSpan delta={d.water_ratio * 100} unit="%" />}</td>
+                          <td className="px-3 py-2 tabular-nums font-mono"><span className="text-sky-400">{fmtPct(m?.water_ratio)}</span>{m?.water_area_rai != null && <span className="text-[9px] text-slate-600 block">{Math.round(m.water_area_rai).toLocaleString()} ไร่</span>}{showTableDelta && d?.water_ratio != null && <DeltaSpan delta={d.water_ratio * 100} unit="%" />}</td>
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-yellow-400">{fmt(m?.ntl_mean, 2)}</span>{showTableDelta && d?.ntl_mean != null && <DeltaSpan delta={d.ntl_mean} />}</td>
                         </tr>
                       );
@@ -1126,9 +1143,9 @@ export default function DistrictAnalysisPage() {
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmtPct(b.green_area_ratio)}</td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.ndbi_mean, 4)}</td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{b.builtup_area_rai != null ? Math.round(b.builtup_area_rai).toLocaleString() : "–"}</td>
-                          <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{b.no2_mean != null ? b.no2_mean.toExponential(3) : "–"}</td>
+                          <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmtNo2(b.no2_mean, true)}</td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.pollution_score, 2)}</td>
-                          <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmtPct(b.water_ratio)}</td>
+                          <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmtPct(b.water_ratio)}{b.water_area_rai != null && <span className="block text-[8px]">{Math.round(b.water_area_rai).toLocaleString()} ไร่</span>}</td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.ntl_mean, 2)}</td>
                         </tr>
                       </tfoot>
