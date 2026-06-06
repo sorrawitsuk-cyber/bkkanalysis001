@@ -146,7 +146,7 @@ const MAP_COLUMNS = [
   "district_id", "year",
   "mean_lst", "max_lst",
   "ndvi_mean", "ndvi_score", "ndvi_class", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
-  "ndbi_mean", "ndbi_max", "builtup_area_rai",
+  "ndbi_mean", "ndbi_max",
   "no2_mean", "no2_max", "co_mean", "co_max", "so2_mean", "so2_max",
   "aerosol_index_mean", "aerosol_index_max", "pollution_score", "pollution_class",
   "air_quality_source", "air_quality_note",
