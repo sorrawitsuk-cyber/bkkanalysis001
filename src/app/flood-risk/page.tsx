@@ -783,17 +783,15 @@ export default function FloodRiskPage() {
               <div className="flex-1 overflow-y-auto custom-scrollbar">
 
                 {/* ── Stats strip ─────────────────────────────────────── */}
-                <div className="grid grid-cols-3 sm:grid-cols-6 border-b border-slate-800/60">
+                <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-slate-800/60">
                   {[
                     { label: "ค่าเฉลี่ย", value: statsComputed ? `${(statsComputed.mean * 100).toFixed(2)}%` : "–", color: "text-slate-200" },
-                    { label: "Median", value: statsComputed ? `${(statsComputed.median * 100).toFixed(2)}%` : "–", color: "text-slate-200" },
                     { label: "สูงสุด", value: statsComputed ? `${(statsComputed.max * 100).toFixed(2)}%` : "–", color: "text-sky-400" },
                     { label: "ต่ำสุด", value: statsComputed ? `${(statsComputed.min * 100).toFixed(2)}%` : "–", color: "text-slate-400" },
-                    { label: "Std Dev (σ)", value: statsComputed ? `${(statsComputed.stdDev * 100).toFixed(2)}pp` : "–", color: "text-amber-400" },
                     { label: "พื้นที่น้ำรวม", value: summary.totalWaterAreaRai ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–", color: "text-blue-400" },
                   ].map((s, i) => (
                     <div key={i} className={`px-4 py-3 border-r border-slate-800/60 last:border-r-0 ${i % 2 === 0 ? "bg-slate-900/40" : "bg-slate-900/20"}`}>
-                      <div className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-0.5">{s.label}</div>
+                      <div className="text-[11px] font-semibold text-slate-500 mb-0.5">{s.label}</div>
                       <div className={`text-base font-black tabular-nums ${s.color}`}>{s.value}</div>
                     </div>
                   ))}
@@ -806,7 +804,7 @@ export default function FloodRiskPage() {
                   <div className="border-r border-slate-800/60 flex flex-col">
                     <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-800/40">
                       <div>
-                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
+                        <h3 className="text-[13px] font-semibold text-slate-300">
                           สัดส่วนพื้นที่น้ำรายเขต (Water Ratio %)
                         </h3>
                         <p className="text-[10px] text-slate-600 mt-0.5">
@@ -823,7 +821,7 @@ export default function FloodRiskPage() {
                           <BarChart data={statsBarData.map((d: any) => ({ ...d, value: d.water_ratio_pct }))} layout="vertical" margin={{ top: 0, right: 52, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                             <XAxis type="number" domain={[0, "auto"]} tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 9.5, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                             <Tooltip
                               content={({ active, payload, label }) => {
                                 if (!active || !payload?.length) return null;
@@ -842,7 +840,7 @@ export default function FloodRiskPage() {
                             />
                             <ReferenceLine x={4} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1.5} />
                             <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={13}
-                              label={{ position: "right", fontSize: 8, fill: "#64748b", formatter: (v: unknown) => `${Number(v).toFixed(1)}%` }}>
+                              label={{ position: "right", fontSize: 10, fill: "#64748b", formatter: (v: unknown) => `${Number(v).toFixed(1)}%` }}>
                               {statsBarData.map((_: any, i: number) => (
                                 <Cell key={i} fill={lerpColor(BAR_LOW, BAR_HIGH, i / Math.max(statsBarData.length - 1, 1))} />
                               ))}
@@ -858,7 +856,7 @@ export default function FloodRiskPage() {
 
                     {/* Yearly trend (index) */}
                     <div className="px-5 py-4">
-                      <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+                      <h3 className="text-[13px] font-semibold text-slate-400 mb-3">
                         แนวโน้มรายปี — {WATER_LAYER_LABELS[cacheLayer]}
                       </h3>
                       {statsTrendData.length < 2 ? (
@@ -878,30 +876,12 @@ export default function FloodRiskPage() {
                       )}
                     </div>
 
-                    {/* Distribution histogram */}
-                    {statsDistribution.length > 0 && (
-                      <div className="px-5 py-4">
-                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">การกระจายค่า (Distribution)</h3>
-                        <p className="text-[9px] text-slate-600 mb-3">จำนวนเขตในแต่ละช่วง Water Ratio (%)</p>
-                        <ResponsiveContainer width="100%" height={100}>
-                          <BarChart data={statsDistribution} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                            <YAxis tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }}
-                              formatter={(v: any) => [`${v} เขต`, ""]} />
-                            <Bar dataKey="count" radius={[2, 2, 0, 0]} fill="#38bdf8" opacity={0.8} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-
                     {/* Insights */}
                     {statsInsights.length > 0 && (
                       <div className="px-5 py-4">
                         <div className="flex items-center gap-2 mb-3">
                           <Lightbulb className="w-3.5 h-3.5 text-sky-400" />
-                          <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400">ข้อสังเกตจากข้อมูล</h3>
+                          <h3 className="text-[13px] font-semibold text-slate-400">ข้อสังเกตจากข้อมูล</h3>
                         </div>
                         <ul className="space-y-2">
                           {statsInsights.map((ins, i) => (
@@ -924,7 +904,7 @@ export default function FloodRiskPage() {
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">น้ำมากที่สุด 5 เขต</h4>
+                      <h4 className="text-[12px] font-semibold text-slate-500">น้ำมากที่สุด 5 เขต</h4>
                     </div>
                     <ol className="space-y-1.5">
                       {statsBarData.slice(0, 5).map((row: any, i: number) => (
@@ -941,7 +921,7 @@ export default function FloodRiskPage() {
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <TrendingDown className="w-3.5 h-3.5 text-slate-400" />
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">น้ำน้อยที่สุด 5 เขต</h4>
+                      <h4 className="text-[12px] font-semibold text-slate-500">น้ำน้อยที่สุด 5 เขต</h4>
                     </div>
                     <ol className="space-y-1.5">
                       {[...statsBarData].reverse().slice(0, 5).map((row: any, i: number) => (
@@ -958,16 +938,14 @@ export default function FloodRiskPage() {
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <ActivityIcon className="w-3.5 h-3.5 text-slate-500" />
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">สถิติสรุป</h4>
+                      <h4 className="text-[12px] font-semibold text-slate-500">สถิติสรุป</h4>
                     </div>
                     <div className="space-y-2">
                       {statsComputed && [
-                        ["Q1 (25%)", `${(statsComputed.q1 * 100).toFixed(2)}%`],
-                        ["Q2 Median", `${(statsComputed.median * 100).toFixed(2)}%`],
-                        ["Q3 (75%)", `${(statsComputed.q3 * 100).toFixed(2)}%`],
-                        ["IQR (Q3-Q1)", `${((statsComputed.q3 - statsComputed.q1) * 100).toFixed(2)}pp`],
-                        ["Std Dev (σ)", `${(statsComputed.stdDev * 100).toFixed(2)}pp`],
-                        ["N เขต", String(statsComputed.n)],
+                        ["ค่าเฉลี่ย", `${(statsComputed.mean * 100).toFixed(2)}%`],
+                        ["ค่าสูงสุด", `${(statsComputed.max * 100).toFixed(2)}%`],
+                        ["ค่าต่ำสุด", `${(statsComputed.min * 100).toFixed(2)}%`],
+                        ["จำนวนเขต", String(statsComputed.n)],
                       ].map(([label, val]) => (
                         <div key={label} className="flex items-center justify-between text-[11px]">
                           <span className="text-slate-600">{label}</span>

@@ -114,10 +114,6 @@ function generateInsights(values: number[], ranking: any[], metric: Metric, cfg:
     const aboveCount = values.filter((v) => v >= cfg.threshold!).length;
     if (aboveCount > 0) insights.push(`${aboveCount} เขต (${Math.round((aboveCount / n) * 100)}%) มีค่าเกินเกณฑ์ ${cfg.thresholdLabel}`);
   }
-  if (stats.stdDev != null && stats.mean != null) {
-    const cv = (stats.stdDev / Math.abs(stats.mean)) * 100;
-    insights.push(`การกระจาย: ${cv < 5 ? "ใกล้เคียงกันมาก" : cv < 15 ? "กระจายระดับปานกลาง" : "กระจายสูง"} (CV = ${cv.toFixed(1)}%)`);
-  }
   const trendRows: [string, number][] = summary.yearlyTrend ?? [];
   if (trendRows.length >= 3) {
     const first = Number(trendRows[0][1]);
@@ -126,8 +122,7 @@ function generateInsights(values: number[], ranking: any[], metric: Metric, cfg:
     const years = Number(trendRows[trendRows.length - 1][0]) - Number(trendRows[0][0]);
     insights.push(`แนวโน้ม ${years} ปี: ${delta > 0 ? "เพิ่มขึ้น" : "ลดลง"} ${Math.abs(delta).toFixed(3)} ${cfg.barUnit || cfg.trendUnit} (${trendRows[0][0]}–${trendRows[trendRows.length - 1][0]})`);
   }
-  if (stats.q1 != null && stats.q3 != null) insights.push(`IQR (Q1–Q3): ${cfg.formatShort(stats.q1)} – ${cfg.formatShort(stats.q3)} ${cfg.barUnit}`);
-  return insights.slice(0, 5);
+  return insights.slice(0, 4);
 }
 
 function lerpColor(hex1: string, hex2: string, t: number) {
@@ -225,7 +220,7 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
       <div className="border-r border-slate-800/60 flex flex-col">
         <div className="shrink-0 px-5 py-3 border-b border-slate-800/40">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-300">{cfg.trendTitle} (เขตนี้)</h3>
+            <h3 className="text-[13px] font-semibold text-slate-300">{cfg.trendTitle} (เขตนี้)</h3>
             {hasProfileData
               ? <span className="text-[9px] px-2 py-0.5 rounded-full border border-emerald-700/40 bg-emerald-950/30 text-emerald-400 font-bold">ข้อมูลจริง · Supabase</span>
               : <span className="text-[9px] px-2 py-0.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 font-bold">ยังไม่มีสถิติรายปีในDB</span>
@@ -271,8 +266,8 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
           <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b border-slate-800/60">
-                {["ปี", "ค่า", "Δ จากปีก่อน", "เทียบ Median"].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left text-[9px] font-bold uppercase tracking-widest text-slate-600">{h}</th>
+                {["ปี", "ค่า", "เปลี่ยนจากปีก่อน", "เทียบค่าเฉลี่ย กทม."].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-slate-600">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -303,15 +298,13 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
 
         {/* District stats card */}
         <div className="px-5 py-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">สถิติเขตนี้ (ทุกปีที่มีข้อมูล)</h3>
+          <h3 className="text-[13px] font-semibold text-slate-400 mb-3">สถิติเขตนี้ (ทุกปีที่มีข้อมูล)</h3>
           <div className="space-y-2">
             {[
               ["ค่าปีปัจจุบัน", currentValue != null ? cfg.formatVal(currentValue) : "–", cfg.accentHex],
               ["ค่าเฉลี่ย (ทุกปี)", stats.mean != null ? cfg.formatVal(stats.mean) : "–", "#94a3b8"],
               ["ต่ำสุด (ปีใด)", stats.min != null ? cfg.formatVal(stats.min) : "–", "#22d3ee"],
               ["สูงสุด (ปีใด)", stats.max != null ? cfg.formatVal(stats.max) : "–", "#f87171"],
-              ["Median", stats.median != null ? cfg.formatVal(stats.median) : "–", "#94a3b8"],
-              ["Std Dev (σ)", stats.stdDev != null ? cfg.formatShort(stats.stdDev) : "–", "#f59e0b"],
               ["จำนวนปี", String(allValues.length), "#64748b"],
             ].map(([label, val, color]) => (
               <div key={label} className="flex items-center justify-between text-[11px]">
@@ -325,7 +318,7 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
         {/* Secondary area trend */}
         {secondaryTrend.length > 0 && (
           <div className="px-5 py-4">
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+            <h3 className="text-[13px] font-semibold text-slate-400 mb-3">
               {metric === "vegetation" ? "พื้นที่สีเขียว (ไร่)" : "พื้นที่สิ่งปลูกสร้าง (ไร่)"}
             </h3>
             <ResponsiveContainer width="100%" height={120}>
@@ -344,7 +337,7 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
         {/* Monthly (LST only) */}
         {monthlyData.length > 0 && monthlyData.some((d: any) => d.value) && (
           <div className="px-5 py-4">
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">LST รายเดือน ปี {year}</h3>
+            <h3 className="text-[13px] font-semibold text-slate-400 mb-3">LST รายเดือน ปี {year}</h3>
             <ResponsiveContainer width="100%" height={130}>
               <AreaChart data={monthlyData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
                 <defs><linearGradient id="md2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cfg.accentHex} stopOpacity={0.3} /><stop offset="95%" stopColor={cfg.accentHex} stopOpacity={0} /></linearGradient></defs>
@@ -434,10 +427,8 @@ export default function StatsDashboard({
 
   const statStrip = [
     { label: "ค่าเฉลี่ย", value: avgTxt, unit: cfg.barUnit, color: "text-slate-200" },
-    { label: "ค่ากลาง (Median)", value: medTxt, unit: cfg.barUnit, color: "text-slate-200" },
     { label: "สูงสุด", value: maxTxt, unit: cfg.barUnit, color: "text-red-400" },
     { label: "ต่ำสุด", value: minTxt, unit: cfg.barUnit, color: "text-emerald-400" },
-    { label: "ส่วนเบี่ยงเบน (σ)", value: stdTxt, unit: cfg.barUnit, color: "text-amber-400" },
     ...(aboveCount != null
       ? [{ label: cfg.thresholdLabel, value: String(aboveCount), unit: "เขต", color: "text-rose-400" }]
       : [{ label: "เขตทั้งหมด", value: String(values.length), unit: "เขต", color: "text-slate-400" }]),
@@ -569,12 +560,12 @@ export default function StatsDashboard({
       )}
 
       {/* ── Stats strip ───────────────────────────────────────────────────────── */}
-      <div className="shrink-0 grid grid-cols-3 sm:grid-cols-6 gap-0 border-b border-slate-800/60">
+      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-0 border-b border-slate-800/60">
         {statStrip.map((s, i) => (
           <div key={i} className={`px-4 py-3 border-r border-slate-800/60 last:border-r-0 ${i % 2 === 0 ? "bg-slate-900/40" : "bg-slate-900/20"}`}>
-            <div className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-0.5">{s.label}</div>
+            <div className="text-[11px] font-semibold text-slate-500 mb-0.5">{s.label}</div>
             <div className={`text-lg font-black tabular-nums ${s.color}`}>{s.value}</div>
-            <div className="text-[9px] text-slate-700">{s.unit}</div>
+            <div className="text-[10px] text-slate-700">{s.unit}</div>
           </div>
         ))}
       </div>
@@ -596,7 +587,7 @@ export default function StatsDashboard({
           <div className="border-r border-slate-800/60 flex flex-col min-h-0">
             <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-800/40">
               <div>
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-300">{cfg.barTitle}</h3>
+                <h3 className="text-[13px] font-semibold text-slate-300">{cfg.barTitle}</h3>
                 <p className="text-[10px] text-slate-600 mt-0.5">50 เขตกรุงเทพฯ เรียงจากมากไปน้อย · ปี {year}</p>
               </div>
               {cfg.threshold != null && (
@@ -611,7 +602,7 @@ export default function StatsDashboard({
                   <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 48, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                     <XAxis type="number" domain={["auto", "auto"]} tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 9.5, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
@@ -631,7 +622,7 @@ export default function StatsDashboard({
                     />
                     {cfg.threshold != null && <ReferenceLine x={cfg.threshold} stroke={cfg.thresholdColor} strokeDasharray="3 3" strokeWidth={1.5} />}
                     <Bar dataKey="value" radius={[0, 3, 3, 0]} maxBarSize={13}
-                      label={{ position: "right", fontSize: 8, fill: "#64748b", formatter: (v: unknown) => { const n = Number(v); return cfg.barUnit === "ไร่" ? n.toLocaleString() : n.toFixed(cfg.barUnit === "°C" ? 1 : 3); } }}>
+                      label={{ position: "right", fontSize: 10, fill: "#64748b", formatter: (v: unknown) => { const n = Number(v); return cfg.barUnit === "ไร่" ? n.toLocaleString() : n.toFixed(cfg.barUnit === "°C" ? 1 : 3); } }}>
                       {barData.map((_, i) => <Cell key={i} fill={lerpColor(cfg.barColor, cfg.barColorHigh, i / Math.max(barData.length - 1, 1))} />)}
                     </Bar>
                   </BarChart>
@@ -644,7 +635,7 @@ export default function StatsDashboard({
           <div className="flex flex-col divide-y divide-slate-800/60 overflow-y-auto custom-scrollbar">
 
             <div className="px-5 py-4">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">{cfg.trendTitle}</h3>
+              <h3 className="text-[13px] font-semibold text-slate-400 mb-3">{cfg.trendTitle}</h3>
               {displayTrend.length === 0 ? (
                 <div className="flex h-28 items-center justify-center text-slate-700 text-xs">ไม่มีข้อมูลรายปี</div>
               ) : (
@@ -665,7 +656,7 @@ export default function StatsDashboard({
 
             {secondaryTrendData.length > 0 && (
               <div className="px-5 py-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+                <h3 className="text-[13px] font-semibold text-slate-400 mb-3">
                   {metric === "vegetation" ? "พื้นที่สีเขียวรวม (ไร่)" : "พื้นที่สิ่งปลูกสร้าง (ไร่)"}
                 </h3>
                 <ResponsiveContainer width="100%" height={120}>
@@ -683,7 +674,7 @@ export default function StatsDashboard({
 
             {monthlyData.length > 0 && monthlyData.some((d: any) => d.value) && (
               <div className="px-5 py-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">LST เฉลี่ยรายเดือน ปี {year}</h3>
+                <h3 className="text-[13px] font-semibold text-slate-400 mb-3">LST เฉลี่ยรายเดือน ปี {year}</h3>
                 <ResponsiveContainer width="100%" height={140}>
                   <AreaChart data={monthlyData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
                     <defs><linearGradient id="mgrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cfg.accentHex} stopOpacity={0.3} /><stop offset="95%" stopColor={cfg.accentHex} stopOpacity={0} /></linearGradient></defs>
@@ -697,27 +688,11 @@ export default function StatsDashboard({
               </div>
             )}
 
-            {distribution.length > 0 && (
-              <div className="px-5 py-4">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">การกระจายค่า (Distribution)</h3>
-                <p className="text-[9px] text-slate-600 mb-3">จำนวนเขตในแต่ละช่วงค่า</p>
-                <ResponsiveContainer width="100%" height={100}>
-                  <BarChart data={distribution} margin={{ top: 0, right: 4, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 8, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }} formatter={(v: any) => [`${v} เขต`, ""]} />
-                    <Bar dataKey="count" radius={[2, 2, 0, 0]} fill={cfg.accentHex} opacity={0.8} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
             {insights.length > 0 && (
               <div className="px-5 py-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Lightbulb className="w-3.5 h-3.5" style={{ color: cfg.accentHex }} />
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400">ข้อสังเกตจากข้อมูล</h3>
+                  <h3 className="text-[13px] font-semibold text-slate-400">ข้อสังเกตจากข้อมูล</h3>
                 </div>
                 <ul className="space-y-2">
                   {insights.map((ins, i) => (
@@ -741,7 +716,7 @@ export default function StatsDashboard({
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-3.5 h-3.5 text-red-400" />
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">สูงที่สุด 5 เขต</h4>
+              <h4 className="text-[12px] font-semibold text-slate-500">สูงที่สุด 5 เขต</h4>
             </div>
             <ol className="space-y-1.5">
               {top5.map(([name, val]: any, i: number) => (
@@ -758,7 +733,7 @@ export default function StatsDashboard({
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">ต่ำที่สุด 5 เขต</h4>
+              <h4 className="text-[12px] font-semibold text-slate-500">ต่ำที่สุด 5 เขต</h4>
             </div>
             <ol className="space-y-1.5">
               {bot5.map(([name, val]: any, i: number) => (
@@ -775,20 +750,18 @@ export default function StatsDashboard({
           <div className="px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <Activity className="w-3.5 h-3.5 text-slate-500" />
-              <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">สถิติสรุป</h4>
+              <h4 className="text-[12px] font-semibold text-slate-500">สถิติสรุป</h4>
             </div>
             <div className="space-y-2">
               {[
-                ["Q1 (25%)", stats.q1 != null ? cfg.formatShort(stats.q1) : "–"],
-                ["Q2 Median", stats.median != null ? cfg.formatShort(stats.median) : "–"],
-                ["Q3 (75%)", stats.q3 != null ? cfg.formatShort(stats.q3) : "–"],
-                ["IQR (Q3-Q1)", (stats.q1 != null && stats.q3 != null) ? cfg.formatShort(stats.q3 - stats.q1) : "–"],
-                ["Std Dev (σ)", stats.stdDev != null ? cfg.formatShort(stats.stdDev) : "–"],
-                ["N เขต", String(values.length)],
+                ["ค่าเฉลี่ย", avgTxt],
+                ["ค่าสูงสุด", maxTxt],
+                ["ค่าต่ำสุด", minTxt],
+                ["จำนวนเขต", String(values.length)],
               ].map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between text-[11px]">
                   <span className="text-slate-600">{label}</span>
-                  <span className="font-mono font-bold text-slate-300">{val} <span className="text-[9px] text-slate-700">{cfg.barUnit}</span></span>
+                  <span className="font-mono font-bold text-slate-300">{val} <span className="text-[10px] text-slate-700">{cfg.barUnit}</span></span>
                 </div>
               ))}
             </div>

@@ -790,7 +790,7 @@ export default function NighttimeLightsPage() {
                     },
                   ].map((kpi) => (
                     <div key={kpi.label} className={`rounded-2xl border p-4 ${kpi.bg}`}>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">{kpi.label}</p>
+                      <p className="text-[12px] font-semibold text-slate-500 mb-1">{kpi.label}</p>
                       <p className={`text-2xl font-black tabular-nums truncate ${kpi.color}`}>{kpi.value}</p>
                       {kpi.sub && <p className="text-[10px] text-slate-600 mt-0.5">{kpi.sub}</p>}
                     </div>
@@ -800,7 +800,7 @@ export default function NighttimeLightsPage() {
                 {/* Bar Chart — Top 25 by ntl_mean */}
                 {statsBarData.length > 0 && (
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
+                    <h3 className="text-[13px] font-semibold text-slate-400 mb-4">
                       {activeDistrict !== "ทั้งหมด" ? `เขต${activeDistrict} — NTL Mean` : `Top ${statsBarData.length} เขต — NTL Mean`} (nW/sr/cm²)
                     </h3>
                     <ResponsiveContainer width="100%" height={320}>
@@ -826,7 +826,7 @@ export default function NighttimeLightsPage() {
                 {/* Yearly trend (annual mode) */}
                 {!isMonthlyPreview && statsTrendData.length > 1 && (
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                    <h3 className="text-[13px] font-semibold text-slate-400 mb-1">
                       แนวโน้มรายปี — NTL Mean เฉลี่ยทุกเขต
                     </h3>
                     <p className="text-[10px] text-slate-600 mb-4">VIIRS annual average_masked composite</p>
@@ -854,7 +854,7 @@ export default function NighttimeLightsPage() {
                 {/* Monthly sparkline */}
                 {isMonthlyPreview && statsMonthlyData.length > 0 && (
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4">
+                    <h3 className="text-[13px] font-semibold text-slate-400 mb-4">
                       แนวโน้มรายเดือน — {selectedYear}
                     </h3>
                     <ResponsiveContainer width="100%" height={160}>

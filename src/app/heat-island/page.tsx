@@ -116,10 +116,6 @@ export default function HeatIslandPage() {
       label: "เขตที่มี LST เฉลี่ยสูงสุด",
       value: hottestDistrict,
     },
-    {
-      label: "วันที่/ช่วงข้อมูลดาวเทียม",
-      value: compareMode ? `${selectedYear} vs ${compareYear}` : periodLabel,
-    },
   ];
   const legendConfig = compareMode
     ? {
@@ -276,10 +272,10 @@ export default function HeatIslandPage() {
                 </div>
 
                 {/* Floating KPI cards */}
-                <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-5 gap-2 max-w-5xl mx-auto">
+                <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
                   {kpiCards.map((card) => (
                     <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
-                      <div className="text-[9px] text-slate-500 font-bold tracking-wide leading-tight">{card.label}</div>
+                      <div className="text-[11px] text-slate-400 font-semibold leading-tight">{card.label}</div>
                       <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
                     </div>
                   ))}
