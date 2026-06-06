@@ -50,11 +50,21 @@ export async function GET(request: Request) {
   }
 
   try {
-    const districtId = geoJsonIdByName.get(districtName);
-    if (!districtId) {
+    // GeoJSON id is used only for area and feature lookup (districtAreaRaiMap is keyed by GeoJSON id)
+    const geoId = geoJsonIdByName.get(districtName);
+    if (!geoId) {
       return NextResponse.json({ error: "ไม่พบเขต: " + districtName }, { status: 404 });
     }
-    const areaRai = districtAreaRaiMap.get(districtId) ?? 0;
+    const areaRai = districtAreaRaiMap.get(geoId) ?? 0;
+
+    // Supabase districts.id may differ from GeoJSON id (auto-increment vs GeoJSON ordering).
+    // The RPC queries district_statistics.district_id which references districts.id — must use Supabase id.
+    const { data: sbDist } = await supabase
+      .from("districts")
+      .select("id")
+      .or(`name_th.eq.${districtName},name_th.eq.เขต${districtName}`)
+      .limit(1);
+    const districtId = sbDist?.[0]?.id ?? geoId;
 
     // ── Single RPC call: district rows + BKK averages in one round-trip ──────
     // Replaces 2 separate queries (1 district + 450-row full scan).
