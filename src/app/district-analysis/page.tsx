@@ -966,7 +966,7 @@ export default function DistrictAnalysisPage() {
         {selectedDistrict && profileError && !profileLoading && (
           <div className="flex items-center justify-center h-full"><div className="text-red-400 text-[12px]">{profileError}</div></div>
         )}
-        {selectedDistrict && !profileLoading && !profileError && profileData && cur && (
+        {selectedDistrict && !profileLoading && !profileError && profileData && (
           <div className="p-5 space-y-5">
 
             {/* Header */}
@@ -975,35 +975,45 @@ export default function DistrictAnalysisPage() {
               <span className="text-[11px] text-slate-500 font-semibold">พื้นที่รวม {profileData.areaRai.toLocaleString()} ไร่</span>
               <span className="text-[11px] text-slate-600">·</span>
               <span className="text-[11px] text-slate-500">ปี {selectedYear} เทียบกับ {compareYear}</span>
-              {!profileData.metrics[selectedYear] && <span className="text-[10px] text-amber-400 font-bold">ไม่มีข้อมูลปี {selectedYear}</span>}
+              {!cur && (
+                <span className="text-[10px] text-amber-400 font-bold bg-amber-950/40 border border-amber-800/50 rounded-full px-2.5 py-1">
+                  ไม่มีข้อมูลปี {selectedYear} — แสดงแนวโน้มทุกปีด้านล่าง
+                </span>
+              )}
             </div>
 
-            {/* Metric cards with rank */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <MetricCard icon={Flame} label="LST เฉลี่ย" color="text-orange-400" iconBg="bg-orange-500/10"
-                value={fmt(cur.mean_lst, 2, " °C")} sub={`สูงสุด ${fmt(cur.max_lst, 2, "°C")}`}
-                delta={delta("mean_lst")} deltaInvert deltaUnit="°C"
-                rank={profileDistrictId ? getRank(profileDistrictId, "mean_lst") : undefined} />
-              <MetricCard icon={Trees} label="พื้นที่สีเขียว" color="text-emerald-400" iconBg="bg-emerald-500/10"
-                value={fmtRai(cur.green_area_rai)} sub={`NDVI ${fmt(cur.ndvi_mean, 4)} · ${fmtPct(cur.green_area_ratio)}`}
-                delta={delta("green_area_rai")} deltaUnit=" ไร่"
-                rank={profileDistrictId ? getRank(profileDistrictId, "ndvi_mean") : undefined} />
-              <MetricCard icon={Building2} label="สิ่งปลูกสร้าง" color="text-amber-400" iconBg="bg-amber-500/10"
-                value={fmtRai(cur.builtup_area_rai)} sub={`NDBI ${fmt(cur.ndbi_mean, 4)}`}
-                delta={delta("builtup_area_rai")} deltaInvert deltaUnit=" ไร่"
-                rank={profileDistrictId ? getRank(profileDistrictId, "ndbi_mean") : undefined} />
-              <MetricCard icon={Wind} label="มลพิษอากาศ" color="text-purple-400" iconBg="bg-purple-500/10"
-                value={fmt(cur.pollution_score, 2, " /10")} sub={`NO₂ ${cur.no2_mean != null ? cur.no2_mean.toExponential(2) : "–"}`}
-                delta={delta("pollution_score")} deltaInvert
-                rank={profileDistrictId ? getRank(profileDistrictId, "pollution_score") : undefined} />
-              <MetricCard icon={Droplets} label="พื้นที่น้ำ" color="text-sky-400" iconBg="bg-sky-500/10"
-                value={fmtPct(cur.water_ratio)} sub={`NDWI ${fmt(cur.ndwi_mean, 4)}`}
-                delta={delta("water_ratio")} />
-              <MetricCard icon={Moon} label="แสงไฟกลางคืน" color="text-yellow-400" iconBg="bg-yellow-500/10"
-                value={fmt(cur.ntl_mean, 2)} sub="nW/sr/cm²"
-                delta={delta("ntl_mean")}
-                rank={profileDistrictId ? getRank(profileDistrictId, "ntl_mean") : undefined} />
-            </div>
+            {/* Metric cards with rank — only when current year has data */}
+            {cur ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <MetricCard icon={Flame} label="LST เฉลี่ย" color="text-orange-400" iconBg="bg-orange-500/10"
+                  value={fmt(cur.mean_lst, 2, " °C")} sub={`สูงสุด ${fmt(cur.max_lst, 2, "°C")}`}
+                  delta={delta("mean_lst")} deltaInvert deltaUnit="°C"
+                  rank={profileDistrictId ? getRank(profileDistrictId, "mean_lst") : undefined} />
+                <MetricCard icon={Trees} label="พื้นที่สีเขียว" color="text-emerald-400" iconBg="bg-emerald-500/10"
+                  value={fmtRai(cur.green_area_rai)} sub={`NDVI ${fmt(cur.ndvi_mean, 4)} · ${fmtPct(cur.green_area_ratio)}`}
+                  delta={delta("green_area_rai")} deltaUnit=" ไร่"
+                  rank={profileDistrictId ? getRank(profileDistrictId, "ndvi_mean") : undefined} />
+                <MetricCard icon={Building2} label="สิ่งปลูกสร้าง" color="text-amber-400" iconBg="bg-amber-500/10"
+                  value={fmtRai(cur.builtup_area_rai)} sub={`NDBI ${fmt(cur.ndbi_mean, 4)}`}
+                  delta={delta("builtup_area_rai")} deltaInvert deltaUnit=" ไร่"
+                  rank={profileDistrictId ? getRank(profileDistrictId, "ndbi_mean") : undefined} />
+                <MetricCard icon={Wind} label="มลพิษอากาศ" color="text-purple-400" iconBg="bg-purple-500/10"
+                  value={fmt(cur.pollution_score, 2, " /10")} sub={`NO₂ ${cur.no2_mean != null ? cur.no2_mean.toExponential(2) : "–"}`}
+                  delta={delta("pollution_score")} deltaInvert
+                  rank={profileDistrictId ? getRank(profileDistrictId, "pollution_score") : undefined} />
+                <MetricCard icon={Droplets} label="พื้นที่น้ำ" color="text-sky-400" iconBg="bg-sky-500/10"
+                  value={fmtPct(cur.water_ratio)} sub={`NDWI ${fmt(cur.ndwi_mean, 4)}`}
+                  delta={delta("water_ratio")} />
+                <MetricCard icon={Moon} label="แสงไฟกลางคืน" color="text-yellow-400" iconBg="bg-yellow-500/10"
+                  value={fmt(cur.ntl_mean, 2)} sub="nW/sr/cm²"
+                  delta={delta("ntl_mean")}
+                  rank={profileDistrictId ? getRank(profileDistrictId, "ntl_mean") : undefined} />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-800/30 bg-amber-950/20 px-5 py-4 text-[11px] text-amber-300">
+                ยังไม่มีข้อมูลดาวเทียมปี {selectedYear} สำหรับเขต{profileData.district} — เลือกปีอื่น หรือดูแนวโน้มรายปีที่ตารางด้านล่าง
+              </div>
+            )}
 
             {/* Trend charts — 3×2 grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
