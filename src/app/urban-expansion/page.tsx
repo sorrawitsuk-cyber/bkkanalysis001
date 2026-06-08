@@ -85,7 +85,7 @@ export default function UrbanExpansionPage() {
 
   const legendConfig = compareMode
     ? { title: "การขยายตัวของเมือง (Urban Expansion)", description: `ผลต่างค่า NDBI ปี ${selectedYear} ลบปีฐาน ${compareYear}`, note: "", unit: "", items: [{ color: "#16A34A", label: "ลดลงมาก", range: "< -0.1" }, { color: "#84CC16", label: "ลดลง", range: "-0.1 ถึง -0.05" }, { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" }, { color: "#F59E0B", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.1" }, { color: "#EF4444", label: "เพิ่มขึ้นมาก", range: "> +0.1" }] }
-    : { title: "ดัชนีพื้นที่สิ่งปลูกสร้าง (NDBI)", description: mapMode === "idw" ? "ค่า NDBI raster จาก Sentinel-2 แบบ median รายปี" : "ค่า NDBI เฉลี่ยรายเขต สะท้อนความหนาแน่นสิ่งปลูกสร้าง", note: "ค่าที่สูงแสดงถึงความหนาแน่นของอาคารและคอนกรีต", unit: "", items: [{ color: "#16A34A", label: "หนาแน่นต่ำมาก", range: "< -0.2" }, { color: "#84CC16", label: "หนาแน่นต่ำ", range: "-0.2 ถึง 0.0" }, { color: "#F59E0B", label: "ปานกลาง", range: "0.0 ถึง 0.2" }, { color: "#EF4444", label: "หนาแน่นสูง", range: "0.2 ถึง 0.4" }, { color: "#7F1D1D", label: "หนาแน่นสูงมาก", range: "> 0.4" }] };
+    : { title: "ดัชนีพื้นที่สิ่งปลูกสร้าง (NDBI)", description: mapMode === "idw" ? "ข้อมูลความหนาแน่นสิ่งปลูกสร้างรายพิกเซลจากดาวเทียม" : "ค่าเฉลี่ยความหนาแน่นสิ่งปลูกสร้างรายเขต", note: "ยิ่งค่าสูง ยิ่งมีอาคาร/คอนกรีตหนาแน่น", unit: "", items: [{ color: "#16A34A", label: "หนาแน่นต่ำมาก", range: "< -0.2" }, { color: "#84CC16", label: "หนาแน่นต่ำ", range: "-0.2 ถึง 0.0" }, { color: "#F59E0B", label: "ปานกลาง", range: "0.0 ถึง 0.2" }, { color: "#EF4444", label: "หนาแน่นสูง", range: "0.2 ถึง 0.4" }, { color: "#7F1D1D", label: "หนาแน่นสูงมาก", range: "> 0.4" }] };
 
   const allDistricts = useMemo((): string[] =>
     [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
@@ -220,12 +220,11 @@ export default function UrbanExpansionPage() {
                 <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-2 bg-indigo-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-                    <p><span className="text-white">Period:</span> {periodLabel}</p>
-                    <p><span className="text-white">Resolution:</span> 10m per pixel (NDBI)</p>
+                    <p>ดาวเทียมสำรวจสิ่งปลูกสร้าง</p>
+                    <p>ช่วงเวลา: {periodLabel}</p>
                   </div>
                 </div>
 
@@ -258,7 +257,7 @@ export default function UrbanExpansionPage() {
                     mapMode={mapMode}
                     mapModes={[
                       { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีแต่ละเขต/แขวงด้วยค่า NDBI เฉลี่ยของพื้นที่นั้น" },
-                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง NDBI จาก Sentinel-2 ผ่าน GEE ที่ความละเอียดประมาณ 10 เมตร" },
+                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงดัชนีสิ่งปลูกสร้างรายพิกเซลจากดาวเทียม" },
                     ]}
                     onMapModeChange={(m) => setMapMode(m as "district" | "idw")}
                     showOpacity={mapMode === "idw"}
@@ -269,7 +268,7 @@ export default function UrbanExpansionPage() {
                     onReset={handleReset}
                     currentLayer={compareMode ? `ผลต่าง NDBI ${selectedYear} - ${compareYear}` : "ดัชนีสิ่งปลูกสร้าง (NDBI)"}
                     currentPeriod={selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel}
-                    dataSource={mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    dataSource={mapMode === "idw" ? "ดาวเทียม (รายพิกเซล)" : summary?.dataSource ?? "สถิติรายเขต"}
                     interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า NDBI ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดู NDBI และพื้นที่สิ่งปลูกสร้างโดยประมาณ"}
                   />
 

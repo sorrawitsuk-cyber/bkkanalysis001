@@ -134,9 +134,9 @@ export default function HeatIslandPage() {
     : {
         title: "ระดับอุณหภูมิพื้นผิว (LST)",
         description: mapMode === "idw"
-          ? "ค่า LST raster จาก Landsat 8/9 แบบ median รายปี หลังคัดกรองเมฆ"
-          : "ค่า LST เฉลี่ยรายเขตจากข้อมูลดาวเทียมในปีที่เลือก",
-        note: "เกณฑ์นี้ใช้เพื่อจัดกลุ่มอุณหภูมิพื้นผิวเชิงพื้นที่ ไม่ใช่เกณฑ์เตือนภัยสุขภาพหรืออุณหภูมิอากาศ",
+          ? "ข้อมูลอุณหภูมิพื้นผิวรายพิกเซลจากดาวเทียม"
+          : "ค่าอุณหภูมิพื้นผิวเฉลี่ยรายเขตในปีที่เลือก",
+        note: "LST = อุณหภูมิพื้นผิว (ถนน/อาคาร/พื้นดิน) ไม่ใช่อุณหภูมิอากาศ",
         unit: "°C",
         items: getLSTLegendItems(),
       };
@@ -287,19 +287,15 @@ export default function HeatIslandPage() {
                 <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
                   </div>
                   <div className="text-[11px] text-slate-400 leading-relaxed">
-                    <p><span className="text-white">Satellite:</span> Landsat 8/9 Collection 2 Level 2</p>
+                    <p>ดาวเทียมสำรวจอุณหภูมิพื้นผิว</p>
                     {compareMode ? (
-                      <>
-                        <p><span className="text-white">Period {selectedYear}:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}</p>
-                        <p><span className="text-white">Period {compareYear}:</span> Jan 01 – Dec 31, {compareYear}</p>
-                      </>
+                      <p>เปรียบเทียบ ปี {compareYear} → ปี {selectedYear}</p>
                     ) : (
-                      <p><span className="text-white">Period:</span> Jan 01 – {selectedYear === _currentYear ? _now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : 'Dec 31'}, {selectedYear}</p>
+                      <p>ช่วงเวลา: {periodLabel}</p>
                     )}
-                    <p><span className="text-white">Resolution:</span> 30m per pixel (LST)</p>
                   </div>
                 </div>
 
@@ -333,7 +329,7 @@ export default function HeatIslandPage() {
                     mapMode={mapMode}
                     mapModes={[
                       { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีแต่ละเขต/แขวงด้วยค่า LST เฉลี่ยของพื้นที่นั้น" },
-                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงพื้นผิว LST จาก Landsat ผ่าน GEE ที่ความละเอียดประมาณ 30 เมตร" },
+                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงพื้นผิวอุณหภูมิรายพิกเซลจากดาวเทียม" },
                     ]}
                     onMapModeChange={(m) => setMapMode(m as "district" | "idw")}
                     showOpacity={mapMode === "idw"}
@@ -344,7 +340,7 @@ export default function HeatIslandPage() {
                     onReset={handleReset}
                     currentLayer={compareMode ? `ผลต่าง LST ${selectedYear} - ${compareYear}` : "อุณหภูมิพื้นผิว (LST)"}
                     currentPeriod={periodLabel}
-                    dataSource={mapMode === "idw" ? "Landsat 8/9 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    dataSource={mapMode === "idw" ? "ดาวเทียม (รายพิกเซล)" : summary?.dataSource ?? "สถิติรายเขต"}
                     interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า LST ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดูค่าเฉลี่ยและรายละเอียด"}
                   />
 

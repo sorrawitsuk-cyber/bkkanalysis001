@@ -74,15 +74,15 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
             <ThermometerSun className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-slate-100 leading-tight">Land Surface Temperature (LST)</h1>
-            <p className="text-[10px] text-orange-200 mt-1 font-bold leading-snug">อุณหภูมิพื้นผิวเมืองจากข้อมูลดาวเทียม</p>
+            <h1 className="text-base font-bold text-slate-100 leading-tight">อุณหภูมิพื้นผิว (LST)</h1>
+            <p className="text-[10px] text-orange-200 mt-1 font-bold leading-snug">วิเคราะห์ความร้อนในเมืองรายเขต</p>
           </div>
         </div>
         <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
           แสดงอุณหภูมิของพื้นผิวเมือง เช่น ถนน อาคาร หลังคา พื้นดิน พื้นที่สีเขียว และแหล่งน้ำ จากข้อมูลดาวเทียม เพื่อใช้วิเคราะห์พื้นที่สะสมความร้อนในกรุงเทพมหานคร
         </p>
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {["Satellite-derived LST", "ไม่ใช่อุณหภูมิอากาศ", "ใช้วิเคราะห์เชิงพื้นที่"].map((badge) => (
+          {["ไม่ใช่อุณหภูมิอากาศ", "ใช้เปรียบเทียบรายเขต"].map((badge) => (
             <span key={badge} className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[9px] font-bold text-orange-200">
               {badge}
             </span>
@@ -93,7 +93,7 @@ export default function LSTSidebar({ onDistrictSelect, activeDistrict, summary, 
         {/* District Filter */}
         <div>
           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-            <MapPin className="w-3 h-3" /> พื้นที่ (DISTRICT)
+            <MapPin className="w-3 h-3" /> เลือกเขต
           </label>
           <div className="relative">
             <select

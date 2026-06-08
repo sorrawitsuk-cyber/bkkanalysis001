@@ -90,19 +90,17 @@ export default function NightLightsSidebar({
             <Moon className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-slate-100 leading-tight">Nighttime Lights</h1>
-            <p className="text-[10px] text-yellow-100 mt-1 font-bold leading-snug">ความเข้มกิจกรรมเมืองกลางคืนจาก VIIRS DNB</p>
+            <h1 className="text-base font-bold text-slate-100 leading-tight">แสงกลางคืนเมือง</h1>
+            <p className="text-[10px] text-yellow-100 mt-1 font-bold leading-snug">วัดความสว่างและกิจกรรมเมืองจากดาวเทียม</p>
           </div>
         </div>
         <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
-          วิเคราะห์ค่า radiance เฉลี่ยรายปีจากแสงกลางคืน เพื่อดูศูนย์กลางกิจกรรมเมือง พื้นที่พาณิชยกรรม และการเปลี่ยนแปลงความเข้มเมืองรายเขต
+          วิเคราะห์ความสว่างเฉลี่ยรายปีจากภาพถ่ายดาวเทียม เพื่อดูศูนย์กลางกิจกรรมเมือง พื้นที่พาณิชยกรรม และการเปลี่ยนแปลงรายเขต
         </p>
         <div className="mb-3 flex flex-wrap gap-1.5">
           {[
-            "VIIRS DNB",
-            isMonthlyPreview ? "Monthly avg_rad" : "Annual average_masked",
-            "500m",
-            isMonthlyPreview ? `${moYear} preview` : `Annual ${annualRange}`,
+            isMonthlyPreview ? `รายเดือน ${moMonthName} ${moYear}` : `รายปี ${annualRange}`,
+            "ข้อมูลดาวเทียม",
           ].map((badge) => (
             <span key={badge} className="rounded-full border border-yellow-300/25 bg-yellow-300/10 px-2 py-1 text-[9px] font-bold text-yellow-100">
               {badge}
@@ -112,7 +110,7 @@ export default function NightLightsSidebar({
         <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-          <MapPin className="w-3 h-3" /> พื้นที่ (District)
+          <MapPin className="w-3 h-3" /> เลือกเขต
         </label>
         <select
           value={activeDistrict}

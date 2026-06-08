@@ -82,15 +82,15 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             <Building2 className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-slate-100 leading-tight">Built-up Area (NDBI)</h1>
-            <p className="text-[10px] text-indigo-200 mt-1 font-bold leading-snug">ดัชนีพื้นที่สิ่งปลูกสร้างและการขยายตัวเมือง</p>
+            <h1 className="text-base font-bold text-slate-100 leading-tight">พื้นที่ขยายตัวเมือง (NDBI)</h1>
+            <p className="text-[10px] text-indigo-200 mt-1 font-bold leading-snug">วิเคราะห์ความหนาแน่นสิ่งปลูกสร้างรายเขต</p>
           </div>
         </div>
         <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
-          แสดงความหนาแน่นของสิ่งปลูกสร้าง อาคาร และคอนกรีต จากข้อมูลดาวเทียม Sentinel-2 (ความละเอียด 10 เมตร) เพื่อวิเคราะห์การขยายตัวของเมือง
+          แสดงความหนาแน่นของสิ่งปลูกสร้าง อาคาร และคอนกรีตจากดาวเทียม เพื่อวิเคราะห์การขยายตัวของเมืองในแต่ละเขต
         </p>
         <div className="mb-3 flex flex-wrap gap-1.5">
-          {["Sentinel-2 10m", "Urban Expansion", "NDBI Index"].map((badge) => (
+          {["ข้อมูลดาวเทียม", "ใช้เปรียบเทียบรายเขต"].map((badge) => (
             <span key={badge} className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-[9px] font-bold text-indigo-200">
               {badge}
             </span>
@@ -101,7 +101,7 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
         {/* District Filter */}
         <div>
           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-            <MapPin className="w-3 h-3" /> พื้นที่ (DISTRICT)
+            <MapPin className="w-3 h-3" /> เลือกเขต
           </label>
           <div className="relative">
             <select

@@ -362,8 +362,8 @@ export default function NighttimeLightsPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: granularity === "subdistrict" ? "แขวง" : "เขต", sortable: false },
     ...(granularity === "subdistrict" ? [{ key: "district", label: "เขตแม่", sortable: false, hideable: true } as ColDef] : []),
-    { key: "ntl_mean", label: "NTL Mean", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#fbbf24" },
-    { key: "ntl_max", label: "NTL Max", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#f59e0b" },
+    { key: "ntl_mean", label: "แสงกลางคืน (เฉลี่ย)", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#fbbf24" },
+    { key: "ntl_max", label: "แสงกลางคืน (สูงสุด)", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#f59e0b" },
     { key: "pixel_count", label: "จำนวนพิกเซล", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
     ...(compareMode && !isMonthlyPreview
       ? [{ key: "ntl_delta", label: "ส่วนต่าง", unit: "nW/sr/cm²", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${formatRadiance(v, 3)}` : "–" }]
@@ -373,7 +373,7 @@ export default function NighttimeLightsPage() {
   const legendConfig = compareMode && !isMonthlyPreview
     ? {
         title: "การเปลี่ยนแปลงแสงกลางคืน",
-        description: `ค่า avg_rad ปี ${selectedYear} ลบปีฐาน ${compareYear}; สีส้มคือเข้มขึ้น สีฟ้าคืออ่อนลง`,
+        description: `ความสว่างปี ${selectedYear} เทียบกับปี ${compareYear} · สีส้ม = สว่างขึ้น, สีฟ้า = มืดลง`,
         unit: "nW/sr/cm²",
         items: [
           { color: "#08306B", label: "ลดลงมาก", range: "< -8" },
@@ -386,8 +386,8 @@ export default function NighttimeLightsPage() {
     : {
         title: "ระดับความเข้มแสงกลางคืน",
         description: isMonthlyPreview
-          ? "ค่า radiance รายเดือนจาก VIIRS DNB ใช้ดูภาพล่าสุดแบบ preview ยังไม่ใช่สถิติ annual"
-          : "ค่าเฉลี่ย radiance รายปีจาก VIIRS DNB annual average_masked",
+          ? "ภาพรายเดือนจากดาวเทียม ใช้ดูภาพล่าสุดเท่านั้น ไม่ใช่ค่าเฉลี่ยรายปี"
+          : "ค่าเฉลี่ยความสว่างรายปีจากดาวเทียม",
         unit: "nW/sr/cm²",
         items: [
           { color: "#172554", label: "ต่ำมาก", range: "< 5" },
@@ -489,16 +489,12 @@ export default function NighttimeLightsPage() {
               <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-2 bg-yellow-300 rounded-full" />
-                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source Information</span>
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
                 </div>
                 <div className="text-[11px] text-slate-400 leading-relaxed">
-                  <p><span className="text-white">Satellite:</span> Suomi NPP VIIRS Day/Night Band</p>
-                  <p><span className="text-white">Source:</span> R2 cache · {sourceDataset}</p>
-                  <p><span className="text-white">Period:</span> {periodLabel}</p>
-                  <p><span className="text-white">Band:</span> {sourceBand} · nW/sr/cm²</p>
-                  <p><span className="text-white">Resolution:</span> ~500m per pixel</p>
-                  <p><span className="text-white">Cache:</span> {cacheMeta?.status === "ok" ? "พร้อมใช้งาน" : "ยังไม่มี cache สำหรับช่วงนี้"}</p>
-                  {isMonthlyPreview && <p><span className="text-amber-300">Note:</span> monthly preview ไม่ใช่ annual trend</p>}
+                  <p>ดาวเทียมวัดความสว่างกลางคืน</p>
+                  <p>ช่วงเวลา: {isMonthlyPreview ? `รายเดือน ${monthLabel}` : `รายปี ${selectedYear}`}</p>
+                  {isMonthlyPreview && <p className="text-amber-300/80 text-[10px] mt-0.5">ภาพรายเดือนใช้ดูแนวโน้มเท่านั้น</p>}
                 </div>
               </div>
 
@@ -531,8 +527,8 @@ export default function NighttimeLightsPage() {
                   onGranularityChange={setGranularity}
                   mapMode={mapMode}
                   mapModes={[
-                    { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีพื้นที่ด้วยค่า radiance เฉลี่ยของเขตจากชุดข้อมูลที่เลือก" },
-                    { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง radiance จาก VIIRS DNB ผ่าน GEE ที่ความละเอียดประมาณ 500 เมตร" },
+                    { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีแต่ละเขตด้วยค่าเฉลี่ยความสว่างกลางคืน" },
+                    { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงภาพความสว่างรายพิกเซลจากดาวเทียม" },
                   ]}
                   onMapModeChange={(m) => setMapMode(m as MapMode)}
                   showOpacity={mapMode === "satellite-cache" || mapMode === "idw"}

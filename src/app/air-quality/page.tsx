@@ -123,8 +123,8 @@ export default function AirQualityPage() {
     return {
       title: `${layerMeta.label} จาก Sentinel-5P`,
       description: airLayer === "aerosol_index_mean"
-        ? "ดัชนีละอองลอยเชิงการดูดกลืน ค่าสูงหมายถึงสัญญาณละอองลอยเด่นขึ้น"
-        : "ค่า column density ในชั้นบรรยากาศ ใช้เปรียบเทียบเชิงพื้นที่ ไม่ใช่ความเข้มข้นระดับพื้นดิน",
+        ? "ดัชนีความเข้มของละอองลอยในอากาศ ค่าสูงหมายถึงละอองลอยมาก"
+        : "ใช้เปรียบเทียบเชิงพื้นที่รายเขต ไม่ใช่ AQI จากสถานีภาคพื้น",
       items: [
         { color: "#67E8F9", label: "ต่ำมาก", range: p20 != null ? `≤ ${fmtQ(p20)}` : "ค่าต่ำสุด" },
         { color: "#22C55E", label: "ต่ำ",     range: p20 != null && p40 != null ? `${fmtQ(p20)}–${fmtQ(p40)}` : "" },
@@ -310,12 +310,12 @@ export default function AirQualityPage() {
                 </ErrorBoundary>
                 <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] max-w-xs rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 text-[10px] leading-5 text-slate-400 shadow-xl backdrop-blur">
                   <div className="mb-1 flex items-center gap-2 font-bold uppercase tracking-widest text-slate-300 text-[9px]">
-                    <Activity className="h-3 w-3 text-cyan-300" /> ข้อมูลดาวเทียม (Satellite Proxy)
+                    <Activity className="h-3 w-3 text-cyan-300" /> ข้อมูลมลพิษจากดาวเทียม
                   </div>
                   <p>
                     {airLayer === "pollution_score"
-                      ? <>คะแนนรวมจากตัวชี้วัด Sentinel-5P ใช้เปรียบเทียบเชิงพื้นที่ และ <span className="text-amber-300">ไม่ใช่ AQI</span></>
-                      : <>ค่า <span className="text-cyan-300 font-bold">{layerMeta.label}</span> {airLayer === "aerosol_index_mean" ? "index" : "column density"} จาก Sentinel-5P <span className="text-amber-300">ไม่ใช่ AQI</span> จากสถานีภาคพื้น</>}
+                      ? <>คะแนนรวมมลพิษอากาศ 0–10 ใช้เปรียบเทียบรายเขต <span className="text-amber-300">ไม่ใช่ AQI</span></>
+                      : <>ค่า <span className="text-cyan-300 font-bold">{layerMeta.label}</span> จากดาวเทียม ใช้เปรียบเทียบรายเขต <span className="text-amber-300">ไม่ใช่ AQI</span></>}
                   </p>
                 </div>
                 <div className="pointer-events-none absolute bottom-4 right-4 z-[1000] w-72 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 shadow-xl backdrop-blur">

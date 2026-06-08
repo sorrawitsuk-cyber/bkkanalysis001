@@ -41,10 +41,10 @@ const layerLabels: Record<string, string> = {
 };
 
 const AIR_LAYER_META: Record<string, { label: string; unit: string; digits: number }> = {
-  no2_mean: { label: "NO₂ column density", unit: " mol/m²", digits: 6 },
-  co_mean: { label: "CO column density", unit: " mol/m²", digits: 4 },
-  so2_mean: { label: "SO₂ column density", unit: " mol/m²", digits: 6 },
-  aerosol_index_mean: { label: "Aerosol Index", unit: "", digits: 3 },
+  no2_mean: { label: "NO₂", unit: "", digits: 6 },
+  co_mean: { label: "CO", unit: "", digits: 4 },
+  so2_mean: { label: "SO₂", unit: "", digits: 6 },
+  aerosol_index_mean: { label: "ดัชนีละออง", unit: "", digits: 3 },
   pollution_score: { label: "คะแนนมลพิษรวม", unit: " /10", digits: 2 },
 };
 
@@ -158,7 +158,7 @@ export default function DistrictMetricsMapView({
 
     return `
       <div class="bg-slate-950 text-white p-3 rounded-lg border border-slate-800 shadow-2xl min-w-[190px]">
-        <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">ค่าจริงจากพิกเซล GEE</div>
+        <div class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2 border-b border-slate-800 pb-1">ข้อมูลรายพิกเซล</div>
         <div class="text-[10px] text-slate-400 mb-1">พื้นที่/เขต: <span class="text-slate-100 font-bold">${locationLabel}</span></div>
         <div class="flex items-center justify-between gap-3 mb-1">
           <span class="text-[10px] text-slate-400">${label}</span>
@@ -171,8 +171,8 @@ export default function DistrictMetricsMapView({
           <div>lng ${options.lng.toFixed(6)}</div>
         </div>
         ${(!isGreen && !isBuiltup && !isNightlights && !isAir) && !isCompare && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div><div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>` : ""}
-        ${isNightlights && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ค่า radiance สูงมักสัมพันธ์กับกิจกรรมเมือง แสงไฟถนน อาคาร และพื้นที่พาณิชยกรรม</div>` : ""}
-        ${isAir && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ค่า column density จาก Sentinel-5P ไม่ใช่ AQI จากสถานีภาคพื้น</div>` : ""}
+        ${isNightlights && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ค่าสูง = พื้นที่มีกิจกรรมเมืองมาก แสงไฟถนน อาคาร พาณิชยกรรม</div>` : ""}
+        ${isAir && !options.loading && !options.error ? `<div class="text-[9px] text-slate-400 mt-2">ข้อมูลมลพิษจากดาวเทียม ไม่ใช่ AQI จากสถานีภาคพื้น</div>` : ""}
         ${options.error ? `<div class="text-[9px] text-red-300 mt-2">${options.error}</div>` : ""}
       </div>
     `;
@@ -439,7 +439,7 @@ export default function DistrictMetricsMapView({
         const props = feature.properties || {};
         const value = getFeatureValue(feature);
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : analysisType === "air" ? (airPollutionLayer === "pollution_score" ? 2 : 6) : 3;
-        const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : analysisType === "nightlights" ? " nW/sr/cm²" : analysisType === "air" && airPollutionLayer !== "pollution_score" ? " mol/m²" : "";
+        const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : "";
         const airLayerLabels: Record<string, string> = {
           no2_mean: "NO₂",
           co_mean: "CO",
@@ -476,17 +476,17 @@ export default function DistrictMetricsMapView({
               <div class="text-[9px] text-slate-500 mt-1">NDBI ช่วง −0.2 ถึง +0.4 · ยิ่งสูง = หนาแน่นขึ้น</div>
             ` : "";
         const nightlightDetails = analysisType === "nightlights" ? `
-              <div class="text-[10px] text-slate-400 mt-1">ค่าสูงสุดในเขต: <span class="text-yellow-200 font-mono">${formatValue(props.ntl_max, 3, " nW/sr/cm²")}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">ค่าสูงสุดในเขต: <span class="text-yellow-200 font-mono">${formatValue(props.ntl_max, 3)}</span></div>
               ${props.ntl_delta !== null && props.ntl_delta !== undefined ? `<div class="text-[10px] text-slate-400 mt-1">เปลี่ยนแปลง: <span class="${props.ntl_delta >= 0 ? "text-amber-300" : "text-sky-300"} font-mono">${props.ntl_delta >= 0 ? "+" : ""}${props.ntl_delta.toFixed(3)}</span></div>` : ""}
-              <div class="text-[9px] text-slate-500 mt-2">VIIRS DNB avg_rad สะท้อนความเข้มแสงกลางคืนและกิจกรรมเมือง ไม่ใช่จำนวนประชากรโดยตรง</div>
+              <div class="text-[9px] text-slate-500 mt-2">ค่าสูง = พื้นที่มีกิจกรรมเมืองและแสงไฟมาก</div>
             ` : "";
         const airDetails = analysisType === "air" ? `
               <div class="text-[10px] text-slate-400 mt-1">คะแนนรวม: <span class="text-cyan-200 font-mono font-bold">${formatValue(props.pollution_score, 2)}/10</span>${props.pollution_class ? ` <span class="text-slate-500 text-[9px]">(${String(props.pollution_class).replace(/_/g, " ")})</span>` : ""}</div>
-              <div class="text-[10px] text-slate-400 mt-1">NO₂: <span class="text-cyan-200 font-mono">${formatValue(props.no2_mean, 6, " mol/m²")}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">CO: <span class="text-cyan-200 font-mono">${formatValue(props.co_mean, 4, " mol/m²")}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">SO₂: <span class="text-cyan-200 font-mono">${formatValue(props.so2_mean, 6, " mol/m²")}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">Aerosol: <span class="text-cyan-200 font-mono">${formatValue(props.aerosol_index_mean, 3)}</span></div>
-              <div class="text-[9px] text-slate-500 mt-1">Sentinel-5P column density proxy · ไม่ใช่ AQI สถานีภาคพื้น</div>
+              <div class="text-[10px] text-slate-400 mt-1">NO₂: <span class="text-cyan-200 font-mono">${formatValue(props.no2_mean, 6)}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">CO: <span class="text-cyan-200 font-mono">${formatValue(props.co_mean, 4)}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">SO₂: <span class="text-cyan-200 font-mono">${formatValue(props.so2_mean, 6)}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">ละออง: <span class="text-cyan-200 font-mono">${formatValue(props.aerosol_index_mean, 3)}</span></div>
+              <div class="text-[9px] text-slate-500 mt-1">ข้อมูลดาวเทียม · ไม่ใช่ AQI</div>
             ` : "";
 
         const titleSuffix = granularity === "subdistrict" && props.district_name
