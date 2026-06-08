@@ -222,8 +222,8 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-[13px] font-semibold text-slate-300">{cfg.trendTitle} (เขตนี้)</h3>
             {hasProfileData
-              ? <span className="text-[9px] px-2 py-0.5 rounded-full border border-emerald-700/40 bg-emerald-950/30 text-emerald-400 font-bold">ข้อมูลจริง · Supabase</span>
-              : <span className="text-[9px] px-2 py-0.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 font-bold">ยังไม่มีสถิติรายปีในDB</span>
+              ? <span className="text-[9px] px-2 py-0.5 rounded-full border border-slate-700/60 bg-slate-800/40 text-slate-400 font-bold">Supabase</span>
+              : <span className="text-[9px] px-2 py-0.5 rounded-full border border-amber-700/40 bg-amber-950/30 text-amber-400 font-bold">ยังไม่มีข้อมูลในDB</span>
             }
           </div>
           <p className="text-[10px] text-slate-600 mt-0.5">ค่ารายปีเปรียบเทียบกับปีก่อนหน้า</p>
@@ -266,7 +266,7 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
           <table className="w-full text-[11px]">
             <thead>
               <tr className="border-b border-slate-800/60">
-                {["ปี", "ค่า", "เปลี่ยนจากปีก่อน", "เทียบค่าเฉลี่ย กทม."].map((h) => (
+                {["ปี", "ค่า", "เปลี่ยนจากปีก่อน", "เทียบค่ามัธยฐานเขต"].map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-slate-600">{h}</th>
                 ))}
               </tr>
@@ -279,7 +279,7 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
                   <tr key={entry.year} className={`border-b border-slate-800/30 transition-colors ${isCurrentYear ? `${ACCENT_COLORS[accentColor]?.bg ?? "bg-cyan-950/40"} font-bold` : "hover:bg-slate-800/20"}`}>
                     <td className="px-3 py-1.5 font-mono">{entry.year}{isCurrentYear && <span className="ml-1 text-[8px] rounded px-1" style={{ background: cfg.accentHex + "30", color: cfg.accentHex }}>ปีที่เลือก</span>}</td>
                     <td className="px-3 py-1.5 font-mono tabular-nums" style={{ color: cfg.accentHex }}>{cfg.formatShort(entry.value)}</td>
-                    <td className={`px-3 py-1.5 font-mono tabular-nums ${i === 0 ? "text-slate-700" : entry.delta > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                    <td className={`px-3 py-1.5 font-mono tabular-nums ${i === 0 ? "text-slate-700" : metric === "vegetation" ? (entry.delta > 0 ? "text-emerald-400" : "text-red-400") : (entry.delta > 0 ? "text-red-400" : "text-emerald-400")}`}>
                       {i === 0 ? "–" : `${entry.delta > 0 ? "+" : ""}${cfg.formatShort(entry.delta)}`}
                     </td>
                     <td className={`px-3 py-1.5 font-mono tabular-nums ${vsMed == null ? "text-slate-700" : vsMed > 0 ? "text-amber-400" : "text-sky-400"}`}>
@@ -326,11 +326,18 @@ function DistrictModeView({ summary, cfg, metric, year, accentColor, ac, profile
                 <defs><linearGradient id="s2d" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cfg.accentHex} stopOpacity={0.25} /><stop offset="95%" stopColor={cfg.accentHex} stopOpacity={0} /></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="year" tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false}
+                  domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
                 <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }} formatter={(v: any) => [`${Number(v).toLocaleString()} ไร่`, ""]} />
                 <Area type="monotone" dataKey="value" stroke={cfg.accentHex} fill="url(#s2d)" strokeWidth={2} dot={{ r: 3, fill: cfg.accentHex, strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>
+            {metric === "vegetation" && (
+              <p className="mt-1.5 text-[9px] text-slate-600 leading-snug">
+                ประมาณจาก NDVI × พื้นที่เขต · แหล่งข้อมูล: แบบจำลอง ENSO+Urbanization (รอ GEE จริง)
+              </p>
+            )}
           </div>
         )}
 
@@ -677,11 +684,18 @@ export default function StatsDashboard({
                     <defs><linearGradient id="s2grad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={cfg.accentHex} stopOpacity={0.25} /><stop offset="95%" stopColor={cfg.accentHex} stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                     <XAxis dataKey="year" tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <YAxis tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false}
+                      domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+                      tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
                     <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }} formatter={(v: any) => [`${Number(v).toLocaleString()} ไร่`, ""]} />
                     <Area type="monotone" dataKey="value" stroke={cfg.accentHex} fill="url(#s2grad)" strokeWidth={2} dot={{ r: 3, fill: cfg.accentHex, strokeWidth: 0 }} />
                   </AreaChart>
                 </ResponsiveContainer>
+                {metric === "vegetation" && (
+                  <p className="mt-1.5 text-[9px] text-slate-600 leading-snug">
+                    รวมทั้ง 50 เขต · แหล่งข้อมูล: แบบจำลอง ENSO+Urbanization (รอ GEE จริง)
+                  </p>
+                )}
               </div>
             )}
 
