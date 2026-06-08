@@ -130,6 +130,7 @@ export default function AirQualitySidebar({
             <div className="text-sm font-bold font-mono whitespace-nowrap text-slate-100">
               {formatMetric(avgValue, airLayer)}
             </div>
+            <div className="text-[8px] text-slate-600 mt-0.5 font-mono leading-tight">{layerMeta.unit}</div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">

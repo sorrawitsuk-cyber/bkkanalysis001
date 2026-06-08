@@ -124,7 +124,8 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
         <div className="grid grid-cols-3 gap-2">
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Building2 className="w-3 h-3 text-indigo-400"/> {compareMode ? 'ส่วนต่าง NDBI' : 'พื้นที่เฉลี่ย/เขต'}
+              <Building2 className="w-3 h-3 text-indigo-400"/>
+              {compareMode ? 'ส่วนต่าง NDBI' : displayMode === 'ndbi' ? 'NDBI เฉลี่ย/เขต' : displayMode === 'density' ? 'ความหนาแน่น/เขต' : 'พื้นที่เฉลี่ย/เขต'}
             </div>
             <div className={`text-sm font-bold font-mono whitespace-nowrap ${compareMode ? (summary.avgDelta > 0 ? 'text-indigo-400' : 'text-slate-400') : 'text-slate-100'}`}>
               {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>
@@ -137,10 +138,12 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
                       : formatRai(Math.round(rankingValues.reduce((a: number, b: number) => a + b, 0) / rankingValues.length)))
                   : '--'}
             </div>
+            {!compareMode && displayMode === 'ndbi' && <div className="text-[8px] text-slate-600 mt-0.5 leading-tight">ช่วง −0.2 ถึง +0.4</div>}
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Activity className="w-3 h-3 text-red-400"/> {compareMode ? 'เพิ่มขึ้นสูงสุด' : 'เขตหนาแน่นสูงสุด'}
+              <Activity className="w-3 h-3 text-red-400"/>
+              {compareMode ? 'เพิ่มขึ้นสูงสุด' : displayMode === 'ndbi' ? 'NDBI สูงสุด' : displayMode === 'density' ? 'ความหนาแน่นสูงสุด' : 'พื้นที่สูงสุด/เขต'}
             </div>
             <div className={`text-sm font-bold font-mono whitespace-nowrap ${compareMode && maxIncreaseValue <= 0 ? 'text-slate-400' : 'text-red-400'}`}>
               {!hasNdbiData ? <span className="text-slate-600 text-sm">--</span>

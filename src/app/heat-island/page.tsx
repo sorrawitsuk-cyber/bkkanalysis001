@@ -109,8 +109,8 @@ export default function HeatIslandPage() {
           : "ไม่มีข้อมูล",
     },
     {
-      label: "พื้นที่ LST สูง",
-      value: highLstDistrictCount > 0 ? `${highLstDistrictCount} เขต` : "ไม่มีข้อมูล",
+      label: "เขตร้อน (LST ≥ 36°C)",
+      value: highLstDistrictCount > 0 ? `${highLstDistrictCount} / 50 เขต` : "ไม่มีข้อมูล",
     },
     {
       label: "เขตที่มี LST เฉลี่ยสูงสุด",

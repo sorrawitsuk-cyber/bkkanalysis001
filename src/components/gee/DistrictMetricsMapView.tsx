@@ -441,31 +441,39 @@ export default function DistrictMetricsMapView({
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : analysisType === "air" ? (airPollutionLayer === "pollution_score" ? 2 : 6) : 3;
         const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : analysisType === "nightlights" ? " nW/sr/cm²" : analysisType === "air" && airPollutionLayer !== "pollution_score" ? " mol/m²" : "";
         const airLayerLabels: Record<string, string> = {
-          no2_mean: "NO2 mean",
-          co_mean: "CO mean",
-          so2_mean: "SO2 mean",
+          no2_mean: "NO₂",
+          co_mean: "CO",
+          so2_mean: "SO₂",
           aerosol_index_mean: "Aerosol Index",
-          pollution_score: "Pollution score",
+          pollution_score: "คะแนนมลพิษรวม",
         };
-        const title = analysisType === "green" ? (layerLabels[ndviLayer] || "NDVI") : analysisType === "builtup" ? "NDBI" : analysisType === "nightlights" ? "ค่าแสงกลางคืน" : analysisType === "air" ? airLayerLabels[airPollutionLayer] : "ค่า LST";
-        const selectedDisplay = analysisType === "green" && ndviLayer === "green_area_ratio" && typeof value === "number"
-          ? `${(value * 100).toFixed(1)}%`
+        const title = analysisType === "green"
+          ? (ndviLayer === "ndvi_mean" ? "พื้นที่สีเขียว" : (layerLabels[ndviLayer] || "NDVI"))
+          : analysisType === "builtup" ? "NDBI เฉลี่ย" : analysisType === "nightlights" ? "แสงกลางคืน (เฉลี่ย)" : analysisType === "air" ? airLayerLabels[airPollutionLayer] : "LST เฉลี่ย";
+        const selectedDisplay = analysisType === "green"
+          ? (ndviLayer === "green_area_ratio" && typeof value === "number"
+              ? `${(value * 100).toFixed(1)}%`
+              : ndviLayer === "ndvi_mean" && props.green_area_rai != null
+                ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่`
+                : formatValue(value, decimals, unit))
           : formatValue(value, analysisType === "heat" ? 2 : decimals, unit);
         const deltaLine = props.vegetation_delta !== null && props.vegetation_delta !== undefined
-          ? `<div class="text-[10px] text-slate-400 mt-1">แนวโน้ม: <span class="${props.vegetation_delta >= 0 ? "text-emerald-300" : "text-amber-300"} font-mono">${props.vegetation_delta >= 0 ? "+" : ""}${props.vegetation_delta.toFixed(3)}</span></div>`
+          ? `<div class="text-[10px] text-slate-400 mt-1">เปลี่ยนแปลง: <span class="${props.vegetation_delta >= 0 ? "text-emerald-300" : "text-amber-300"} font-mono">${props.vegetation_delta >= 0 ? "+" : ""}${props.vegetation_delta.toFixed(3)}</span></div>`
           : "";
+        const yearLabel = compareMode
+          ? `ปี ${summary?.selectedYear || ""} vs ${summary?.compareYear || ""}`
+          : `ปี ${summary?.selectedYear || ""}`;
         const heatDetails = analysisType === "heat" && !compareMode ? `
-              <div class="text-[10px] text-slate-400 mt-1">ระดับอุณหภูมิพื้นผิว: <span class="text-orange-300 font-bold">${getLSTClassThai(value)}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">ช่วงข้อมูล: <span class="text-slate-200">${dataPeriodLabel || `ปี ${summary?.selectedYear || ""}`}</span></div>
-              <div class="text-[9px] text-slate-400 mt-2">พื้นผิวบริเวณนี้มีแนวโน้มสะสมความร้อนสูงตามระดับ LST ที่แสดง</div>
-              <div class="text-[9px] text-orange-200 mt-1">หมายเหตุ: ค่า LST ไม่ใช่อุณหภูมิอากาศ</div>
+              <div class="text-[10px] text-slate-400 mt-1">LST สูงสุด: <span class="text-red-300 font-mono">${props.max_lst != null ? `${Number(props.max_lst).toFixed(1)}°C` : "–"}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">ระดับ: <span class="text-orange-300 font-bold">${getLSTClassThai(value)}</span></div>
+              <div class="text-[9px] text-orange-200/70 mt-1">LST = อุณหภูมิพื้นผิว ≠ อุณหภูมิอากาศ</div>
             ` : analysisType === "heat" ? `
-              <div class="text-[10px] text-slate-400 mt-1">ผลต่าง LST ระหว่างปี: <span class="text-orange-300 font-bold">${selectedDisplay}</span></div>
-              <div class="text-[9px] text-slate-400 mt-2">เป็นการเปรียบเทียบอุณหภูมิพื้นผิวจากดาวเทียมระหว่างปี ยังไม่ใช่ค่า SUHI Intensity อย่างเป็นทางการ</div>
+              <div class="text-[9px] text-slate-500 mt-2">ผลต่างอุณหภูมิพื้นผิวจากดาวเทียม · ไม่ใช่ค่า SUHI อย่างเป็นทางการ</div>
             ` : "";
         const builtupDetails = analysisType === "builtup" ? `
-              <div class="text-[10px] text-slate-400 mt-1">NDBI เฉลี่ย: <span class="text-indigo-300 font-mono">${formatValue(props.ndbi_mean, 3)}</span></div>
-              <div class="text-[9px] text-slate-500 mt-2">ค่า NDBI สะท้อนความหนาแน่นของสิ่งปลูกสร้าง ยิ่งสูงแปลว่ามีสิ่งปลูกสร้าง/คอนกรีตหนาแน่น</div>
+              <div class="text-[10px] text-slate-400 mt-1">พื้นที่สิ่งปลูกสร้าง: <span class="text-indigo-300 font-mono">${props.builtup_area_rai != null ? `${Number(props.builtup_area_rai).toLocaleString("th-TH")} ไร่` : "–"}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">สัดส่วน: <span class="text-indigo-300 font-mono">${props.builtup_ratio != null ? `${(Number(props.builtup_ratio) * 100).toFixed(1)}%` : "–"}</span></div>
+              <div class="text-[9px] text-slate-500 mt-1">NDBI ช่วง −0.2 ถึง +0.4 · ยิ่งสูง = หนาแน่นขึ้น</div>
             ` : "";
         const nightlightDetails = analysisType === "nightlights" ? `
               <div class="text-[10px] text-slate-400 mt-1">ค่าสูงสุดในเขต: <span class="text-yellow-200 font-mono">${formatValue(props.ntl_max, 3, " nW/sr/cm²")}</span></div>
@@ -473,29 +481,32 @@ export default function DistrictMetricsMapView({
               <div class="text-[9px] text-slate-500 mt-2">VIIRS DNB avg_rad สะท้อนความเข้มแสงกลางคืนและกิจกรรมเมือง ไม่ใช่จำนวนประชากรโดยตรง</div>
             ` : "";
         const airDetails = analysisType === "air" ? `
-              <div class="text-[10px] text-slate-400 mt-1">NO2: <span class="text-cyan-200 font-mono">${formatValue(props.no2_mean, 6, " mol/m²")}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">คะแนนรวม: <span class="text-cyan-200 font-mono font-bold">${formatValue(props.pollution_score, 2)}/10</span>${props.pollution_class ? ` <span class="text-slate-500 text-[9px]">(${String(props.pollution_class).replace(/_/g, " ")})</span>` : ""}</div>
+              <div class="text-[10px] text-slate-400 mt-1">NO₂: <span class="text-cyan-200 font-mono">${formatValue(props.no2_mean, 6, " mol/m²")}</span></div>
               <div class="text-[10px] text-slate-400 mt-1">CO: <span class="text-cyan-200 font-mono">${formatValue(props.co_mean, 4, " mol/m²")}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">SO2: <span class="text-cyan-200 font-mono">${formatValue(props.so2_mean, 6, " mol/m²")}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">Aerosol Index: <span class="text-cyan-200 font-mono">${formatValue(props.aerosol_index_mean, 3)}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">Score: <span class="text-cyan-200 font-mono">${formatValue(props.pollution_score, 2)}</span> <span class="text-slate-500">${props.pollution_class || ""}</span></div>
-              <div class="text-[9px] text-slate-500 mt-2">Sentinel-5P column density proxy. Not ground-station AQI.</div>
+              <div class="text-[10px] text-slate-400 mt-1">SO₂: <span class="text-cyan-200 font-mono">${formatValue(props.so2_mean, 6, " mol/m²")}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">Aerosol: <span class="text-cyan-200 font-mono">${formatValue(props.aerosol_index_mean, 3)}</span></div>
+              <div class="text-[9px] text-slate-500 mt-1">Sentinel-5P column density proxy · ไม่ใช่ AQI สถานีภาคพื้น</div>
             ` : "";
 
         const titleSuffix = granularity === "subdistrict" && props.district_name
           ? `<span class="text-slate-500 text-[9px] ml-1">· เขต${props.district_name}</span>` : "";
         layer.bindTooltip(`
-          <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[190px]">
-            <div class="font-bold mb-1 border-b border-slate-800 pb-1">${props.name_th || "Unknown"}${titleSuffix}</div>
+          <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[200px]">
+            <div class="flex items-center justify-between gap-2 mb-1 border-b border-slate-800 pb-1">
+              <span class="font-bold">${props.name_th || "Unknown"}${titleSuffix}</span>
+              <span class="text-[9px] text-slate-500 font-mono font-normal shrink-0">${yearLabel}</span>
+            </div>
             <div class="text-[10px] text-slate-400">${title}: <span class="${analysisType === "green" ? "text-emerald-300" : analysisType === "builtup" ? "text-indigo-300" : analysisType === "nightlights" ? "text-yellow-200" : analysisType === "air" ? "text-cyan-200" : "text-orange-300"} text-lg font-mono ml-1">${selectedDisplay}</span></div>
             ${heatDetails}
             ${builtupDetails}
             ${nightlightDetails}
             ${airDetails}
             ${analysisType === "green" ? `
-              <div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">ระดับ: <span class="text-emerald-300">${props.ndvi_class || "ไม่มีข้อมูล"}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">พื้นที่สีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_ratio !== null && props.green_area_ratio !== undefined ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "ไม่มีข้อมูล"}</span></div>
-              <div class="text-[10px] text-slate-400 mt-1">ประมาณ: <span class="text-emerald-300 font-mono">${props.green_area_rai !== null && props.green_area_rai !== undefined ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "ไม่มีข้อมูล"}</span></div>
+              ${ndviLayer === "ndvi_mean" ? `<div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>` : ""}
+              ${ndviLayer !== "green_area_ratio" ? `<div class="text-[10px] text-slate-400 mt-1">สัดส่วนสีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_ratio != null ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "–"}</span></div>` : ""}
+              ${ndviLayer !== "green_area_rai" ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่สีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_rai != null ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "–"}</span></div>` : ""}
+              <div class="text-[10px] text-slate-400 mt-1">ระดับ NDVI: <span class="text-emerald-300">${props.ndvi_class || "–"}</span></div>
               ${deltaLine}
             ` : ""}
           </div>
