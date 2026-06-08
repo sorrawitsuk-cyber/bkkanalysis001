@@ -202,6 +202,11 @@ function lerpColor(lo: [number, number, number], hi: [number, number, number], t
 }
 const BAR_LOW: [number, number, number] = [186, 230, 253];
 const BAR_HIGH: [number, number, number] = [3, 105, 161];
+const FLOOD_METRIC_GUIDE = [
+  { label: "ดัชนี", value: "NDWI/MNDWI", description: "สัญญาณน้ำจากภาพดาวเทียม ใช้ดูแนวโน้มและความชื้น" },
+  { label: "หนาแน่น", value: "% ของเขต", description: "สัดส่วนพื้นที่น้ำเทียบกับขนาดเขต เหมาะสำหรับเปรียบเทียบข้ามเขต" },
+  { label: "พื้นที่", value: "ไร่", description: "ขนาดพื้นที่น้ำจริง เหมาะสำหรับดูเขตที่มีแหล่งน้ำรวมมาก" },
+] as const;
 
 export default function FloodRiskPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
@@ -419,6 +424,21 @@ export default function FloodRiskPage() {
     return base.filter((d: any) => d.water_ratio_pct !== null);
   }, [statsAllFeatures, activeDistrict]);
 
+  const statsWaterAreaRanking = useMemo(() => {
+    const base = activeDistrict === "ทั้งหมด"
+      ? statsAllFeatures
+      : statsAllFeatures.filter((d: any) => d.name === activeDistrict);
+    return [...base]
+      .filter((d: any) => typeof d.water_area_rai === "number")
+      .sort((a: any, b: any) => (b.water_area_rai ?? -Infinity) - (a.water_area_rai ?? -Infinity));
+  }, [statsAllFeatures, activeDistrict]);
+
+  const maxStatsWaterAreaRai = useMemo(() => (
+    statsWaterAreaRanking.length
+      ? Math.max(...statsWaterAreaRanking.map((d: any) => Number(d.water_area_rai ?? 0)), 1)
+      : 1
+  ), [statsWaterAreaRanking]);
+
   // Statistical summary of water_ratio values
   const statsComputed = useMemo(() => {
     const vals = statsAllFeatures.map((d: any) => d.water_ratio).filter((v: any): v is number => v != null);
@@ -434,25 +454,14 @@ export default function FloodRiskPage() {
     return { mean, median, min: sorted[0], max: sorted[n - 1], stdDev, q1, q3, n, aboveThreshold };
   }, [statsAllFeatures]);
 
-  // Distribution histogram (8 bins over water_ratio_pct)
-  const statsDistribution = useMemo(() => {
-    const vals = statsAllFeatures.map((d: any) => d.water_ratio_pct).filter((v: any): v is number => v != null);
-    if (!vals.length) return [];
-    const min = Math.min(...vals); const max = Math.max(...vals);
-    if (min === max) return [{ label: `${min.toFixed(1)}%`, count: vals.length }];
-    const step = (max - min) / 8;
-    const buckets = Array.from({ length: 8 }, (_, i) => ({ label: `${(min + step * i).toFixed(1)}`, count: 0 }));
-    vals.forEach((v) => { const idx = Math.min(Math.floor((v - min) / step), 7); buckets[idx].count++; });
-    return buckets;
-  }, [statsAllFeatures]);
-
   // Auto-insights
   const statsInsights = useMemo(() => {
     if (!statsComputed || !statsBarData.length) return [];
     const insights: string[] = [];
     const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
     insights.push(`ค่าเฉลี่ย water ratio ทุกเขต: ${pct(statsComputed.mean)} (Median: ${pct(statsComputed.median)})`);
-    if (statsBarData[0]) insights.push(`${statsBarData[0].name} มีพื้นที่น้ำมากที่สุด: ${pct(statsBarData[0].water_ratio ?? 0)}`);
+    if (statsBarData[0]) insights.push(`${statsBarData[0].name} มีสัดส่วนพื้นที่น้ำสูงสุด: ${pct(statsBarData[0].water_ratio ?? 0)}`);
+    if (statsWaterAreaRanking[0]) insights.push(`${statsWaterAreaRanking[0].name} มีพื้นที่แหล่งน้ำมากที่สุด: ${Number(statsWaterAreaRanking[0].water_area_rai).toLocaleString()} ไร่`);
     if (statsComputed.aboveThreshold > 0)
       insights.push(`${statsComputed.aboveThreshold} เขต (${Math.round(statsComputed.aboveThreshold / statsComputed.n * 100)}%) มีสัดส่วนน้ำ ≥ 4% ของพื้นที่เขต`);
     const cv = (statsComputed.stdDev / statsComputed.mean) * 100;
@@ -465,7 +474,7 @@ export default function FloodRiskPage() {
       insights.push(`แนวโน้ม ${trendRows[0][0]}–${trendRows[trendRows.length - 1][0]}: ${delta > 0 ? "น้ำเพิ่มขึ้น" : "น้ำลดลง"} ${Math.abs(delta * 100).toFixed(2)}pp`);
     }
     return insights.slice(0, 5);
-  }, [statsComputed, statsBarData, summary?.yearlyTrend]);
+  }, [statsComputed, statsBarData, statsWaterAreaRanking, summary?.yearlyTrend]);
 
   const statsTrendData = useMemo(() => {
     return (summary?.yearlyTrend ?? []).map(([year, val]: any) => ({
@@ -849,10 +858,10 @@ export default function FloodRiskPage() {
                 {/* ── Stats strip ─────────────────────────────────────── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-slate-800/60">
                   {[
-                    { label: "ค่าเฉลี่ย", value: statsComputed ? `${(statsComputed.mean * 100).toFixed(2)}%` : "–", color: "text-slate-200" },
-                    { label: "สูงสุด", value: statsComputed ? `${(statsComputed.max * 100).toFixed(2)}%` : "–", color: "text-sky-400" },
-                    { label: "ต่ำสุด", value: statsComputed ? `${(statsComputed.min * 100).toFixed(2)}%` : "–", color: "text-slate-400" },
-                    { label: "พื้นที่น้ำรวม", value: summary.totalWaterAreaRai ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–", color: "text-blue-400" },
+                    { label: "สัดส่วนเฉลี่ย", value: statsComputed ? `${(statsComputed.mean * 100).toFixed(2)}%` : "–", color: "text-slate-200" },
+                    { label: "สัดส่วนสูงสุด", value: statsComputed ? `${(statsComputed.max * 100).toFixed(2)}%` : "–", color: "text-sky-400" },
+                    { label: "สัดส่วนต่ำสุด", value: statsComputed ? `${(statsComputed.min * 100).toFixed(2)}%` : "–", color: "text-slate-400" },
+                    { label: "พื้นที่แหล่งน้ำรวม", value: summary.totalWaterAreaRai ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–", color: "text-blue-400" },
                   ].map((s, i) => (
                     <div key={i} className={`px-4 py-3 border-r border-slate-800/60 last:border-r-0 ${i % 2 === 0 ? "bg-slate-900/40" : "bg-slate-900/20"}`}>
                       <div className="text-[11px] font-semibold text-slate-500 mb-0.5">{s.label}</div>
@@ -869,10 +878,10 @@ export default function FloodRiskPage() {
                     <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-800/40">
                       <div>
                         <h3 className="text-[13px] font-semibold text-slate-300">
-                          สัดส่วนพื้นที่น้ำรายเขต (Water Ratio %)
+                          ความหนาแน่นพื้นที่น้ำรายเขต
                         </h3>
                         <p className="text-[10px] text-slate-600 mt-0.5">
-                          {activeDistrict !== "ทั้งหมด" ? `กรองเฉพาะเขต: ${activeDistrict}` : "50 เขตกรุงเทพฯ เรียงจากมากไปน้อย"} · ปี {selectedYear}
+                          {activeDistrict !== "ทั้งหมด" ? `กรองเฉพาะเขต: ${activeDistrict}` : "เรียงจากสัดส่วนพื้นที่น้ำมากไปน้อย"} · หน่วยเป็น % ของพื้นที่เขต · ปี {selectedYear}
                         </p>
                       </div>
                       <div className="text-[9px] px-2 py-0.5 rounded-full border border-sky-500/40 text-sky-400 bg-sky-500/10 font-bold">
@@ -918,6 +927,24 @@ export default function FloodRiskPage() {
                   {/* Right: trend + distribution + insights */}
                   <div className="flex flex-col divide-y divide-slate-800/60 overflow-y-auto custom-scrollbar">
 
+                    {/* Metric guide */}
+                    <div className="px-5 py-4">
+                      <h3 className="text-[13px] font-semibold text-slate-400 mb-3">
+                        วิธีอ่านข้อมูล
+                      </h3>
+                      <div className="grid gap-2">
+                        {FLOOD_METRIC_GUIDE.map((item) => (
+                          <div key={item.label} className="rounded-md border border-slate-800 bg-slate-900/35 px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[11px] font-bold text-slate-300">{item.label}</span>
+                              <span className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300">{item.value}</span>
+                            </div>
+                            <p className="mt-1 text-[9px] leading-snug text-slate-500">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Yearly trend (index) */}
                     <div className="px-5 py-4">
                       <h3 className="text-[13px] font-semibold text-slate-400 mb-3">
@@ -937,6 +964,45 @@ export default function FloodRiskPage() {
                             <Area type="monotone" dataKey="value" stroke="#38bdf8" fill="url(#floodGradS)" strokeWidth={2} dot={{ r: 3, fill: "#38bdf8", strokeWidth: 0 }} />
                           </AreaChart>
                         </ResponsiveContainer>
+                      )}
+                    </div>
+
+                    {/* Water area ranking */}
+                    <div className="px-5 py-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                          <h3 className="text-[13px] font-semibold text-slate-400">
+                            อันดับพื้นที่แหล่งน้ำมากสุด
+                          </h3>
+                          <p className="mt-0.5 text-[9px] text-slate-600">เรียงด้วยจำนวนไร่ ไม่ใช่เปอร์เซ็นต์ของเขต</p>
+                        </div>
+                        <span className="text-[9px] font-bold text-sky-400">
+                          ไร่
+                        </span>
+                      </div>
+                      {statsWaterAreaRanking.length === 0 ? (
+                        <div className="flex h-24 items-center justify-center text-slate-700 text-xs">ไม่มีข้อมูลพื้นที่แหล่งน้ำ</div>
+                      ) : (
+                        <ol className="space-y-2">
+                          {statsWaterAreaRanking.slice(0, 5).map((row: any, i: number) => {
+                            const width = (Number(row.water_area_rai ?? 0) / maxStatsWaterAreaRai) * 100;
+                            return (
+                              <li key={`${row.name}-area-${i}`} className="space-y-1">
+                                <div className="flex items-center gap-2 text-[11px]">
+                                  <span className="w-4 shrink-0 text-right font-mono text-slate-700">{i + 1}</span>
+                                  <span className="min-w-0 flex-1 truncate text-slate-300">{row.name}</span>
+                                  <span className="font-mono font-bold tabular-nums text-sky-400">{Number(row.water_area_rai).toLocaleString()} ไร่</span>
+                                </div>
+                                <div className="ml-6 h-1.5 overflow-hidden rounded-full bg-slate-800/80">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-r from-sky-700 to-cyan-400 transition-all duration-700"
+                                    style={{ width: `${Math.max(4, Math.min(100, width))}%` }}
+                                  />
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
                       )}
                     </div>
 
@@ -968,7 +1034,7 @@ export default function FloodRiskPage() {
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
-                      <h4 className="text-[12px] font-semibold text-slate-500">น้ำมากที่สุด 5 เขต</h4>
+                      <h4 className="text-[12px] font-semibold text-slate-500">สัดส่วนพื้นที่น้ำสูงสุด 5 เขต</h4>
                     </div>
                     <ol className="space-y-1.5">
                       {statsBarData.slice(0, 5).map((row: any, i: number) => (
@@ -985,7 +1051,7 @@ export default function FloodRiskPage() {
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <TrendingDown className="w-3.5 h-3.5 text-slate-400" />
-                      <h4 className="text-[12px] font-semibold text-slate-500">น้ำน้อยที่สุด 5 เขต</h4>
+                      <h4 className="text-[12px] font-semibold text-slate-500">สัดส่วนพื้นที่น้ำต่ำสุด 5 เขต</h4>
                     </div>
                     <ol className="space-y-1.5">
                       {[...statsBarData].reverse().slice(0, 5).map((row: any, i: number) => (
@@ -1006,9 +1072,9 @@ export default function FloodRiskPage() {
                     </div>
                     <div className="space-y-2">
                       {statsComputed && [
-                        ["ค่าเฉลี่ย", `${(statsComputed.mean * 100).toFixed(2)}%`],
-                        ["ค่าสูงสุด", `${(statsComputed.max * 100).toFixed(2)}%`],
-                        ["ค่าต่ำสุด", `${(statsComputed.min * 100).toFixed(2)}%`],
+                        ["สัดส่วนเฉลี่ย", `${(statsComputed.mean * 100).toFixed(2)}%`],
+                        ["สัดส่วนสูงสุด", `${(statsComputed.max * 100).toFixed(2)}%`],
+                        ["สัดส่วนต่ำสุด", `${(statsComputed.min * 100).toFixed(2)}%`],
                         ["จำนวนเขต", String(statsComputed.n)],
                       ].map(([label, val]) => (
                         <div key={label} className="flex items-center justify-between text-[11px]">

@@ -19,6 +19,23 @@ interface FloodRiskSidebarProps {
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
+const RANKING_MODE_COPY = {
+  index: {
+    label: "ดัชนี",
+    title: "ดัชนีน้ำจากภาพถ่าย",
+    help: "เรียงจากค่า NDWI/MNDWI สูงสุด ใช้ดูสัญญาณน้ำหรือความชื้นในภาพดาวเทียม",
+  },
+  density: {
+    label: "หนาแน่น",
+    title: "ความหนาแน่นพื้นที่น้ำ",
+    help: "เรียงจากร้อยละของพื้นที่น้ำเทียบกับขนาดเขต ช่วยเทียบเขตใหญ่และเล็กอย่างยุติธรรม",
+  },
+  area: {
+    label: "พื้นที่",
+    title: "พื้นที่แหล่งน้ำ",
+    help: "เรียงจากจำนวนไร่ของพื้นที่น้ำจริง เหมาะดูเขตที่มีพื้นที่น้ำรวมมาก",
+  },
+} as const;
 
 function formatRai(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
@@ -59,11 +76,10 @@ export default function FloodRiskSidebar({
   geojsonData,
   loading,
   compareMode,
-  mapMode = "district",
   granularity = "district",
 }: FloodRiskSidebarProps) {
   const [showAll, setShowAll] = useState(false);
-  const [displayMode, setDisplayMode] = useState<"index" | "density">("index");
+  const [displayMode, setDisplayMode] = useState<"index" | "density" | "area">("index");
 
   // Build ranking rows from GeoJSON features (most accurate for current year)
   const rankingRows = useMemo(() => {
@@ -89,6 +105,9 @@ export default function FloodRiskSidebar({
           };
         })
         .filter((r: any) => r.district);
+      if (displayMode === "area") {
+        return [...rows].sort((a: any, b: any) => ((b.displayAreaRai ?? b.waterAreaRai) ?? -1) - ((a.displayAreaRai ?? a.waterAreaRai) ?? -1));
+      }
       return displayMode === "density"
         ? [...rows].sort((a: any, b: any) => (b.densityPct ?? -1) - (a.densityPct ?? -1))
         : rows.sort((a: any, b: any) => (b.displayValue ?? b.waterRatio ?? -1) - (a.displayValue ?? a.waterRatio ?? -1));
@@ -109,7 +128,11 @@ export default function FloodRiskSidebar({
   const maxRankingValue = rankingRows.length
     ? Math.max(...rankingRows.map((row: any) => Math.abs(row.displayValue ?? row.waterRatio ?? 0)), 0.5)
     : 0.5;
+  const maxAreaRai = rankingRows.length
+    ? Math.max(...rankingRows.map((row: any) => Number((row.displayAreaRai ?? row.waterAreaRai) ?? 0)), 1)
+    : 1;
   const displayLabel = summary?.displayLabel || rankingRows[0]?.displayLabel || "NDWI";
+  const rankingModeCopy = RANKING_MODE_COPY[displayMode];
 
   // Trend data follows the selected NDWI/MNDWI layer.
   const trendData: [string, number][] = useMemo(() => {
@@ -239,8 +262,7 @@ export default function FloodRiskSidebar({
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3 shrink-0" />
               {compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ"
-                : displayMode === "density" ? `ความหนาแน่นพื้นที่น้ำ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"} (%)`
-                : `${displayLabel}${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
+                : `${rankingModeCopy.title}${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
               {!compareMode && (
@@ -249,13 +271,19 @@ export default function FloodRiskSidebar({
                     onClick={() => setDisplayMode("index")}
                     className={`px-2 py-1 transition-colors ${displayMode === "index" ? "bg-sky-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
                   >
-                    ดัชนี
+                    {RANKING_MODE_COPY.index.label}
                   </button>
                   <button
                     onClick={() => setDisplayMode("density")}
                     className={`px-2 py-1 transition-colors ${displayMode === "density" ? "bg-sky-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
                   >
-                    หนาแน่น
+                    {RANKING_MODE_COPY.density.label}
+                  </button>
+                  <button
+                    onClick={() => setDisplayMode("area")}
+                    className={`px-2 py-1 transition-colors ${displayMode === "area" ? "bg-sky-700 text-white" : "text-slate-500 hover:text-slate-300"}`}
+                  >
+                    {RANKING_MODE_COPY.area.label}
                   </button>
                 </div>
               )}
@@ -268,6 +296,18 @@ export default function FloodRiskSidebar({
             </div>
           </div>
 
+          {!compareMode && (
+            <div className="mb-3 rounded-md border border-slate-800 bg-slate-900/45 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold text-slate-300">{rankingModeCopy.title}</span>
+                <span className="shrink-0 rounded bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-bold text-sky-300">
+                  {displayMode === "area" ? "ไร่" : displayMode === "density" ? "%" : displayLabel}
+                </span>
+              </div>
+              <p className="mt-1 text-[9px] leading-snug text-slate-500">{rankingModeCopy.help}</p>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, idx: number) => {
               const isSelected = activeDistrict === row.district;
@@ -275,12 +315,16 @@ export default function FloodRiskSidebar({
                     ? `${row.delta >= 0 ? "+" : ""}${(row.delta * 100).toFixed(1)}%`
                     : displayMode === "density"
                       ? (row.densityPct !== null ? `${row.densityPct}%` : "ไม่มีข้อมูล")
+                      : displayMode === "area"
+                        ? formatRai(row.displayAreaRai ?? row.waterAreaRai)
                       : formatIndex(row.displayValue ?? row.waterRatio);
               const areaVal = row.displayAreaRai ?? row.waterAreaRai;
               const barPct = compareMode && row.delta !== null
                     ? Math.min(100, Math.abs(row.delta) / 0.1 * 100)
                     : displayMode === "density"
                       ? Math.min(100, (row.densityPct ?? 0))
+                      : displayMode === "area"
+                        ? (Number(areaVal ?? 0) / maxAreaRai) * 100
                       : (Math.abs(row.displayValue ?? row.waterRatio ?? 0) / maxRankingValue) * 100;
               const barColor = compareMode
                     ? (row.delta ?? 0) >= 0 ? "from-sky-600 to-sky-400" : "from-amber-600 to-amber-400"
