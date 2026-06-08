@@ -78,7 +78,7 @@ export default function UrbanExpansionPage() {
 
   const kpiCards = [
     { label: compareMode ? "ส่วนต่าง NDBI เฉลี่ย" : "NDBI เฉลี่ย", value: compareMode ? `${(summary?.avgDelta ?? 0) >= 0 ? "+" : ""}${(summary?.avgDelta ?? 0).toFixed(3)}` : summary?.averageTemp != null ? summary.averageTemp.toFixed(3) : "--" },
-    { label: compareMode ? "การเพิ่มขึ้นสูงสุด" : "NDBI สูงสุด", value: compareMode ? `${(summary?.maxIncreaseDelta ?? 0).toFixed(3)}` : summary?.maxTemp != null ? summary.maxTemp.toFixed(3) : "--" },
+    { label: compareMode ? "การเปลี่ยนแปลงสูงสุด" : "NDBI สูงสุด", value: compareMode ? `${(summary?.maxIncreaseDelta ?? 0) >= 0 ? "+" : ""}${(summary?.maxIncreaseDelta ?? 0).toFixed(3)}` : summary?.maxTemp != null ? summary.maxTemp.toFixed(3) : "--" },
     { label: "เขตที่มี NDBI สูงสุด", value: highestDensityDistrict },
     { label: "ช่วงข้อมูล", value: compareMode ? `${selectedYear} vs ${compareYear}` : periodLabel },
   ];

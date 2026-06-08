@@ -103,7 +103,7 @@ export default function HeatIslandPage() {
     {
       label: compareMode ? "ส่วนต่าง LST สูงสุด" : "LST สูงสุด",
       value: compareMode
-        ? `${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0).toFixed(2)}°C`
+        ? `${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0) >= 0 ? "+" : ""}${(summary?.maxIncreaseDelta ?? summary?.max_delta ?? 0).toFixed(2)}°C`
         : summary?.maxTemp !== null && summary?.maxTemp !== undefined
           ? formatLST(Number(summary.maxTemp))
           : "ไม่มีข้อมูล",

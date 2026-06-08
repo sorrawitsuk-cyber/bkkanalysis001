@@ -179,7 +179,7 @@ export default function NighttimeLightsPage() {
       if (y && m) return [y, m];
     }
     const now = new Date();
-    return [now.getFullYear(), now.getMonth() || 1];
+    return [now.getFullYear(), now.getMonth() + 1];
   }, [cacheIndex]);
 
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
