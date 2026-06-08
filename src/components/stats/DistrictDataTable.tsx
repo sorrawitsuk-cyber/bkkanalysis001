@@ -39,6 +39,9 @@ interface DistrictDataTableProps {
   // District selector
   onDistrictChange?: (d: string) => void;
   districts?: string[];
+  dataSource?: string | null;
+  contextNote?: string;
+  expectedRows?: number;
 }
 
 function fmtDelta(delta: number): string {
@@ -81,6 +84,9 @@ export default function DistrictDataTable({
   onCompareYearChange,
   onDistrictChange,
   districts = [],
+  dataSource,
+  contextNote,
+  expectedRows,
 }: DistrictDataTableProps) {
   const [search, setSearch]           = useState("");
   const [sortKey, setSortKey]         = useState<string>(columns[1]?.key ?? columns[0]?.key);
@@ -218,6 +224,17 @@ export default function DistrictDataTable({
     }
     return result;
   }, [rows, search, filterDistrict, multiYearMode]);
+
+  const completeness = useMemo(() => {
+    const numericCols = columns.filter((c) => c.key !== "name" && c.key !== "delta" && !c.key.startsWith("compare_"));
+    const usableRows = filtered.filter((row) =>
+      numericCols.some((col) => typeof row[col.key] === "number" && Number.isFinite(row[col.key]))
+    ).length;
+    return {
+      usableRows,
+      expectedRows: expectedRows ?? filtered.length,
+    };
+  }, [columns, filtered, expectedRows]);
 
   const sorted = useMemo(() => {
     // In multi-year mode with default sort key, sort by year asc
@@ -437,6 +454,25 @@ export default function DistrictDataTable({
           <Download className="h-3.5 w-3.5" /> CSV
         </button>
       </div>
+
+      {(dataSource || contextNote || rows.length > 0) && (
+        <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-800/50 bg-slate-900/15 px-4 py-2 text-[10px] text-slate-500">
+          <span className="font-bold text-slate-400">
+            ข้อมูลตัวเลข {completeness.usableRows}/{completeness.expectedRows} แถว
+          </span>
+          {completeness.usableRows < completeness.expectedRows && (
+            <span className="text-amber-400">
+              มีบางพื้นที่ยังไม่มีค่าดาวเทียมในปี/ชั้นข้อมูลนี้
+            </span>
+          )}
+          {dataSource && (
+            <span>
+              ที่มา: <span className="text-slate-300">{dataSource}</span>
+            </span>
+          )}
+          {contextNote && <span className="text-slate-600">{contextNote}</span>}
+        </div>
+      )}
 
       {/* ── Table ────────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">

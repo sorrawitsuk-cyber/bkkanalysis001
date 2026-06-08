@@ -432,9 +432,14 @@ export async function GET(request: Request) {
 
     const features = geojson.features.map((feature: any) => {
       const row = lstMap.get(feature.properties.id) || null;
+      const compareRow = compareYear ? compareMap.get(feature.properties.id) : null;
       const currentValue = valueFor(row, metric);
-      const compareValue = compareYear ? valueFor(compareMap.get(feature.properties.id), metric) : null;
+      const compareValue = compareYear ? valueFor(compareRow, metric) : null;
       const delta = currentValue !== null && compareValue !== null ? currentValue - compareValue : null;
+      const pollutionScoreDelta =
+        typeof row?.pollution_score === "number" && typeof compareRow?.pollution_score === "number"
+          ? row.pollution_score - compareRow.pollution_score
+          : null;
       if (currentValue !== null) {
         minValue = Math.min(minValue, currentValue);
         maxValue = Math.max(maxValue, currentValue);
@@ -469,6 +474,7 @@ export async function GET(request: Request) {
           aerosol_index_mean: row?.aerosol_index_mean ?? null,
           aerosol_index_max: row?.aerosol_index_max ?? null,
           pollution_score: row?.pollution_score ?? null,
+          pollution_score_delta: pollutionScoreDelta,
           pollution_class: row?.pollution_class ?? null,
           air_quality_source: row?.air_quality_source ?? null,
           air_quality_note: row?.air_quality_note ?? null,
@@ -594,7 +600,56 @@ export async function GET(request: Request) {
         ])
       : [];
 
+    const pollutionScoreTrend = metric === "air_pollution"
+      ? Object.entries(summaryData.reduce((acc: any, row: any) => {
+          if (typeof row.pollution_score !== "number" || row.year == null) return acc;
+          if (!acc[row.year]) acc[row.year] = { sum: 0, count: 0 };
+          acc[row.year].sum += row.pollution_score;
+          acc[row.year].count += 1;
+          return acc;
+        }, {}))
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([trendYear, aggregate]: [string, any]) => [
+            trendYear,
+            parseFloat((aggregate.sum / aggregate.count).toFixed(3)),
+          ])
+      : [];
+    const pollutionScoreAverageMap = new Map<number, number>(
+      pollutionScoreTrend.map(([trendYear, avg]) => [Number(trendYear), Number(avg)])
+    );
+    const baselinePollutionScore = compareYear ? pollutionScoreAverageMap.get(compareYear) : null;
+    const pollutionScoreDeltaTrend = compareYear && baselinePollutionScore != null
+      ? pollutionScoreTrend.map(([trendYear, avg]) => [
+          trendYear,
+          parseFloat((Number(avg) - baselinePollutionScore).toFixed(3)),
+        ])
+      : [];
+
     const currentYearData = summaryData.filter((row: any) => row.year === year);
+    const pollutionScoreRanking = metric === "air_pollution"
+      ? currentYearData
+          .filter((row: any) => typeof row.pollution_score === "number")
+          .map((row: any) => [row.district_name, Number(row.pollution_score.toFixed(2))])
+          .sort((a: any, b: any) => b[1] - a[1])
+      : [];
+    const pollutionScoreDeltaRanking = metric === "air_pollution" && compareYear
+      ? (() => {
+          const baselineRows = summaryData.filter((row: any) => row.year === compareYear);
+          const baselineByDistrict = new Map(
+            baselineRows.map((row: any) => [row.district_id, row.pollution_score])
+          );
+          return currentYearData
+            .filter((row: any) =>
+              typeof row.pollution_score === "number" &&
+              typeof baselineByDistrict.get(row.district_id) === "number"
+            )
+            .map((row: any) => [
+              row.district_name,
+              parseFloat((row.pollution_score - Number(baselineByDistrict.get(row.district_id))).toFixed(2)),
+            ])
+            .sort((a: any, b: any) => b[1] - a[1]);
+        })()
+      : [];
     let ranking: any[] = [];
     let ndbiRanking: any[] = [];
     let areaRanking: any[] = [];
@@ -830,6 +885,10 @@ export async function GET(request: Request) {
         greenAreaTrend,
         builtupAreaTrend,
         yearlyDeltaTrend,
+        pollutionScoreTrend,
+        pollutionScoreDeltaTrend,
+        pollutionScoreRanking,
+        pollutionScoreDeltaRanking,
         monthlyTrend,
         monthlyMaxTrend,
         baselineMonthlyTrend,

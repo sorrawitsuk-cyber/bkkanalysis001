@@ -149,6 +149,9 @@ export default function GreenSpacePage() {
     { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981" },
     { key: "green_area_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
     { key: "priority_score", label: "Priority Score", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#f97316", heatmapInvert: true },
+    { key: "low_green_ratio", label: "เขียวน้อย", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f59e0b", hideable: true },
+    { key: "water_ratio", label: "น้ำ", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#38bdf8", hideable: true },
+    { key: "ntl_mean", label: "NTL", unit: "nW/sr/cm²", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#fbbf24", hideable: true },
     ...(compareMode ? [{ key: "delta", label: "Δ NDVI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–" } as ColDef] : []),
   ];
 
@@ -347,6 +350,9 @@ export default function GreenSpacePage() {
                 green_area_rai: props.green_area_rai,
                 green_area_ratio: props.green_area_ratio,
                 priority_score: props.priority_score,
+                low_green_ratio: props.low_green_ratio,
+                water_ratio: props.water_ratio,
+                ntl_mean: props.ntl_mean,
                 delta: props.vegetation_delta ?? props.delta,
               })}
               csvFilename={`green-space_${selectedYear}`}
@@ -360,6 +366,9 @@ export default function GreenSpacePage() {
               onCompareYearChange={setCompareYear}
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
+              dataSource={summary?.dataSource}
+              contextNote="Priority Score ใช้ NDVI, สัดส่วนเขียว, น้ำ และแสงกลางคืนประกอบกัน"
+              expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
             />
           )}
         </div>

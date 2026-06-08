@@ -65,8 +65,8 @@ function getConfig(metric: Metric) {
       formatVal: (v: number) => v.toLocaleString(), formatShort: (v: number) => v.toLocaleString(),
     },
     air_pollution: {
-      barTitle: "คะแนนมลพิษอากาศรายเขต (0–10)", barUnit: "",
-      trendTitle: "แนวโน้ม NO₂ เฉลี่ยรายปี (mol/m²)", trendUnit: "mol/m²",
+      barTitle: "คะแนนมลพิษอากาศรายเขต (0-10)", barUnit: "",
+      trendTitle: "แนวโน้มคะแนนมลพิษรวมรายปี", trendUnit: "คะแนน",
       barColor: "#06b6d4", barColorHigh: "#22d3ee", accentHex: "#06b6d4",
       thresholdLabel: "มลพิษสูง (Score≥6)", threshold: 6, thresholdColor: "#f87171",
       formatVal: (v: number) => v.toFixed(3), formatShort: (v: number) => v.toFixed(3),
@@ -146,7 +146,7 @@ function metricFieldFromProfile(metric: Metric, m: any): number | null {
   if (metric === "lst")           return m.mean_lst        ?? null;
   if (metric === "vegetation")    return m.ndvi_mean        ?? null;
   if (metric === "builtup")       return m.ndbi_mean        ?? null;
-  if (metric === "air_pollution") return m.no2_mean ?? m.pollution_score ?? null;
+  if (metric === "air_pollution") return m.pollution_score ?? m.no2_mean ?? null;
   return null;
 }
 
@@ -383,7 +383,11 @@ export default function StatsDashboard({
   }
 
   const cfg = getConfig(metric);
-  const rawRanking: any[] = summary.ranking ?? [];
+  const rawRanking: any[] = metric === "air_pollution"
+    ? compareMode
+      ? summary.pollutionScoreDeltaRanking ?? []
+      : summary.pollutionScoreRanking ?? summary.densityRanking ?? []
+    : summary.ranking ?? [];
   const ac = ACCENT_COLORS[accentColor] ?? ACCENT_COLORS.cyan;
   const isDistrictMode = !!(activeDistrict && activeDistrict !== "ทั้งหมด");
 
@@ -398,14 +402,23 @@ export default function StatsDashboard({
 
   const stats = computeStats(values);
   const distribution = buildDistribution(values, 8);
-  const insights = generateInsights(values, rawRanking, metric, cfg, summary, compareMode);
+  const insightSummary = metric === "air_pollution" && compareMode
+    ? { ...summary, avgDelta: stats.mean, yearlyTrend: summary.pollutionScoreTrend ?? [] }
+    : metric === "air_pollution"
+      ? { ...summary, yearlyTrend: summary.pollutionScoreTrend ?? [] }
+      : summary;
+  const insights = generateInsights(values, rawRanking, metric, cfg, insightSummary, compareMode);
 
   const barData = [...rawRanking].filter(([, v]: any) => v != null)
     .map(([name, value]: any) => ({ name, value: Number(value) })).reverse();
 
-  const trendRows: [string, number][] = summary.yearlyTrend ?? [];
+  const trendRows: [string, number][] = metric === "air_pollution"
+    ? summary.pollutionScoreTrend ?? []
+    : summary.yearlyTrend ?? [];
   const trendData = trendRows.filter(([, v]) => v != null).map(([yr, v]) => ({ year: yr, value: Number(v) }));
-  const deltaRows: [string, number][] = compareMode ? (summary.yearlyDeltaTrend ?? []) : [];
+  const deltaRows: [string, number][] = compareMode
+    ? (metric === "air_pollution" ? summary.pollutionScoreDeltaTrend ?? [] : summary.yearlyDeltaTrend ?? [])
+    : [];
   const deltaData = deltaRows.map(([yr, v]) => ({ year: yr, value: Number(v) }));
   const displayTrend = compareMode && deltaData.length ? deltaData : trendData;
   const trendUnit = compareMode ? `Δ ${cfg.trendUnit}` : cfg.trendUnit;

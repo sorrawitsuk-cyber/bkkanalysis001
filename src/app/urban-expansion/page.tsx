@@ -115,6 +115,8 @@ export default function UrbanExpansionPage() {
     { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b" },
     { key: "builtup_area_rai", label: "พื้นที่สิ่งปลูกสร้าง", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "builtup_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f97316", hideable: true },
+    { key: "ndvi_mean", label: "NDVI", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981", heatmapInvert: true, hideable: true },
+    { key: "green_area_ratio", label: "สัดส่วนเขียว", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#22c55e", heatmapInvert: true, hideable: true },
     { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
     ...(compareMode ? [{ key: "delta", label: "Δ NDBI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–", heatmap: true, heatmapHex: "#f59e0b" } as ColDef] : []),
   ];
@@ -303,6 +305,8 @@ export default function UrbanExpansionPage() {
                 ndbi_mean: props.ndbi_mean,
                 builtup_area_rai: props.builtup_area_rai,
                 builtup_ratio: props.builtup_ratio ?? null,
+                ndvi_mean: props.ndvi_mean ?? null,
+                green_area_ratio: props.green_area_ratio ?? null,
                 district_area_rai: props.district_area_rai ?? null,
                 delta: props.delta,
               })}
@@ -317,6 +321,9 @@ export default function UrbanExpansionPage() {
               onCompareYearChange={setCompareYear}
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
+              dataSource={summary?.dataSource}
+              contextNote="NDBI สูงมักสัมพันธ์กับสิ่งปลูกสร้าง ควรอ่านคู่กับ NDVI/พื้นที่สีเขียว"
+              expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
             />
           )}
         </div>

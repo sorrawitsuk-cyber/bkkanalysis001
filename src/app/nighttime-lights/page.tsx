@@ -360,9 +360,11 @@ export default function NighttimeLightsPage() {
 
   // Table columns
   const tableColumns: ColDef[] = [
-    { key: "name", label: "เขต" },
+    { key: "name", label: granularity === "subdistrict" ? "แขวง" : "เขต", sortable: false },
+    ...(granularity === "subdistrict" ? [{ key: "district", label: "เขตแม่", sortable: false, hideable: true } as ColDef] : []),
     { key: "ntl_mean", label: "NTL Mean", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#fbbf24" },
     { key: "ntl_max", label: "NTL Max", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#f59e0b" },
+    { key: "pixel_count", label: "จำนวนพิกเซล", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
     ...(compareMode && !isMonthlyPreview
       ? [{ key: "ntl_delta", label: "ส่วนต่าง", unit: "nW/sr/cm²", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${formatRadiance(v, 3)}` : "–" }]
       : []),
@@ -881,16 +883,20 @@ export default function NighttimeLightsPage() {
         {viewMode === "table" && (
           <div className="flex-1 min-h-0">
             <DistrictDataTable
-              features={geojsonData?.features ?? []}
+              features={(granularity === "subdistrict" && activeDistrict !== "ทั้งหมด"
+                ? (displayGeoJson?.features ?? []).filter((f: any) => f.properties?.district_name === activeDistrict)
+                : displayGeoJson?.features) ?? []}
               columns={tableColumns}
               getRowData={(props) => ({
                 name: props.name_th,
+                district: props.district_name ?? null,
                 ntl_mean: props.ntl_mean ?? null,
                 ntl_max: props.ntl_max ?? null,
                 ntl_delta: props.ntl_delta ?? null,
+                pixel_count: props.pixel_count ?? null,
               })}
               csvFilename={csvFilename}
-              filterDistrict={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
+              filterDistrict={granularity === "district" && activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
               year={selectedYear} onYearChange={setSelectedYear}
               minYear={2014} maxYear={2026}
               enableMultiYear accentColor="orange"
@@ -900,6 +906,9 @@ export default function NighttimeLightsPage() {
               onCompareYearChange={setCompareYear}
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
+              dataSource={summary?.dataSource ?? (isMonthlyPreview ? "VIIRS monthly preview" : "VIIRS annual composite")}
+              contextNote={granularity === "subdistrict" ? "ระดับแขวงสืบทอดค่าสถิติจากเขตแม่ ไม่ใช่การคำนวณ radiance ใหม่รายแขวง" : isMonthlyPreview ? "ข้อมูลรายเดือนเป็น preview และไม่ควรเปรียบเทียบตรงกับ annual composite" : "NTL ใช้สะท้อนความเข้มกิจกรรมยามค่ำคืน ไม่ใช่จำนวนประชากรโดยตรง"}
+              expectedRows={granularity === "district" ? (activeDistrict === "ทั้งหมด" ? 50 : 1) : undefined}
             />
           </div>
         )}

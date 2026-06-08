@@ -128,11 +128,13 @@ export default function AirQualityPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
-    { key: "pollution_score", label: "คะแนนมลพิษ", unit: "0–10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
+    { key: "pollution_score", label: "คะแนนรวม", unit: "0-10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "no2_mean", label: "NO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
     { key: "co_mean", label: "CO", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#fb923c" },
     { key: "so2_mean", label: "SO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#facc15" },
     { key: "aerosol_index_mean", label: "Aerosol", unit: "index", format: (v) => v != null ? Number(v).toFixed(3) : "–", heatmap: true, heatmapHex: "#8b5cf6", hideable: true },
+    { key: "pollution_class", label: "ระดับ", format: (v) => v ? String(v).replace(/_/g, " ") : "–", sortable: false, hideable: true },
+    ...(compareMode ? [{ key: "pollution_score_delta", label: "Δ คะแนน", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#ef4444" } as ColDef] : []),
   ];
 
   const avgValue    = rankingRows.length ? rankingRows.reduce((s, [, v]) => s + v, 0) / rankingRows.length : null;
@@ -314,6 +316,8 @@ export default function AirQualityPage() {
                 so2_mean: props.so2_mean,
                 aerosol_index_mean: props.aerosol_index_mean,
                 pollution_score: props.pollution_score,
+                pollution_class: props.pollution_class,
+                pollution_score_delta: props.pollution_score_delta,
               })}
               csvFilename={`air-quality_${selectedYear}`}
               filterDistrict={activeDistrict}
@@ -326,6 +330,9 @@ export default function AirQualityPage() {
               onCompareYearChange={setCompareYear}
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
+              dataSource={summary?.dataSource}
+              contextNote="คะแนนรวมเป็น proxy จาก Sentinel-5P column density ไม่ใช่ AQI จากสถานีภาคพื้น"
+              expectedRows={activeDistrict === ALL_DISTRICTS ? 50 : 1}
             />
           )}
         </div>

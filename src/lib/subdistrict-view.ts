@@ -40,6 +40,7 @@ export function buildSubdistrictGeoJson(
         ntl_mean:          p.ntl_mean          ?? null,
         ntl_max:           p.ntl_max           ?? null,
         ntl_delta:         p.ntl_delta         ?? null,
+        pixel_count:        p.pixel_count        ?? null,
         // ── Land Surface Temperature ─────────────────────────────────────────
         mean_lst:          p.mean_lst          ?? null,
         max_lst:           p.max_lst           ?? null,

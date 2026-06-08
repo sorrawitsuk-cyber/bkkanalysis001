@@ -173,6 +173,8 @@ export default function HeatIslandPage() {
     { key: "max_lst", label: "LST สูงสุด", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981", hideable: true },
     { key: "green_area_ratio", label: "สัดส่วนเขียว", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399", hideable: true },
+    { key: "builtup_ratio", label: "สิ่งปลูกสร้าง", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#ef4444", hideable: true },
+    { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
     ...(compareMode
       ? [{ key: "delta", label: "Δ LST", unit: "°C", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#f97316" } as ColDef]
       : []
@@ -389,6 +391,8 @@ export default function HeatIslandPage() {
                 max_lst: props.max_lst,
                 green_area_rai: props.green_area_rai ?? null,
                 green_area_ratio: props.green_area_ratio ?? null,
+                builtup_ratio: props.builtup_ratio ?? null,
+                district_area_rai: props.district_area_rai ?? null,
                 delta: props.delta,
               })}
               csvFilename={`heat-island_${selectedYear}`}
@@ -405,6 +409,9 @@ export default function HeatIslandPage() {
               onCompareYearChange={setCompareYear}
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
+              dataSource={summary?.dataSource}
+              contextNote="LST คืออุณหภูมิพื้นผิวจากดาวเทียม ไม่ใช่อุณหภูมิอากาศที่สถานีตรวจวัด"
+              expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
             />
           )}
         </div>

@@ -436,7 +436,8 @@ export default function FloodRiskPage() {
 
   // Table columns — comprehensive
   const tableColumns: ColDef[] = [
-    { key: "name", label: "เขต", sortable: false },
+    { key: "name", label: granularity === "subdistrict" ? "แขวง" : "เขต", sortable: false },
+    ...(granularity === "subdistrict" ? [{ key: "district", label: "เขตแม่", sortable: false, hideable: true } as ColDef] : []),
     { key: "water_ratio", label: "สัดส่วนน้ำ", unit: "%", format: (v) => v != null ? (v * 100).toFixed(2) : "–", heatmap: true, heatmapHex: "#3b82f6" },
     { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#60a5fa" },
     { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#06b6d4" },
@@ -968,10 +969,13 @@ export default function FloodRiskPage() {
         {viewMode === "table" && (
           <div className="flex-1 min-h-0">
             <DistrictDataTable
-              features={geojsonData?.features ?? []}
+              features={(granularity === "subdistrict" && activeDistrict !== "ทั้งหมด"
+                ? (displayGeoJson?.features ?? []).filter((f: any) => f.properties?.district_name === activeDistrict)
+                : displayGeoJson?.features) ?? []}
               columns={tableColumns}
               getRowData={(props) => ({
                 name: props.name_th,
+                district: props.district_name ?? null,
                 water_ratio: props.water_ratio ?? null,
                 water_area_rai: props.water_area_rai ?? null,
                 ndwi_mean: props.ndwi_mean ?? null,
@@ -982,7 +986,7 @@ export default function FloodRiskPage() {
                 compare_water_ratio: props.compare_water_ratio ?? null,
               })}
               csvFilename={csvFilename}
-              filterDistrict={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
+              filterDistrict={granularity === "district" && activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
               year={selectedYear} onYearChange={setSelectedYear}
               minYear={2018} maxYear={2026}
               enableMultiYear accentColor="cyan"
@@ -992,6 +996,9 @@ export default function FloodRiskPage() {
               onCompareYearChange={setCompareYear}
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
+              dataSource={summary?.dataSource ?? "Sentinel-2 cache/GEE"}
+              contextNote={granularity === "subdistrict" ? "ระดับแขวงสืบทอดค่าสถิติจากเขตแม่ จึงใช้ดูรายละเอียดเชิงพื้นที่ ไม่ใช่ค่าสถิติคำนวณใหม่รายแขวง" : "Water ratio เป็น proxy จาก NDWI/MNDWI และควรอ่านคู่กับ Traffy/บริบทพื้นที่"}
+              expectedRows={granularity === "district" ? (activeDistrict === "ทั้งหมด" ? 50 : 1) : undefined}
             />
           </div>
         )}
