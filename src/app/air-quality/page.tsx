@@ -177,8 +177,10 @@ export default function AirQualityPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
     { key: "pollution_score", label: "คะแนนรวม", unit: "0-10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
-    { key: "no2_mean", label: "NO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
-    { key: "co_mean", label: "CO", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#fb923c" },
+    { key: "no2_mean", label: "NO₂ เฉลี่ย", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
+    { key: "no2_max", label: "NO₂ สูงสุด", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa", hideable: true },
+    { key: "co_mean", label: "CO เฉลี่ย", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#fb923c" },
+    { key: "co_max", label: "CO สูงสุด", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#fb923c", hideable: true },
     { key: "so2_mean", label: "SO₂", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#facc15" },
     { key: "aerosol_index_mean", label: "Aerosol", unit: "index", format: (v) => v != null ? Number(v).toFixed(3) : "–", heatmap: true, heatmapHex: "#8b5cf6", hideable: true },
     { key: "pollution_class", label: "ระดับ", format: (v) => v ? String(v).replace(/_/g, " ") : "–", sortable: false, hideable: true },
@@ -391,7 +393,9 @@ export default function AirQualityPage() {
               getRowData={(props) => ({
                 name: props.name_th,
                 no2_mean: props.no2_mean,
+                no2_max: props.no2_max ?? null,
                 co_mean: props.co_mean,
+                co_max: props.co_max ?? null,
                 so2_mean: props.so2_mean,
                 aerosol_index_mean: props.aerosol_index_mean,
                 pollution_score: props.pollution_score,

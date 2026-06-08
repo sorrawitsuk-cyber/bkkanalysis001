@@ -582,22 +582,28 @@ export default function DistrictDataTable({
 
           {showStatsFooter && rows.length > 0 && !multiYearMode && (
             <tfoot className="sticky bottom-0 border-t border-slate-700/60 bg-slate-900/98 backdrop-blur">
-              <tr>
-                {showRank && <td className="px-3 py-2" />}
-                {visibleColumns.map((col) => {
-                  const s = colStats[col.key];
-                  const fmtFn = col.format ?? ((v: any) => v != null ? String(Number(v).toFixed(3)) : "–");
-                  return (
-                    <td key={col.key} className="px-4 py-2 text-[10px] font-mono text-slate-600 tabular-nums">
-                      {col.key === "name" ? (
-                        <span className="font-bold uppercase tracking-widest text-slate-700 text-[9px]">ค่าเฉลี่ย</span>
-                      ) : s ? (
-                        <span title={`min: ${fmtFn(s.min)} / max: ${fmtFn(s.max)}`} className="cursor-help">{fmtFn(s.mean)}</span>
-                      ) : "—"}
-                    </td>
-                  );
-                })}
-              </tr>
+              {(["max", "mean", "min"] as const).map((stat) => (
+                <tr key={stat} className={stat !== "min" ? "border-b border-slate-800/30" : ""}>
+                  {showRank && <td className="px-3 py-1.5" />}
+                  {visibleColumns.map((col) => {
+                    const s = colStats[col.key];
+                    const fmtFn = col.format ?? ((v: any) => v != null ? String(Number(v).toFixed(3)) : "–");
+                    const labelColor = stat === "max" ? "text-amber-500/70" : stat === "mean" ? "text-slate-500" : "text-sky-600/70";
+                    const valueColor = stat === "max" ? "text-slate-300" : stat === "mean" ? "text-slate-500" : "text-slate-600";
+                    return (
+                      <td key={col.key} className={`px-4 py-1.5 text-[10px] font-mono tabular-nums ${valueColor}`}>
+                        {col.key === "name" ? (
+                          <span className={`font-bold uppercase tracking-widest text-[9px] ${labelColor}`}>
+                            {stat === "max" ? "สูงสุด" : stat === "mean" ? "เฉลี่ย" : "ต่ำสุด"}
+                          </span>
+                        ) : s ? (
+                          fmtFn(s[stat])
+                        ) : <span className="text-slate-700">—</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
             </tfoot>
           )}
         </table>

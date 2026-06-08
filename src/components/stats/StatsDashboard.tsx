@@ -446,12 +446,12 @@ export default function StatsDashboard({
   const aboveCount = cfg.threshold != null ? values.filter((v) => v >= cfg.threshold!).length : null;
 
   const statStrip = [
-    { label: "ค่าเฉลี่ย", value: avgTxt, unit: cfg.barUnit, color: "text-slate-200" },
-    { label: "สูงสุด", value: maxTxt, unit: cfg.barUnit, color: "text-red-400" },
-    { label: "ต่ำสุด", value: minTxt, unit: cfg.barUnit, color: "text-emerald-400" },
+    { label: "ค่าเฉลี่ย", value: avgTxt, unit: cfg.barUnit, sub: "เฉลี่ยทุกเขต", color: "text-slate-200" },
+    { label: "ค่าสูงสุด", value: maxTxt, unit: cfg.barUnit, sub: "เขตที่มีค่าสูงสุด", color: "text-red-400" },
+    { label: "ค่าต่ำสุด", value: minTxt, unit: cfg.barUnit, sub: "เขตที่มีค่าต่ำสุด", color: "text-emerald-400" },
     ...(aboveCount != null
-      ? [{ label: cfg.thresholdLabel, value: String(aboveCount), unit: "เขต", color: "text-rose-400" }]
-      : [{ label: "เขตทั้งหมด", value: String(values.length), unit: "เขต", color: "text-slate-400" }]),
+      ? [{ label: cfg.thresholdLabel, value: String(aboveCount), unit: "เขต", sub: "ในปีนี้", color: "text-rose-400" }]
+      : [{ label: "เขตทั้งหมด", value: String(values.length), unit: "เขต", sub: "มีข้อมูล", color: "text-slate-400" }]),
   ];
 
   return (
@@ -585,7 +585,8 @@ export default function StatsDashboard({
           <div key={i} className={`px-4 py-3 border-r border-slate-800/60 last:border-r-0 ${i % 2 === 0 ? "bg-slate-900/40" : "bg-slate-900/20"}`}>
             <div className="text-[11px] font-semibold text-slate-500 mb-0.5">{s.label}</div>
             <div className={`text-lg font-black tabular-nums ${s.color}`}>{s.value}</div>
-            <div className="text-[10px] text-slate-700">{s.unit}</div>
+            <div className="text-[10px] text-slate-700">{s.unit || " "}</div>
+            {s.sub && <div className="text-[9px] text-slate-700 mt-0.5 leading-tight">{s.sub}</div>}
           </div>
         ))}
       </div>

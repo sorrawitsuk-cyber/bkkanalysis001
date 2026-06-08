@@ -113,6 +113,7 @@ export default function UrbanExpansionPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
     { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b" },
+    { key: "ndbi_max", label: "NDBI สูงสุด", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b", hideable: true },
     { key: "builtup_area_rai", label: "พื้นที่สิ่งปลูกสร้าง", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "builtup_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f97316", hideable: true },
     { key: "ndvi_mean", label: "NDVI", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981", heatmapInvert: true, hideable: true },
@@ -310,6 +311,7 @@ export default function UrbanExpansionPage() {
               getRowData={(props) => ({
                 name: props.name_th,
                 ndbi_mean: props.ndbi_mean,
+                ndbi_max: props.ndbi_max ?? null,
                 builtup_area_rai: props.builtup_area_rai,
                 builtup_ratio: props.builtup_ratio ?? null,
                 ndvi_mean: props.ndvi_mean ?? null,
