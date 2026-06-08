@@ -79,7 +79,7 @@ export default function FloodRiskSidebar({
           return {
             district: f.properties?.name_th,
             districtName: (f.properties?.district_name as string) ?? null,
-            waterRatio: f.properties?.water_ratio as number | null,
+            waterRatio: (f.properties?.seasonal_water_ratio ?? f.properties?.water_ratio) as number | null,
             waterAreaRai,
             displayValue: f.properties?.display_value as number | null,
             displayAreaRai: f.properties?.display_area_rai as number | null,
@@ -129,8 +129,8 @@ export default function FloodRiskSidebar({
             <Droplets className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-100 leading-none">NDWI น้ำผิวดิน</h1>
-            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Water Signal · GEE Statistics</p>
+            <h1 className="text-base font-bold text-slate-100 leading-none">พื้นที่น้ำท่วม</h1>
+            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">ไม่รวมแม่น้ำและคลองถาวร</p>
           </div>
         </div>
 
@@ -139,12 +139,12 @@ export default function FloodRiskSidebar({
             อ่านหน้านี้แบบเร็ว
           </p>
           <p className="mt-1 text-[10px] leading-snug text-slate-400">
-            เลือก layer บนแผนที่ก่อน แล้วสถิติ กราฟ และอันดับรายเขต/แขวงด้านล่างจะเปลี่ยนตามค่า NDWI mean, NDWI max หรือ MNDWI mean
+            ค่าที่แสดงคือพื้นที่น้ำท่วม/น้ำขัง ไม่รวมแม่น้ำเจ้าพระยาและคลองถาวร — เลือก layer บนแผนที่เพื่อเปลี่ยนดัชนีที่วิเคราะห์
           </p>
         </div>
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-          <MapPin className="w-3 h-3" /> พื้นที่ (District)
+          <MapPin className="w-3 h-3" /> เลือกเขต
         </label>
         <select
           value={activeDistrict}
@@ -166,7 +166,7 @@ export default function FloodRiskSidebar({
           {/* Row 1 */}
           <div className="col-span-3 min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1">
-              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่น้ำรวม (กทม.)
+              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่น้ำท่วม กทม. (ไม่รวมแม่น้ำ)
             </div>
             <div className="text-base font-bold font-mono text-slate-100">
               {formatRai(summary.totalWaterAreaRai)}

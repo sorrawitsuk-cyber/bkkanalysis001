@@ -65,12 +65,23 @@ function getLayerValue(row: any, layer: WaterCacheLayer): number | null {
   return null;
 }
 
+function applyJrcCorrection(
+  rawRatio: number | null,
+  seasonalFromCache: number | null,
+  jrcFraction: number,
+): number | null {
+  if (seasonalFromCache != null) return seasonalFromCache; // cache has exact value
+  if (rawRatio == null) return null;
+  return parseFloat(Math.max(0, rawRatio - jrcFraction).toFixed(4));
+}
+
 function buildFloodRiskView(
   meta: SatelliteCacheMetadata | null,
   baselineMeta: SatelliteCacheMetadata | null,
   selectedYear: number,
   compareYearVal: number | null,
   selectedLayer: WaterCacheLayer,
+  jrcBaseline: Record<number, number> = {},
 ) {
   const rows = (meta?.district_stats ?? []) as any[];
   const baselineRows = (baselineMeta?.district_stats ?? []) as any[];
@@ -81,29 +92,36 @@ function buildFloodRiskView(
   let maxValue = -Infinity;
 
   const features = (bkkDistricts.features as any[]).map((feature: any) => {
-    const row = rowById.get(Number(feature.properties.id));
-    const waterRatio: number | null = row?.water_ratio ?? null;
+    const districtId = Number(feature.properties.id);
+    const row = rowById.get(districtId);
+    const rawWaterRatio: number | null = row?.water_ratio ?? null;
+    const jrcFraction = jrcBaseline[districtId] ?? 0;
+    // seasonal_water_ratio = river/canal excluded; derive from cache or apply JRC correction
+    const seasonalWaterRatio = applyJrcCorrection(rawWaterRatio, row?.seasonal_water_ratio ?? null, jrcFraction);
     const layerValue = getLayerValue(row, selectedLayer);
-    const districtAreaRai = DISTRICT_AREA_RAI.get(Number(feature.properties.id)) ?? null;
-    const waterAreaRai = waterRatio !== null && districtAreaRai !== null
-      ? Math.round(waterRatio * districtAreaRai)
+    const districtAreaRai = DISTRICT_AREA_RAI.get(districtId) ?? null;
+    // Water area is based on seasonal (river-excluded) ratio
+    const waterAreaRai = seasonalWaterRatio !== null && districtAreaRai !== null
+      ? Math.round(seasonalWaterRatio * districtAreaRai)
       : null;
-    const baselineRow = compareYearVal !== null ? baselineById.get(Number(feature.properties.id)) : null;
-    const compareRatio: number | null = baselineRow?.water_ratio ?? null;
-    const delta = waterRatio !== null && compareRatio !== null
-      ? +(waterRatio - compareRatio).toFixed(4) : null;
+    // Compare (baseline) — also apply JRC correction
+    const baselineRow = compareYearVal !== null ? baselineById.get(districtId) : null;
+    const rawCompareRatio: number | null = baselineRow?.water_ratio ?? null;
+    const compareRatio = applyJrcCorrection(rawCompareRatio, baselineRow?.seasonal_water_ratio ?? null, jrcFraction);
+    const delta = seasonalWaterRatio !== null && compareRatio !== null
+      ? +(seasonalWaterRatio - compareRatio).toFixed(4) : null;
 
-    if (waterRatio !== null) {
-      minValue = Math.min(minValue, waterRatio);
-      maxValue = Math.max(maxValue, waterRatio);
+    if (seasonalWaterRatio !== null) {
+      minValue = Math.min(minValue, seasonalWaterRatio);
+      maxValue = Math.max(maxValue, seasonalWaterRatio);
     }
 
     return {
       ...feature,
       properties: {
         ...feature.properties,
-        water_ratio: waterRatio,
-        seasonal_water_ratio: row?.seasonal_water_ratio ?? null,
+        water_ratio: rawWaterRatio,
+        seasonal_water_ratio: seasonalWaterRatio,
         water_area_rai: waterAreaRai,
         district_area_rai: districtAreaRai,
         delta,
@@ -115,6 +133,7 @@ function buildFloodRiskView(
         display_area_rai: waterAreaRai,
         display_layer: selectedLayer,
         display_label: WATER_LAYER_LABELS[selectedLayer],
+        river_corrected: jrcFraction > 0 || (row?.seasonal_water_ratio != null),
       },
     };
   });
@@ -123,13 +142,14 @@ function buildFloodRiskView(
   const avgDisplayValue = validRows.length
     ? parseFloat((validRows.reduce((s: number, r: any) => s + (getLayerValue(r, selectedLayer) ?? 0), 0) / validRows.length).toFixed(4))
     : null;
-  const waterRows = rows.filter((r: any) => typeof r.water_ratio === "number");
-  const avgWaterRatio = waterRows.length
-    ? parseFloat((waterRows.reduce((s: number, r: any) => s + r.water_ratio, 0) / waterRows.length).toFixed(4))
+  // Average and totals use corrected (river-excluded) seasonal ratios
+  const correctedFeatures = features.filter((f: any) => f.properties.seasonal_water_ratio != null);
+  const avgWaterRatio = correctedFeatures.length
+    ? parseFloat((correctedFeatures.reduce((s: number, f: any) => s + f.properties.seasonal_water_ratio, 0) / correctedFeatures.length).toFixed(4))
     : null;
-  const baselineValidRows = baselineRows.filter((r: any) => typeof r.water_ratio === "number");
-  const baselineAvg = baselineValidRows.length
-    ? parseFloat((baselineValidRows.reduce((s: number, r: any) => s + r.water_ratio, 0) / baselineValidRows.length).toFixed(4))
+  const baselineCorrectedFeatures = features.filter((f: any) => f.properties.compare_water_ratio != null);
+  const baselineAvg = baselineCorrectedFeatures.length
+    ? parseFloat((baselineCorrectedFeatures.reduce((s: number, f: any) => s + f.properties.compare_water_ratio, 0) / baselineCorrectedFeatures.length).toFixed(4))
     : null;
   const avgDelta = avgWaterRatio !== null && baselineAvg !== null
     ? parseFloat((avgWaterRatio - baselineAvg).toFixed(4)) : null;
@@ -137,19 +157,16 @@ function buildFloodRiskView(
   const ranking = [...validRows]
     .sort((a: any, b: any) => (getLayerValue(b, selectedLayer) ?? -Infinity) - (getLayerValue(a, selectedLayer) ?? -Infinity))
     .map((r: any) => {
-      const districtId = Number(r.district_id);
-      const areaRai = DISTRICT_AREA_RAI.get(districtId) ?? null;
-      const waterAreaRai = typeof r.water_ratio === "number" && areaRai !== null ? Math.round(r.water_ratio * areaRai) : null;
-      // Use water_ratio as the percentage-displayable value; fall back to index value only if unavailable
-      return [r.district_name ?? "ไม่ระบุ", r.water_ratio ?? getLayerValue(r, selectedLayer), waterAreaRai];
+      const dId = Number(r.district_id);
+      const areaRai = DISTRICT_AREA_RAI.get(dId) ?? null;
+      const corrected = applyJrcCorrection(r.water_ratio ?? null, r.seasonal_water_ratio ?? null, jrcBaseline[dId] ?? 0);
+      const waterAreaRai = corrected != null && areaRai != null ? Math.round(corrected * areaRai) : null;
+      return [r.district_name ?? "ไม่ระบุ", corrected ?? getLayerValue(r, selectedLayer), waterAreaRai];
     });
-  const totalWaterAreaRai = waterRows.length > 0
-    ? waterRows.reduce((sum: number, row: any) => {
-        const districtId = Number(row.district_id);
-        const areaRai = DISTRICT_AREA_RAI.get(districtId);
-        return sum + (typeof row.water_ratio === "number" && areaRai ? Math.round(row.water_ratio * areaRai) : 0);
-      }, 0)
+  const totalWaterAreaRai = correctedFeatures.length > 0
+    ? correctedFeatures.reduce((sum: number, f: any) => sum + (f.properties.water_area_rai ?? 0), 0)
     : null;
+  const riverCorrected = Object.keys(jrcBaseline).length > 0 || rows.some((r: any) => r.seasonal_water_ratio != null);
 
   return {
     geojson: { type: "FeatureCollection", features },
@@ -172,6 +189,7 @@ function buildFloodRiskView(
       displayLabel: WATER_LAYER_LABELS[selectedLayer],
       dataSource: "R2 cache (Sentinel-2)",
       cacheStatus: meta?.status ?? "pending",
+      riverCorrected,
     },
   };
 }
@@ -204,6 +222,13 @@ export default function FloodRiskPage() {
   const [yearlyMeta, setYearlyMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
   const [cacheDataMissing, setCacheDataMissing] = useState(false);
+  const [jrcBaseline, setJrcBaseline] = useState<Record<number, number>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const cached = localStorage.getItem("jrc-baseline-v1");
+      return cached ? JSON.parse(cached) : {};
+    } catch { return {}; }
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -224,7 +249,7 @@ export default function FloodRiskPage() {
         const hasWaterCache = stats.some((r: any) => typeof r.water_ratio === "number");
 
         if (hasWaterCache) {
-          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null, cacheLayer);
+          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null, cacheLayer, jrcBaseline);
           setGeojsonData(built.geojson);
           setSummary(built.summary);
           setLoading(false);
@@ -242,9 +267,9 @@ export default function FloodRiskPage() {
         if (res.ok) {
           const data = await res.json();
           setGeojsonData(data.geojson);
-          setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
+          setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending", riverCorrected: true });
         } else {
-          const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
+          const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
           setGeojsonData(built.geojson);
           setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
         }
@@ -253,15 +278,30 @@ export default function FloodRiskPage() {
       .catch((err) => {
         console.error(err);
         if (selectedMonth) setCacheDataMissing(true);
-        const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
+        const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
         setGeojsonData(built.geojson);
         setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
         setLoading(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer]);
+  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer, jrcBaseline]);
 
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
+
+  // Fetch JRC permanent water fractions once (cached in localStorage for 30 days)
+  useEffect(() => {
+    if (Object.keys(jrcBaseline).length > 0) return;
+    fetch("/api/flood-risk/jrc-baseline")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.fractions && Object.keys(data.fractions).length > 0) {
+          setJrcBaseline(data.fractions);
+          try { localStorage.setItem("jrc-baseline-v1", JSON.stringify(data.fractions)); } catch { /* ignore */ }
+        }
+      })
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!cacheIndex?.yearly?.length) return;

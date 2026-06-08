@@ -107,19 +107,36 @@ def load_districts_feature_collection():
 
 
 def compute_district_stats(composites: dict, districts) -> list[dict]:
-    """Compute per-district NDWI, MNDWI, and water_ratio from Sentinel-2 composites."""
+    """Compute per-district NDWI, MNDWI, water_ratio, and seasonal_water_ratio from Sentinel-2 composites.
+
+    seasonal_water_ratio excludes permanent water bodies (JRC occurrence >= 70%) such as the
+    Chao Phraya River and major canals, giving a better signal for actual flood/inundation risk.
+    """
     ndwi_img  = composites.get("ndwi_mean")
     ndwi_max  = composites.get("ndwi_max")
     mndwi_img = composites.get("mndwi_mean")
     if ndwi_img is None:
         return []
 
+    # JRC GlobalSurfaceWater: occurrence >= 70% = permanent water (Chao Phraya + major canals)
+    jrc_permanent = (
+        ee.Image("JRC/GSW1_4/GlobalSurfaceWater")
+        .select("occurrence")
+        .gte(70)
+        .unmask(0)
+    )
+    # water_ratio: all NDWI > 0 pixels (includes river)
+    water_ratio_img = ndwi_img.gt(0).rename("water_ratio")
+    # seasonal_water_ratio: temporary/flood water only (river excluded)
+    seasonal_water_img = ndwi_img.gt(0).And(jrc_permanent.Not()).rename("seasonal_water_ratio")
+
     stacked = ndwi_img.rename("ndwi_mean")
     if ndwi_max is not None:
         stacked = stacked.addBands(ndwi_max.rename("ndwi_max"))
     if mndwi_img is not None:
         stacked = stacked.addBands(mndwi_img.rename("mndwi_mean"))
-    stacked = stacked.addBands(ndwi_img.gt(0).rename("water_ratio"))
+    stacked = stacked.addBands(water_ratio_img)
+    stacked = stacked.addBands(seasonal_water_img)
 
     result = stacked.reduceRegions(
         collection=districts,
@@ -135,12 +152,13 @@ def compute_district_stats(composites: dict, districts) -> list[dict]:
             v = props.get(key)
             return round(float(v), 4) if v is not None else None
         rows.append({
-            "district_id":   props.get("id"),
-            "district_name": props.get("name_th"),
-            "ndwi_mean":     _f("ndwi_mean"),
-            "ndwi_max":      _f("ndwi_max"),
-            "mndwi_mean":    _f("mndwi_mean"),
-            "water_ratio":   _f("water_ratio"),
+            "district_id":           props.get("id"),
+            "district_name":         props.get("name_th"),
+            "ndwi_mean":             _f("ndwi_mean"),
+            "ndwi_max":              _f("ndwi_max"),
+            "mndwi_mean":            _f("mndwi_mean"),
+            "water_ratio":           _f("water_ratio"),
+            "seasonal_water_ratio":  _f("seasonal_water_ratio"),
         })
     return rows
 
