@@ -48,10 +48,10 @@ export default function AirQualityPage() {
   const [selectedMonth, setSelectedMonth]     = useState<number | null>(null);
   const [compareMode, setCompareMode]         = useState(false);
   const [compareYear, setCompareYear]         = useState(FIRST_YEAR);
-  const [mapMode, setMapMode]                 = useState<MapMode>("idw");
+  const [mapMode, setMapMode]                 = useState<MapMode>("district");
   const [baseMap, setBaseMap]                 = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [opacity, setOpacity]                 = useState(0.78);
-  const [airLayer, setAirLayer]               = useState<AirLayer>("no2_mean");
+  const [airLayer, setAirLayer]               = useState<AirLayer>("pollution_score");
   const [geojsonData, setGeojsonData]         = useState<any>(null);
   const [invertedMask, setInvertedMask]       = useState<any>(null);
   const [summary, setSummary]                 = useState<any>(null);
@@ -79,6 +79,13 @@ export default function AirQualityPage() {
   const features = geojsonData?.features ?? [];
   const layerMeta = AIR_LAYERS.find((l) => l.id === airLayer) ?? AIR_LAYERS[0];
   const airLegend = useMemo(() => {
+    const gasVals = features
+      .filter((f: any) => typeof f?.properties?.[airLayer] === "number")
+      .map((f: any) => Number(f.properties[airLayer]))
+      .sort((a: number, b: number) => a - b);
+    const fmtQ = (v: number) => airLayer === "aerosol_index_mean" ? v.toFixed(3) : airLayer === "co_mean" ? v.toFixed(4) : v.toExponential(2);
+    const q = (pct: number) => gasVals.length ? gasVals[Math.max(0, Math.floor(gasVals.length * pct) - 1)] : null;
+
     if (compareMode) {
       const ranges = airLayer === "pollution_score"
         ? ["> +1.0", "+0.3 ถึง +1.0", "-0.3 ถึง +0.3", "-1.0 ถึง -0.3", "< -1.0"]
@@ -112,20 +119,21 @@ export default function AirQualityPage() {
         ],
       };
     }
+    const [p20, p40, p60, p80] = [q(0.2), q(0.4), q(0.6), q(0.8)];
     return {
       title: `${layerMeta.label} จาก Sentinel-5P`,
       description: airLayer === "aerosol_index_mean"
         ? "ดัชนีละอองลอยเชิงการดูดกลืน ค่าสูงหมายถึงสัญญาณละอองลอยเด่นขึ้น"
-        : "ค่า column density ในชั้นบรรยากาศ ใช้เปรียบเทียบเชิงพื้นที่และไม่ใช่ความเข้มข้นระดับพื้นดิน",
+        : "ค่า column density ในชั้นบรรยากาศ ใช้เปรียบเทียบเชิงพื้นที่ ไม่ใช่ความเข้มข้นระดับพื้นดิน",
       items: [
-        { color: "#67E8F9", label: "ต่ำมาก", range: "ค่าต่ำสุด" },
-        { color: "#22C55E", label: "ต่ำ", range: "" },
-        { color: "#FACC15", label: "ปานกลาง", range: "" },
-        { color: "#F97316", label: "สูง", range: "" },
-        { color: "#7F1D1D", label: "สูงมาก", range: "ค่าสูงสุด" },
+        { color: "#67E8F9", label: "ต่ำมาก", range: p20 != null ? `≤ ${fmtQ(p20)}` : "ค่าต่ำสุด" },
+        { color: "#22C55E", label: "ต่ำ",     range: p20 != null && p40 != null ? `${fmtQ(p20)}–${fmtQ(p40)}` : "" },
+        { color: "#FACC15", label: "ปานกลาง", range: p40 != null && p60 != null ? `${fmtQ(p40)}–${fmtQ(p60)}` : "" },
+        { color: "#F97316", label: "สูง",     range: p60 != null && p80 != null ? `${fmtQ(p60)}–${fmtQ(p80)}` : "" },
+        { color: "#7F1D1D", label: "สูงมาก",  range: p80 != null ? `≥ ${fmtQ(p80)}` : "ค่าสูงสุด" },
       ],
     };
-  }, [airLayer, compareMode, compareYear, layerMeta.label, selectedYear]);
+  }, [airLayer, compareMode, compareYear, layerMeta, selectedYear, features]);
 
   const displayGeoJson = useMemo(
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
@@ -160,8 +168,8 @@ export default function AirQualityPage() {
 
   const handleReset = () => {
     setActiveDistrict(ALL_DISTRICTS); setSelectedYear(LATEST_YEAR); setSelectedMonth(null);
-    setCompareMode(false); setCompareYear(FIRST_YEAR); setMapMode("idw");
-    setBaseMap("dark"); setOpacity(0.78); setAirLayer("no2_mean");
+    setCompareMode(false); setCompareYear(FIRST_YEAR); setMapMode("district");
+    setBaseMap("dark"); setOpacity(0.78); setAirLayer("pollution_score");
     setGranularity("district");
   };
 

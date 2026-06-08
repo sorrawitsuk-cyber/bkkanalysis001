@@ -10,11 +10,11 @@ import DataSourceBadge from "@/components/ui/DataSourceBadge";
 type AirLayer = "no2_mean" | "co_mean" | "so2_mean" | "aerosol_index_mean" | "pollution_score";
 
 const AIR_LAYERS: Array<{ id: AirLayer; label: string; labelTh: string; unit: string }> = [
+  { id: "pollution_score",    label: "Score",  labelTh: "คะแนนมลพิษรวม",      unit: "0–10"   },
   { id: "no2_mean",           label: "NO₂",    labelTh: "ไนโตรเจนไดออกไซด์", unit: "mol/m²" },
   { id: "co_mean",            label: "CO",     labelTh: "คาร์บอนมอนอกไซด์",   unit: "mol/m²" },
   { id: "so2_mean",           label: "SO₂",    labelTh: "ซัลเฟอร์ไดออกไซด์",  unit: "mol/m²" },
   { id: "aerosol_index_mean", label: "Aerosol",labelTh: "ละอองลอยในอากาศ",    unit: "index"  },
-  { id: "pollution_score",    label: "Score",  labelTh: "คะแนนมลพิษรวม",      unit: "0–10"   },
 ];
 
 function formatMetric(value: number | null | undefined, layer: AirLayer): string {
@@ -23,6 +23,21 @@ function formatMetric(value: number | null | undefined, layer: AirLayer): string
   if (layer === "co_mean")            return value.toFixed(4);
   if (layer === "aerosol_index_mean") return value.toFixed(3);
   return value.toFixed(6);
+}
+
+function getScoreLevel(score: number): { label: string; color: string } {
+  if (score < 2) return { label: "ต่ำมาก", color: "text-emerald-400" };
+  if (score < 4) return { label: "ต่ำ",     color: "text-green-400"   };
+  if (score < 6) return { label: "ปานกลาง", color: "text-yellow-400"  };
+  if (score < 8) return { label: "สูง",     color: "text-orange-400"  };
+  return          { label: "สูงมาก",        color: "text-red-400"     };
+}
+
+function fmtTrendAxis(value: number, layer: AirLayer): string {
+  if (layer === "pollution_score")    return value.toFixed(1);
+  if (layer === "aerosol_index_mean") return value.toFixed(3);
+  if (layer === "co_mean")            return value.toFixed(4);
+  return value.toExponential(2);
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -125,12 +140,17 @@ export default function AirQualitySidebar({
         <div className="grid grid-cols-3 gap-2">
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Wind className="w-3 h-3 text-cyan-400 shrink-0" /> ค่าเฉลี่ย
+              <Wind className="w-3 h-3 text-cyan-400 shrink-0" /> ค่าเฉลี่ย กทม.
             </div>
             <div className="text-sm font-bold font-mono whitespace-nowrap text-slate-100">
               {formatMetric(avgValue, airLayer)}
             </div>
             <div className="text-[8px] text-slate-600 mt-0.5 font-mono leading-tight">{layerMeta.unit}</div>
+            {airLayer === "pollution_score" && avgValue != null && (
+              <div className={`text-[8px] font-bold mt-0.5 leading-tight ${getScoreLevel(avgValue).color}`}>
+                {getScoreLevel(avgValue).label}
+              </div>
+            )}
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
@@ -139,6 +159,9 @@ export default function AirQualitySidebar({
             <div className="text-[11px] font-bold text-red-300 leading-tight truncate">
               {topDistrict ?? "--"}
             </div>
+            {rankingRows[0]?.[1] != null && (
+              <div className="text-[9px] text-slate-500 font-mono mt-0.5 leading-tight">{formatMetric(rankingRows[0][1], airLayer)}</div>
+            )}
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
@@ -149,6 +172,21 @@ export default function AirQualitySidebar({
             </div>
           </div>
         </div>
+
+        {/* Interpretation box */}
+        {airLayer === "pollution_score" && avgValue != null && !compareMode && (
+          <div className={`rounded-lg border px-3 py-2 text-[10px] leading-snug ${avgValue < 4 ? "border-emerald-800/50 bg-emerald-950/30" : avgValue < 6 ? "border-yellow-800/50 bg-yellow-950/30" : "border-red-800/50 bg-red-950/30"}`}>
+            <p className="text-slate-300">
+              ปี {selectedYear ?? ""} กรุงเทพฯ มีคะแนนมลพิษเฉลี่ย{" "}
+              <span className={`font-bold ${getScoreLevel(avgValue).color}`}>{avgValue.toFixed(2)}/10</span>
+              {" "}— ระดับ{" "}
+              <span className={`font-bold ${getScoreLevel(avgValue).color}`}>{getScoreLevel(avgValue).label}</span>
+            </p>
+            {topDistrict && rankingRows[0]?.[1] != null && (
+              <p className="text-slate-500 mt-1">เขตมลพิษสูงสุด: <span className="text-red-300 font-bold">{topDistrict}</span> ({rankingRows[0][1].toFixed(2)}/10)</p>
+            )}
+          </div>
+        )}
 
         <div className="h-px bg-slate-800/60" />
 
@@ -179,13 +217,14 @@ export default function AirQualitySidebar({
           <section>
             <div className="mb-2 flex items-center gap-1.5">
               <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
-                <Activity className="w-3 h-3" /> Trend {layerMeta.label} รายปี
+                <Activity className="w-3 h-3" /> แนวโน้ม {layerMeta.label} รายปี
+                {yearlyTrend.length >= 2 && <span className="text-slate-700 normal-case font-normal">({yearlyTrend[0]?.[0]}–{yearlyTrend[yearlyTrend.length-1]?.[0]})</span>}
               </h3>
             </div>
             <div className="flex gap-1">
               <div className="flex flex-col justify-between text-right pb-4" style={{ minWidth: 44 }}>
-                <span className="text-[8px] font-mono text-slate-500 leading-tight">{maxTrendValue.toFixed(6)}</span>
-                <span className="text-[8px] font-mono text-slate-500 leading-tight">{minTrendValue.toFixed(6)}</span>
+                <span className="text-[8px] font-mono text-slate-500 leading-tight">{fmtTrendAxis(maxTrendValue, airLayer)}</span>
+                <span className="text-[8px] font-mono text-slate-500 leading-tight">{fmtTrendAxis(minTrendValue, airLayer)}</span>
               </div>
               <div className="flex-1">
                 <div className="flex items-end gap-[3px] h-16 mb-1">
@@ -210,6 +249,20 @@ export default function AirQualitySidebar({
               </div>
             </div>
             <p className="mt-2 text-[9px] text-slate-500 leading-snug">ค่า {layerMeta.label} เฉลี่ยทั้งกรุงเทพฯ รายปี</p>
+            {(() => {
+              const firstVal = yearlyTrend[0]?.[1];
+              const lastVal = yearlyTrend[yearlyTrend.length - 1]?.[1];
+              const firstYr = yearlyTrend[0]?.[0];
+              if (firstVal == null || lastVal == null || yearlyTrend.length < 2) return null;
+              const pct = ((lastVal - firstVal) / Math.abs(firstVal)) * 100;
+              return (
+                <p className={`mt-1 text-[9px] font-bold leading-snug ${pct <= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {pct <= 0
+                    ? `ลดลง ${Math.abs(pct).toFixed(1)}% จากปี ${firstYr}`
+                    : `เพิ่มขึ้น ${pct.toFixed(1)}% จากปี ${firstYr}`}
+                </p>
+              );
+            })()}
           </section>
         )}
 
