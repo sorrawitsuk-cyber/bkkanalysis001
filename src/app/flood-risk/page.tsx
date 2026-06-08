@@ -452,7 +452,20 @@ export default function FloodRiskPage() {
 
   // Legend config
   let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
-  if (compareMode) {
+  if (compareMode && mapMode === "idw") {
+    legendConfig = {
+      title: `ผลต่าง ${WATER_LAYER_LABELS[cacheLayer]} จากภาพดาวเทียม`,
+      description: `ค่าดัชนีปี ${selectedYear} ลบปีฐาน ${compareYear}; ค่าบวกหมายถึงสัญญาณน้ำ/ความชื้นเพิ่มขึ้น`,
+      unit: "",
+      items: [
+        { color: "#1e3a5f", label: "เพิ่มขึ้นมาก", range: "> +0.15" },
+        { color: "#0369a1", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.15" },
+        { color: "#94a3b8", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" },
+        { color: "#b45309", label: "ลดลง", range: "-0.15 ถึง -0.05" },
+        { color: "#78350f", label: "ลดลงมาก", range: "< -0.15" },
+      ],
+    };
+  } else if (compareMode) {
     legendConfig = {
       title: "การเปลี่ยนแปลงพื้นที่น้ำ",
       description: `ค่าน้ำปี ${selectedYear} ลบปีฐาน ${compareYear} (บวก = น้ำเพิ่ม)`,
@@ -495,7 +508,7 @@ export default function FloodRiskPage() {
     legendConfig = {
       title: "สัดส่วนพื้นที่น้ำรายเขต (ไม่รวมแม่น้ำถาวร)",
       description: "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต ยกเว้นแม่น้ำเจ้าพระยา (JRC ≥ 70%)",
-      unit: "%",
+      unit: "",
       items: [
         { color: "#bae6fd", label: "แห้งมาก",       range: "< 1.5%" },
         { color: "#7dd3fc", label: "มีน้ำน้อย",     range: "1.5% – 4%" },
@@ -640,7 +653,10 @@ export default function FloodRiskPage() {
                   granularity={granularity}
                   onGranularityChange={setGranularity}
                   mapMode={mapMode}
-                  mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                  mapModes={[
+                    { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีพื้นที่ด้วยสัดส่วนพิกเซลน้ำที่สรุปเป็นค่ารายเขต" },
+                    { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงดัชนีน้ำ NDWI/MNDWI จาก Sentinel-2 ผ่าน GEE ที่ความละเอียดประมาณ 10 เมตร" },
+                  ]}
                   onMapModeChange={(m) => setMapMode(m as MapMode)}
                   showOpacity={mapMode === "idw"}
                   opacity={opacity}
@@ -648,6 +664,13 @@ export default function FloodRiskPage() {
                   baseMap={baseMap}
                   onBaseMapChange={setBaseMap}
                   onReset={handleReset}
+                  currentLayer={compareMode
+                    ? mapMode === "idw" ? `ผลต่าง ${WATER_LAYER_LABELS[cacheLayer]}: ${selectedYear} - ${compareYear}` : `ผลต่างสัดส่วนพื้นที่น้ำ: ${selectedYear} - ${compareYear}`
+                    : mapMode === "idw" ? WATER_LAYER_LABELS[cacheLayer] : "สัดส่วนพื้นที่น้ำรายเขต"}
+                  currentPeriod={periodLabel}
+                  dataSource={mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                  interactionHint={mapMode === "idw" ? "สีบนภาพคือค่าดัชนีน้ำรายพิกเซล ส่วน tooltip รายพื้นที่เป็นค่าสรุประดับเขต" : "วางเมาส์บนพื้นที่เพื่อดูสัดส่วนและขนาดพื้นที่น้ำ"}
+                  granularityNote={granularity === "subdistrict" ? "ขอบเขตแขวงสืบทอดค่าสถิติจากเขตแม่ ไม่ใช่การคำนวณพื้นที่น้ำใหม่รายแขวง" : "สรุปและเลือกพื้นที่ตาม 50 เขต"}
                   extraControls={
                     <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
                       <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (WATER)</p>

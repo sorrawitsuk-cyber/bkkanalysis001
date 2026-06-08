@@ -292,7 +292,10 @@ export default function GreenSpacePage() {
                     granularity={granularity}
                     onGranularityChange={setGranularity}
                     mapMode={mapMode}
-                    mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "GEE Live" }]}
+                    mapModes={[
+                      { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีพื้นที่ด้วยค่าที่เลือกจากสถิติรายเขต" },
+                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง NDVI จาก Sentinel-2 ผ่าน GEE ที่ความละเอียดประมาณ 10 เมตร" },
+                    ]}
                     onMapModeChange={(m) => { setMapMode(m as MapMode); if (m === "idw") setNdviLayer("ndvi_mean"); }}
                     showOpacity={mapMode === "idw"}
                     opacity={opacity}
@@ -300,6 +303,10 @@ export default function GreenSpacePage() {
                     baseMap={baseMap}
                     onBaseMapChange={setBaseMap}
                     onReset={handleReset}
+                    currentLayer={compareMode ? `ผลต่าง NDVI ${selectedYear} - ${compareYear}` : ndviLayerLabel}
+                    currentPeriod={selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel}
+                    dataSource={mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า NDVI ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดู NDVI สัดส่วน และขนาดพื้นที่สีเขียว"}
                     extraControls={mapMode === "district" ? (
                       <div className="mt-2 grid grid-cols-1 gap-1.5">
                         {([["green_area_rai", "ขนาดพื้นที่สีเขียว"], ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"], ["ndvi_mean", "ค่า NDVI เฉลี่ย"]] as const).map(([id, label]) => (

@@ -78,6 +78,54 @@ export default function AirQualityPage() {
 
   const features = geojsonData?.features ?? [];
   const layerMeta = AIR_LAYERS.find((l) => l.id === airLayer) ?? AIR_LAYERS[0];
+  const airLegend = useMemo(() => {
+    if (compareMode) {
+      const ranges = airLayer === "pollution_score"
+        ? ["> +1.0", "+0.3 ถึง +1.0", "-0.3 ถึง +0.3", "-1.0 ถึง -0.3", "< -1.0"]
+        : airLayer === "aerosol_index_mean"
+          ? ["> +0.30", "+0.10 ถึง +0.30", "-0.10 ถึง +0.10", "-0.30 ถึง -0.10", "< -0.30"]
+          : airLayer === "co_mean"
+            ? ["> +0.005", "+0.0015 ถึง +0.005", "-0.0015 ถึง +0.0015", "-0.005 ถึง -0.0015", "< -0.005"]
+            : ["> +0.00008", "+0.000025 ถึง +0.00008", "-0.000025 ถึง +0.000025", "-0.00008 ถึง -0.000025", "< -0.00008"];
+      return {
+        title: `ผลต่าง ${layerMeta.label}: ${selectedYear} - ${compareYear}`,
+        description: "สีอุ่น = ค่าสูงขึ้น สีฟ้า = ค่าลดลง เมื่อเทียบกับปีฐาน",
+        items: [
+          { color: "#B2182B", label: "เพิ่มขึ้นมาก", range: ranges[0] },
+          { color: "#F59E0B", label: "เพิ่มขึ้น", range: ranges[1] },
+          { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: ranges[2] },
+          { color: "#67A9CF", label: "ลดลง", range: ranges[3] },
+          { color: "#2166AC", label: "ลดลงมาก", range: ranges[4] },
+        ],
+      };
+    }
+    if (airLayer === "pollution_score") {
+      return {
+        title: "คะแนนมลพิษรวมจากข้อมูลดาวเทียม",
+        description: "คะแนน 0-10 ที่รวม NO₂, CO, SO₂ และ Aerosol เพื่อเปรียบเทียบเชิงพื้นที่ ไม่ใช่ AQI",
+        items: [
+          { color: "#22C55E", label: "ต่ำมาก", range: "0-2" },
+          { color: "#FACC15", label: "ต่ำ", range: "2-4" },
+          { color: "#F97316", label: "ปานกลาง", range: "4-6" },
+          { color: "#DC2626", label: "สูง", range: "6-8" },
+          { color: "#7F1D1D", label: "สูงมาก", range: "8-10" },
+        ],
+      };
+    }
+    return {
+      title: `${layerMeta.label} จาก Sentinel-5P`,
+      description: airLayer === "aerosol_index_mean"
+        ? "ดัชนีละอองลอยเชิงการดูดกลืน ค่าสูงหมายถึงสัญญาณละอองลอยเด่นขึ้น"
+        : "ค่า column density ในชั้นบรรยากาศ ใช้เปรียบเทียบเชิงพื้นที่และไม่ใช่ความเข้มข้นระดับพื้นดิน",
+      items: [
+        { color: "#67E8F9", label: "ต่ำมาก", range: "ค่าต่ำสุด" },
+        { color: "#22C55E", label: "ต่ำ", range: "" },
+        { color: "#FACC15", label: "ปานกลาง", range: "" },
+        { color: "#F97316", label: "สูง", range: "" },
+        { color: "#7F1D1D", label: "สูงมาก", range: "ค่าสูงสุด" },
+      ],
+    };
+  }, [airLayer, compareMode, compareYear, layerMeta.label, selectedYear]);
 
   const displayGeoJson = useMemo(
     () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
@@ -168,7 +216,10 @@ export default function AirQualityPage() {
           summary={summary}
           geojsonData={displayGeoJson}
           airLayer={airLayer}
-          onAirLayerChange={setAirLayer}
+          onAirLayerChange={(layer) => {
+            setAirLayer(layer);
+            if (layer === "pollution_score") setMapMode("district");
+          }}
           loading={loading}
           compareMode={compareMode}
           granularity={granularity}
@@ -251,7 +302,24 @@ export default function AirQualityPage() {
                   <div className="mb-1 flex items-center gap-2 font-bold uppercase tracking-widest text-slate-300 text-[9px]">
                     <Activity className="h-3 w-3 text-cyan-300" /> ข้อมูลดาวเทียม (Satellite Proxy)
                   </div>
-                  <p>ค่า <span className="text-cyan-300 font-bold">{layerMeta.label}</span> column density จาก Sentinel-5P <span className="text-amber-300">ไม่ใช่ AQI</span> จากสถานีตรวจวัดภาคพื้น</p>
+                  <p>
+                    {airLayer === "pollution_score"
+                      ? <>คะแนนรวมจากตัวชี้วัด Sentinel-5P ใช้เปรียบเทียบเชิงพื้นที่ และ <span className="text-amber-300">ไม่ใช่ AQI</span></>
+                      : <>ค่า <span className="text-cyan-300 font-bold">{layerMeta.label}</span> {airLayer === "aerosol_index_mean" ? "index" : "column density"} จาก Sentinel-5P <span className="text-amber-300">ไม่ใช่ AQI</span> จากสถานีภาคพื้น</>}
+                  </p>
+                </div>
+                <div className="pointer-events-none absolute bottom-4 right-4 z-[1000] w-72 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 shadow-xl backdrop-blur">
+                  <p className="text-[10px] font-bold text-slate-300">{airLegend.title}</p>
+                  <p className="mt-1 text-[9px] leading-snug text-slate-500">{airLegend.description}</p>
+                  <div className="mt-2 space-y-1.5">
+                    {airLegend.items.map((item) => (
+                      <div key={`${item.label}-${item.range}`} className="grid grid-cols-[12px_1fr_auto] items-center gap-2 text-[9px]">
+                        <span className="h-3 w-3 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
+                        <span className="text-slate-400">{item.label}</span>
+                        <span className="font-mono text-slate-600">{item.range}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -262,16 +330,27 @@ export default function AirQualityPage() {
                     accent="cyan"
                     granularity={granularity}
                     onGranularityChange={setGranularity}
-                    granularityAlwaysActive
                     mapMode={mapMode}
-                    mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
-                    onMapModeChange={(m) => setMapMode(m as MapMode)}
+                    mapModes={[
+                      { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีแต่ละพื้นที่ด้วยค่าเฉลี่ยหรือคะแนนรวมจากสถิติรายเขต" },
+                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง raster ของสารมลพิษที่เลือกจาก Sentinel-5P ผ่าน GEE ความละเอียดประมาณ 1 กิโลเมตร" },
+                    ]}
+                    onMapModeChange={(m) => {
+                      const nextMode = m as MapMode;
+                      setMapMode(nextMode);
+                      if (nextMode === "idw" && airLayer === "pollution_score") setAirLayer("no2_mean");
+                    }}
                     showOpacity={mapMode === "idw"}
                     opacity={opacity}
                     onOpacityChange={setOpacity}
                     baseMap={baseMap}
                     onBaseMapChange={setBaseMap}
                     onReset={handleReset}
+                    currentLayer={compareMode ? `ผลต่าง ${layerMeta.label}: ${selectedYear} - ${compareYear}` : `${layerMeta.label} - ${layerMeta.labelTh}`}
+                    currentPeriod={latestLabel}
+                    dataSource={mapMode === "idw" ? "Sentinel-5P ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    interactionHint={mapMode === "idw" ? `คลิกบนภาพเพื่ออ่านค่า ${layerMeta.label} ของพิกเซล ณ ตำแหน่งนั้น` : "วางเมาส์บนพื้นที่เพื่อดูสารมลพิษทุกตัวและคะแนนรวม"}
+                    granularityNote={granularity === "subdistrict" ? "ขอบเขตแขวงใช้ค่าจากเขตแม่ ไม่ใช่การคำนวณ Sentinel-5P แยกรายแขวง" : "สรุปและเลือกพื้นที่ตาม 50 เขต"}
                   />
 
                   <MonthYearPicker

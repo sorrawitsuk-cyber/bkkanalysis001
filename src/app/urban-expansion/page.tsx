@@ -255,7 +255,10 @@ export default function UrbanExpansionPage() {
                     granularity={granularity}
                     onGranularityChange={setGranularity}
                     mapMode={mapMode}
-                    mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                    mapModes={[
+                      { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีแต่ละเขต/แขวงด้วยค่า NDBI เฉลี่ยของพื้นที่นั้น" },
+                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง NDBI จาก Sentinel-2 ผ่าน GEE ที่ความละเอียดประมาณ 10 เมตร" },
+                    ]}
                     onMapModeChange={(m) => setMapMode(m as "district" | "idw")}
                     showOpacity={mapMode === "idw"}
                     opacity={opacity}
@@ -263,6 +266,10 @@ export default function UrbanExpansionPage() {
                     baseMap={baseMap}
                     onBaseMapChange={setBaseMap}
                     onReset={handleReset}
+                    currentLayer={compareMode ? `ผลต่าง NDBI ${selectedYear} - ${compareYear}` : "ดัชนีสิ่งปลูกสร้าง (NDBI)"}
+                    currentPeriod={selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel}
+                    dataSource={mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า NDBI ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดู NDBI และพื้นที่สิ่งปลูกสร้างโดยประมาณ"}
                   />
 
                   <MonthYearPicker

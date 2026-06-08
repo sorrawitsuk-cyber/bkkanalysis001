@@ -331,7 +331,10 @@ export default function HeatIslandPage() {
                     granularity={granularity}
                     onGranularityChange={setGranularity}
                     mapMode={mapMode}
-                    mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                    mapModes={[
+                      { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีแต่ละเขต/แขวงด้วยค่า LST เฉลี่ยของพื้นที่นั้น" },
+                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงพื้นผิว LST จาก Landsat ผ่าน GEE ที่ความละเอียดประมาณ 30 เมตร" },
+                    ]}
                     onMapModeChange={(m) => setMapMode(m as "district" | "idw")}
                     showOpacity={mapMode === "idw"}
                     opacity={opacity}
@@ -339,6 +342,10 @@ export default function HeatIslandPage() {
                     baseMap={baseMap}
                     onBaseMapChange={setBaseMap}
                     onReset={handleReset}
+                    currentLayer={compareMode ? `ผลต่าง LST ${selectedYear} - ${compareYear}` : "อุณหภูมิพื้นผิว (LST)"}
+                    currentPeriod={periodLabel}
+                    dataSource={mapMode === "idw" ? "Landsat 8/9 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า LST ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดูค่าเฉลี่ยและรายละเอียด"}
                   />
 
                   <MonthYearPicker

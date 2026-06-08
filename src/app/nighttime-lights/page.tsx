@@ -530,7 +530,10 @@ export default function NighttimeLightsPage() {
                   granularity={granularity}
                   onGranularityChange={setGranularity}
                   mapMode={mapMode}
-                  mapModes={[{ value: "district", label: "สถิติ" }, { value: "idw", label: "ดาวเทียม (GEE)" }]}
+                  mapModes={[
+                    { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีพื้นที่ด้วยค่า radiance เฉลี่ยของเขตจากชุดข้อมูลที่เลือก" },
+                    { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง radiance จาก VIIRS DNB ผ่าน GEE ที่ความละเอียดประมาณ 500 เมตร" },
+                  ]}
                   onMapModeChange={(m) => setMapMode(m as MapMode)}
                   showOpacity={mapMode === "satellite-cache" || mapMode === "idw"}
                   opacity={opacity}
@@ -538,6 +541,11 @@ export default function NighttimeLightsPage() {
                   baseMap={baseMap}
                   onBaseMapChange={setBaseMap}
                   onReset={handleReset}
+                  currentLayer={compareMode && !isMonthlyPreview ? `ผลต่างแสงกลางคืน: ${selectedYear} - ${compareYear}` : `แสงกลางคืน ${isMonthlyPreview ? "รายเดือน" : "รายปี"} (NTL Mean)`}
+                  currentPeriod={periodLabel}
+                  dataSource={mapMode === "idw" ? "VIIRS DNB ผ่าน GEE" : `R2 cache - ${sourceDataset}`}
+                  interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า radiance ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดูค่าเฉลี่ย ค่าสูงสุด และการเปลี่ยนแปลง"}
+                  granularityNote={granularity === "subdistrict" ? "ขอบเขตแขวงสืบทอดค่าแสงกลางคืนจากเขตแม่ ไม่ใช่การคำนวณ radiance ใหม่รายแขวง" : "สรุปและเลือกพื้นที่ตาม 50 เขต"}
                 />
 
                 <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-5 border border-slate-800 shadow-2xl w-full">

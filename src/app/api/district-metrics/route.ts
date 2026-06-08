@@ -440,6 +440,10 @@ export async function GET(request: Request) {
         typeof row?.pollution_score === "number" && typeof compareRow?.pollution_score === "number"
           ? row.pollution_score - compareRow.pollution_score
           : null;
+      const metricDelta = (field: string) =>
+        typeof row?.[field] === "number" && typeof compareRow?.[field] === "number"
+          ? row[field] - compareRow[field]
+          : null;
       if (currentValue !== null) {
         minValue = Math.min(minValue, currentValue);
         maxValue = Math.max(maxValue, currentValue);
@@ -466,12 +470,16 @@ export async function GET(request: Request) {
           ndbi_mean: ndbiMeanVal,
           ndbi_max: row?.ndbi_max ?? null,
           no2_mean: row?.no2_mean ?? null,
+          no2_delta: metricDelta("no2_mean"),
           no2_max: row?.no2_max ?? null,
           co_mean: row?.co_mean ?? null,
+          co_delta: metricDelta("co_mean"),
           co_max: row?.co_max ?? null,
           so2_mean: row?.so2_mean ?? null,
+          so2_delta: metricDelta("so2_mean"),
           so2_max: row?.so2_max ?? null,
           aerosol_index_mean: row?.aerosol_index_mean ?? null,
+          aerosol_index_delta: metricDelta("aerosol_index_mean"),
           aerosol_index_max: row?.aerosol_index_max ?? null,
           pollution_score: row?.pollution_score ?? null,
           pollution_score_delta: pollutionScoreDelta,

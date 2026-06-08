@@ -40,6 +40,14 @@ const layerLabels: Record<string, string> = {
   ndvi_mean: "ค่า NDVI เฉลี่ย",
 };
 
+const AIR_LAYER_META: Record<string, { label: string; unit: string; digits: number }> = {
+  no2_mean: { label: "NO₂ column density", unit: " mol/m²", digits: 6 },
+  co_mean: { label: "CO column density", unit: " mol/m²", digits: 4 },
+  so2_mean: { label: "SO₂ column density", unit: " mol/m²", digits: 6 },
+  aerosol_index_mean: { label: "Aerosol Index", unit: "", digits: 3 },
+  pollution_score: { label: "คะแนนมลพิษรวม", unit: " /10", digits: 2 },
+};
+
 function formatValue(value: number | null | undefined, digits = 2, suffix = "") {
   if (value === null || value === undefined || Number.isNaN(value)) return "ไม่มีข้อมูล";
   if (suffix.trim() === "ไร่") {
@@ -128,10 +136,11 @@ export default function DistrictMetricsMapView({
     const isAir = currentAnalysis === "air";
     const isCompare = compareModeRef.current;
     const accent = isGreen ? "text-emerald-400" : isBuiltup ? "text-indigo-400" : isNightlights ? "text-yellow-300" : isAir ? "text-cyan-300" : "text-orange-400";
+    const selectedAirMeta = AIR_LAYER_META[airPollutionLayer] ?? AIR_LAYER_META.no2_mean;
     const label = isCompare
-      ? isGreen ? "ส่วนต่าง NDVI" : isBuiltup ? "ส่วนต่าง NDBI" : isNightlights ? "ส่วนต่างแสงกลางคืน" : "ส่วนต่าง LST"
-      : isGreen ? "ค่า NDVI ณ พิกเซล" : isBuiltup ? "ค่า NDBI ณ พิกเซล" : isNightlights ? "ค่าแสงกลางคืน ณ พิกเซล" : "ค่า LST ณ พิกเซล";
-    const unit = (isGreen || isBuiltup) ? "" : isNightlights ? " nW/sr/cm²" : isAir ? " mol/m²" : "°C";
+      ? isGreen ? "ส่วนต่าง NDVI" : isBuiltup ? "ส่วนต่าง NDBI" : isNightlights ? "ส่วนต่างแสงกลางคืน" : isAir ? `ส่วนต่าง ${selectedAirMeta.label}` : "ส่วนต่าง LST"
+      : isGreen ? "ค่า NDVI ณ พิกเซล" : isBuiltup ? "ค่า NDBI ณ พิกเซล" : isNightlights ? "ค่าแสงกลางคืน ณ พิกเซล" : isAir ? `${selectedAirMeta.label} ณ พิกเซล` : "ค่า LST ณ พิกเซล";
+    const unit = (isGreen || isBuiltup) ? "" : isNightlights ? " nW/sr/cm²" : isAir ? selectedAirMeta.unit : "°C";
     const signedValue = typeof options.value === "number" && isCompare && options.value > 0 ? `+${options.value}` : options.value;
     const valueText = options.loading
       ? "กำลังอ่านค่า..."
@@ -167,7 +176,7 @@ export default function DistrictMetricsMapView({
         ${options.error ? `<div class="text-[9px] text-red-300 mt-2">${options.error}</div>` : ""}
       </div>
     `;
-  }, []);
+  }, [airPollutionLayer]);
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -236,6 +245,16 @@ export default function DistrictMetricsMapView({
     if (compareMode) {
       if (analysisType === "green") return feature?.properties?.vegetation_delta;
       if (analysisType === "nightlights") return feature?.properties?.ntl_delta;
+      if (analysisType === "air") {
+        const deltaFields: Record<string, string> = {
+          no2_mean: "no2_delta",
+          co_mean: "co_delta",
+          so2_mean: "so2_delta",
+          aerosol_index_mean: "aerosol_index_delta",
+          pollution_score: "pollution_score_delta",
+        };
+        return feature?.properties?.[deltaFields[airPollutionLayer]];
+      }
       return feature?.properties?.delta;
     }
     if (analysisType === "builtup") return feature?.properties?.ndbi_mean ?? feature?.properties?.ndbi;
@@ -245,7 +264,7 @@ export default function DistrictMetricsMapView({
     if (ndviLayer === "green_area_rai") return feature?.properties?.green_area_rai;
     if (ndviLayer === "green_area_ratio") return feature?.properties?.green_area_ratio;
     return feature?.properties?.ndvi_mean ?? feature?.properties?.ndvi;
-  }, [analysisType, compareMode, ndviLayer]);
+  }, [airPollutionLayer, analysisType, compareMode, ndviLayer]);
 
   const getColor = useCallback((value: number | null | undefined) => {
     if (value === null || value === undefined || Number.isNaN(value)) return "#9ca3af";
@@ -260,7 +279,14 @@ export default function DistrictMetricsMapView({
         return value > 8 ? "#B45309" : value > 3 ? "#F59E0B" : value > -3 ? "#F7F7F7" : value > -8 ? "#4292C6" : "#08306B";
       }
       if (analysisType === "air") {
-        return value > 0.00008 ? "#B2182B" : value > 0.000025 ? "#F59E0B" : value > -0.000025 ? "#F7F7F7" : value > -0.00008 ? "#67A9CF" : "#2166AC";
+        const thresholds = airPollutionLayer === "pollution_score"
+          ? [1, 0.3]
+          : airPollutionLayer === "aerosol_index_mean"
+            ? [0.3, 0.1]
+            : airPollutionLayer === "co_mean"
+              ? [0.005, 0.0015]
+              : [0.00008, 0.000025];
+        return value > thresholds[0] ? "#B2182B" : value > thresholds[1] ? "#F59E0B" : value > -thresholds[1] ? "#F7F7F7" : value > -thresholds[0] ? "#67A9CF" : "#2166AC";
       }
       return value > 1.5 ? "#B2182B" : value > 0.5 ? "#EF8A62" : value > -0.5 ? "#F7F7F7" : value > -1.5 ? "#67A9CF" : "#2166AC";
     }

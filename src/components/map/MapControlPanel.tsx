@@ -1,13 +1,14 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Layers } from "lucide-react";
+import { Info, Layers, MousePointer2 } from "lucide-react";
 
 export type AccentTheme = "orange" | "emerald" | "indigo" | "cyan" | "sky" | "yellow";
 
 export interface MapModeOption {
   value: string;
   label: string;
+  description?: string;
 }
 
 interface Theme {
@@ -58,13 +59,18 @@ const THEMES: Record<AccentTheme, Theme> = {
 
 const BASE_MAPS = ["dark", "light", "satellite", "streets", "none"] as const;
 type BaseMapId = typeof BASE_MAPS[number];
+const BASE_MAP_LABELS: Record<BaseMapId, string> = {
+  dark: "มืด",
+  light: "สว่าง",
+  satellite: "ภาพถ่าย",
+  streets: "ถนน",
+  none: "ไม่ใช้",
+};
 
 interface MapControlPanelProps {
   accent: AccentTheme;
   granularity: "district" | "subdistrict";
   onGranularityChange: (g: "district" | "subdistrict") => void;
-  /** When true, granularity buttons are highlighted regardless of mapMode. Default: only when mapMode === "district". */
-  granularityAlwaysActive?: boolean;
   mapMode: string;
   mapModes: MapModeOption[];
   onMapModeChange: (m: string) => void;
@@ -76,13 +82,17 @@ interface MapControlPanelProps {
   onReset: () => void;
   /** Extra controls rendered inside the main card, below the mapMode toggle. */
   extraControls?: ReactNode;
+  currentLayer?: string;
+  currentPeriod?: string;
+  dataSource?: string;
+  interactionHint?: string;
+  granularityNote?: string;
 }
 
 export default function MapControlPanel({
   accent,
   granularity,
   onGranularityChange,
-  granularityAlwaysActive = false,
   mapMode,
   mapModes,
   onMapModeChange,
@@ -93,9 +103,16 @@ export default function MapControlPanel({
   onBaseMapChange,
   onReset,
   extraControls,
+  currentLayer,
+  currentPeriod,
+  dataSource,
+  interactionHint,
+  granularityNote,
 }: MapControlPanelProps) {
   const theme = THEMES[accent];
   const inactive = "text-slate-500 hover:text-slate-300";
+  const activeMode = mapModes.find((mode) => mode.value === mapMode);
+  const isRasterMode = mapMode !== "district";
 
   return (
     <>
@@ -109,14 +126,23 @@ export default function MapControlPanel({
             onClick={onReset}
             className="text-[9px] px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg border border-slate-700 transition-all font-bold"
           >
-            RESET
+            คืนค่าเริ่มต้น
           </button>
         </div>
 
-        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขต</p>
+        {(currentLayer || currentPeriod || dataSource) && (
+          <div className="mb-4 rounded-lg border border-slate-700/60 bg-slate-950/60 p-3">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">กำลังแสดง</p>
+            {currentLayer && <p className="text-[11px] font-bold text-slate-200">{currentLayer}</p>}
+            {currentPeriod && <p className="mt-1 text-[9px] text-slate-500">ช่วงข้อมูล: {currentPeriod}</p>}
+            {dataSource && <p className="text-[9px] text-slate-500">แหล่งข้อมูล: {dataSource}</p>}
+          </div>
+        )}
+
+        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขตอ้างอิง</p>
         <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
           {(["district", "subdistrict"] as const).map((g) => {
-            const isActive = granularity === g && (granularityAlwaysActive || mapMode === "district");
+            const isActive = granularity === g;
             return (
               <button
                 key={g}
@@ -128,8 +154,13 @@ export default function MapControlPanel({
             );
           })}
         </div>
+        <p className="mb-3 text-[9px] leading-snug text-slate-600">
+          {granularityNote ?? (granularity === "district"
+            ? "สรุปและเลือกพื้นที่ตาม 50 เขต"
+            : "แสดงขอบเขต 180 แขวง โดยค่ารายแขวงอาจอ้างอิงจากเขตแม่")}
+        </p>
 
-        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รูปแบบ</p>
+        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">วิธีแสดงผล</p>
         <div className={`grid bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800`} style={{ gridTemplateColumns: `repeat(${mapModes.length}, 1fr)` }}>
           {mapModes.map((mode) => (
             <button
@@ -141,6 +172,22 @@ export default function MapControlPanel({
             </button>
           ))}
         </div>
+        {(activeMode?.description || isRasterMode) && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-slate-800 bg-slate-900/40 p-2.5">
+            <Info className="mt-0.5 h-3 w-3 shrink-0 text-slate-500" />
+            <p className="text-[9px] leading-snug text-slate-500">
+              {activeMode?.description}
+              {isRasterMode && ` ขอบเขต${granularity === "district" ? "เขต" : "แขวง"}ใช้สำหรับอ้างอิงและเลือกพื้นที่เท่านั้น`}
+            </p>
+          </div>
+        )}
+
+        {interactionHint && (
+          <div className="mb-3 flex items-start gap-2 text-[9px] leading-snug text-slate-500">
+            <MousePointer2 className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>{interactionHint}</span>
+          </div>
+        )}
 
         {extraControls}
       </div>
@@ -149,7 +196,7 @@ export default function MapControlPanel({
       {showOpacity && (
         <div className="bg-[#0f172a]/95 backdrop-blur-md rounded-2xl p-4 border border-slate-800 shadow-2xl w-full">
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความโปร่งใส</h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ความทึบของชั้นข้อมูล</h4>
             <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${theme.opacityLabel}`}>
               {Math.round(opacity * 100)}%
             </span>
@@ -179,7 +226,7 @@ export default function MapControlPanel({
                   : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"
               }`}
             >
-              {m.charAt(0).toUpperCase() + m.slice(1)}
+              {BASE_MAP_LABELS[m]}
             </button>
           ))}
         </div>
