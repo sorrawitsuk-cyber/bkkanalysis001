@@ -92,6 +92,7 @@ function MapBoundsFitter({ features }: { features: any[] }) {
 
 export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps) {
   const [districtGeoData, setDistrictGeoData] = useState<any>(null);
+  const canvasRenderer = useMemo(() => L.canvas(), []);
 
   useEffect(() => {
     fetch(`/api/districts?year=2024`)
@@ -139,7 +140,7 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
       zoomControl={true}
       attributionControl={false}
       // Use Canvas renderer for much better performance with many markers
-      renderer={L.canvas()}
+      renderer={canvasRenderer}
     >
       <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
 

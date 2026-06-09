@@ -188,6 +188,11 @@ function buildFloodRiskView(
       displayLayer: selectedLayer,
       displayLabel: WATER_LAYER_LABELS[selectedLayer],
       dataSource: "R2 cache (Sentinel-2)",
+      dataQuality: rows.length ? "observed" : "unavailable",
+      sourceLabel: rows.length ? "Sentinel-2 ผ่าน R2 cache" : null,
+      sourceNote: rows.length
+        ? "ตรวจสัญญาณน้ำหรือความชื้นจาก NDWI ไม่ใช่แบบจำลองยืนยันขอบเขตน้ำท่วม"
+        : "ไม่พบข้อมูลดาวเทียมสำหรับช่วงเวลาที่เลือก",
       cacheStatus: meta?.status ?? "pending",
       riverCorrected,
     },
@@ -276,7 +281,13 @@ export default function FloodRiskPage() {
         } else {
           const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
           setGeojsonData(built.geojson);
-          setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
+          setSummary({
+            ...built.summary,
+            dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล",
+            dataQuality: "unavailable",
+            sourceNote: "ไม่พบข้อมูลดาวเทียมสำหรับปีที่เลือก",
+            cacheStatus: "pending",
+          });
         }
         setLoading(false);
       })
@@ -285,7 +296,13 @@ export default function FloodRiskPage() {
         if (selectedMonth) setCacheDataMissing(true);
         const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
         setGeojsonData(built.geojson);
-        setSummary({ ...built.summary, dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล", cacheStatus: "pending" });
+        setSummary({
+          ...built.summary,
+          dataSource: "ไม่มีข้อมูลปีนี้ ระบบกำลังประมวลผล",
+          dataQuality: "unavailable",
+          sourceNote: "โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่ภายหลัง",
+          cacheStatus: "pending",
+        });
         setLoading(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -368,7 +385,7 @@ export default function FloodRiskPage() {
       : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
 
   const csvFilename = `flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
-  const csvHeaders = ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)", "Layer", "ช่วงเวลา"];
+  const csvHeaders = ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่ตรวจพบสัญญาณน้ำ (ไร่)", "Layer", "ช่วงเวลา"];
 
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
     ([name, val, areaRai]: [string, number | null, number | null]) => [
@@ -381,7 +398,7 @@ export default function FloodRiskPage() {
   );
 
   const reportData = useMemo((): PDFReportData => ({
-    title: "วิเคราะห์น้ำท่วม / แหล่งน้ำ",
+    title: "วิเคราะห์สัญญาณน้ำและความชื้น",
     subtitle: "Sentinel-2 SR Harmonized",
     source: "Sentinel-2 (R2 Cache)",
     period: periodLabel,
@@ -563,7 +580,7 @@ export default function FloodRiskPage() {
         { color: "#7dd3fc", label: "มีน้ำน้อย",     range: "1.5% – 4%" },
         { color: "#0ea5e9", label: "มีน้ำปานกลาง", range: "4% – 8%" },
         { color: "#0369a1", label: "มีน้ำมาก",      range: "8% – 15%" },
-        { color: "#075985", label: "แหล่งน้ำ/แม่น้ำ", range: "> 15%" },
+        { color: "#075985", label: "สัญญาณน้ำสูงมาก", range: "> 15%" },
       ],
     };
   }
@@ -652,11 +669,16 @@ export default function FloodRiskPage() {
               {/* Data source info */}
               <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-2 h-2 rounded-full ${mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
-                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
+                  <div className={`w-2 h-2 rounded-full ${summary?.dataQuality === "unavailable" ? "bg-slate-500" : mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">สถานะแหล่งข้อมูล</span>
                 </div>
                 <div className="text-[11px] text-slate-400 leading-relaxed">
-                  {mapMode === "idw" ? (
+                  {summary?.dataQuality === "unavailable" ? (
+                    <>
+                      <p className="font-bold text-slate-300">ยังไม่มีข้อมูลสำหรับช่วงเวลานี้</p>
+                      <p>{summary?.sourceNote ?? "ไม่พบข้อมูลดาวเทียมสำหรับปีที่เลือก"}</p>
+                    </>
+                  ) : mapMode === "idw" ? (
                     <>
                       <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
                       <p><span className="text-white">Period:</span> {periodLabel}</p>
@@ -717,7 +739,9 @@ export default function FloodRiskPage() {
                     ? mapMode === "idw" ? `ผลต่าง ${WATER_LAYER_LABELS[cacheLayer]}: ${selectedYear} - ${compareYear}` : `ผลต่างสัดส่วนพื้นที่น้ำ: ${selectedYear} - ${compareYear}`
                     : mapMode === "idw" ? WATER_LAYER_LABELS[cacheLayer] : "สัดส่วนพื้นที่น้ำรายเขต"}
                   currentPeriod={periodLabel}
-                  dataSource={mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
+                    dataSource={summary?.dataQuality === "unavailable"
+                      ? "ยังไม่มีข้อมูลสำหรับช่วงเวลานี้"
+                      : mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.sourceLabel ?? summary?.dataSource ?? "สถิติรายเขต"}
                   interactionHint={mapMode === "idw" ? "สีบนภาพคือค่าดัชนีน้ำรายพิกเซล ส่วน tooltip รายพื้นที่เป็นค่าสรุประดับเขต" : "วางเมาส์บนพื้นที่เพื่อดูสัดส่วนและขนาดพื้นที่น้ำ"}
                   granularityNote={granularity === "subdistrict" ? "ขอบเขตแขวงสืบทอดค่าสถิติจากเขตแม่ ไม่ใช่การคำนวณพื้นที่น้ำใหม่รายแขวง" : "สรุปและเลือกพื้นที่ตาม 50 เขต"}
                   extraControls={

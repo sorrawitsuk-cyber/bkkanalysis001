@@ -96,7 +96,13 @@ export default function BuiltUpSidebar({ onDistrictSelect, activeDistrict, summa
             </span>
           ))}
         </div>
-        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
+        <DataSourceBadge
+          dataSource={summary?.dataSource}
+          dataQuality={summary?.dataQuality}
+          sourceLabel={summary?.sourceLabel}
+          sourceNote={summary?.sourceNote}
+          className="mb-2"
+        />
 
         {/* District Filter */}
         <div>

@@ -32,8 +32,8 @@ const RANKING_MODE_COPY = {
   },
   area: {
     label: "พื้นที่",
-    title: "พื้นที่แหล่งน้ำ",
-    help: "เรียงจากจำนวนไร่ของพื้นที่น้ำจริง เหมาะดูเขตที่มีพื้นที่น้ำรวมมาก",
+    title: "พื้นที่ที่ตรวจพบสัญญาณน้ำ",
+    help: "เรียงจากจำนวนไร่ที่ดัชนีดาวเทียมตรวจพบสัญญาณน้ำหรือความชื้น ไม่ใช่ขอบเขตน้ำท่วมที่สำรวจภาคสนาม",
   },
 } as const;
 
@@ -152,8 +152,8 @@ export default function FloodRiskSidebar({
             <Droplets className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-100 leading-none">พื้นที่น้ำท่วม</h1>
-            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">ไม่รวมแม่น้ำและคลองถาวร</p>
+            <h1 className="text-base font-bold text-slate-100 leading-none">พื้นที่ตรวจพบสัญญาณน้ำ</h1>
+            <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">NDWI/MNDWI · ไม่ใช่แบบจำลองน้ำท่วม</p>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export default function FloodRiskSidebar({
             อ่านหน้านี้แบบเร็ว
           </p>
           <p className="mt-1 text-[10px] leading-snug text-slate-400">
-            ค่าที่แสดงคือพื้นที่น้ำท่วม/น้ำขัง ไม่รวมแม่น้ำเจ้าพระยาและคลองถาวร — เลือก layer บนแผนที่เพื่อเปลี่ยนดัชนีที่วิเคราะห์
+            ค่าที่แสดงคือสัญญาณน้ำผิวดินหรือความชื้นจากดาวเทียม หลังตัดแหล่งน้ำถาวรออก ใช้คัดกรองพื้นที่เพื่อตรวจสอบต่อ ไม่ใช่หลักฐานยืนยันน้ำท่วม
           </p>
         </div>
 
@@ -182,14 +182,20 @@ export default function FloodRiskSidebar({
       </div>
 
       <div className="p-5 flex-1 flex flex-col gap-6">
-        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
+        <DataSourceBadge
+          dataSource={summary?.dataSource}
+          dataQuality={summary?.dataQuality}
+          sourceLabel={summary?.sourceLabel}
+          sourceNote={summary?.sourceNote}
+          className="mb-2"
+        />
 
         {/* KPI Cards — 2×3 grid */}
         <div className="grid grid-cols-3 gap-2">
           {/* Row 1 */}
           <div className="col-span-3 min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1">
-              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่น้ำท่วม กทม. (ไม่รวมแม่น้ำ)
+              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่ตรวจพบสัญญาณน้ำ (ไม่รวมแหล่งน้ำถาวร)
             </div>
             <div className="text-base font-bold font-mono text-slate-100">
               {formatRai(summary.totalWaterAreaRai)}

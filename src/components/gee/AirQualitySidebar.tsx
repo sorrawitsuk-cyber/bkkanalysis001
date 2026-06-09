@@ -119,7 +119,13 @@ export default function AirQualitySidebar({
             <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">ข้อมูลมลพิษจากดาวเทียม</p>
           </div>
         </div>
-        <DataSourceBadge dataSource={summary?.dataSource} className="mb-2" />
+        <DataSourceBadge
+          dataSource={summary?.dataSource}
+          dataQuality={summary?.dataQuality}
+          sourceLabel={summary?.sourceLabel}
+          sourceNote={summary?.sourceNote}
+          className="mb-2"
+        />
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <MapPin className="w-3 h-3" /> เลือกเขต
@@ -274,7 +280,7 @@ export default function AirQualitySidebar({
             </div>
             <p className="text-[9px] text-slate-400 leading-snug">
               ข้อมูลสถิติมลพิษรายเขตจาก Sentinel-5P อยู่ระหว่างการประมวลผล
-              กรุณาใช้โหมด <span className="text-cyan-300 font-bold">ดาวเทียม (GEE)</span> เพื่อดูข้อมูลจริงบนแผนที่
+              กรุณาใช้โหมด <span className="text-cyan-300 font-bold">ดาวเทียม (GEE)</span> เพื่อดูข้อมูลรายพิกเซลบนแผนที่
             </p>
           </div>
         )}

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import Sidebar from "@/components/Sidebar";
-import { Flame, Layers } from "lucide-react";
+import { AlertTriangle, Layers } from "lucide-react";
 
 const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -20,10 +20,12 @@ export default function Home() {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<string>('');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [mapMode, setMapMode] = useState<'points' | 'heatmap'>('points');
 
   useEffect(() => {
     setLoading(true);
+    setLoadError(null);
     const params = new URLSearchParams({ limit: '5000' });
     if (activeDistrict !== 'ทั้งหมด') params.append('district', activeDistrict);
     if (activeCategory !== 'ทั้งหมด') params.append('category', activeCategory);
@@ -32,7 +34,11 @@ export default function Home() {
     if (activeMonth !== null) params.append('month', String(activeMonth));
 
     fetch(`/api/traffy?${params.toString()}`)
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `โหลดข้อมูลไม่สำเร็จ (${res.status})`);
+        return data;
+      })
       .then(data => {
         setTraffyData(data.geojson);
         setSummary(data.summary);
@@ -41,6 +47,10 @@ export default function Home() {
       })
       .catch(err => {
         console.error(err);
+        setTraffyData(null);
+        setSummary(null);
+        setDataSource('');
+        setLoadError(err instanceof Error ? err.message : "โหลดข้อมูล Traffy ไม่สำเร็จ");
         setLoading(false);
       });
   }, [activeDistrict, activeCategory, activeDistrictGroup, activeYear, activeMonth]);
@@ -76,6 +86,18 @@ export default function Home() {
       />
 
       <main className="flex-1 relative">
+        {loadError && (
+          <div className="absolute left-1/2 top-4 z-[1200] w-[min(92%,520px)] -translate-x-1/2 rounded-xl border border-amber-600/40 bg-amber-950/95 px-4 py-3 shadow-2xl backdrop-blur">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <div>
+                <p className="text-xs font-bold text-amber-200">ยังโหลดข้อมูล Traffy ไม่ได้</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-amber-100/70">{loadError}</p>
+                <p className="mt-1 text-[10px] text-slate-400">ระบบจะไม่แสดงเลขศูนย์แทนข้อมูลที่หายไป</p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="absolute inset-0 z-0">
           <ErrorBoundary>
             <MapView activeTag={activeTag} traffyData={traffyData} mapMode={mapMode} />
@@ -135,24 +157,24 @@ export default function Home() {
           <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl text-center">
             <span className="text-[9px] text-slate-500">แสดงข้อมูล</span>
             <div className="text-lg font-black text-indigo-400 leading-tight">
-              {summary?.totalFetched?.toLocaleString() || "..."}
+              {loading ? "..." : summary ? summary.totalFetched?.toLocaleString() : "ไม่มีข้อมูล"}
               <span className="text-[9px] text-slate-500 font-normal ml-1">
                 จุดบนแผนที่
               </span>
             </div>
             <div className="text-xl font-black text-amber-400 leading-tight mt-1">
-              {summary?.totalApi?.toLocaleString() || "..."}
+              {loading ? "..." : summary ? summary.totalApi?.toLocaleString() : "ไม่มีข้อมูล"}
               <span className="text-[9px] text-slate-500 font-normal ml-1">
                 ข้อมูลในระบบ (charts)
               </span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-800">
               <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
-                dataSource === 'supabase'
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-amber-500/20 text-amber-400'
+                loadError
+                  ? 'bg-slate-700/50 text-slate-400'
+                  : 'bg-emerald-500/20 text-emerald-400'
               }`}>
-                {dataSource === 'supabase' ? '⚡ SUPABASE' : '🌐 LIVE API'}
+                {loadError ? 'ยังไม่เชื่อมต่อ' : dataSource === 'bigquery' ? 'BigQuery' : 'กำลังตรวจสอบแหล่งข้อมูล'}
               </span>
             </div>
           </div>

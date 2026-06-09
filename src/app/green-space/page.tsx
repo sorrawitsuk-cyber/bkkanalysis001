@@ -130,7 +130,7 @@ export default function GreenSpacePage() {
   const reportData = useMemo((): PDFReportData => ({
     title: "วิเคราะห์พื้นที่สีเขียวเมือง",
     subtitle: "Sentinel-2 SR Harmonized · NDVI",
-    source: "Sentinel-2",
+    source: summary?.sourceLabel ?? summary?.dataSource ?? "ไม่ระบุแหล่งข้อมูล",
     period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
     layer: ndviLayerLabel,
     district: activeDistrict,
@@ -141,7 +141,7 @@ export default function GreenSpacePage() {
     ],
     rankingHeaders: ["เขต", ndviLayerLabel],
     rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-  }), [selectedYear, selectedMonth, periodLabel, ndviLayerLabel, activeDistrict, ndviSummary, rankingForExport]);
+  }), [selectedYear, selectedMonth, periodLabel, ndviLayerLabel, activeDistrict, ndviSummary, rankingForExport, summary]);
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
@@ -256,12 +256,13 @@ export default function GreenSpacePage() {
                 <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Data Source</span>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แยกแหล่งข้อมูล</span>
                   </div>
                   <div className="text-[11px] text-slate-400 leading-relaxed">
-                    <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
-                    <p><span className="text-white">Period:</span> {periodLabel}</p>
-                    <p><span className="text-white">Resolution:</span> {mapMode === "idw" ? "10m per pixel (GEE Live)" : "district-level"}</p>
+                    <p><span className="text-white">ชั้นแผนที่:</span> {mapMode === "idw" ? "Sentinel-2 ผ่าน GEE รายพิกเซล" : "สถิติรายเขต"}</p>
+                    <p><span className="text-white">KPI/อันดับ:</span> {summary?.sourceLabel ?? "ยังไม่ระบุแหล่ง"}</p>
+                    <p><span className="text-white">คุณภาพ KPI:</span> {summary?.dataQuality === "modeled" ? "แบบจำลอง" : summary?.dataQuality === "estimated" ? "ประมาณการ" : "ข้อมูลสังเกต"}</p>
+                    <p><span className="text-white">ช่วงเวลา:</span> {periodLabel}</p>
                   </div>
                 </div>
 

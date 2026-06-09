@@ -101,7 +101,7 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
       <div className="flex justify-between items-end mb-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">แนวโน้มย้อนหลังและการคาดการณ์ (Forecast)</h3>
         <div className="flex gap-3 text-[10px] font-medium">
-           <div className="flex items-center gap-1.5 text-slate-500"><div className="w-2 h-2 rounded-full" style={{backgroundColor: color}}></div>ข้อมูลจริง</div>
+           <div className="flex items-center gap-1.5 text-slate-500"><div className="w-2 h-2 rounded-full" style={{backgroundColor: color}}></div>ข้อมูลในระบบ</div>
            <div className="flex items-center gap-1.5 text-slate-500"><div className="w-2 h-0.5 border-t-2 border-dashed" style={{borderColor: color}}></div>พยากรณ์</div>
         </div>
       </div>
@@ -143,7 +143,11 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
             />
             
             {/* Divider Line between Actual and Forecast */}
-            <ReferenceLine x={2026} stroke="#cbd5e1" strokeDasharray="3 3" />
+            <ReferenceLine
+              x={data.filter((point) => !point.isForecast).at(-1)?.year}
+              stroke="#cbd5e1"
+              strokeDasharray="3 3"
+            />
 
             {/* Historical Area */}
             <Area 

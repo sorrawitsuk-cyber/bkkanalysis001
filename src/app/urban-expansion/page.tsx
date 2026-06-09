@@ -63,7 +63,7 @@ export default function UrbanExpansionPage() {
     setGranularity("district"); setOpacity(0.8); setBaseMap('dark');
   };
 
-  const highestDensityDistrict = summary?.ranking?.[0]?.[0] || "ไม่มีข้อมูล";
+  const highestDensityDistrict = summary?.ndbiRanking?.[0]?.[0] || "ไม่มีข้อมูล";
   const _ueNow = new Date();
   const _ueCurrentYear = _ueNow.getFullYear();
   const periodLabel = selectedMonth
@@ -98,7 +98,7 @@ export default function UrbanExpansionPage() {
   const reportData = useMemo((): PDFReportData => ({
     title: "วิเคราะห์การขยายตัวเมือง",
     subtitle: "Sentinel-2 · Normalized Difference Built-up Index",
-    source: "Sentinel-2",
+    source: summary?.sourceLabel ?? summary?.dataSource ?? "ไม่ระบุแหล่งข้อมูล",
     period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
     layer: "NDBI (Built-up Index)",
     district: activeDistrict,
@@ -223,8 +223,10 @@ export default function UrbanExpansionPage() {
                     <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    <p>ดาวเทียมสำรวจสิ่งปลูกสร้าง</p>
-                    <p>ช่วงเวลา: {periodLabel}</p>
+                    <p><span className="text-white">ชั้นแผนที่:</span> {mapMode === "idw" ? "Sentinel-2 ผ่าน GEE รายพิกเซล" : "สถิติรายเขต"}</p>
+                    <p><span className="text-white">KPI/อันดับ:</span> {summary?.sourceLabel ?? "ยังไม่ระบุแหล่ง"}</p>
+                    <p><span className="text-white">คุณภาพ KPI:</span> {summary?.dataQuality === "estimated" ? "ประมาณการ" : summary?.dataQuality === "modeled" ? "แบบจำลอง" : "ข้อมูลสังเกต"}</p>
+                    <p><span className="text-white">ช่วงเวลา:</span> {periodLabel}</p>
                   </div>
                 </div>
 

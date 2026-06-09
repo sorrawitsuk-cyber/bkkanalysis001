@@ -218,7 +218,7 @@ export default function FloodRiskMapView({
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[200px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1 text-sky-300">${props.name_th || "Unknown"}${granularity === "subdistrict" && props.district_name ? `<span class="text-slate-500 text-[9px] ml-1">· เขต${props.district_name}</span>` : ""}</div>
             <div class="text-[10px] text-slate-400">${displayLabel}: <span class="text-sky-300 text-lg font-mono ml-1">${formatIndex(displayValue ?? seasonalRatio ?? undefined)}</span></div>
-            <div class="text-[10px] text-slate-400 mt-1">พื้นที่น้ำท่วม: <span class="text-sky-200 font-mono">${formatPct(seasonalRatio ?? undefined)}</span>${riverCorrected ? `<span class="text-slate-500 text-[9px] ml-1">(ไม่รวมแม่น้ำถาวร)</span>` : ""}</div>
+            <div class="text-[10px] text-slate-400 mt-1">สัดส่วนสัญญาณน้ำ: <span class="text-sky-200 font-mono">${formatPct(seasonalRatio ?? undefined)}</span>${riverCorrected ? `<span class="text-slate-500 text-[9px] ml-1">(ไม่รวมแหล่งน้ำถาวร)</span>` : ""}</div>
             ${displayAreaRai !== null || waterAreaRai !== null ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่: <span class="text-sky-200 font-mono">${formatNumber(displayAreaRai ?? waterAreaRai, 0)} ไร่</span></div>` : ""}
             ${deltaLine}
             <div class="text-[9px] text-slate-500 mt-2">ปีที่แสดง: ${year}</div>

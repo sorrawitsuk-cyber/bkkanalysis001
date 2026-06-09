@@ -306,10 +306,12 @@ export async function GET(request: Request) {
     const avgNdwiMean = yearRows.some((r: any) => r.ndwi_mean !== null)
       ? parseFloat((yearRows.filter((r: any) => r.ndwi_mean !== null).reduce((s: number, r: any) => s + r.ndwi_mean, 0) / yearRows.filter((r: any) => r.ndwi_mean !== null).length).toFixed(4))
       : null;
-    const totalWaterAreaRai = currentYearRows.reduce((s, r) => {
-      const areaRai = districtAreaRaiMap.get(r.district_id) ?? 0;
-      return s + Math.round((r.water_ratio ?? 0) * areaRai);
-    }, 0);
+    const totalWaterAreaRai = currentYearRows.length
+      ? currentYearRows.reduce((s, r) => {
+          const areaRai = districtAreaRaiMap.get(r.district_id) ?? 0;
+          return s + Math.round((r.water_ratio ?? 0) * areaRai);
+        }, 0)
+      : null;
 
     const ranking = [...currentYearRows]
       .sort((a, b) => (b.water_ratio ?? 0) - (a.water_ratio ?? 0))
@@ -354,6 +356,11 @@ export async function GET(request: Request) {
           max_value: maxValue !== -Infinity ? maxValue : 0.5,
           displayLabel: "NDWI",
           dataSource,
+          dataQuality: dataSource === "no data" ? "unavailable" : "observed",
+          sourceLabel: dataSource === "no data" ? null : dataSource,
+          sourceNote: dataSource === "no data"
+            ? "ไม่พบข้อมูลดาวเทียมสำหรับปีที่เลือก"
+            : "ตรวจสัญญาณน้ำหรือความชื้นจาก NDWI ไม่ใช่แบบจำลองยืนยันขอบเขตน้ำท่วม",
         },
       },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }
@@ -378,12 +385,15 @@ export async function GET(request: Request) {
       summary: {
         selectedYear: 0, compareYear: null,
         avgWaterRatio: null, avgDisplayValue: null,
-        totalWaterAreaRai: 0, baselineAvg: null, avgDelta: null,
+        totalWaterAreaRai: null, baselineAvg: null, avgDelta: null,
         topWet: [], topDry: [], ranking: [],
         yearlyTrend: [], waterAreaTrend: [],
         min_value: 0, max_value: 0.5,
         displayLabel: "NDWI",
         dataSource: `error: ${err.message}`,
+        dataQuality: "unavailable",
+        sourceLabel: null,
+        sourceNote: "โหลดข้อมูลพื้นที่น้ำไม่สำเร็จ",
       },
     });
   }

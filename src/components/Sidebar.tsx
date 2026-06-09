@@ -110,14 +110,14 @@ export default function Sidebar({
           <div className="bg-slate-900/80 border border-slate-800/50 rounded-xl p-3 text-center">
             <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">จำนวนทั้งหมด</div>
             <div className="text-3xl font-black text-slate-50 leading-tight mt-1">
-              {loading ? "..." : (summary?.totalApi || summary?.totalFetched || 0).toLocaleString()}
+              {loading ? "..." : summary ? (summary.totalApi ?? summary.totalFetched ?? 0).toLocaleString() : "–"}
             </div>
             <div className="text-[9px] text-slate-600 mt-0.5">เรื่องร้องเรียน / COMPLAINTS</div>
           </div>
           <div className="bg-slate-900/80 border border-slate-800/50 rounded-xl p-3 text-center">
             <div className="text-[9px] font-bold text-green-500/70 uppercase tracking-widest">แก้ไขสำเร็จ</div>
             <div className="text-3xl font-black text-green-400 leading-tight mt-1">
-              {loading ? "..." : (summary?.byState?.['เสร็จสิ้น'] || 0).toLocaleString()}
+              {loading ? "..." : summary ? (summary.byState?.['เสร็จสิ้น'] ?? 0).toLocaleString() : "–"}
             </div>
             <div className="text-[9px] text-slate-600 mt-0.5">เรื่อง / RESOLVED</div>
           </div>
@@ -126,8 +126,10 @@ export default function Sidebar({
         {/* Date range — dynamic, with clear button if date filter active */}
         <div className="mt-3 text-center text-[10px] text-slate-500 bg-slate-800/30 py-1.5 rounded-lg border border-slate-800/50 flex items-center justify-center gap-1.5">
           <Calendar className="w-3 h-3 text-indigo-400 shrink-0" />
-          {loading || !dateRangeLabel ? (
-            <span>ข้อมูลตั้งแต่ <b>26 มี.ค. 2026</b> ถึง <b>ปัจจุบัน</b></span>
+          {loading ? (
+            <span>กำลังตรวจสอบช่วงข้อมูล…</span>
+          ) : !summary || !dateRangeLabel ? (
+            <span>ยังระบุช่วงข้อมูลไม่ได้</span>
           ) : (
             <span>ช่วงข้อมูล: <b className={hasDateFilter ? 'text-indigo-300' : ''}>{dateRangeLabel}</b></span>
           )}
@@ -501,7 +503,7 @@ export default function Sidebar({
           วิเคราะห์น้ำท่วม/แหล่งน้ำ
         </Link>
         <p className="text-[8px] text-slate-600 font-medium uppercase tracking-[0.2em] text-center mt-1">
-          Powered by BMA Open Data & Traffy Fondue API · Live Data
+          BMA Open Data & Traffy Fondue · ตรวจสอบสถานะแหล่งข้อมูลก่อนใช้งาน
         </p>
       </div>
     </div>

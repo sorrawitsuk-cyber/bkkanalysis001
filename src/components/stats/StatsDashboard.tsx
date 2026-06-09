@@ -596,7 +596,7 @@ export default function StatsDashboard({
         profileLoading ? (
           <div className="flex flex-1 items-center justify-center gap-2 text-slate-500 text-sm">
             <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-600 border-t-cyan-400 rounded-full" />
-            กำลังโหลดข้อมูลจริงจาก Supabase…
+            กำลังโหลดข้อมูลจากฐานข้อมูล…
           </div>
         ) : (
           <DistrictModeView summary={summary} cfg={cfg} metric={metric} year={year} accentColor={accentColor} ac={ac} profileData={profileData} />

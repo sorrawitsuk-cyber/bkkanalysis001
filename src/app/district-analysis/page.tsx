@@ -42,6 +42,8 @@ interface OverviewState {
   ndviTrend: Array<[string, number]>;
   greenTrend: Array<[string, number]>;
   lstTrend: Array<[string, number]>;
+  vegetationQuality?: string;
+  vegetationSource?: string;
 }
 type SortKey = keyof DistrictRow | "delta_ndvi" | "delta_lst" | "delta_green" | "delta_ntl" | "delta_pollution";
 
@@ -328,10 +330,15 @@ export default function DistrictAnalysisPage() {
     ]).then(([vegR, lstR]) => {
       setOverview({
         year: selectedYear,
-        districts: (vegR.geojson?.features ?? []).map(mapFeatureToRow),
+        districts: (vegR.geojson?.features ?? []).map(mapFeatureToRow).map((row: DistrictRow) => ({
+          ...row,
+          ntl_mean: selectedYear > 2024 ? null : row.ntl_mean,
+        })),
         ndviTrend: vegR.summary?.yearlyTrend ?? [],
         greenTrend: vegR.summary?.greenAreaTrend ?? [],
         lstTrend: lstR.summary?.yearlyTrend ?? [],
+        vegetationQuality: vegR.summary?.dataQuality,
+        vegetationSource: vegR.summary?.sourceLabel,
       });
     }).catch(console.error).finally(() => setOverviewLoading(false));
   }, [selectedYear]);
@@ -342,7 +349,10 @@ export default function DistrictAnalysisPage() {
     setCompareOverviewLoading(true);
     fetch(`/api/district-metrics?metric=vegetation&year=${compareYear}`)
       .then(r => r.json())
-      .then(r => setCompareOverview((r.geojson?.features ?? []).map(mapFeatureToRow)))
+      .then(r => setCompareOverview((r.geojson?.features ?? []).map(mapFeatureToRow).map((row: DistrictRow) => ({
+        ...row,
+        ntl_mean: compareYear > 2024 ? null : row.ntl_mean,
+      }))))
       .catch(console.error)
       .finally(() => setCompareOverviewLoading(false));
   }, [compareYear, selectedYear]);
@@ -712,6 +722,13 @@ export default function DistrictAnalysisPage() {
                   )}
                 </div>
 
+                <div className="rounded-xl border border-violet-700/40 bg-violet-950/25 px-4 py-3 text-[10px] leading-relaxed text-slate-400">
+                  <span className="font-bold text-violet-300">ข้อจำกัดข้อมูล:</span>{" "}
+                  NDVI และพื้นที่สีเขียวในตารางนี้เป็นแบบจำลอง ENSO/urbanization ที่รอผล GEE จริง,
+                  NDBI เป็นค่าประมาณการ, LST และมลพิษเป็นข้อมูลดาวเทียม และข้อมูลแสงกลางคืนรายปีมีถึงปี 2024
+                  เท่านั้น คะแนนและอันดับจึงใช้เพื่อสำรวจแนวโน้ม ไม่ใช่สถิติราชการหรือหลักฐานตัดสินนโยบายโดยลำพัง
+                </div>
+
                 {/* ── KPI Cards with Δ ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {[
@@ -996,6 +1013,13 @@ export default function DistrictAnalysisPage() {
               )}
             </div>
 
+            <div className="rounded-xl border border-violet-700/40 bg-violet-950/25 px-4 py-3 text-[10px] leading-relaxed text-slate-400">
+              <span className="font-bold text-violet-300">วิธีใช้ข้อมูล:</span>{" "}
+              NDVI/พื้นที่สีเขียวเป็นแบบจำลอง, NDBI/พื้นที่สิ่งปลูกสร้างเป็นประมาณการ,
+              LST และมลพิษเป็นข้อมูลดาวเทียม และแสงกลางคืนรายปีมีข้อมูลจริงถึงปี 2024
+              เท่านั้น คะแนนรวมใช้คัดกรองประเด็นเพื่อศึกษาเพิ่ม ไม่ใช่คะแนนมาตรฐานราชการ
+            </div>
+
             {/* Metric cards with rank — only when current year has data */}
             {cur ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1016,7 +1040,7 @@ export default function DistrictAnalysisPage() {
                   sub={`${pollutionLabel(cur.pollution_score)} · NO₂ ${fmtNo2(cur.no2_mean)}`}
                   delta={delta("pollution_score")} deltaInvert
                   rank={profileDistrictId ? getRank(profileDistrictId, "pollution_score") : undefined} />
-                <MetricCard icon={Droplets} label="พื้นที่น้ำ" color="text-sky-400" iconBg="bg-sky-500/10"
+                <MetricCard icon={Droplets} label="สัญญาณพื้นที่น้ำ" color="text-sky-400" iconBg="bg-sky-500/10"
                   value={cur.water_area_rai != null ? `${Math.round(cur.water_area_rai).toLocaleString()} ไร่` : fmtPct(cur.water_ratio)}
                   sub={`${fmtPct(cur.water_ratio)} พื้นที่ · NDWI ${fmt(cur.ndwi_mean, 4)}`}
                   delta={delta("water_ratio") != null ? (delta("water_ratio") as number) * 100 : null}

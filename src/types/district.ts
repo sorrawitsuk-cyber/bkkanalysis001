@@ -30,6 +30,7 @@ export interface DistrictStatistic {
   low_green_ratio?: number | null;
   water_ratio?: number | null;
   ntl_mean?: number | null;
+  ntl_max?: number | null;
   mean_lst?: number | null;
   max_lst?: number | null;
   ndbi_mean?: number | null;
@@ -46,6 +47,8 @@ export interface DistrictStatistic {
   pollution_class?: string | null;
   air_quality_source?: string | null;
   air_quality_note?: string | null;
+  ndvi_data_source?: string | null;
+  ndbi_data_source?: string | null;
   monthly_lst?: number[] | null;
   lst_data_source?: string | null;
   population?: number | null;

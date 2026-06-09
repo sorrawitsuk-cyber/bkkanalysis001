@@ -138,7 +138,16 @@ function remapRow(row: any): DistrictStatistic {
   const geoIdByMap = _geoJsonIdBySupabaseId?.get(row.district_id);
   const geoId = geoIdByName ?? geoIdByMap ?? row.district_id;
   const name = joinedName ?? districtNameById.get(geoId) ?? row.district_name ?? null;
-  return { ...row, districts: undefined, district_id: geoId, district_name: name } as DistrictStatistic;
+  return {
+    ...row,
+    districts: undefined,
+    district_id: geoId,
+    district_name: name,
+    // VIIRS annual product currently ends at 2024. Do not relabel the
+    // duplicated 2024 seed as observations for later years.
+    ntl_mean: row.year > 2024 ? null : row.ntl_mean,
+    ntl_max: row.year > 2024 ? null : row.ntl_max,
+  } as DistrictStatistic;
 }
 
 // Columns selected for the choropleth map view (all 50 districts, one year)
@@ -146,7 +155,7 @@ const MAP_COLUMNS = [
   "district_id", "year",
   "mean_lst", "max_lst",
   "ndvi_mean", "ndvi_score", "ndvi_class", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
-  "ndbi_mean", "ndbi_max",
+  "ndvi_data_source", "ndbi_mean", "ndbi_max", "ndbi_data_source",
   "no2_mean", "no2_max", "co_mean", "co_max", "so2_mean", "so2_max",
   "aerosol_index_mean", "aerosol_index_max", "pollution_score", "pollution_class",
   "air_quality_source", "air_quality_note",
@@ -157,7 +166,7 @@ const TREND_COLUMNS = [
   "district_id", "year",
   "mean_lst", "max_lst",
   "ndvi_mean", "ndvi_score", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
-  "ndbi_mean",
+  "ndvi_data_source", "ndbi_mean", "ndbi_data_source",
   "no2_mean", "pollution_score",
 ].join(", ");
 
@@ -214,6 +223,65 @@ function hasNdbiData(rows: any[]): boolean {
 
 function hasAirPollutionData(rows: any[]): boolean {
   return rows.some((r) => typeof r.no2_mean === "number" || typeof r.pollution_score === "number");
+}
+
+function firstSource(rows: any[], field: string): string | null {
+  return rows.find((row) => typeof row?.[field] === "string" && row[field].trim())?.[field] ?? null;
+}
+
+function metricProvenance(metric: DistrictMetric, rows: any[], useDatabase: boolean, airDataSource: string) {
+  if (!useDatabase) {
+    return {
+      dataSource: metric === "builtup" || metric === "air_pollution"
+        ? "no district_statistics rows"
+        : "local fallback (mock)",
+      dataQuality: "unavailable",
+      sourceLabel: null,
+      sourceNote: "ไม่พบข้อมูลสำหรับปีและตัวชี้วัดที่เลือก",
+    };
+  }
+
+  if (metric === "vegetation") {
+    const source = firstSource(rows, "ndvi_data_source");
+    const modeled = /modeled|modelled|awaiting gee|แบบจำลอง/i.test(source || "");
+    return {
+      dataSource: source || "unknown NDVI source",
+      dataQuality: modeled ? "modeled" : "observed",
+      sourceLabel: source || "ไม่ระบุแหล่ง NDVI",
+      sourceNote: modeled
+        ? "ใช้ดูแนวโน้มเชิงสำรวจเท่านั้น ยังไม่ควรใช้เป็นหลักฐานเชิงนโยบาย"
+        : "คำนวณจากภาพดาวเทียมรายเขต",
+    };
+  }
+
+  if (metric === "builtup") {
+    const source = firstSource(rows, "ndbi_data_source");
+    const estimated = /seeded|estimate|ประมาณ/i.test(source || "");
+    return {
+      dataSource: source || "unknown NDBI source",
+      dataQuality: estimated ? "estimated" : "observed",
+      sourceLabel: source || "ไม่ระบุแหล่ง NDBI",
+      sourceNote: estimated
+        ? "ค่าถูกสร้างเพื่อสาธิตแนวโน้ม ไม่ใช่ผลประมวลผลดาวเทียมโดยตรง"
+        : "คำนวณจากภาพดาวเทียมรายเขต",
+    };
+  }
+
+  if (metric === "air_pollution") {
+    return {
+      dataSource: airDataSource,
+      dataQuality: "observed",
+      sourceLabel: firstSource(rows, "air_quality_source") || airDataSource,
+      sourceNote: "ข้อมูลคอลัมน์บรรยากาศจากดาวเทียม เหมาะดูภาพรวม ไม่ใช่ AQI ระดับถนน",
+    };
+  }
+
+  return {
+    dataSource: "district_statistics (Landsat LST)",
+    dataQuality: "observed",
+    sourceLabel: "Landsat 8/9 Surface Temperature",
+    sourceNote: "อุณหภูมิพื้นผิว ไม่ใช่อุณหภูมิอากาศ",
+  };
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -876,6 +944,7 @@ export async function GET(request: Request) {
             reasons: getPriorityReasons(row),
           }))
       : [];
+    const provenance = metricProvenance(metric, currentYearData, useDbYear, airDataSource);
 
     return NextResponse.json({
       geojson: { type: "FeatureCollection", features },
@@ -916,11 +985,7 @@ export async function GET(request: Request) {
         lowestNdviRanking,
         priorityRanking,
         encroachmentRanking,
-        dataSource: useDbYear
-          ? (metric === "air_pollution" ? airDataSource : "supabase district_statistics")
-          : metric === "air_pollution" || metric === "builtup"
-            ? "no district_statistics rows"
-            : "local fallback (mock)",
+        ...provenance,
       },
     }, {
       headers: {

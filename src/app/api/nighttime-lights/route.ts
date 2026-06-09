@@ -111,6 +111,7 @@ export async function GET(request: Request) {
     const defaultYear = product === "monthly" ? LATEST_MONTHLY_YEAR : LATEST_ANNUAL_YEAR;
     const rawYear = parseInt(searchParams.get("year") || `${defaultYear}`, 10);
     const year = Math.max(FIRST_YEAR, Math.min(maxYear, rawYear));
+    const requestedYearAdjusted = rawYear !== year;
     const rawMonth = parseInt(searchParams.get("month") || `${LATEST_MONTHLY_MONTH}`, 10);
     const month = product === "monthly"
       ? Math.max(1, Math.min(year === LATEST_MONTHLY_YEAR ? LATEST_MONTHLY_MONTH : 12, rawMonth))
@@ -279,6 +280,13 @@ export async function GET(request: Request) {
         dataSource: product === "monthly"
           ? `${MONTHLY_DATASET_ID} monthly avg_rad, cf_cvg >= ${MIN_CLOUD_FREE_COVERAGE}`
           : `${ANNUAL_V22_DATASET_ID} annual average_masked`,
+        dataQuality: "observed",
+        sourceLabel: product === "monthly" ? "VIIRS DNB monthly" : "VIIRS DNB annual",
+        sourceNote: requestedYearAdjusted
+          ? `ปีที่ขอ (${rawYear}) ยังไม่มีผลิตภัณฑ์นี้ ระบบแสดงปีล่าสุดที่มีจริง (${year})`
+          : "ข้อมูลดาวเทียมเหมาะใช้เปรียบเทียบกิจกรรมเมือง ไม่ใช่จำนวนประชากร",
+        requestedYear: rawYear,
+        requestedYearAdjusted,
         units: "nW/sr/cm²",
       },
     }, {

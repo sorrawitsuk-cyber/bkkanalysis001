@@ -117,8 +117,8 @@ export async function GET(request: Request) {
         water_ratio:      row.water_ratio      ?? null,
         water_area_rai:   waterAreaRai,
         ndwi_mean:        row.ndwi_mean        ?? null,
-        ntl_mean:         row.ntl_mean         ?? null,
-        ntl_max:          row.ntl_max          ?? null,
+        ntl_mean:         row.year <= 2024 ? (row.ntl_mean ?? null) : null,
+        ntl_max:          row.year <= 2024 ? (row.ntl_max ?? null) : null,
       };
     }
 
@@ -153,8 +153,8 @@ export async function GET(request: Request) {
               ? Math.round(row.water_ratio * areaRai)
               : null,
         ndwi_mean:        row.ndwi_mean        ?? null,
-        ntl_mean:         row.ntl_mean         ?? null,
-        ntl_max:          row.ntl_max          ?? null,
+        ntl_mean:         row.year <= 2024 ? (row.ntl_mean ?? null) : null,
+        ntl_max:          row.year <= 2024 ? (row.ntl_max ?? null) : null,
       };
     }
 

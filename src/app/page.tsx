@@ -75,7 +75,7 @@ const modules = [
   {
     title: "น้ำท่วม / แหล่งน้ำ",
     subtitle: "Flood Risk · NDWI",
-    description: "สัดส่วนพื้นที่น้ำ ความเสี่ยงรายเขต NDWI/MNDWI จาก Sentinel-2",
+    description: "ตรวจสัญญาณน้ำและความชื้นรายเขตจาก NDWI/MNDWI เพื่อคัดกรองพื้นที่ตรวจสอบต่อ",
     href: "/flood-risk",
     icon: Droplets,
     accent: "from-sky-500 to-cyan-500",
@@ -154,7 +154,7 @@ export default function Home() {
           </div>
           <div className="hidden sm:flex items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold text-emerald-400">
-              <Activity className="h-3 w-3" /> Live Data
+              <Activity className="h-3 w-3" /> Mixed Data Sources
             </div>
             <div className="flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-900/50 px-3 py-1 text-[10px] font-bold text-slate-500">
               <Globe className="h-3 w-3" /> Bangkok, Thailand

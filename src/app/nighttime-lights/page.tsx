@@ -133,6 +133,11 @@ function buildNightLightsView(
         : [],
       monthlyTrend,
       dataSource: meta?.source ?? "R2 cache",
+      dataQuality: rows.length ? "observed" : "unavailable",
+      sourceLabel: meta?.source ?? null,
+      sourceNote: rows.length
+        ? "ข้อมูลดาวเทียมเหมาะใช้เปรียบเทียบกิจกรรมเมือง ไม่ใช่จำนวนประชากร"
+        : "ไม่พบข้อมูลสำหรับช่วงเวลาที่เลือก",
       units: "nW/sr/cm²",
       cacheStatus: meta?.status ?? "pending",
     },
@@ -170,7 +175,7 @@ export default function NighttimeLightsPage() {
     return Math.min(...cacheIndex.yearly.map(Number));
   }, [cacheIndex]);
   const latestDataYear = useMemo(() => {
-    if (!cacheIndex?.yearly?.length) return new Date().getFullYear() - 1;
+    if (!cacheIndex?.yearly?.length) return 2024;
     return Math.max(...cacheIndex.yearly.map(Number));
   }, [cacheIndex]);
   const [latestMonthlyYear, latestMonthlyMonth] = useMemo<[number, number]>(() => {
@@ -178,8 +183,7 @@ export default function NighttimeLightsPage() {
       const [y, m] = cacheIndex.latest_month.split("-").map(Number);
       if (y && m) return [y, m];
     }
-    const now = new Date();
-    return [now.getFullYear(), now.getMonth() + 1];
+    return [2025, 3];
   }, [cacheIndex]);
 
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
@@ -238,7 +242,23 @@ export default function NighttimeLightsPage() {
         setCacheMeta(null);
         setCompareMeta(null);
         setGeojsonData(null);
-        setSummary(null);
+        setSummary({
+          product: dataProduct,
+          selectedYear,
+          selectedMonth: dataProduct === "monthly" ? selectedMonth : null,
+          compareYear: compareMode && dataProduct === "annual" ? compareYear : null,
+          averageRadiance: null,
+          maxRadiance: null,
+          maxDelta: null,
+          ranking: [],
+          yearlyTrend: [],
+          monthlyTrend: [],
+          dataSource: "ไม่สามารถโหลดข้อมูลแสงกลางคืนได้",
+          dataQuality: "unavailable",
+          sourceLabel: "ไม่มีข้อมูลพร้อมใช้งาน",
+          sourceNote: "การเชื่อมต่อแหล่งข้อมูลดาวเทียมล้มเหลว กรุณาลองใหม่ภายหลัง",
+          cacheStatus: "unavailable",
+        });
         setLoading(false);
       });
   }, [dataProduct, selectedYear, selectedMonth, compareMode, compareYear]);
@@ -488,12 +508,13 @@ export default function NighttimeLightsPage() {
               {/* Data source badge */}
               <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 bg-yellow-300 rounded-full" />
+                  <div className={`w-2 h-2 rounded-full ${summary?.dataQuality === "unavailable" ? "bg-slate-500" : "bg-yellow-300"}`} />
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
                 </div>
                 <div className="text-[11px] text-slate-400 leading-relaxed">
-                  <p>ดาวเทียมวัดความสว่างกลางคืน</p>
+                  <p>{summary?.dataQuality === "unavailable" ? "ยังไม่มีข้อมูลพร้อมใช้งาน" : "ดาวเทียมวัดความสว่างกลางคืน"}</p>
                   <p>ช่วงเวลา: {isMonthlyPreview ? `รายเดือน ${monthLabel}` : `รายปี ${selectedYear}`}</p>
+                  {summary?.dataQuality === "unavailable" && <p className="text-slate-500 text-[10px] mt-0.5">{summary.sourceNote}</p>}
                   {isMonthlyPreview && <p className="text-amber-300/80 text-[10px] mt-0.5">ภาพรายเดือนใช้ดูแนวโน้มเท่านั้น</p>}
                 </div>
               </div>
@@ -539,7 +560,9 @@ export default function NighttimeLightsPage() {
                   onReset={handleReset}
                   currentLayer={compareMode && !isMonthlyPreview ? `ผลต่างแสงกลางคืน: ${selectedYear} - ${compareYear}` : `แสงกลางคืน ${isMonthlyPreview ? "รายเดือน" : "รายปี"} (NTL Mean)`}
                   currentPeriod={periodLabel}
-                  dataSource={mapMode === "idw" ? "VIIRS DNB ผ่าน GEE" : `R2 cache - ${sourceDataset}`}
+                  dataSource={summary?.dataQuality === "unavailable"
+                    ? "ยังไม่มีข้อมูลสำหรับช่วงเวลานี้"
+                    : mapMode === "idw" ? "VIIRS DNB ผ่าน GEE" : `R2 cache - ${sourceDataset}`}
                   interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า radiance ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดูค่าเฉลี่ย ค่าสูงสุด และการเปลี่ยนแปลง"}
                   granularityNote={granularity === "subdistrict" ? "ขอบเขตแขวงสืบทอดค่าแสงกลางคืนจากเขตแม่ ไม่ใช่การคำนวณ radiance ใหม่รายแขวง" : "สรุปและเลือกพื้นที่ตาม 50 เขต"}
                 />
@@ -902,7 +925,7 @@ export default function NighttimeLightsPage() {
               csvFilename={csvFilename}
               filterDistrict={granularity === "district" && activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
               year={selectedYear} onYearChange={setSelectedYear}
-              minYear={2014} maxYear={2026}
+              minYear={2014} maxYear={latestDataYear}
               enableMultiYear accentColor="orange"
               compareMode={compareMode}
               onCompareModeChange={setCompareMode}
