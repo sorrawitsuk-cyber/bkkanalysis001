@@ -7,6 +7,9 @@ export interface ScoreComponent {
   normalized: number | null;
   weight: number;
   source: string;
+  unit: string;
+  status: "observed" | "derived" | "unavailable";
+  observationCount?: number | null;
 }
 
 export interface DecisionScore {
@@ -35,10 +38,11 @@ export function minMaxNormalize(
 export function combineComponents(
   components: ScoreComponent[],
   expectedSourceCount: number,
+  minimumCoverage = 0.55,
 ): DecisionScore {
   const available = components.filter((component) => component.normalized !== null);
   const availableWeight = available.reduce((sum, component) => sum + component.weight, 0);
-  const score = availableWeight > 0
+  const rawScore = availableWeight > 0
     ? available.reduce(
         (sum, component) => sum + (component.normalized ?? 0) * component.weight,
         0,
@@ -47,18 +51,19 @@ export function combineComponents(
   const coverage = expectedSourceCount > 0
     ? Math.min(1, available.length / expectedSourceCount)
     : 0;
+  const score = coverage >= minimumCoverage ? rawScore : null;
 
   return {
     score: score === null ? null : Math.round(score * 10) / 10,
-    level: score === null
+    level: rawScore === null
       ? "ไม่มีข้อมูล"
-      : coverage < 0.4
+      : coverage < minimumCoverage
         ? "ข้อมูลไม่พอ"
-      : score >= 80
+      : rawScore >= 80
         ? "สูงมาก"
-        : score >= 60
+        : rawScore >= 60
           ? "สูง"
-          : score >= 40
+          : rawScore >= 40
             ? "ปานกลาง"
             : "ต่ำ",
     confidence: coverage >= 0.8 ? "สูง" : coverage >= 0.55 ? "ปานกลาง" : "ต่ำ",

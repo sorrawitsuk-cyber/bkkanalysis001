@@ -60,7 +60,7 @@ export default function DecisionSupportMap({
               layer.bindTooltip(
                 `<div class="min-w-[180px]">
                   <strong>${properties.district_name}</strong><br/>
-                  คะแนน: <strong>${properties.score ?? "ไม่มีข้อมูล"}</strong>/100<br/>
+                  คะแนน: <strong>${properties.score ?? "ไม่ออกคะแนน"}</strong>${properties.score == null ? "" : "/100"}<br/>
                   ระดับ: ${properties.level}<br/>
                   ความเชื่อมั่น: ${properties.confidence} (${properties.coverage}%)
                 </div>`,
