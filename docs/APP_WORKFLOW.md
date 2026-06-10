@@ -10,6 +10,7 @@ flowchart TD
   Home --> Heat["/heat-island"]
   Home --> Green["/green-space"]
   Home --> BuiltUp["/urban-expansion"]
+  Home --> Rain["/rainfall"]
   Home --> Flood["/flood-risk"]
   Home --> Night["/nighttime-lights"]
   Home --> Air["/air-quality"]
@@ -28,6 +29,8 @@ flowchart TD
   Heat --> GeeTiles["/api/gee/tiles + /api/gee/point"]
   Green --> GeeTiles
   BuiltUp --> GeeTiles
+  Rain --> RainApi["/api/rainfall"]
+  RainApi --> GEE
   Night --> GeeTiles
   GeeTiles --> GEE["Google Earth Engine live tiles/pixels"]
 
@@ -76,6 +79,10 @@ Built-up/NDBI dashboard. It uses `/api/district-metrics?metric=builtup` and shar
 ### `/flood-risk`
 
 Water and flood-risk dashboard. It has a dedicated `/api/flood-risk` because it can compute live Sentinel-2 NDWI/MNDWI district stats and combine them with cache data.
+
+### `/rainfall`
+
+Rainfall monitoring dashboard. It reads NASA GPM IMERG V07 half-hourly precipitation through `/api/rainfall`, supports 1, 3, 7, and 30-day accumulations, daily trends, district summaries, raster tiles, and comparison with the same period one year earlier.
 
 ### `/nighttime-lights`
 

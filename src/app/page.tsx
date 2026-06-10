@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Building2,
+  CloudRain,
   Database,
   Droplets,
   Flame,
@@ -74,6 +75,19 @@ const modules = [
     tag: "builtup",
   },
   {
+    title: "ปริมาณฝน",
+    subtitle: "Rainfall · GPM IMERG",
+    description: "ฝนสะสม 1–30 วัน แนวโน้มรายวัน การกระจายเชิงพื้นที่ และเปรียบเทียบช่วงเดียวกันปีก่อน",
+    href: "/rainfall",
+    icon: CloudRain,
+    accent: "from-blue-500 to-cyan-400",
+    accentBg: "bg-blue-500/10 border-blue-500/20",
+    accentText: "text-cyan-300",
+    metric: "มม.",
+    metricLabel: "GPM IMERG",
+    tag: "rainfall",
+  },
+  {
     title: "น้ำท่วม / แหล่งน้ำ",
     subtitle: "Flood Risk · NDWI",
     description: "ตรวจสัญญาณน้ำและความชื้นรายเขตจาก NDWI/MNDWI เพื่อคัดกรองพื้นที่ตรวจสอบต่อ",
@@ -115,10 +129,10 @@ const modules = [
 ];
 
 const platformStats = [
-  { label: "โมดูลวิเคราะห์", value: "8", icon: BarChart3, color: "text-cyan-400" },
+  { label: "โมดูลวิเคราะห์", value: "9", icon: BarChart3, color: "text-cyan-400" },
   { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
   { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
-  { label: "ดาวเทียม",       value: "4 ดวง",  icon: Satellite, color: "text-purple-400" },
+  { label: "ดาวเทียม",       value: "5 ภารกิจ", icon: Satellite, color: "text-purple-400" },
 ];
 
 const dataSources = [
@@ -126,6 +140,7 @@ const dataSources = [
   { src: "Sentinel-2 MSI",   desc: "NDVI · NDBI · NDWI",         color: "text-emerald-400" },
   { src: "VIIRS DNB",        desc: "Nighttime Lights annual",     color: "text-yellow-400" },
   { src: "Sentinel-5P TROPOMI", desc: "NO₂ · CO · SO₂",         color: "text-cyan-400" },
+  { src: "GPM IMERG V07",   desc: "Rainfall half-hourly",       color: "text-blue-400" },
   { src: "Traffy Fondue",    desc: "Complaint BigQuery",          color: "text-rose-400" },
   { src: "GEE API",          desc: "Live raster processing",      color: "text-indigo-400" },
 ];
@@ -288,7 +303,7 @@ export default function Home() {
             <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">แหล่งข้อมูลที่ใช้</h2>
             <div className="flex-1 h-px bg-slate-800" />
           </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
             {dataSources.map(({ src, desc, color }) => (
               <div key={src} className="min-w-0">
                 <div className={`text-[11px] font-bold font-mono truncate ${color}`}>{src}</div>
