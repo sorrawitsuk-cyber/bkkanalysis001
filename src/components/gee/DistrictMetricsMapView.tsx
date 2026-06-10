@@ -448,8 +448,11 @@ export default function DistrictMetricsMapView({
           aerosol_index_mean: "Aerosol Index",
           pollution_score: "คะแนนมลพิษรวม",
         };
+        const isModeledGreen = analysisType === "green" && summary?.dataQuality === "modeled";
         const title = analysisType === "green"
-          ? (ndviLayer === "ndvi_mean" ? "พื้นที่สีเขียว" : (layerLabels[ndviLayer] || "NDVI"))
+          ? (ndviLayer === "ndvi_mean"
+              ? (isModeledGreen ? "พื้นที่สีเขียวจาก NDVI แบบจำลอง" : "พื้นที่สีเขียวจาก NDVI")
+              : `${layerLabels[ndviLayer] || "NDVI"} (ค่าประมาณ)`)
           : analysisType === "builtup" ? "NDBI เฉลี่ย" : analysisType === "nightlights" ? "แสงกลางคืน (เฉลี่ย)" : analysisType === "air" ? airLayerLabels[airPollutionLayer] : "LST เฉลี่ย";
         const selectedDisplay = analysisType === "green"
           ? (ndviLayer === "green_area_ratio" && typeof value === "number"
@@ -505,10 +508,11 @@ export default function DistrictMetricsMapView({
             ${airDetails}
             ${analysisType === "green" ? `
               ${ndviLayer === "ndvi_mean" ? `<div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>` : ""}
-              ${ndviLayer !== "green_area_ratio" ? `<div class="text-[10px] text-slate-400 mt-1">สัดส่วนสีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_ratio != null ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "–"}</span></div>` : ""}
-              ${ndviLayer !== "green_area_rai" ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่สีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_rai != null ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "–"}</span></div>` : ""}
+              ${ndviLayer !== "green_area_ratio" ? `<div class="text-[10px] text-slate-400 mt-1">สัดส่วนสีเขียวโดยประมาณ: <span class="text-emerald-300 font-mono">${props.green_area_ratio != null ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "–"}</span></div>` : ""}
+              ${ndviLayer !== "green_area_rai" ? `<div class="text-[10px] text-slate-400 mt-1">พื้นที่สีเขียวโดยประมาณ: <span class="text-emerald-300 font-mono">${props.green_area_rai != null ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "–"}</span></div>` : ""}
               <div class="text-[10px] text-slate-400 mt-1">ระดับ NDVI: <span class="text-emerald-300">${getNdviClassThai(props.ndvi_class)}</span></div>
               ${deltaLine}
+              <div class="text-[9px] text-amber-200/80 mt-2">${isModeledGreen ? "ข้อมูลแบบจำลอง ใช้เปรียบเทียบเบื้องต้น" : "ค่าจาก NDVI ไม่ใช่ทะเบียนสวนหรือผลสำรวจภาคสนาม"}</div>
             ` : ""}
           </div>
         `, { sticky: true, className: "bg-transparent border-none shadow-none" });

@@ -123,6 +123,7 @@ export default function GreenSpaceSidebar({
 
   if (loading || !summary) return <SidebarSkeleton />;
 
+  const isModeledData = summary?.dataQuality === "modeled";
   const isAreaMode = displayMode === "area";
   const yearlyDisplayTrend = displayMode === "ndvi"
     ? (summary.yearlyTrend?.length ? summary.yearlyTrend : [])
@@ -166,6 +167,15 @@ export default function GreenSpaceSidebar({
           sourceNote={summary?.sourceNote}
           className="mb-2"
         />
+        <div className={`mb-3 rounded-lg border px-3 py-2 text-[9px] leading-relaxed ${
+          isModeledData
+            ? "border-amber-500/30 bg-amber-500/10 text-amber-100"
+            : "border-slate-700/70 bg-slate-900/50 text-slate-400"
+        }`}>
+          {isModeledData
+            ? "ข้อควรระวัง: NDVI รายเขตเป็นค่าจากแบบจำลอง พื้นที่และสัดส่วนสีเขียวจึงเป็นค่าประมาณ ใช้ดูแนวโน้มเบื้องต้น ไม่ใช่ผลสำรวจจริงหรือทะเบียนสวนสาธารณะ"
+            : "NDVI บอกความหนาแน่นพืชพรรณจากภาพดาวเทียม พื้นที่และสัดส่วนสีเขียวเป็นค่าประมาณ ไม่ใช่ทะเบียนสวนสาธารณะ"}
+        </div>
 
         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <MapPin className="w-3 h-3" /> พื้นที่ (District)
@@ -186,7 +196,7 @@ export default function GreenSpaceSidebar({
         <div className="grid grid-cols-3 gap-2">
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Leaf className="w-3 h-3 text-emerald-400" /> พื้นที่สีเขียวรวม
+              <Leaf className="w-3 h-3 text-emerald-400" /> พื้นที่เขียวรวม (ประมาณ)
             </div>
             <div className="text-base font-bold font-mono whitespace-nowrap text-slate-100">
               {formatRai(totalGreenAreaRai)}
@@ -194,7 +204,7 @@ export default function GreenSpaceSidebar({
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-start gap-1 leading-tight min-h-[22px]">
-              <Trees className="w-3 h-3 text-green-500" /> เฉลี่ยต่อเขต
+              <Trees className="w-3 h-3 text-green-500" /> เฉลี่ยต่อเขต (ประมาณ)
             </div>
             <div className="text-base font-bold font-mono whitespace-nowrap text-emerald-400">
               {formatRai(averageValue)}
@@ -215,7 +225,7 @@ export default function GreenSpaceSidebar({
         <section>
           <div className="mb-2 flex items-center justify-between gap-2">
             <h3 className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5 leading-tight">
-              <Activity className="w-3 h-3" /> Trend ปริมาณพื้นที่สีเขียว
+              <Activity className="w-3 h-3" /> แนวโน้มค่าประมาณพื้นที่สีเขียว
             </h3>
             <div className="flex shrink-0 bg-slate-900/60 border border-slate-700/60 rounded-md overflow-hidden text-[9px] font-bold">
               <button
@@ -274,7 +284,7 @@ export default function GreenSpaceSidebar({
           <p className="mt-2 text-[9px] text-slate-500 leading-snug">
             {displayMode === "ndvi"
               ? "ค่า NDVI เฉลี่ยทั้งกรุงเทพฯ รายปี (0.0–1.0)"
-              : "รวมพื้นที่สีเขียวทั้งกรุงเทพฯ (ไร่) รายปี"}
+              : "รวมพื้นที่สีเขียวโดยประมาณทั้งกรุงเทพฯ (ไร่) รายปี"}
           </p>
         </section>
 
@@ -289,8 +299,8 @@ export default function GreenSpaceSidebar({
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3" /> {
                 displayMode === "ndvi" ? `ค่าดัชนี NDVI ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`
-                : displayMode === "density" ? `ความหนาแน่นพื้นที่สีเขียว${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"} (%)`
-                : `ปริมาณพื้นที่สีเขียว${granularity === "subdistrict" ? "รายแขวง" : ""} (ไร่)`
+                : displayMode === "density" ? `สัดส่วนพื้นที่สีเขียวโดยประมาณ${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"} (%)`
+                : `พื้นที่สีเขียวโดยประมาณ${granularity === "subdistrict" ? "รายแขวง" : ""} (ไร่)`
               }
             </h3>
             <button

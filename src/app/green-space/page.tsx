@@ -95,15 +95,17 @@ export default function GreenSpacePage() {
     ]);
 
   const ndviSummary = summary?.ndviSummary;
+  const isModeledData = summary?.dataQuality === "modeled";
+  const greenAreaQualifier = isModeledData ? "ประมาณจาก NDVI แบบจำลอง" : "ประมาณจาก NDVI";
   const districtCount = geojsonData?.features?.length || 50;
   const avgGreenAreaRai = ndviSummary?.total_green_area_rai && districtCount
     ? ndviSummary.total_green_area_rai / districtCount : null;
 
   const kpiCards = [
-    { label: "ขนาดพื้นที่สีเขียวเฉลี่ย", value: formatRai(avgGreenAreaRai) },
-    { label: "พื้นที่สีเขียวโดยประมาณ", value: formatRai(ndviSummary?.total_green_area_rai) },
-    { label: "เขตสีเขียวสูงสุด", value: ndviSummary?.best_district?.district_name || ndviSummary?.best_district?.name_th || "ไม่มีข้อมูล" },
-    { label: "เขตเร่งด่วน", value: ndviSummary?.worst_district?.district_name || ndviSummary?.worst_district?.name_th || "ไม่มีข้อมูล" },
+    { label: "พื้นที่เขียวเฉลี่ย (ค่าประมาณ)", value: formatRai(avgGreenAreaRai) },
+    { label: "พื้นที่เขียวรวม (ค่าประมาณ)", value: formatRai(ndviSummary?.total_green_area_rai) },
+    { label: isModeledData ? "NDVI แบบจำลองสูงสุด" : "เขตที่มี NDVI สูงสุด", value: ndviSummary?.best_district?.district_name || ndviSummary?.best_district?.name_th || "ไม่มีข้อมูล" },
+    { label: isModeledData ? "NDVI แบบจำลองต่ำสุด" : "เขตที่มี NDVI ต่ำสุด", value: ndviSummary?.worst_district?.district_name || ndviSummary?.worst_district?.name_th || "ไม่มีข้อมูล" },
   ];
 
   let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
@@ -112,11 +114,11 @@ export default function GreenSpacePage() {
   } else if (mapMode === "idw") {
     legendConfig = { title: "NDVI จากดาวเทียม Sentinel-2", description: "ค่า NDVI raster จากภาพ Sentinel-2 แบบ median รายปี หลังคัดกรองเมฆ", unit: "NDVI", items: [{ color: "#7F1D1D", label: "เขียวน้อยมาก", range: "0.10 - 0.24" }, { color: "#B45309", label: "เขียวน้อย", range: "0.24 - 0.38" }, { color: "#FACC15", label: "ปานกลาง", range: "0.38 - 0.52" }, { color: "#84CC16", label: "ดี", range: "0.52 - 0.66" }, { color: "#16A34A", label: "ดีมาก", range: "0.66 - 0.80" }, { color: "#065F46", label: "หนาแน่นมาก", range: "> 0.80" }] };
   } else if (ndviLayer === "green_area_rai") {
-    legendConfig = { title: "ขนาดพื้นที่สีเขียวรายเขต", description: "ประมาณพื้นที่ที่มี NDVI มากกว่า 0.30 แสดงเป็นไร่ต่อเขต", unit: "ไร่", items: [{ color: "#8c2d04", label: "น้อยมาก", range: "< 4,000" }, { color: "#d94801", label: "น้อย", range: "4,000 - 8,000" }, { color: "#f6e05e", label: "ปานกลาง", range: "8,000 - 12,000" }, { color: "#68d391", label: "มาก", range: "12,000 - 16,000" }, { color: "#238b45", label: "มากที่สุด", range: "> 16,000" }] };
+    legendConfig = { title: "พื้นที่สีเขียวโดยประมาณรายเขต", description: `${greenAreaQualifier} ไม่ใช่พื้นที่สวนสาธารณะหรือผลสำรวจภาคสนาม`, unit: "ไร่", items: [{ color: "#8c2d04", label: "น้อยมาก", range: "< 4,000" }, { color: "#d94801", label: "น้อย", range: "4,000 - 8,000" }, { color: "#f6e05e", label: "ปานกลาง", range: "8,000 - 12,000" }, { color: "#68d391", label: "มาก", range: "12,000 - 16,000" }, { color: "#238b45", label: "มากที่สุด", range: "> 16,000" }] };
   } else if (ndviLayer === "green_area_ratio") {
-    legendConfig = { title: "สัดส่วนพื้นที่สีเขียวรายเขต", description: "สัดส่วนพื้นที่ที่มี NDVI มากกว่า 0.30 เมื่อเทียบกับพื้นที่เขต", unit: "%", items: [{ color: "#8c2d04", label: "น้อยมาก", range: "< 14%" }, { color: "#d94801", label: "น้อย", range: "14% - 28%" }, { color: "#f6e05e", label: "ปานกลาง", range: "28% - 42%" }, { color: "#68d391", label: "ดี", range: "42% - 56%" }, { color: "#238b45", label: "ดีมาก", range: "> 56%" }] };
+    legendConfig = { title: "สัดส่วนพื้นที่สีเขียวโดยประมาณ", description: `${greenAreaQualifier} เทียบกับพื้นที่เขต ไม่ใช่สัดส่วนจากทะเบียนสวนหรือการสำรวจภาคสนาม`, unit: "%", items: [{ color: "#8c2d04", label: "น้อยมาก", range: "< 14%" }, { color: "#d94801", label: "น้อย", range: "14% - 28%" }, { color: "#f6e05e", label: "ปานกลาง", range: "28% - 42%" }, { color: "#68d391", label: "ดี", range: "42% - 56%" }, { color: "#238b45", label: "ดีมาก", range: "> 56%" }] };
   } else {
-    legendConfig = { title: "ค่า NDVI เฉลี่ยรายเขต", description: "ค่า NDVI เฉลี่ยของแต่ละเขต ใช้แปลความหนาแน่นพืชพรรณในเมือง", unit: "NDVI", items: [{ color: "#8c2d04", label: "เขียวน้อยมาก", range: "< 0.20" }, { color: "#d94801", label: "เขียวน้อย", range: "0.20 - 0.30" }, { color: "#f6e05e", label: "ปานกลาง", range: "0.30 - 0.40" }, { color: "#68d391", label: "ดี", range: "0.40 - 0.50" }, { color: "#238b45", label: "ดีมาก", range: "> 0.50" }] };
+    legendConfig = { title: isModeledData ? "ค่า NDVI แบบจำลองรายเขต" : "ค่า NDVI เฉลี่ยรายเขต", description: isModeledData ? "ใช้เปรียบเทียบแนวโน้มเบื้องต้นระหว่างเขต ระหว่างรอนำเข้าผลประมวลผล GEE จริง" : "ค่า NDVI ใช้แปลความหนาแน่นพืชพรรณ ไม่ใช่ทะเบียนพื้นที่สีเขียว", unit: "NDVI", items: [{ color: "#8c2d04", label: "เขียวน้อยมาก", range: "< 0.20" }, { color: "#d94801", label: "เขียวน้อย", range: "0.20 - 0.30" }, { color: "#f6e05e", label: "ปานกลาง", range: "0.30 - 0.40" }, { color: "#68d391", label: "ดี", range: "0.40 - 0.50" }, { color: "#238b45", label: "ดีมาก", range: "> 0.50" }] };
   }
 
   const allDistricts = useMemo((): string[] =>
@@ -129,25 +131,25 @@ export default function GreenSpacePage() {
   const csvHeaders = ["เขต", ndviLayerLabel, "หน่วย", "ช่วงเวลา"];
   const reportData = useMemo((): PDFReportData => ({
     title: "วิเคราะห์พื้นที่สีเขียวเมือง",
-    subtitle: "Sentinel-2 SR Harmonized · NDVI",
+    subtitle: isModeledData ? "NDVI แบบจำลอง · รอผล GEE จริง" : "Sentinel-2 SR Harmonized · NDVI",
     source: summary?.sourceLabel ?? summary?.dataSource ?? "ไม่ระบุแหล่งข้อมูล",
     period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
     layer: ndviLayerLabel,
     district: activeDistrict,
     kpis: [
       { label: "NDVI เฉลี่ย กทม.", value: ndviSummary?.avg_ndvi_mean != null ? ndviSummary.avg_ndvi_mean.toFixed(3) : "–" },
-      { label: "พื้นที่สีเขียวรวม", value: formatRai(ndviSummary?.total_green_area_rai) },
-      { label: "เขตสีเขียวสูงสุด", value: ndviSummary?.best_district?.district_name ?? "–" },
+      { label: "พื้นที่สีเขียวรวมโดยประมาณ", value: formatRai(ndviSummary?.total_green_area_rai) },
+      { label: isModeledData ? "เขตที่มี NDVI แบบจำลองสูงสุด" : "เขตที่มี NDVI สูงสุด", value: ndviSummary?.best_district?.district_name ?? "–" },
     ],
     rankingHeaders: ["เขต", ndviLayerLabel],
     rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-  }), [selectedYear, selectedMonth, periodLabel, ndviLayerLabel, activeDistrict, ndviSummary, rankingForExport, summary]);
+  }), [selectedYear, selectedMonth, periodLabel, ndviLayerLabel, activeDistrict, ndviSummary, rankingForExport, summary, isModeledData]);
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
     { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981" },
-    { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981" },
-    { key: "green_area_ratio", label: "สัดส่วน", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
+    { key: "green_area_rai", label: "พื้นที่เขียว (ประมาณ)", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981" },
+    { key: "green_area_ratio", label: "สัดส่วน (ประมาณ)", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
     { key: "priority_score", label: "Priority Score", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#f97316", heatmapInvert: true },
     { key: "low_green_ratio", label: "เขียวน้อย", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f59e0b", hideable: true },
     { key: "water_ratio", label: "น้ำ", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#38bdf8", hideable: true },
@@ -252,6 +254,13 @@ export default function GreenSpacePage() {
                   ))}
                 </div>
 
+                {isModeledData && (
+                  <div className="absolute top-[98px] left-1/2 z-[1000] hidden max-w-2xl -translate-x-1/2 rounded-lg border border-amber-500/35 bg-amber-950/90 px-3 py-2 text-center text-[10px] leading-relaxed text-amber-100 shadow-xl backdrop-blur-md lg:block">
+                    ข้อมูลรายเขตปี {selectedYear} เป็น NDVI แบบจำลอง พื้นที่และสัดส่วนสีเขียวเป็นค่าประมาณจาก NDVI
+                    ใช้เปรียบเทียบแนวโน้มเบื้องต้นเท่านั้น ไม่ใช่ผลสำรวจพื้นที่สีเขียวจริงหรือทะเบียนสวนสาธารณะ
+                  </div>
+                )}
+
                 {/* Data source badge */}
                 <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                   <div className="flex items-center gap-2 mb-1">
@@ -310,7 +319,7 @@ export default function GreenSpacePage() {
                     interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า NDVI ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดู NDVI สัดส่วน และขนาดพื้นที่สีเขียว"}
                     extraControls={mapMode === "district" ? (
                       <div className="mt-2 grid grid-cols-1 gap-1.5">
-                        {([["green_area_rai", "ขนาดพื้นที่สีเขียว"], ["green_area_ratio", "สัดส่วนพื้นที่สีเขียว"], ["ndvi_mean", "ค่า NDVI เฉลี่ย"]] as const).map(([id, label]) => (
+                        {([["green_area_rai", "พื้นที่สีเขียวโดยประมาณ"], ["green_area_ratio", "สัดส่วนโดยประมาณ"], ["ndvi_mean", isModeledData ? "ค่า NDVI แบบจำลอง" : "ค่า NDVI เฉลี่ย"]] as const).map(([id, label]) => (
                           <button key={id} onClick={() => setNdviLayer(id as NdviLayer)} className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}>{label}</button>
                         ))}
                       </div>
@@ -375,7 +384,9 @@ export default function GreenSpacePage() {
               onDistrictChange={setActiveDistrict}
               districts={allDistricts}
               dataSource={summary?.dataSource}
-              contextNote="Priority Score ใช้ NDVI, สัดส่วนเขียว, น้ำ และแสงกลางคืนประกอบกัน"
+              contextNote={isModeledData
+                ? "NDVI เป็นแบบจำลอง และพื้นที่/สัดส่วนสีเขียวเป็นค่าประมาณ ใช้เปรียบเทียบเบื้องต้น ไม่ใช่ผลสำรวจภาคสนาม"
+                : "พื้นที่และสัดส่วนสีเขียวเป็นค่าประมาณจาก NDVI ไม่ใช่ทะเบียนสวนสาธารณะ"}
               expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
             />
           )}
