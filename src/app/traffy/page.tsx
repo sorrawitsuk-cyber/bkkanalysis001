@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import Sidebar from "@/components/Sidebar";
-import { AlertTriangle, Layers } from "lucide-react";
+import { AlertTriangle, BookOpen, Layers, Map } from "lucide-react";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 
 const MapView = dynamic(() => import("@/components/map/MapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -22,6 +23,14 @@ export default function Home() {
   const [dataSource, setDataSource] = useState<string>('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mapMode, setMapMode] = useState<'points' | 'heatmap'>('points');
+  const [showGuide, setShowGuide] = useState(false);
+
+  const districtSummaryRecords = useMemo(
+    () => (summary?.byDistrict ?? [])
+      .filter(([name]: [string, number]) => name && name !== "ไม่ระบุ")
+      .map(([district_name, count]: [string, number]) => ({ district_name, count })),
+    [summary?.byDistrict],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -67,7 +76,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <Sidebar
+      {!showGuide && <Sidebar
         onTagSelect={setActiveTag}
         activeTag={activeTag}
         onDistrictSelect={setActiveDistrict}
@@ -83,9 +92,44 @@ export default function Home() {
         traffyData={traffyData}
         summary={summary}
         loading={loading}
-      />
+      />}
 
-      <main className="flex-1 relative">
+      <main className="flex-1 relative min-w-0">
+        {showGuide ? (
+          <div className="flex h-full flex-col">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950/95 px-4 py-3">
+              <div>
+                <h1 className="text-sm font-black text-slate-100">คำอธิบายข้อมูล Traffy Fondue</h1>
+                <p className="mt-0.5 text-[10px] text-slate-500">หลักการอ่านข้อมูลและสรุปผลจากตัวกรองปัจจุบัน</p>
+              </div>
+              <button
+                onClick={() => setShowGuide(false)}
+                className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] font-bold text-slate-300 hover:border-indigo-500/50"
+              >
+                <Map className="h-3.5 w-3.5" /> กลับไปแผนที่
+              </button>
+            </div>
+            <PlainLanguageGuide
+              module="traffy"
+              accent="orange"
+              records={districtSummaryRecords}
+              metricKey="count"
+              metricLabel="จำนวนเรื่องร้องเรียน"
+              unit="เรื่อง"
+              decimals={0}
+              nameKey="district_name"
+              year={activeYear ? Number(activeYear) : new Date().getFullYear()}
+              activeArea={activeDistrict}
+              dataSource={dataSource === "bigquery" ? "Traffy Fondue ผ่าน BigQuery" : dataSource}
+              dataQuality={loadError ? "แหล่งข้อมูลยังไม่พร้อม" : "ข้อมูลรายการร้องเรียน"}
+              extraSummary={[
+                `ข้อมูลตามตัวกรองมีทั้งหมด ${Number(summary?.totalApi ?? 0).toLocaleString()} เรื่อง และแสดงบนแผนที่ได้ ${Number(summary?.totalFetched ?? 0).toLocaleString()} จุด`,
+                `ประเภทที่มีจำนวนมากที่สุดคือ ${summary?.byType?.[0]?.[0] ?? "ยังไม่มีข้อมูล"} จำนวน ${Number(summary?.byType?.[0]?.[1] ?? 0).toLocaleString()} เรื่อง`,
+              ]}
+            />
+          </div>
+        ) : (
+        <>
         {loadError && (
           <div className="absolute left-1/2 top-4 z-[1200] w-[min(92%,520px)] -translate-x-1/2 rounded-xl border border-amber-600/40 bg-amber-950/95 px-4 py-3 shadow-2xl backdrop-blur">
             <div className="flex items-start gap-2">
@@ -106,6 +150,12 @@ export default function Home() {
 
         {/* Top-right floating panel: Legend + Controls */}
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-3">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="flex items-center justify-center gap-2 rounded-xl border border-indigo-500/25 bg-slate-900/95 px-3 py-2.5 text-[11px] font-bold text-indigo-300 shadow-xl backdrop-blur hover:border-indigo-400/50"
+          >
+            <BookOpen className="h-3.5 w-3.5" /> คำอธิบายและสรุปผล
+          </button>
 
           {/* Map Mode Toggle */}
           <div className="bg-[#0f172a]/90 backdrop-blur-md rounded-xl p-3 border border-slate-800 shadow-2xl">
@@ -179,6 +229,8 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

@@ -17,6 +17,7 @@ import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -254,13 +255,6 @@ export default function GreenSpacePage() {
                   ))}
                 </div>
 
-                {isModeledData && (
-                  <div className="absolute top-[98px] left-1/2 z-[1000] hidden max-w-2xl -translate-x-1/2 rounded-lg border border-amber-500/35 bg-amber-950/90 px-3 py-2 text-center text-[10px] leading-relaxed text-amber-100 shadow-xl backdrop-blur-md lg:block">
-                    ข้อมูลรายเขตปี {selectedYear} เป็น NDVI แบบจำลอง พื้นที่และสัดส่วนสีเขียวเป็นค่าประมาณจาก NDVI
-                    ใช้เปรียบเทียบแนวโน้มเบื้องต้นเท่านั้น ไม่ใช่ผลสำรวจพื้นที่สีเขียวจริงหรือทะเบียนสวนสาธารณะ
-                  </div>
-                )}
-
                 {/* Data source badge */}
                 <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                   <div className="flex items-center gap-2 mb-1">
@@ -388,6 +382,21 @@ export default function GreenSpacePage() {
                 ? "NDVI เป็นแบบจำลอง และพื้นที่/สัดส่วนสีเขียวเป็นค่าประมาณ ใช้เปรียบเทียบเบื้องต้น ไม่ใช่ผลสำรวจภาคสนาม"
                 : "พื้นที่และสัดส่วนสีเขียวเป็นค่าประมาณจาก NDVI ไม่ใช่ทะเบียนสวนสาธารณะ"}
               expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
+            />
+          )}
+
+          {viewMode === "guide" && (
+            <PlainLanguageGuide
+              module="green"
+              accent="emerald"
+              records={displayGeoJson?.features ?? []}
+              year={selectedYear}
+              activeArea={activeDistrict}
+              compareMode={compareMode}
+              compareYear={compareYear}
+              dataSource={summary?.sourceLabel ?? summary?.dataSource}
+              dataQuality={summary?.dataQuality}
+              extraSummary={isModeledData ? ["ข้อมูลชุดนี้ระบุว่าเป็นแบบจำลอง จึงเหมาะกับการเปรียบเทียบแนวโน้มเบื้องต้นมากกว่าการยืนยันขนาดพื้นที่จริง"] : []}
             />
           )}
         </div>

@@ -21,6 +21,7 @@ import {
 } from "@/lib/satellite-cache";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, LineChart, Line,
@@ -938,6 +939,21 @@ export default function NighttimeLightsPage() {
               expectedRows={granularity === "district" ? (activeDistrict === "ทั้งหมด" ? 50 : 1) : undefined}
             />
           </div>
+        )}
+
+        {viewMode === "guide" && (
+          <PlainLanguageGuide
+            module="nightlights"
+            accent="yellow"
+            records={displayGeoJson?.features ?? []}
+            year={selectedYear}
+            activeArea={activeDistrict}
+            compareMode={compareMode && !isMonthlyPreview}
+            compareYear={compareYear}
+            dataSource={summary?.dataSource ?? (isMonthlyPreview ? "VIIRS monthly preview" : "VIIRS annual composite")}
+            dataQuality={isMonthlyPreview ? "ข้อมูลรายเดือนเบื้องต้น" : "ข้อมูลสังเกตจากดาวเทียม"}
+            extraSummary={isMonthlyPreview ? ["ขณะนี้กำลังดูข้อมูลรายเดือนเบื้องต้น จึงควรเปรียบเทียบกับเดือนอื่นในชุดรายเดือนเดียวกัน"] : []}
+          />
         )}
       </main>
     </div>

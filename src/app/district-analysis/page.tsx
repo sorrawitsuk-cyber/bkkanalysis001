@@ -7,11 +7,13 @@ import {
   Home, Download, Printer, TrendingUp, TrendingDown, Minus,
   ChevronDown, Flame, Trees, Building2, Wind, Droplets, Moon,
   Search, X, ArrowUp, ArrowDown, AlertCircle, CheckCircle, Info,
+  BookOpen,
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, BarChart, Bar, Cell, ComposedChart, Area, ReferenceLine,
 } from "recharts";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -306,6 +308,7 @@ export default function DistrictAnalysisPage() {
   const [activeBarMetric, setActiveBarMetric] = useState<SortKey>("ndvi_mean");
   const [showDeltaCol, setShowDeltaCol] = useState(true);
   const [activeInsightTab, setActiveInsightTab] = useState<"improve" | "decline">("improve");
+  const [showGuide, setShowGuide] = useState(false);
 
   // ── Load district list ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -690,9 +693,36 @@ export default function DistrictAnalysisPage() {
             </button>
           </>
         )}
+        <button
+          onClick={() => setShowGuide((value) => !value)}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-bold transition-colors ${
+            showGuide
+              ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-300"
+              : "border-slate-700 bg-slate-900/80 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <BookOpen className="h-3.5 w-3.5" /> {showGuide ? "กลับไปหน้าวิเคราะห์" : "คำอธิบาย"}
+        </button>
       </div>
 
       {/* ── Main ── */}
+      {showGuide ? (
+        <PlainLanguageGuide
+          module="district"
+          accent="cyan"
+          records={overview?.districts ?? []}
+          year={selectedYear}
+          activeArea={selectedDistrict || "ทั้งหมด"}
+          compareMode={selectedYear !== compareYear}
+          compareYear={compareYear}
+          dataSource={overview?.vegetationSource ?? "ข้อมูลสรุปจากหลายโมดูล"}
+          dataQuality={overview?.vegetationQuality}
+          extraSummary={[
+            `ค่าเฉลี่ยพื้นที่สีเขียวของกรุงเทพฯ คือ ${bkkAvg?.green != null ? `${Math.round(bkkAvg.green).toLocaleString()} ไร่` : "ยังไม่มีข้อมูล"}`,
+            `คะแนนมลพิษเฉลี่ยอยู่ที่ ${bkkAvg?.pollution != null ? `${bkkAvg.pollution.toFixed(2)} จาก 10` : "ยังไม่มีข้อมูล"} และสัดส่วนสัญญาณน้ำเฉลี่ยอยู่ที่ ${bkkAvg?.water != null ? `${(bkkAvg.water * 100).toFixed(2)}%` : "ยังไม่มีข้อมูล"}`,
+          ]}
+        />
+      ) : (
       <div className="flex-1 overflow-y-auto custom-scrollbar" onClick={() => showDropdown && setShowDropdown(false)}>
 
         {/* ════════════════════════════════════════════════════════════
@@ -1182,6 +1212,7 @@ export default function DistrictAnalysisPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

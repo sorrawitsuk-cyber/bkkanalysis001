@@ -23,6 +23,7 @@ import ExportPanel from "@/components/ui/ExportPanel";
 import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, ReferenceLine,
@@ -1164,6 +1165,20 @@ export default function FloodRiskPage() {
               expectedRows={granularity === "district" ? (activeDistrict === "ทั้งหมด" ? 50 : 1) : undefined}
             />
           </div>
+        )}
+
+        {viewMode === "guide" && (
+          <PlainLanguageGuide
+            module="flood"
+            accent="sky"
+            records={displayGeoJson?.features ?? []}
+            year={selectedYear}
+            activeArea={activeDistrict}
+            compareMode={compareMode}
+            compareYear={compareYear}
+            dataSource={summary?.dataSource ?? "Sentinel-2 cache/GEE"}
+            dataQuality={summary?.dataQuality}
+          />
         )}
       </main>
     </div>

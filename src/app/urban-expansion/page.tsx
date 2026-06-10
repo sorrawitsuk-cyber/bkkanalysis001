@@ -15,6 +15,7 @@ import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -334,6 +335,20 @@ export default function UrbanExpansionPage() {
               dataSource={summary?.dataSource}
               contextNote="NDBI สูงมักสัมพันธ์กับสิ่งปลูกสร้าง ควรอ่านคู่กับ NDVI/พื้นที่สีเขียว"
               expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
+            />
+          )}
+
+          {viewMode === "guide" && (
+            <PlainLanguageGuide
+              module="builtup"
+              accent="indigo"
+              records={displayGeoJson?.features ?? []}
+              year={selectedYear}
+              activeArea={activeDistrict}
+              compareMode={compareMode}
+              compareYear={compareYear}
+              dataSource={summary?.sourceLabel ?? summary?.dataSource}
+              dataQuality={summary?.dataQuality}
             />
           )}
         </div>

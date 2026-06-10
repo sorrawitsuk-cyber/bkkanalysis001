@@ -1,8 +1,8 @@
 "use client";
 
-import { Map, BarChart2, Table2 } from "lucide-react";
+import { BookOpen, Map, BarChart2, Table2 } from "lucide-react";
 
-export type ViewMode = "map" | "stats" | "table";
+export type ViewMode = "map" | "stats" | "table" | "guide";
 
 interface ViewTabsProps {
   view: ViewMode;
@@ -27,6 +27,7 @@ export default function ViewTabs({ view, onChange, accentColor = "cyan" }: ViewT
     { id: "map" as ViewMode, label: "แผนที่", icon: Map },
     { id: "stats" as ViewMode, label: "สถิติ", icon: BarChart2 },
     { id: "table" as ViewMode, label: "ตาราง", icon: Table2 },
+    { id: "guide" as ViewMode, label: "คำอธิบาย", icon: BookOpen },
   ];
 
   return (

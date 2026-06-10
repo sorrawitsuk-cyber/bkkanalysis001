@@ -16,6 +16,7 @@ import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -415,6 +416,20 @@ export default function HeatIslandPage() {
               dataSource={summary?.dataSource}
               contextNote="LST คืออุณหภูมิพื้นผิวจากดาวเทียม ไม่ใช่อุณหภูมิอากาศที่สถานีตรวจวัด"
               expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
+            />
+          )}
+
+          {viewMode === "guide" && (
+            <PlainLanguageGuide
+              module="heat"
+              accent="orange"
+              records={displayGeoJson?.features ?? []}
+              year={selectedYear}
+              activeArea={activeDistrict}
+              compareMode={compareMode}
+              compareYear={compareYear}
+              dataSource={summary?.sourceLabel ?? summary?.dataSource}
+              dataQuality={summary?.dataQuality}
             />
           )}
         </div>

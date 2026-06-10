@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import type { DecisionMode } from "@/lib/decision-support";
 
 const DecisionSupportMap = dynamic(
@@ -429,6 +430,26 @@ export default function DecisionSupportPage() {
                   </table>
                 </div>
               </div>
+            )}
+
+            {viewMode === "guide" && (
+              <PlainLanguageGuide
+                module={mode === "flood" ? "decision-flood" : "decision-heat"}
+                accent={mode === "flood" ? "sky" : "orange"}
+                records={data?.rows ?? []}
+                nameKey="district_name"
+                year={year}
+                activeArea={activeDistrict}
+                dataSource={(summary?.sourceStatus ?? [])
+                  .filter((source: any) => source.status === "available")
+                  .map((source: any) => source.label)
+                  .join(", ")}
+                dataQuality={`ความครบถ้วนเฉลี่ย ${summary?.averageCoverage ?? 0}%`}
+                extraSummary={[
+                  `มี ${summary?.scoredDistricts ?? 0} เขตจาก 50 เขตที่มีข้อมูลเพียงพอสำหรับออกคะแนน`,
+                  `เขตที่มีคะแนนตั้งแต่ 60 ขึ้นไปมี ${summary?.highDistricts ?? 0} เขต`,
+                ]}
+              />
             )}
           </main>
         </div>

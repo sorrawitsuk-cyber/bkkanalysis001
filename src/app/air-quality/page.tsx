@@ -15,6 +15,7 @@ import { Activity, MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
+import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -424,6 +425,24 @@ export default function AirQualityPage() {
               dataSource={summary?.dataSource}
               contextNote="คะแนนรวมเป็น proxy จาก Sentinel-5P column density ไม่ใช่ AQI จากสถานีภาคพื้น"
               expectedRows={activeDistrict === ALL_DISTRICTS ? 50 : 1}
+            />
+          )}
+
+          {viewMode === "guide" && (
+            <PlainLanguageGuide
+              module="air"
+              accent="cyan"
+              records={displayGeoJson?.features ?? []}
+              year={selectedYear}
+              activeArea={activeDistrict}
+              compareMode={compareMode}
+              compareYear={compareYear}
+              dataSource={summary?.sourceLabel ?? summary?.dataSource}
+              dataQuality={summary?.dataQuality}
+              metricKey={airLayer}
+              metricLabel={layerMeta.labelTh}
+              unit={layerMeta.unit}
+              decimals={airLayer === "pollution_score" ? 2 : airLayer === "co_mean" ? 4 : 6}
             />
           )}
         </div>
