@@ -135,7 +135,7 @@ def compute_district_stats(composites: dict, districts) -> list[dict]:
         stacked = stacked.addBands(ndwi_max.rename("ndwi_max"))
     if mndwi_img is not None:
         stacked = stacked.addBands(mndwi_img.rename("mndwi_mean"))
-    stacked = stacked.addBands(ndwi_img.gt(0).rename("water_ratio"))
+    stacked = stacked.addBands(ndwi_img.gt(0.05).rename("water_ratio"))
 
     result = stacked.reduceRegions(
         collection=districts,

@@ -125,10 +125,10 @@ def compute_district_stats(composites: dict, districts) -> list[dict]:
         .gte(70)
         .unmask(0)
     )
-    # water_ratio: all NDWI > 0 pixels (includes river)
-    water_ratio_img = ndwi_img.gt(0).rename("water_ratio")
+    # Keep this threshold aligned with the live API and database pipeline.
+    water_ratio_img = ndwi_img.gt(0.05).rename("water_ratio")
     # seasonal_water_ratio: temporary/flood water only (river excluded)
-    seasonal_water_img = ndwi_img.gt(0).And(jrc_permanent.Not()).rename("seasonal_water_ratio")
+    seasonal_water_img = ndwi_img.gt(0.05).And(jrc_permanent.Not()).rename("seasonal_water_ratio")
 
     stacked = ndwi_img.rename("ndwi_mean")
     if ndwi_max is not None:

@@ -162,7 +162,9 @@ export default function FloodRiskSidebar({
             อ่านหน้านี้แบบเร็ว
           </p>
           <p className="mt-1 text-[10px] leading-snug text-slate-400">
-            ค่าที่แสดงคือสัญญาณน้ำผิวดินหรือความชื้นจากดาวเทียม หลังตัดแหล่งน้ำถาวรออก ใช้คัดกรองพื้นที่เพื่อตรวจสอบต่อ ไม่ใช่หลักฐานยืนยันน้ำท่วม
+            {summary?.riverCorrected
+              ? "ค่าที่แสดงคือสัญญาณน้ำผิวดินหรือความชื้นจากดาวเทียม หลังตัดแหล่งน้ำถาวรออก ใช้คัดกรองพื้นที่เพื่อตรวจสอบต่อ ไม่ใช่หลักฐานยืนยันน้ำท่วม"
+              : "ค่าที่แสดงคือสัญญาณน้ำผิวดินหรือความชื้นจากดาวเทียม และอาจรวมแม่น้ำหรือแหล่งน้ำถาวร ใช้คัดกรองพื้นที่เพื่อตรวจสอบต่อ ไม่ใช่หลักฐานยืนยันน้ำท่วม"}
           </p>
         </div>
 
@@ -195,7 +197,7 @@ export default function FloodRiskSidebar({
           {/* Row 1 */}
           <div className="col-span-3 min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1">
-              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่ตรวจพบสัญญาณน้ำ (ไม่รวมแหล่งน้ำถาวร)
+              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่ตรวจพบสัญญาณน้ำ {summary?.riverCorrected ? "(ไม่รวมแหล่งน้ำถาวร)" : "(อาจรวมแหล่งน้ำถาวร)"}
             </div>
             <div className="text-base font-bold font-mono text-slate-100">
               {formatRai(summary.totalWaterAreaRai)}

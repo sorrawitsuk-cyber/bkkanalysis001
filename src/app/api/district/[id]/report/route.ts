@@ -39,16 +39,14 @@ const RANKING_METRICS = ["vegetation", "lst", "builtup", "no2", "co", "so2", "ni
 type RankingMetric = typeof RANKING_METRICS[number];
 
 function computeCompositeScore(m: any): number | null {
-  const ndviScore  = m.ndvi_mean   != null ? Math.min(100, (m.ndvi_mean / 0.5) * 100) : null;
+  const ndviScore  = m.ndvi_mean   != null ? Math.max(0, Math.min(100, (m.ndvi_mean / 0.5) * 100)) : null;
   const lstScore   = m.mean_lst    != null ? Math.max(0, 100 - ((m.mean_lst - 28) / 20) * 100) : null;
   const airScore   = m.no2_mean    != null ? Math.max(0, 100 - (m.no2_mean / 0.0003) * 100) : null;
-  const ntlScore   = m.ntl_mean    != null ? Math.max(0, 100 - Math.abs(m.ntl_mean - 30) / 30 * 50) : null;
-  const greenScore = m.green_area_ratio != null ? Math.min(100, m.green_area_ratio * 400) : null;
   const pairs: [number | null, number][] = [
-    [ndviScore, 0.30], [lstScore, 0.25], [airScore, 0.20], [ntlScore, 0.15], [greenScore, 0.10],
+    [ndviScore, 0.40], [lstScore, 0.35], [airScore, 0.25],
   ];
   const totalW = pairs.filter(([v]) => v != null).reduce((s, [, w]) => s + w, 0);
-  if (totalW < 0.3) return null;
+  if (totalW < 0.6) return null;
   return Math.round(
     pairs.filter(([v]) => v != null).reduce((s, [v, w]) => s + (v as number) * w, 0) / totalW * 10
   ) / 10;
@@ -69,20 +67,35 @@ export async function GET(
     return NextResponse.json({ error: `ไม่พบเขต id=${districtId}` }, { status: 404 });
   }
 
-  const areaRai = districtAreaRaiMap.get(districtId) ?? 0;
-  const districtNameTh: string = feature.properties.name_th;
-  const districtNameEn: string = feature.properties.name_en ?? "";
+    const areaRai = districtAreaRaiMap.get(districtId) ?? 0;
+    const districtNameTh: string = feature.properties.name_th;
+    const districtNameEn: string = feature.properties.name_en ?? "";
 
-  try {
+    try {
+    const { data: districtMapping, error: districtMappingError } = await supabase
+      .from("districts")
+      .select("id")
+      .eq("name_th", districtNameTh)
+      .limit(1);
+    if (districtMappingError) throw new Error(districtMappingError.message);
+    const databaseDistrictId = districtMapping?.[0]?.id;
+    if (!databaseDistrictId) {
+      return NextResponse.json({ error: `ไม่พบ mapping ฐานข้อมูลของเขต ${districtNameTh}` }, { status: 404 });
+    }
+
     // ── 1. Profile RPC: district rows + BKK averages (≤18 rows, 1 round-trip) ──
-    const profileRpc = supabase.rpc("get_district_profile", { p_district_id: districtId });
+    const profileRpc = supabase.rpc("get_district_profile", { p_district_id: databaseDistrictId });
 
     // ── 2. Rankings for latest year — one RPC call per metric, all in parallel ──
     const rankingRpcs = RANKING_METRICS.map((metric) =>
       supabase
-        .rpc("get_district_ranking", { p_year: LATEST_YEAR, p_metric: metric })
+        .rpc("get_district_ranking", {
+          p_year: metric === "nightlights" ? 2024 : LATEST_YEAR,
+          p_metric: metric,
+        })
         .then(({ data, error }) => ({
           metric,
+          year: metric === "nightlights" ? 2024 : LATEST_YEAR,
           rows: error ? [] : (data ?? []) as any[],
         }))
     );
@@ -104,8 +117,7 @@ export async function GET(
           ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai)
           : null;
       const waterAreaRai =
-        row.water_area_rai != null ? Math.round(row.water_area_rai)
-        : row.water_ratio  != null && areaRai > 0 ? Math.round(row.water_ratio * areaRai)
+        row.water_ratio != null && areaRai > 0 ? Math.round(row.water_ratio * areaRai)
         : null;
       metrics[row.year] = {
         mean_lst:           row.mean_lst           ?? null,
@@ -130,15 +142,14 @@ export async function GET(
         water_ratio:        row.water_ratio        ?? null,
         water_area_rai:     waterAreaRai,
         ndwi_mean:          row.ndwi_mean          ?? null,
-        ntl_mean:           row.ntl_mean           ?? null,
-        ntl_max:            row.ntl_max            ?? null,
+        ntl_mean:           row.year <= 2024 ? (row.ntl_mean ?? null) : null,
+        ntl_max:            row.year <= 2024 ? (row.ntl_max ?? null) : null,
       };
     }
 
     // ── BKK averages ─────────────────────────────────────────────────────────
     const bkkAverages: Record<number, any> = {};
     for (const row of bkkAvgRows) {
-      const ndbi = typeof row.ndbi_mean === "number" ? row.ndbi_mean : null;
       bkkAverages[row.year] = {
         mean_lst:           row.mean_lst           ?? null,
         max_lst:            row.max_lst            ?? null,
@@ -147,18 +158,15 @@ export async function GET(
         green_area_rai:     row.green_area_rai     != null ? Math.round(row.green_area_rai) : null,
         green_area_ratio:   row.green_area_ratio   ?? null,
         ndbi_mean:          row.ndbi_mean          ?? null,
-        builtup_area_rai:
-          ndbi !== null && areaRai > 0
-            ? Math.round(Math.max(0, Math.min(1, (ndbi + 0.2) / 0.6)) * areaRai)
-            : null,
+        builtup_area_rai: null,
         no2_mean:           row.no2_mean           ?? null,
         co_mean:            row.co_mean            ?? null,
         so2_mean:           row.so2_mean           ?? null,
         pollution_score:    row.pollution_score    ?? null,
         water_ratio:        row.water_ratio        ?? null,
         ndwi_mean:          row.ndwi_mean          ?? null,
-        ntl_mean:           row.ntl_mean           ?? null,
-        ntl_max:            row.ntl_max            ?? null,
+        ntl_mean:           row.year <= 2024 ? (row.ntl_mean ?? null) : null,
+        ntl_max:            row.year <= 2024 ? (row.ntl_max ?? null) : null,
       };
     }
 
@@ -170,14 +178,21 @@ export async function GET(
     }
 
     // ── Rankings for latest year ──────────────────────────────────────────────
-    const rankings: Record<string, { rank_desc: number; rank_asc: number; metric_value: number | null; total: number }> = {};
-    for (const { metric, rows } of rankingResults) {
-      const entry = rows.find((r: any) => r.district_id === districtId);
+    const rankings: Record<string, {
+      rank_desc: number;
+      rank_asc: number;
+      metric_value: number | null;
+      total: number;
+      year: number;
+    }> = {};
+    for (const { metric, year: rankingYear, rows } of rankingResults) {
+      const entry = rows.find((r: any) => r.district_id === databaseDistrictId);
       rankings[metric] = {
         rank_desc:    entry?.rank_desc    ?? null,
         rank_asc:     entry?.rank_asc     ?? null,
         metric_value: entry?.metric_value ?? null,
         total:        rows.length,
+        year:         rankingYear,
       };
     }
 
@@ -196,6 +211,12 @@ export async function GET(
         metrics,
         bkkAverages,
         compositeScores,
+        compositeMeta: {
+          label: "ดัชนีสิ่งแวดล้อมเชิงสำรวจ",
+          components: "NDVI 40%, LST 35%, NO2 25%",
+          dataQuality: "modeled",
+          note: "ไม่ใช่ดัชนีมาตรฐานราชการ และ NDVI ปัจจุบันเป็นแบบจำลอง",
+        },
         rankings,
         feature: featureWithoutGeom,
         meta: {

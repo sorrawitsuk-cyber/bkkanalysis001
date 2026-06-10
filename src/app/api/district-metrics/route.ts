@@ -206,6 +206,8 @@ async function loadTrendRowsForDistrict(districtId: number): Promise<DistrictSta
     district_name: r.district_name ?? null,
     green_area_rai: r.green_area_rai != null ? Math.round(r.green_area_rai) : null,
     water_area_rai: r.water_area_rai != null ? Math.round(r.water_area_rai) : null,
+    ntl_mean: r.year > 2024 ? null : r.ntl_mean,
+    ntl_max: r.year > 2024 ? null : r.ntl_max,
   }));
 }
 
@@ -278,9 +280,9 @@ function metricProvenance(metric: DistrictMetric, rows: any[], useDatabase: bool
 
   return {
     dataSource: "district_statistics (Landsat LST)",
-    dataQuality: "observed",
+    dataQuality: "unknown",
     sourceLabel: "Landsat 8/9 Surface Temperature",
-    sourceNote: "อุณหภูมิพื้นผิว ไม่ใช่อุณหภูมิอากาศ",
+    sourceNote: "ฐานเดิมไม่มี provenance รายแถว; ค่าเป็นอุณหภูมิพื้นผิว ไม่ใช่อุณหภูมิอากาศ",
   };
 }
 
@@ -558,11 +560,9 @@ export async function GET(request: Request) {
           builtup_area_rai: builtupAreaRai,
           builtup_ratio: builtupAreaRai != null && districtAreaRai > 0
             ? builtupAreaRai / districtAreaRai : null,
-          water_area_rai: row?.water_area_rai != null
-            ? Math.round(row.water_area_rai)
-            : (row?.water_ratio != null && districtAreaRai > 0
-              ? Math.round(row.water_ratio * districtAreaRai)
-              : null),
+          water_area_rai: row?.water_ratio != null && districtAreaRai > 0
+            ? Math.round(row.water_ratio * districtAreaRai)
+            : null,
           delta,
           vegetation_index: ndviMean,
           ndvi: ndviMean,

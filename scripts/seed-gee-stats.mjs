@@ -230,8 +230,12 @@ async function computeNTL(year) {
   // ANNUAL_V22 covers 2022+; ANNUAL_V21 covers 2012-2021 (band: avg_rad)
   const LATEST_V22 = 2024;
   const V22_START  = 2022;
+  if (year > LATEST_V22) {
+    console.log(`  VIIRS annual data is unavailable after ${LATEST_V22}; skipping ${year}`);
+    return [];
+  }
   const useV22 = year >= V22_START;
-  const y = useV22 ? Math.min(year, LATEST_V22) : year;
+  const y = year;
   const dataset   = useV22 ? 'NOAA/VIIRS/DNB/ANNUAL_V22' : 'NOAA/VIIRS/DNB/ANNUAL_V21';
   const bandName  = useV22 ? 'average_masked' : 'average';
 

@@ -57,7 +57,19 @@ export function isUrbanGreen(ndviMean: number | null | undefined): boolean {
 }
 
 export function getNdviClassThai(className: NdviClass | string | null | undefined): string {
-  const safeClass = (className || "Unknown") as NdviClass;
+  const aliases: Record<string, NdviClass> = {
+    very_low: "Very Low",
+    low: "Low",
+    moderate: "Urban Green",
+    urban_green: "Urban Green",
+    high: "Park",
+    park: "Park",
+    very_high: "Forest",
+    forest: "Forest",
+    unknown: "Unknown",
+  };
+  const raw = className || "Unknown";
+  const safeClass = (aliases[String(raw).trim().toLowerCase().replace(/\s+/g, "_")] || raw) as NdviClass;
   return NDVI_CLASS_THAI[safeClass] || NDVI_CLASS_THAI.Unknown;
 }
 

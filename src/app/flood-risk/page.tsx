@@ -277,7 +277,7 @@ export default function FloodRiskPage() {
         if (res.ok) {
           const data = await res.json();
           setGeojsonData(data.geojson);
-          setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending", riverCorrected: true });
+          setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
         } else {
           const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
           setGeojsonData(built.geojson);
@@ -572,8 +572,12 @@ export default function FloodRiskPage() {
     };
   } else {
     legendConfig = {
-      title: "สัดส่วนพื้นที่น้ำรายเขต (ไม่รวมแม่น้ำถาวร)",
-      description: "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต ยกเว้นแม่น้ำเจ้าพระยา (JRC ≥ 70%)",
+      title: summary?.riverCorrected
+        ? "สัดส่วนพื้นที่น้ำรายเขต (ไม่รวมแม่น้ำถาวร)"
+        : "สัดส่วนพื้นที่น้ำรายเขต (อาจรวมแหล่งน้ำถาวร)",
+      description: summary?.riverCorrected
+        ? "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต หลังตัดแหล่งน้ำถาวรด้วย JRC"
+        : "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต โดยยังไม่มีหลักฐานว่าตัดแหล่งน้ำถาวรแล้ว",
       unit: "",
       items: [
         { color: "#bae6fd", label: "แห้งมาก",       range: "< 1.5%" },
@@ -669,7 +673,7 @@ export default function FloodRiskPage() {
               {/* Data source info */}
               <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-2 h-2 rounded-full ${summary?.dataQuality === "unavailable" ? "bg-slate-500" : mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
+                  <div className={`w-2 h-2 rounded-full ${summary?.dataQuality === "unavailable" ? "bg-slate-500" : summary?.dataQuality === "unknown" ? "bg-amber-400" : mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">สถานะแหล่งข้อมูล</span>
                 </div>
                 <div className="text-[11px] text-slate-400 leading-relaxed">
@@ -677,6 +681,12 @@ export default function FloodRiskPage() {
                     <>
                       <p className="font-bold text-slate-300">ยังไม่มีข้อมูลสำหรับช่วงเวลานี้</p>
                       <p>{summary?.sourceNote ?? "ไม่พบข้อมูลดาวเทียมสำหรับปีที่เลือก"}</p>
+                    </>
+                  ) : summary?.dataQuality === "unknown" ? (
+                    <>
+                      <p><span className="text-white">Source:</span> {summary?.dataSource}</p>
+                      <p><span className="text-white">Period:</span> {periodLabel}</p>
+                      <p className="text-amber-300/80">{summary?.sourceNote}</p>
                     </>
                   ) : mapMode === "idw" ? (
                     <>
@@ -806,7 +816,7 @@ export default function FloodRiskPage() {
                       <span className="text-slate-100 font-bold">MNDWI</span> = (Green - SWIR) / (Green + SWIR) มักเหมาะกับเมืองมากขึ้น เพราะลดการรบกวนจาก built-up surface เมื่อเทียบกับ NDWI
                     </p>
                     <p>
-                      <span className="text-sky-300 font-bold">Water ratio</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0 ใช้ประมาณปริมาณพื้นที่น้ำรวมและรายเขต/แขวง
+                      <span className="text-sky-300 font-bold">Water ratio</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0.05 ใช้ตรวจสัญญาณน้ำหรือความชื้นรายเขต/แขวง
                     </p>
                     <p className="text-slate-500">
                       ค่า NDWI/MNDWI เป็นดัชนีดาวเทียม ควรอ่านร่วมกับฤดูกาล เมฆ และจำนวนภาพที่นำมาทำ composite

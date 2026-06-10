@@ -86,6 +86,10 @@ export default function DistrictDetailPage() {
           <div className="text-slate-400">กำลังโหลดข้อมูล...</div>
         ) : (
           <>
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs leading-relaxed text-amber-200">
+            NDVI และพื้นที่สีเขียวในหน้านี้เป็นแบบจำลอง ENSO/urbanization ที่รอผลประมวลผล GEE
+            ใช้สำรวจแนวโน้มและตั้งคำถามเท่านั้น ไม่ใช่ค่าตรวจวัดหรือสถิติราชการ
+          </div>
           {/* Composite Score Summary */}
           {profileData?.compositeScores && (() => {
             const latestYr = Math.max(...Object.keys(profileData.compositeScores).map(Number));
@@ -94,18 +98,19 @@ export default function DistrictDetailPage() {
               { subject: "NDVI", value: Math.min(100, ((profileData.metrics?.[latestYr]?.ndvi_mean ?? 0) / 0.5) * 100) },
               { subject: "ความเย็น", value: Math.max(0, 100 - (((profileData.metrics?.[latestYr]?.mean_lst ?? 35) - 28) / 20) * 100) },
               { subject: "อากาศ", value: Math.max(0, 100 - ((profileData.metrics?.[latestYr]?.no2_mean ?? 0) / 0.0003) * 100) },
-              { subject: "สีเขียว", value: Math.min(100, (profileData.metrics?.[latestYr]?.green_area_ratio ?? 0) * 400) },
-              { subject: "กลางคืน", value: Math.max(0, 100 - Math.abs((profileData.metrics?.[latestYr]?.ntl_mean ?? 30) - 30) / 30 * 50) },
             ].map(d => ({ ...d, value: Math.round(d.value) }));
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Target className="w-4 h-4 text-sky-400" />
-                    <h2 className="text-sm font-bold">คะแนนสุขภาพเมือง {latestYr}</h2>
+                    <h2 className="text-sm font-bold">ดัชนีสิ่งแวดล้อมเชิงสำรวจ {latestYr}</h2>
                   </div>
                   <div className="text-5xl font-black text-center mb-2 text-sky-300">{score?.toFixed(1) ?? "–"}</div>
-                  <div className="text-xs text-slate-400 text-center mb-4">/ 100 (NDVI 30% · LST 25% · อากาศ 20% · NTL 15% · พื้นที่เขียว 10%)</div>
+                  <div className="text-xs text-slate-400 text-center mb-2">/ 100 (NDVI 40% · LST 35% · NO₂ 25%)</div>
+                  <div className="text-[10px] text-amber-300/80 text-center mb-4">
+                    ใช้สำรวจแนวโน้มเท่านั้น ไม่ใช่ดัชนีมาตรฐาน และ NDVI ปัจจุบันเป็นแบบจำลอง
+                  </div>
                   <ResponsiveContainer width="100%" height={200}>
                     <RadarChart data={radarData}>
                       <PolarGrid stroke="#334155" />
@@ -118,7 +123,7 @@ export default function DistrictDetailPage() {
                 <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Leaf className="w-4 h-4 text-sky-400" />
-                    <h2 className="text-sm font-bold">คะแนนสุขภาพเมืองรายปี</h2>
+                    <h2 className="text-sm font-bold">ดัชนีสิ่งแวดล้อมเชิงสำรวจรายปี</h2>
                   </div>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={Object.keys(profileData.compositeScores).sort().map(yr => ({ year: Number(yr), score: profileData.compositeScores[Number(yr)] }))}>
@@ -137,8 +142,8 @@ export default function DistrictDetailPage() {
             <section className="lg:col-span-2 bg-slate-900/70 border border-slate-800 rounded-lg p-5">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 {[
-                  ["NDVI ล่าสุด", ndviMean !== null ? ndviMean.toFixed(3) : "ไม่มีข้อมูล"],
-                  ["คะแนน NDVI", ndviScore !== null && ndviScore !== undefined ? ndviScore.toFixed(2) : "ไม่มีข้อมูล"],
+                  ["NDVI แบบจำลอง", ndviMean !== null ? ndviMean.toFixed(3) : "ไม่มีข้อมูล"],
+                  ["คะแนน NDVI แบบจำลอง", ndviScore !== null && ndviScore !== undefined ? ndviScore.toFixed(2) : "ไม่มีข้อมูล"],
                   ["ระดับ", getNdviClassThai(ndviClass)],
                   ["Priority Score", priorityScore !== null ? priorityScore.toFixed(1) : "ไม่มีข้อมูล"],
                   ["อันดับ NDVI", rankInfo?.ndviRank ? `${rankInfo.ndviRank}/${rankInfo.total}` : "ไม่มีข้อมูล"],

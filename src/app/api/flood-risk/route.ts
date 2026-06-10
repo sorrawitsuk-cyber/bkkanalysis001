@@ -117,18 +117,26 @@ async function computeGeeWaterStats(year: number): Promise<any[]> {
 async function loadDbRows(year: number): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
-    .select("district_id, district_name, year, water_ratio, ndwi_mean, mndwi_mean")
+    .select("district_id, year, water_ratio, ndwi_mean, mndwi_mean")
     .eq("year", year);
-  if (error || !data || data.length === 0) return [];
+  if (error) {
+    console.warn("Flood Supabase year query failed:", error.message);
+    return [];
+  }
+  if (!data || data.length === 0) return [];
   return data as DistrictStatistic[];
 }
 
 async function loadAllDbRows(): Promise<DistrictStatistic[]> {
   const { data, error } = await supabase
     .from("district_statistics")
-    .select("district_id, district_name, year, water_ratio, ndwi_mean, mndwi_mean")
+    .select("district_id, year, water_ratio, ndwi_mean, mndwi_mean")
     .order("year", { ascending: true });
-  if (error || !data || data.length === 0) return [];
+  if (error) {
+    console.warn("Flood Supabase trend query failed:", error.message);
+    return [];
+  }
+  if (!data || data.length === 0) return [];
   return data as DistrictStatistic[];
 }
 
@@ -228,17 +236,22 @@ export async function GET(request: Request) {
       const ndwiMean:   number | null  = row?.ndwi_mean   ?? null;
       const mndwiMean:  number | null  = row?.mndwi_mean  ?? null;
       const compareRow  = compareYear ? compareMap.get(feature.properties.id) || null : null;
-      const compareRatio: number | null = compareRow?.water_ratio ?? null;
-      const delta  = waterRatio !== null && compareRatio !== null ? +(waterRatio - compareRatio).toFixed(4) : null;
-      const areaRai = districtAreaRaiMap.get(feature.properties.id) ?? 0;
-      const waterAreaRai = waterRatio !== null ? Math.round(waterRatio * areaRai) : null;
-
-      if (waterRatio !== null) {
-        minValue = Math.min(minValue, waterRatio);
-        maxValue = Math.max(maxValue, waterRatio);
-      }
-
       const seasonalWaterRatio: number | null = row?.seasonal_water_ratio ?? null;
+      const effectiveWaterRatio = seasonalWaterRatio ?? waterRatio;
+      const compareRatio: number | null =
+        compareRow?.seasonal_water_ratio ?? compareRow?.water_ratio ?? null;
+      const delta = effectiveWaterRatio !== null && compareRatio !== null
+        ? +(effectiveWaterRatio - compareRatio).toFixed(4)
+        : null;
+      const areaRai = districtAreaRaiMap.get(feature.properties.id) ?? 0;
+      const waterAreaRai = effectiveWaterRatio !== null
+        ? Math.round(effectiveWaterRatio * areaRai)
+        : null;
+
+      if (effectiveWaterRatio !== null) {
+        minValue = Math.min(minValue, effectiveWaterRatio);
+        maxValue = Math.max(maxValue, effectiveWaterRatio);
+      }
 
       return {
         ...feature,
@@ -254,6 +267,7 @@ export async function GET(request: Request) {
           mndwi_mean:            mndwiMean,
           display_value:         ndwiMean ?? waterRatio,
           display_label:         "NDWI",
+          river_corrected:       seasonalWaterRatio !== null,
         },
       };
     });
@@ -299,9 +313,15 @@ export async function GET(request: Request) {
     });
     const waterAreaTrend = Object.keys(areaTrendAcc).sort().map((y) => [y, areaTrendAcc[Number(y)]]);
 
-    const currentYearRows = yearRows.filter((r) => r.water_ratio !== null);
+    const currentYearRows = yearRows.filter((r) =>
+      r.seasonal_water_ratio !== null || r.water_ratio !== null
+    );
+    const effectiveRatio = (row: any): number | null =>
+      row?.seasonal_water_ratio ?? row?.water_ratio ?? null;
+    const riverCorrected = currentYearRows.length > 0 &&
+      currentYearRows.every((row) => typeof row.seasonal_water_ratio === "number");
     const avgWaterRatio = currentYearRows.length
-      ? parseFloat((currentYearRows.reduce((s, r) => s + (r.water_ratio ?? 0), 0) / currentYearRows.length).toFixed(4))
+      ? parseFloat((currentYearRows.reduce((s, r) => s + (effectiveRatio(r) ?? 0), 0) / currentYearRows.length).toFixed(4))
       : null;
     const avgNdwiMean = yearRows.some((r: any) => r.ndwi_mean !== null)
       ? parseFloat((yearRows.filter((r: any) => r.ndwi_mean !== null).reduce((s: number, r: any) => s + r.ndwi_mean, 0) / yearRows.filter((r: any) => r.ndwi_mean !== null).length).toFixed(4))
@@ -309,18 +329,18 @@ export async function GET(request: Request) {
     const totalWaterAreaRai = currentYearRows.length
       ? currentYearRows.reduce((s, r) => {
           const areaRai = districtAreaRaiMap.get(r.district_id) ?? 0;
-          return s + Math.round((r.water_ratio ?? 0) * areaRai);
+          return s + Math.round((effectiveRatio(r) ?? 0) * areaRai);
         }, 0)
       : null;
 
     const ranking = [...currentYearRows]
-      .sort((a, b) => (b.water_ratio ?? 0) - (a.water_ratio ?? 0))
+      .sort((a, b) => (effectiveRatio(b) ?? 0) - (effectiveRatio(a) ?? 0))
       .map((r) => {
         const areaRai = districtAreaRaiMap.get(r.district_id) ?? 0;
         return [
           r.district_name ?? districtNameById.get(r.district_id) ?? "ไม่ระบุ",
-          r.ndwi_mean ?? r.water_ratio,
-          Math.round((r.water_ratio ?? 0) * areaRai),
+          r.ndwi_mean ?? effectiveRatio(r),
+          Math.round((effectiveRatio(r) ?? 0) * areaRai),
         ];
       });
 
@@ -355,12 +375,19 @@ export async function GET(request: Request) {
           min_value: minValue !== Infinity ? minValue : 0,
           max_value: maxValue !== -Infinity ? maxValue : 0.5,
           displayLabel: "NDWI",
+          riverCorrected,
           dataSource,
-          dataQuality: dataSource === "no data" ? "unavailable" : "observed",
+          dataQuality: dataSource === "no data"
+            ? "unavailable"
+            : dataSource.startsWith("GEE")
+              ? "observed"
+              : "unknown",
           sourceLabel: dataSource === "no data" ? null : dataSource,
           sourceNote: dataSource === "no data"
             ? "ไม่พบข้อมูลดาวเทียมสำหรับปีที่เลือก"
-            : "ตรวจสัญญาณน้ำหรือความชื้นจาก NDWI ไม่ใช่แบบจำลองยืนยันขอบเขตน้ำท่วม",
+            : dataSource.startsWith("GEE")
+              ? "ตรวจสัญญาณน้ำหรือความชื้นจาก NDWI > 0.05 ไม่ใช่แบบจำลองยืนยันขอบเขตน้ำท่วม"
+              : "ค่าจากฐานเดิมไม่มี provenance รายแถว จึงใช้สำรวจแนวโน้มเท่านั้น",
         },
       },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }

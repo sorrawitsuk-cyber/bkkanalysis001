@@ -130,7 +130,7 @@ def compute_district_stats_for_year(year: int) -> list[dict]:
     ndwi_mean  = collection.select("NDWI").mean().rename("ndwi_mean")
     ndwi_max   = collection.select("NDWI").max().rename("ndwi_max")
     mndwi_mean = collection.select("MNDWI").mean().rename("mndwi_mean")
-    water_mask = ndwi_mean.gt(0).rename("water_ratio")
+    water_mask = ndwi_mean.gt(0.05).rename("water_ratio")
 
     stacked = ndwi_mean.addBands(ndwi_max).addBands(mndwi_mean).addBands(water_mask)
     districts = load_districts_feature_collection()

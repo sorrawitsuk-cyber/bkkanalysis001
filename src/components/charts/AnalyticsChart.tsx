@@ -11,14 +11,14 @@ interface AnalyticsChartProps {
 
 // Simple Linear Regression function
 function calculateLinearRegression(data: any[], yKey: string) {
-  const n = data.length;
+  const validData = data.filter((point) => typeof point[yKey] === "number" && Number.isFinite(point[yKey]));
+  const n = validData.length;
   if (n < 2) return null;
 
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-  data.forEach((point, index) => {
-    // using index as x to simplify
-    const x = index;
-    const y = point[yKey] || 0;
+  validData.forEach((point) => {
+    const x = Number(point.year);
+    const y = point[yKey];
     sumX += x;
     sumY += y;
     sumXY += x * y;
@@ -40,9 +40,18 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
     setLoading(true);
 
     fetch(`/api/statistics?district_id=${district.id}`)
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Statistics API error ${res.status}`);
+        return res.json();
+      })
       .then(stats => {
-        // Add forecasted years (2025-2027) based on historical data
+        if (!Array.isArray(stats) || stats.length === 0) {
+          setData([]);
+          setLoading(false);
+          return;
+        }
+
+        // Add three forecast years based only on non-null observations.
         const forecastData = [...stats];
         
         // Define keys to forecast
@@ -54,16 +63,15 @@ export default function AnalyticsChart({ district, activeTag }: AnalyticsChartPr
         });
 
         // Generate 3 years into the future
-        const lastYear = stats[stats.length - 1].year;
+        const lastYear = Math.max(...stats.map((row: any) => Number(row.year)).filter(Number.isFinite));
         for (let i = 1; i <= 3; i++) {
           const futureYear = lastYear + i;
-          const futureIndex = stats.length - 1 + i;
           const projectedPoint: any = { year: futureYear, isForecast: true };
           
           keysToForecast.forEach(key => {
             if (models[key]) {
               // y = mx + c
-              let val = (models[key].slope * futureIndex) + models[key].intercept;
+              let val = (models[key].slope * futureYear) + models[key].intercept;
               // Prevent negative values for things like population
               if (val < 0) val = 0;
               // Rounding based on key

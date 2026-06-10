@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import { formatLST, getLSTClassThai, getLSTColor } from "@/lib/lst";
+import { getNdviClassThai } from "@/lib/ndvi";
 
 interface DistrictMetricsMapViewProps {
   geojsonData: any;
@@ -506,7 +507,7 @@ export default function DistrictMetricsMapView({
               ${ndviLayer === "ndvi_mean" ? `<div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>` : ""}
               ${ndviLayer !== "green_area_ratio" ? `<div class="text-[10px] text-slate-400 mt-1">สัดส่วนสีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_ratio != null ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "–"}</span></div>` : ""}
               ${ndviLayer !== "green_area_rai" ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่สีเขียว: <span class="text-emerald-300 font-mono">${props.green_area_rai != null ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "–"}</span></div>` : ""}
-              <div class="text-[10px] text-slate-400 mt-1">ระดับ NDVI: <span class="text-emerald-300">${props.ndvi_class || "–"}</span></div>
+              <div class="text-[10px] text-slate-400 mt-1">ระดับ NDVI: <span class="text-emerald-300">${getNdviClassThai(props.ndvi_class)}</span></div>
               ${deltaLine}
             ` : ""}
           </div>
