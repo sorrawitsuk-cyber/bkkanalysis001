@@ -17,6 +17,7 @@ import {
   BarChart3,
   Globe,
   FileSearch,
+  Gauge,
 } from "lucide-react";
 
 const modules = [
@@ -114,7 +115,7 @@ const modules = [
 ];
 
 const platformStats = [
-  { label: "โมดูลวิเคราะห์", value: "7", icon: BarChart3, color: "text-cyan-400" },
+  { label: "โมดูลวิเคราะห์", value: "8", icon: BarChart3, color: "text-cyan-400" },
   { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
   { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
   { label: "ดาวเทียม",       value: "4 ดวง",  icon: Satellite, color: "text-purple-400" },
@@ -194,6 +195,22 @@ export default function Home() {
         </div>
 
         {/* District Analysis featured card */}
+        <Link
+          href="/decision-support"
+          className="group mb-4 relative flex items-center gap-5 overflow-hidden rounded-2xl border border-violet-700/30 bg-gradient-to-r from-violet-950/60 to-slate-950/80 p-5 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-600/50 hover:shadow-2xl hover:shadow-violet-900/20"
+        >
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-sky-400 via-violet-400 to-orange-500 opacity-70 group-hover:opacity-100 transition-opacity" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-violet-500 to-orange-500 shadow-lg shadow-violet-900/40">
+            <Gauge className="h-7 w-7 text-white drop-shadow" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400 mb-0.5">Decision Support · Multi-source</div>
+            <div className="text-[17px] font-black text-white">จัดลำดับรับมือน้ำท่วมและความร้อน</div>
+            <div className="text-[12px] text-slate-400 mt-1">รวม GPM, Sentinel-1/2, SRTM, Landsat, Traffy และข้อมูลรายเขตเป็นคะแนนคัดกรองที่อธิบายองค์ประกอบและความเชื่อมั่นได้</div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-violet-400 shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
+
         <Link
           href="/district-analysis"
           className="group mb-6 relative flex items-center gap-5 overflow-hidden rounded-2xl border border-cyan-700/30 bg-gradient-to-r from-cyan-950/60 to-slate-950/80 p-5 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-600/50 hover:shadow-2xl hover:shadow-cyan-900/20"

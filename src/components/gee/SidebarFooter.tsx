@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, ChevronRight, Droplets, Flame, Home, Moon, ShieldAlert, Trees, Wind } from "lucide-react";
+import { Building2, ChevronRight, Droplets, Flame, Gauge, Home, Moon, ShieldAlert, Trees, Wind } from "lucide-react";
 
-export type NavKey = "home" | "traffy" | "heat-island" | "green-space" | "urban-expansion" | "flood-risk" | "nighttime-lights" | "air-quality";
+export type NavKey = "home" | "decision-support" | "traffy" | "heat-island" | "green-space" | "urban-expansion" | "flood-risk" | "nighttime-lights" | "air-quality";
 
 const NAV_ITEMS: Array<{ key: NavKey; href: string; label: string; icon: React.ReactNode; colorClass: string }> = [
   { key: "home",              href: "/",                  label: "หน้า Home ศูนย์วิเคราะห์เมือง",    icon: <Home className="w-3 h-3" />,         colorClass: "text-cyan-400 hover:text-cyan-300"    },
+  { key: "decision-support",  href: "/decision-support",  label: "จัดลำดับการดำเนินงาน",             icon: <Gauge className="w-3 h-3" />,        colorClass: "text-violet-400 hover:text-violet-300"},
   { key: "traffy",            href: "/traffy",             label: "วิเคราะห์ปัญหาเมือง",               icon: <ShieldAlert className="w-3 h-3" />,   colorClass: "text-orange-400 hover:text-orange-300"},
   { key: "heat-island",       href: "/heat-island",        label: "วิเคราะห์เกาะความร้อนเมือง",        icon: <Flame className="w-3 h-3" />,         colorClass: "text-red-400 hover:text-red-300"      },
   { key: "green-space",       href: "/green-space",        label: "วิเคราะห์พื้นที่สีเขียวเมือง",      icon: <Trees className="w-3 h-3" />,         colorClass: "text-emerald-400 hover:text-emerald-300"},
