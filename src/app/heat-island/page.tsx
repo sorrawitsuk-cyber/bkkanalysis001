@@ -170,6 +170,7 @@ export default function HeatIslandPage() {
   // Table columns
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
+    { key: "population_density", label: "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", format: (v) => v != null ? Number(v).toLocaleString("th-TH") : "–", heatmap: true, heatmapHex: "#38bdf8" },
     { key: "mean_lst", label: "LST เฉลี่ย", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#f97316" },
     { key: "max_lst", label: "LST สูงสุด", unit: "°C", format: (v) => v != null ? `${Number(v).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "green_area_rai", label: "พื้นที่สีเขียว", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981", hideable: true },
@@ -391,6 +392,7 @@ export default function HeatIslandPage() {
               columns={tableColumns}
               getRowData={(props) => ({
                 name: props.name_th,
+                population_density: props.density ?? null,
                 mean_lst: props.mean_lst,
                 max_lst: props.max_lst,
                 green_area_rai: props.green_area_rai ?? null,

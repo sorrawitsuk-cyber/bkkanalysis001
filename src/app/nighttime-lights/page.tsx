@@ -22,6 +22,8 @@ import {
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import PopulationDensityPanel from "@/components/stats/PopulationDensityPanel";
+import { getDistrictDensity } from "@/lib/district-density";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, LineChart, Line,
@@ -383,6 +385,7 @@ export default function NighttimeLightsPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: granularity === "subdistrict" ? "แขวง" : "เขต", sortable: false },
     ...(granularity === "subdistrict" ? [{ key: "district", label: "เขตแม่", sortable: false, hideable: true } as ColDef] : []),
+    { key: "population_density", label: granularity === "subdistrict" ? "ความหนาแน่นประชากรเขตแม่" : "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", format: (v) => v != null ? Number(v).toLocaleString("th-TH") : "–", heatmap: true, heatmapHex: "#38bdf8" },
     { key: "ntl_mean", label: "แสงกลางคืน (เฉลี่ย)", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#fbbf24" },
     { key: "ntl_max", label: "แสงกลางคืน (สูงสุด)", unit: "nW/sr/cm²", format: (v) => v != null ? formatRadiance(v, 3) : "–", heatmap: true, heatmapHex: "#f59e0b" },
     { key: "pixel_count", label: "จำนวนพิกเซล", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
@@ -901,6 +904,8 @@ export default function NighttimeLightsPage() {
                     </ResponsiveContainer>
                   </div>
                 )}
+
+                <PopulationDensityPanel activeDistrict={activeDistrict} accentColor="#facc15" />
               </div>
             </div>
             )}
@@ -918,6 +923,7 @@ export default function NighttimeLightsPage() {
               getRowData={(props) => ({
                 name: props.name_th,
                 district: props.district_name ?? null,
+                population_density: props.density ?? getDistrictDensity(props.district_name ?? props.name_th),
                 ntl_mean: props.ntl_mean ?? null,
                 ntl_max: props.ntl_max ?? null,
                 ntl_delta: props.ntl_delta ?? null,

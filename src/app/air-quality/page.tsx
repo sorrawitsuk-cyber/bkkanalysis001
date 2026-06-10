@@ -185,6 +185,7 @@ export default function AirQualityPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
+    { key: "population_density", label: "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", format: (v) => v != null ? Number(v).toLocaleString("th-TH") : "–", heatmap: true, heatmapHex: "#38bdf8" },
     { key: "pollution_score", label: "คะแนนรวม", unit: "0-10", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#ef4444" },
     { key: "no2_mean", label: "NO₂ เฉลี่ย", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa" },
     { key: "no2_max", label: "NO₂ สูงสุด", unit: "mol/m²", format: (v) => v != null ? Number(v).toFixed(6) : "–", heatmap: true, heatmapHex: "#a78bfa", hideable: true },
@@ -401,6 +402,7 @@ export default function AirQualityPage() {
               columns={tableColumns}
               getRowData={(props) => ({
                 name: props.name_th,
+                population_density: props.density ?? null,
                 no2_mean: props.no2_mean,
                 no2_max: props.no2_max ?? null,
                 co_mean: props.co_mean,

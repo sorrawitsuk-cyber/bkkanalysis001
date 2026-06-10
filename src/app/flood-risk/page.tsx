@@ -29,6 +29,8 @@ import {
   AreaChart, Area, ReferenceLine,
 } from "recharts";
 import { Lightbulb, Activity as ActivityIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import PopulationDensityPanel from "@/components/stats/PopulationDensityPanel";
+import { getDistrictDensity } from "@/lib/district-density";
 
 const FloodRiskMapView = dynamic(() => import("@/components/map/FloodRiskMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -505,6 +507,7 @@ export default function FloodRiskPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: granularity === "subdistrict" ? "แขวง" : "เขต", sortable: false },
     ...(granularity === "subdistrict" ? [{ key: "district", label: "เขตแม่", sortable: false, hideable: true } as ColDef] : []),
+    { key: "population_density", label: granularity === "subdistrict" ? "ความหนาแน่นประชากรเขตแม่" : "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", format: (v) => v != null ? Number(v).toLocaleString("th-TH") : "–", heatmap: true, heatmapHex: "#38bdf8" },
     { key: "water_ratio", label: "สัดส่วนน้ำ", unit: "%", format: (v) => v != null ? (v * 100).toFixed(2) : "–", heatmap: true, heatmapHex: "#3b82f6" },
     { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#60a5fa" },
     { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#06b6d4" },
@@ -1124,6 +1127,10 @@ export default function FloodRiskPage() {
                   </div>
 
                 </div>
+
+                <div className="p-4">
+                  <PopulationDensityPanel activeDistrict={activeDistrict} accentColor="#38bdf8" />
+                </div>
               </div>
             )}
           </div>
@@ -1140,6 +1147,7 @@ export default function FloodRiskPage() {
               getRowData={(props) => ({
                 name: props.name_th,
                 district: props.district_name ?? null,
+                population_density: props.density ?? getDistrictDensity(props.district_name ?? props.name_th),
                 water_ratio: props.water_ratio ?? null,
                 water_area_rai: props.water_area_rai ?? null,
                 ndwi_mean: props.ndwi_mean ?? null,

@@ -113,6 +113,7 @@ export default function UrbanExpansionPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
+    { key: "population_density", label: "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", format: (v) => v != null ? Number(v).toLocaleString("th-TH") : "–", heatmap: true, heatmapHex: "#38bdf8" },
     { key: "ndbi_mean", label: "NDBI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b" },
     { key: "ndbi_max", label: "NDBI สูงสุด", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#f59e0b", hideable: true },
     { key: "builtup_area_rai", label: "พื้นที่สิ่งปลูกสร้าง", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#ef4444" },
@@ -312,6 +313,7 @@ export default function UrbanExpansionPage() {
               columns={tableColumns}
               getRowData={(props) => ({
                 name: props.name_th,
+                population_density: props.density ?? null,
                 ndbi_mean: props.ndbi_mean,
                 ndbi_max: props.ndbi_max ?? null,
                 builtup_area_rai: props.builtup_area_rai,

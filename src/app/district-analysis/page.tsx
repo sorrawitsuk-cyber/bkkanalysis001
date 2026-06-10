@@ -14,6 +14,8 @@ import {
   Tooltip, Legend, BarChart, Bar, Cell, ComposedChart, Area, ReferenceLine,
 } from "recharts";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import PopulationDensityPanel from "@/components/stats/PopulationDensityPanel";
+import { formatPopulationDensity, getDistrictDensity } from "@/lib/district-density";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -592,10 +594,11 @@ export default function DistrictAnalysisPage() {
 
   const exportCSV = useCallback(() => {
     if (!profileData) return;
-    const headers = ["เขต","พื้นที่รวม(ไร่)","ปี","LST เฉลี่ย(°C)","LST สูงสุด(°C)","NDVI","พื้นที่สีเขียว(ไร่)","สัดส่วนสีเขียว(%)","NDBI","สิ่งปลูกสร้าง(ไร่)","NO₂(mol/m²)","CO(mol/m²)","SO₂(mol/m²)","คะแนนมลพิษ","สัดส่วนน้ำ(%)","พื้นที่น้ำ(ไร่)","NDWI","NTL Mean","NTL Max"].join(",");
+    const density = getDistrictDensity(profileData.district);
+    const headers = ["เขต","ความหนาแน่นประชากร(คน/ตร.กม.)","พื้นที่รวม(ไร่)","ปี","LST เฉลี่ย(°C)","LST สูงสุด(°C)","NDVI","พื้นที่สีเขียว(ไร่)","สัดส่วนสีเขียว(%)","NDBI","สิ่งปลูกสร้าง(ไร่)","NO₂(mol/m²)","CO(mol/m²)","SO₂(mol/m²)","คะแนนมลพิษ","สัดส่วนน้ำ(%)","พื้นที่น้ำ(ไร่)","NDWI","NTL Mean","NTL Max"].join(",");
     const rows = profileData.years.map(yr => {
       const m = profileData.metrics[yr] ?? {};
-      return [`"${profileData.district}"`,profileData.areaRai,yr,m.mean_lst?.toFixed(2)??"",m.max_lst?.toFixed(2)??"",m.ndvi_mean?.toFixed(4)??"",m.green_area_rai?.toFixed(0)??"",m.green_area_ratio!=null?(m.green_area_ratio*100).toFixed(2):"",m.ndbi_mean?.toFixed(4)??"",m.builtup_area_rai?.toFixed(0)??"",m.no2_mean?.toFixed(6)??"",m.co_mean?.toFixed(4)??"",m.so2_mean?.toFixed(6)??"",m.pollution_score?.toFixed(2)??"",m.water_ratio!=null?(m.water_ratio*100).toFixed(2):"",m.water_area_rai?.toFixed(0)??"",m.ndwi_mean?.toFixed(4)??"",m.ntl_mean?.toFixed(3)??"",m.ntl_max?.toFixed(3)??""
+      return [`"${profileData.district}"`,density ?? "",profileData.areaRai,yr,m.mean_lst?.toFixed(2)??"",m.max_lst?.toFixed(2)??"",m.ndvi_mean?.toFixed(4)??"",m.green_area_rai?.toFixed(0)??"",m.green_area_ratio!=null?(m.green_area_ratio*100).toFixed(2):"",m.ndbi_mean?.toFixed(4)??"",m.builtup_area_rai?.toFixed(0)??"",m.no2_mean?.toFixed(6)??"",m.co_mean?.toFixed(4)??"",m.so2_mean?.toFixed(6)??"",m.pollution_score?.toFixed(2)??"",m.water_ratio!=null?(m.water_ratio*100).toFixed(2):"",m.water_area_rai?.toFixed(0)??"",m.ndwi_mean?.toFixed(4)??"",m.ntl_mean?.toFixed(3)??"",m.ntl_max?.toFixed(3)??""
       ].join(",");
     }).join("\n");
     const blob = new Blob(["﻿" + headers + "\n" + rows], { type: "text/csv;charset=utf-8;" });
@@ -605,17 +608,26 @@ export default function DistrictAnalysisPage() {
   const exportOverviewCSV = useCallback(() => {
     if (!sortedRows.length) return;
     const hasDelta = deltaRows.length > 0;
-    const hdr = ["ลำดับ","เขต","พื้นที่(ไร่)","NDVI",hasDelta?"ΔNDVI":"","เขียว(ไร่)",hasDelta?"Δเขียว(ไร่)":"","สัดส่วนเขียว(%)","LST(°C)",hasDelta?"ΔLST(°C)":"","NDBI","สิ่งปลูกสร้าง(ไร่)","มลพิษ",hasDelta?"Δมลพิษ":"","สัดส่วนน้ำ(%)","NTL Mean",hasDelta?"ΔNTL":""].filter(Boolean).join(",");
+    const hdr = [
+      "ลำดับ", "เขต", "ความหนาแน่นประชากร(คน/ตร.กม.)", "พื้นที่(ไร่)", "NDVI",
+      ...(hasDelta ? ["ΔNDVI"] : []),
+      "เขียว(ไร่)", ...(hasDelta ? ["Δเขียว(ไร่)"] : []),
+      "สัดส่วนเขียว(%)", "LST(°C)", ...(hasDelta ? ["ΔLST(°C)"] : []),
+      "NDBI", "สิ่งปลูกสร้าง(ไร่)", "มลพิษ", ...(hasDelta ? ["Δมลพิษ"] : []),
+      "สัดส่วนน้ำ(%)", "NTL Mean", ...(hasDelta ? ["ΔNTL"] : []),
+    ].join(",");
     const rows = sortedRows.map((d: any, i: number) => [
-      i+1,`"${d.name_th}"`,d.district_area_rai,
-      d.ndvi_mean?.toFixed(4)??"",hasDelta?d.delta_ndvi?.toFixed(4)??""  :"",
-      d.green_area_rai!=null?Math.round(d.green_area_rai):"",hasDelta?d.delta_green!=null?Math.round(d.delta_green):""  :"",
-      d.green_area_ratio!=null?(d.green_area_ratio*100).toFixed(1):"",
-      d.mean_lst?.toFixed(2)??"",hasDelta?d.delta_lst?.toFixed(2)??""  :"",
-      d.ndbi_mean?.toFixed(4)??"",d.builtup_area_rai!=null?Math.round(d.builtup_area_rai):"",
-      d.pollution_score?.toFixed(2)??"",hasDelta?d.delta_pollution?.toFixed(2)??""  :"",
-      d.water_ratio!=null?(d.water_ratio*100).toFixed(2):"",d.ntl_mean?.toFixed(2)??"",hasDelta?d.delta_ntl?.toFixed(2)??""  :"",
-    ].filter((_, ci) => hasDelta || ![4,6,9,13,16].includes(ci)).join(",")).join("\n");
+      i + 1, `"${d.name_th}"`, getDistrictDensity(d.name_th) ?? "", d.district_area_rai,
+      d.ndvi_mean?.toFixed(4) ?? "", ...(hasDelta ? [d.delta_ndvi?.toFixed(4) ?? ""] : []),
+      d.green_area_rai != null ? Math.round(d.green_area_rai) : "",
+      ...(hasDelta ? [d.delta_green != null ? Math.round(d.delta_green) : ""] : []),
+      d.green_area_ratio != null ? (d.green_area_ratio * 100).toFixed(1) : "",
+      d.mean_lst?.toFixed(2) ?? "", ...(hasDelta ? [d.delta_lst?.toFixed(2) ?? ""] : []),
+      d.ndbi_mean?.toFixed(4) ?? "", d.builtup_area_rai != null ? Math.round(d.builtup_area_rai) : "",
+      d.pollution_score?.toFixed(2) ?? "", ...(hasDelta ? [d.delta_pollution?.toFixed(2) ?? ""] : []),
+      d.water_ratio != null ? (d.water_ratio * 100).toFixed(2) : "",
+      d.ntl_mean?.toFixed(2) ?? "", ...(hasDelta ? [d.delta_ntl?.toFixed(2) ?? ""] : []),
+    ].join(",")).join("\n");
     const blob = new Blob(["﻿" + hdr + "\n" + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `bkk_${selectedYear}_vs_${compareYear}.csv`; a.click(); URL.revokeObjectURL(url);
   }, [sortedRows, deltaRows, selectedYear, compareYear]);
@@ -969,6 +981,7 @@ export default function DistrictAnalysisPage() {
                         <tr className="border-b border-slate-800">
                           <th className="px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-slate-600 sticky left-0 bg-slate-900/95 z-10 w-8">#</th>
                           <th className="px-2 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-slate-600 sticky left-8 bg-slate-900/95 z-10">เขต</th>
+                          <th className="px-2 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-slate-600 whitespace-nowrap">ความหนาแน่น<br />คน/ตร.กม.</th>
                           <SortTh label="NDVI" col="ndvi_mean" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                           {hasDelta && showDeltaCol && <SortTh label="ΔNDVI" col="delta_ndvi" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />}
                           <SortTh label="เขียว (ไร่)" col="green_area_rai" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
@@ -991,6 +1004,7 @@ export default function DistrictAnalysisPage() {
                             className="border-b border-slate-800/40 hover:bg-slate-800/30 cursor-pointer transition-colors">
                             <td className="px-3 py-2 text-slate-600 text-[9px] tabular-nums sticky left-0 bg-slate-950 z-10">{i + 1}</td>
                             <td className="px-2 py-2 font-bold text-slate-300 whitespace-nowrap sticky left-8 bg-slate-950 z-10 min-w-[72px]">{d.name_th}</td>
+                            <td className="px-2 py-2 tabular-nums font-mono text-sky-400">{formatPopulationDensity(getDistrictDensity(d.name_th))}</td>
                             <td className="px-2 py-2 tabular-nums font-mono"><span className={d.ndvi_mean != null && d.ndvi_mean >= 0.3 ? "text-emerald-400" : "text-emerald-600"}>{fmt(d.ndvi_mean, 3)}</span></td>
                             {hasDelta && showDeltaCol && <td className="px-2 py-2 tabular-nums font-mono"><InlineDelta v={d.delta_ndvi} decimals={3} /></td>}
                             <td className="px-2 py-2 tabular-nums font-mono text-emerald-300">{d.green_area_rai != null ? Math.round(d.green_area_rai).toLocaleString() : "–"}</td>
@@ -1153,7 +1167,7 @@ export default function DistrictAnalysisPage() {
                 <table className="w-full text-[11px] border-collapse">
                   <thead className="bg-slate-900/80">
                     <tr className="border-b border-slate-800">
-                      {["ปี","LST เฉลี่ย","LST สูงสุด","NDVI","พื้นที่เขียว (ไร่)","สัดส่วนเขียว","NDBI","สิ่งปลูกสร้าง (ไร่)","NO₂ (×10⁻⁴ mol/m²)","คะแนนมลพิษ (/10)","สัดส่วนน้ำ","NTL Mean"].map(h => (
+                      {["ปี","ความหนาแน่นประชากร (คน/ตร.กม.)","LST เฉลี่ย","LST สูงสุด","NDVI","พื้นที่เขียว (ไร่)","สัดส่วนเขียว","NDBI","สิ่งปลูกสร้าง (ไร่)","NO₂ (×10⁻⁴ mol/m²)","คะแนนมลพิษ (/10)","สัดส่วนน้ำ","NTL Mean"].map(h => (
                         <th key={h} className="px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-slate-600 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -1168,6 +1182,9 @@ export default function DistrictAnalysisPage() {
                             <span className={isSel ? "text-cyan-400" : isCmp ? "text-slate-400" : "text-slate-500"}>{yr}</span>
                             {isSel && <span className="ml-1.5 text-[8px] text-cyan-600 bg-cyan-950/60 px-1.5 py-0.5 rounded-full">เลือก</span>}
                             {isCmp && !isSel && <span className="ml-1.5 text-[8px] text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded-full">เปรียบ</span>}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums font-mono text-cyan-300">
+                            {formatPopulationDensity(getDistrictDensity(profileData.district))}
                           </td>
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-orange-400">{fmt(m?.mean_lst, 2, "°C")}</span>{showTableDelta && d?.mean_lst != null && <DeltaSpan delta={d.mean_lst} lower unit="°C" />}</td>
                           <td className="px-3 py-2 tabular-nums font-mono"><span className="text-red-400">{fmt(m?.max_lst, 2, "°C")}</span>{showTableDelta && d?.max_lst != null && <DeltaSpan delta={d.max_lst} lower unit="°C" />}</td>
@@ -1190,6 +1207,13 @@ export default function DistrictAnalysisPage() {
                       <tfoot className="border-t border-slate-700/60 bg-slate-900/90">
                         <tr>
                           <td className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-slate-600 whitespace-nowrap">เฉลี่ย กทม. {selectedYear}</td>
+                          <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">
+                            {formatPopulationDensity(
+                              overview?.districts?.length
+                                ? numAvg(overview.districts.map((row) => getDistrictDensity(row.name_th)))
+                                : null,
+                            )}
+                          </td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.mean_lst, 2, "°C")}</td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.max_lst, 2, "°C")}</td>
                           <td className="px-3 py-2 tabular-nums text-slate-500 font-mono text-[10px]">{fmt(b.ndvi_mean, 4)}</td>
@@ -1206,6 +1230,9 @@ export default function DistrictAnalysisPage() {
                     );
                   })()}
                 </table>
+              </div>
+              <div className="p-4">
+                <PopulationDensityPanel activeDistrict={profileData.district} accentColor="#22d3ee" />
               </div>
             </div>
 
