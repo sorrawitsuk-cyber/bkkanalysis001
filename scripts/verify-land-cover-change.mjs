@@ -12,7 +12,7 @@ function assert(condition, message) {
 function assertPercentage(value, label) {
   assert(
     value === null || (Number.isFinite(value) && value >= 0 && value <= 100),
-    `${label} must be null or between 0 and 100`,
+    `${label} must be null or between 0 and 100; received ${JSON.stringify(value)}`,
   );
 }
 
@@ -45,7 +45,11 @@ for (const row of body.rows) {
     "confidence_pct",
     "coverage_pct",
   ]) {
-    assertPercentage(row[key], `${row.district_name}.${key}`);
+    try {
+      assertPercentage(row[key], `${row.district_name}.${key}`);
+    } catch (error) {
+      throw new Error(`${error.message}; row=${JSON.stringify(row)}`);
+    }
   }
 
   if (row.green_to_built_pct !== null && row.changed_pct !== null) {
