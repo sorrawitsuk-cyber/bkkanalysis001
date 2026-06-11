@@ -64,6 +64,17 @@ for (const row of body.rows) {
       `${row.district_name}: built_to_green_pct exceeds changed_pct`,
     );
   }
+
+  const currentComposition = [
+    row.green_pct,
+    row.built_pct,
+    row.water_pct,
+    row.bare_pct,
+  ].filter(Number.isFinite).reduce((sum, value) => sum + value, 0);
+  assert(
+    currentComposition <= 100.05,
+    `${row.district_name}: reported current composition exceeds 100% (${currentComposition})`,
+  );
 }
 
 for (const layer of ["change", "current", "baseline"]) {

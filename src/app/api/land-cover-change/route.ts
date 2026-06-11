@@ -137,6 +137,7 @@ export async function GET(request: Request) {
     const baselineBuilt = baseline.label.eq(6);
     const currentWater = current.label.eq(0);
     const currentBare = current.label.eq(7);
+    const currentOther = current.label.eq(8);
     const greenToBuilt = baselineGreen.and(currentBuilt).and(validBoth);
     const builtToGreen = baselineBuilt.and(currentGreen).and(validBoth);
     const changed = current.label.neq(baseline.label).and(validBoth);
@@ -149,8 +150,12 @@ export async function GET(request: Request) {
       .addBands(areaBand(currentBuilt, "built_area"))
       .addBands(areaBand(currentWater, "water_area"))
       .addBands(areaBand(currentBare, "bare_area"))
+      .addBands(areaBand(currentOther, "other_area"))
       .addBands(areaBand(currentGreen.and(validBoth), "comparison_green_area"))
       .addBands(areaBand(currentBuilt.and(validBoth), "comparison_built_area"))
+      .addBands(areaBand(currentWater.and(validBoth), "comparison_water_area"))
+      .addBands(areaBand(currentBare.and(validBoth), "comparison_bare_area"))
+      .addBands(areaBand(currentOther.and(validBoth), "comparison_other_area"))
       .addBands(areaBand(baselineGreen.and(validBoth), "baseline_green_area"))
       .addBands(areaBand(baselineBuilt.and(validBoth), "baseline_built_area"))
       .addBands(areaBand(greenToBuilt, "green_to_built_area"))
@@ -194,8 +199,22 @@ export async function GET(request: Request) {
 
     const rows: LandCoverDistrictRow[] = ((statsResult?.features ?? []).map((feature: any) => {
       const p = feature.properties ?? {};
-      const validArea = Number(p.valid_area) || 0;
-      const comparisonArea = Number(p.comparison_area) || 0;
+      const sumAreas = (...values: unknown[]) =>
+        values.reduce<number>((sum, value) => sum + (Number(value) || 0), 0);
+      const validArea = sumAreas(
+        p.green_area,
+        p.built_area,
+        p.water_area,
+        p.bare_area,
+        p.other_area,
+      ) || Number(p.valid_area) || 0;
+      const comparisonArea = sumAreas(
+        p.comparison_green_area,
+        p.comparison_built_area,
+        p.comparison_water_area,
+        p.comparison_bare_area,
+        p.comparison_other_area,
+      ) || Number(p.comparison_area) || 0;
       const districtArea = Number(p.district_area_m2) || validArea;
       const pct = (value: unknown, denominator = validArea) =>
         denominator > 0 && typeof value === "number" ? roundOrNull((value / denominator) * 100) : null;
