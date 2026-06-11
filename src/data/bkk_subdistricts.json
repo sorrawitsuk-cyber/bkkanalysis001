@@ -23636,8 +23636,8 @@
         "id": 65,
         "name_th": "แขวงสะพานสอง",
         "name_en": "Saphan Song Subdistrict",
-        "district_id": 17,
-        "district_name": "ลาดพร้าว",
+        "district_id": 24,
+        "district_name": "วังทองหลาง",
         "osm_id": 11507752
       },
       "geometry": {
@@ -28664,8 +28664,8 @@
         "id": 73,
         "name_th": "แขวงนวมินทร์",
         "name_en": "Nawamin Subdistrict",
-        "district_id": 20,
-        "district_name": "บางกะปิ",
+        "district_id": 29,
+        "district_name": "บึงกุ่ม",
         "osm_id": 11513945
       },
       "geometry": {
@@ -39704,8 +39704,8 @@
         "id": 91,
         "name_th": "แขวงคลองชักพระ",
         "name_en": "Khlong Chak Phra Subdistrict",
-        "district_id": 26,
-        "district_name": "บางกอกน้อย",
+        "district_id": 22,
+        "district_name": "ตลิ่งชัน",
         "osm_id": 11355134
       },
       "geometry": {
@@ -69648,8 +69648,8 @@
         "id": 137,
         "name_th": "แขวงบางหว้า",
         "name_en": "Bang Wa Subdistrict",
-        "district_id": 39,
-        "district_name": "จอมทอง",
+        "district_id": 31,
+        "district_name": "ภาษีเจริญ",
         "osm_id": 11347171
       },
       "geometry": {

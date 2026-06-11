@@ -11,6 +11,7 @@ flowchart TD
   Home --> Green["/green-space"]
   Home --> BuiltUp["/urban-expansion"]
   Home --> LandCover["/land-cover-change"]
+  Home --> Population["/population"]
   Home --> Rain["/rainfall"]
   Home --> Flood["/flood-risk"]
   Home --> Night["/nighttime-lights"]
@@ -32,6 +33,8 @@ flowchart TD
   BuiltUp --> GeeTiles
   LandCover --> LandCoverApi["/api/land-cover-change"]
   LandCoverApi --> GEE
+  Population --> PopulationApi["/api/population"]
+  PopulationApi --> DOPA["DOPA annual registry files"]
   Rain --> RainApi["/api/rainfall"]
   RainApi --> GEE
   Night --> GeeTiles
@@ -84,6 +87,10 @@ Built-up/NDBI dashboard. It uses `/api/district-metrics?metric=builtup` and shar
 Land-cover transition dashboard. It reads Google Dynamic World V1 through `/api/land-cover-change`, creates annual probability composites at 10-meter resolution, applies a confidence threshold, and compares a baseline year with a selected year. It reports current green/built/water/bare composition, net percentage-point changes, green-to-built and built-to-green transitions, total class change, confidence, and spatial coverage for all 50 districts.
 
 The `Verify Land Cover Change` GitHub Actions workflow runs the real API against the configured GEE service account and validates all 50 district rows, transition invariants, scene availability, and tile URLs. It runs automatically when the API or its GEE helpers change and can also be dispatched manually for another year pair.
+
+### `/population`
+
+Population registry dashboard for all 50 districts and 180 subdistricts. `/api/population` reads the generated `src/data/bkk_population.json` dataset, which contains December DOPA population, male, female, and house totals for 2018-2025. District values are aggregated from their subdistrict records; density uses the area of the boundary polygons displayed by the application. Run `node scripts/update-population-data.mjs` to download and validate the annual source files again.
 
 ### `/flood-risk`
 

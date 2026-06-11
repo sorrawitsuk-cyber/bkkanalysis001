@@ -20,9 +20,23 @@ import {
   Globe,
   FileSearch,
   Gauge,
+  Users,
 } from "lucide-react";
 
 const modules = [
+  {
+    title: "ประชากรเขตและแขวง",
+    subtitle: "Population Registry · DOPA",
+    description: "ประชากรชายหญิง จำนวนบ้าน ความหนาแน่น และแนวโน้มย้อนหลังครบ 50 เขต 180 แขวง",
+    href: "/population",
+    icon: Users,
+    accent: "from-indigo-400 to-violet-600",
+    accentBg: "bg-indigo-500/10 border-indigo-500/20",
+    accentText: "text-indigo-300",
+    metric: "5.42M",
+    metricLabel: "ทะเบียนราษฎร 2025",
+    tag: "population",
+  },
   {
     title: "ปัญหาเมือง",
     subtitle: "Traffy Fondue",
@@ -143,13 +157,14 @@ const modules = [
 ];
 
 const platformStats = [
-  { label: "โมดูลวิเคราะห์", value: "10", icon: BarChart3, color: "text-cyan-400" },
+  { label: "โมดูลวิเคราะห์", value: "11", icon: BarChart3, color: "text-cyan-400" },
   { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
   { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
   { label: "ดาวเทียม",       value: "5 ภารกิจ", icon: Satellite, color: "text-purple-400" },
 ];
 
 const dataSources = [
+  { src: "DOPA Registry",    desc: "Population · houses · sex",  color: "text-indigo-300" },
   { src: "Landsat 8/9",      desc: "Land Surface Temp (LST)",    color: "text-orange-400" },
   { src: "Sentinel-2 MSI",   desc: "NDVI · NDBI · NDWI",         color: "text-emerald-400" },
   { src: "Dynamic World",    desc: "Land cover classes · change", color: "text-lime-400" },
