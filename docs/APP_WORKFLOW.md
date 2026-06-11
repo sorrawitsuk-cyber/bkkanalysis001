@@ -76,11 +76,11 @@ LST dashboard. It reads district summaries through `/api/district-metrics` and r
 
 ### `/green-space`
 
-NDVI and green-space dashboard. It uses `/api/district-metrics?metric=vegetation`, then derives KPIs such as green area ratio, green area rai, and low-green priority ranking.
+Tree-cover dashboard. It reads Google Dynamic World V1 through `/api/tree-cover`, creates annual class-probability composites at 10-meter resolution, and counts only pixels classified as `trees` with confidence at least 45%. It reports tree-cover percentage and area, stable tree cover, tree gain, tree loss, confidence, and spatial coverage for all 50 districts. NDVI is no longer used as a proxy for tree area because it cannot reliably separate trees from grass, crops, or shrubs.
 
 ### `/urban-expansion`
 
-Built-up/NDBI dashboard. It uses `/api/district-metrics?metric=builtup` and shares the same map workflow as heat and green-space analysis.
+Built-up Cover and Urban Expansion dashboard. It uses `/api/urban-expansion` with Google Dynamic World V1 as the primary source. The page reports current built-up cover, area in rai, net change in percentage points, gross built gain/loss, and transitions from green or bare land to built. NDBI is treated only as a supporting spectral signal and is not converted into building area.
 
 ### `/land-cover-change`
 

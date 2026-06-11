@@ -1,401 +1,450 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import {
+  AlertTriangle,
+  CalendarRange,
+  Download,
+  FileText,
+  Layers3,
+  RefreshCw,
+  Trees,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import MapSkeleton from "@/components/ui/MapSkeleton";
-import ErrorBoundary from "@/components/ui/ErrorBoundary";
-import MapControlPanel from "@/components/map/MapControlPanel";
-import GreenSpaceSidebar from "@/components/gee/GreenSpaceSidebar";
-import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
-import { Layers } from "lucide-react";
-import { formatRai } from "@/lib/ndvi";
-import MonthYearPicker from "@/components/ui/MonthYearPicker";
-import ExportPanel from "@/components/ui/ExportPanel";
-import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
-import { MapPin, X, Download, FileText } from "lucide-react";
-import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
-import StatsDashboard from "@/components/stats/StatsDashboard";
-import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
+import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
+import TreeCoverSidebar from "@/components/gee/TreeCoverSidebar";
+import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import {
+  TREE_COVER_MIN_YEAR,
+  formatTreeChange,
+  formatTreePercent,
+  formatTreeRai,
+  treeCoverColor,
+  type TreeCoverResponse,
+} from "@/lib/tree-cover";
 
-const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
+const TreeCoverMap = dynamic(() => import("@/components/map/TreeCoverMap"), {
+  ssr: false,
+  loading: () => <MapSkeleton />,
+});
 
-type NdviLayer = "green_area_rai" | "green_area_ratio" | "ndvi_mean";
-type MapMode = "district" | "idw";
+const ALL_DISTRICTS = "ทั้งหมด";
+const CURRENT_YEAR = new Date().getUTCFullYear();
+
+const TABLE_COLUMNS: ColDef[] = [
+  { key: "name", label: "เขต", sortable: true },
+  { key: "tree_cover_pct", label: "Tree Cover", unit: "%", format: (value) => Number(value).toFixed(2), heatmap: true, heatmapHex: "#16a34a" },
+  { key: "tree_cover_rai", label: "พื้นที่เรือนยอดไม้", unit: "ไร่", format: (value) => Math.round(Number(value)).toLocaleString("th-TH"), heatmap: true, heatmapHex: "#22c55e" },
+  { key: "tree_cover_change_pp", label: "เปลี่ยนจากปีฐาน", unit: "จุด%", format: (value) => `${Number(value) > 0 ? "+" : ""}${Number(value).toFixed(2)}`, heatmap: true, heatmapHex: "#4ade80" },
+  { key: "tree_gain_pct", label: "พื้นที่ต้นไม้เพิ่ม", unit: "%", format: (value) => Number(value).toFixed(2), heatmap: true, heatmapHex: "#4ade80", hideable: true },
+  { key: "tree_loss_pct", label: "พื้นที่ต้นไม้สูญเสีย", unit: "%", format: (value) => Number(value).toFixed(2), heatmap: true, heatmapHex: "#ef4444", heatmapInvert: true },
+  { key: "stable_tree_pct", label: "ต้นไม้คงเดิม", unit: "%", format: (value) => Number(value).toFixed(2), hideable: true },
+  { key: "confidence_pct", label: "ความเชื่อมั่นเฉลี่ย", unit: "%", format: (value) => Number(value).toFixed(1), hideable: true },
+  { key: "coverage_pct", label: "พื้นที่ที่มีข้อมูล", unit: "%", format: (value) => Number(value).toFixed(1), hideable: true },
+];
 
 export default function GreenSpacePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareYear, setCompareYear] = useState(2018);
-  const [mapMode, setMapMode] = useState<MapMode>("idw");
-  const [granularity, setGranularity] = useState<"district" | "subdistrict">("district");
-  const [geojsonData, setGeojsonData] = useState<any>(null);
-  const [invertedMask, setInvertedMask] = useState<any>(null);
-  const [summary, setSummary] = useState<any>(null);
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const [baselineYear, setBaselineYear] = useState(2020);
+  const [activeDistrict, setActiveDistrict] = useState(ALL_DISTRICTS);
+  const [mode, setMode] = useState<"cover" | "change">("cover");
+  const [data, setData] = useState<TreeCoverResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [opacity, setOpacity] = useState(0.78);
+  const [error, setError] = useState<string | null>(null);
+  const [rasterVisible, setRasterVisible] = useState(true);
+  const [opacity, setOpacity] = useState(0.72);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
-  const [ndviLayer, setNdviLayer] = useState<NdviLayer>("ndvi_mean");
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/tree-cover?year=${year}&baseline=${baselineYear}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "ไม่สามารถโหลดข้อมูล Tree Cover ได้");
+      setData(payload);
+      setActiveDistrict(ALL_DISTRICTS);
+    } catch (loadError: any) {
+      setError(loadError?.message ?? "ไม่สามารถโหลดข้อมูล Tree Cover ได้");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [baselineYear, year]);
 
   useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams({ year: selectedYear.toString(), metric: "vegetation" });
-    if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
-    if (compareMode) params.append("compareYear", compareYear.toString());
+    loadData();
+  }, [loadData]);
 
-    fetch(`/api/district-metrics?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setGeojsonData(data.geojson);
-        setInvertedMask(data.invertedMask);
-        setSummary(data.summary);
-        setLoading(false);
-      })
-      .catch((err) => { console.error(err); setLoading(false); });
-  }, [activeDistrict, selectedYear, compareMode, compareYear]);
+  useEffect(() => {
+    if (baselineYear >= year) setBaselineYear(Math.max(TREE_COVER_MIN_YEAR, year - 1));
+  }, [baselineYear, year]);
 
-  const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
-    [geojsonData, granularity],
+  const activeRow = activeDistrict === ALL_DISTRICTS
+    ? null
+    : data?.rows.find((row) => row.district_name === activeDistrict) ?? null;
+  const displayedRows = activeRow ? [activeRow] : data?.rows ?? [];
+  const rankingRows = useMemo(
+    () => [...(data?.rows ?? [])].sort((a, b) => (b.tree_cover_pct ?? -1) - (a.tree_cover_pct ?? -1)).slice(0, 15),
+    [data?.rows],
+  );
+  const changeRows = useMemo(
+    () => [...(data?.rows ?? [])]
+      .sort((a, b) => Math.abs(b.tree_cover_change_pp ?? 0) - Math.abs(a.tree_cover_change_pp ?? 0))
+      .slice(0, 15),
+    [data?.rows],
+  );
+  const gainLossRows = useMemo(
+    () => [...(data?.rows ?? [])]
+      .sort((a, b) => (b.tree_loss_pct ?? -1) - (a.tree_loss_pct ?? -1))
+      .slice(0, 12)
+      .map((row) => ({
+        district: row.district_name,
+        เพิ่ม: row.tree_gain_pct ?? 0,
+        สูญเสีย: row.tree_loss_pct ?? 0,
+      })),
+    [data?.rows],
   );
 
-  const handleReset = () => {
-    setActiveDistrict("ทั้งหมด");
-    setSelectedYear(2026);
-    setCompareMode(false);
-    setCompareYear(2018);
-    setMapMode("idw");
-    setGranularity("district");
-    setOpacity(0.78);
-    setBaseMap("dark");
-    setSelectedMonth(null);
-    setNdviLayer("ndvi_mean");
-  };
-
-  const ndviLayerLabel = ndviLayer === "green_area_rai" ? "ขนาดพื้นที่สีเขียว (ไร่)"
-    : ndviLayer === "green_area_ratio" ? "สัดส่วนพื้นที่สีเขียว (%)"
-    : "ค่า NDVI เฉลี่ย";
-
-  const _gsNow = new Date();
-  const periodLabel = selectedYear === _gsNow.getFullYear()
-    ? `1 ม.ค. - ${_gsNow.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
-    : `1 ม.ค. - 31 ธ.ค. ${selectedYear}`;
-
-  const rankingForExport: (string | number | null)[][] = ((geojsonData?.features ?? []) as any[])
-    .filter((f: any) => typeof f?.properties?.[ndviLayer] === "number")
-    .sort((a: any, b: any) => Number(b.properties[ndviLayer]) - Number(a.properties[ndviLayer]))
-    .map((f: any) => [
-      f.properties.name_th as string,
-      +Number(f.properties[ndviLayer]).toFixed(3),
-      ndviLayer === "green_area_rai" ? "ไร่" : ndviLayer === "green_area_ratio" ? "%" : "NDVI",
-      selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
-    ]);
-
-  const ndviSummary = summary?.ndviSummary;
-  const isModeledData = summary?.dataQuality === "modeled";
-  const greenAreaQualifier = isModeledData ? "ประมาณจาก NDVI แบบจำลอง" : "ประมาณจาก NDVI";
-  const districtCount = geojsonData?.features?.length || 50;
-  const avgGreenAreaRai = ndviSummary?.total_green_area_rai && districtCount
-    ? ndviSummary.total_green_area_rai / districtCount : null;
-
-  const kpiCards = [
-    { label: "พื้นที่เขียวเฉลี่ย (ค่าประมาณ)", value: formatRai(avgGreenAreaRai) },
-    { label: "พื้นที่เขียวรวม (ค่าประมาณ)", value: formatRai(ndviSummary?.total_green_area_rai) },
-    { label: isModeledData ? "NDVI แบบจำลองสูงสุด" : "เขตที่มี NDVI สูงสุด", value: ndviSummary?.best_district?.district_name || ndviSummary?.best_district?.name_th || "ไม่มีข้อมูล" },
-    { label: isModeledData ? "NDVI แบบจำลองต่ำสุด" : "เขตที่มี NDVI ต่ำสุด", value: ndviSummary?.worst_district?.district_name || ndviSummary?.worst_district?.name_th || "ไม่มีข้อมูล" },
-  ];
-
-  let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
-  if (compareMode) {
-    legendConfig = { title: "การเปลี่ยนแปลง NDVI รายปี", description: `ค่า NDVI ปี ${selectedYear} ลบปีฐาน ${compareYear}`, unit: "NDVI", items: [{ color: "#8B1E1E", label: "ลดลงมาก", range: "< -0.15" }, { color: "#F59E0B", label: "ลดลง", range: "-0.15 ถึง -0.05" }, { color: "#F7F7F7", label: "ใกล้เคียงเดิม", range: "-0.05 ถึง +0.05" }, { color: "#86EFAC", label: "เพิ่มขึ้น", range: "+0.05 ถึง +0.15" }, { color: "#047857", label: "เพิ่มขึ้นมาก", range: "> +0.15" }] };
-  } else if (mapMode === "idw") {
-    legendConfig = { title: "NDVI จากดาวเทียม Sentinel-2", description: "ค่า NDVI raster จากภาพ Sentinel-2 แบบ median รายปี หลังคัดกรองเมฆ", unit: "NDVI", items: [{ color: "#7F1D1D", label: "เขียวน้อยมาก", range: "0.10 - 0.24" }, { color: "#B45309", label: "เขียวน้อย", range: "0.24 - 0.38" }, { color: "#FACC15", label: "ปานกลาง", range: "0.38 - 0.52" }, { color: "#84CC16", label: "ดี", range: "0.52 - 0.66" }, { color: "#16A34A", label: "ดีมาก", range: "0.66 - 0.80" }, { color: "#065F46", label: "หนาแน่นมาก", range: "> 0.80" }] };
-  } else if (ndviLayer === "green_area_rai") {
-    legendConfig = { title: "พื้นที่สีเขียวโดยประมาณรายเขต", description: `${greenAreaQualifier} ไม่ใช่พื้นที่สวนสาธารณะหรือผลสำรวจภาคสนาม`, unit: "ไร่", items: [{ color: "#8c2d04", label: "น้อยมาก", range: "< 4,000" }, { color: "#d94801", label: "น้อย", range: "4,000 - 8,000" }, { color: "#f6e05e", label: "ปานกลาง", range: "8,000 - 12,000" }, { color: "#68d391", label: "มาก", range: "12,000 - 16,000" }, { color: "#238b45", label: "มากที่สุด", range: "> 16,000" }] };
-  } else if (ndviLayer === "green_area_ratio") {
-    legendConfig = { title: "สัดส่วนพื้นที่สีเขียวโดยประมาณ", description: `${greenAreaQualifier} เทียบกับพื้นที่เขต ไม่ใช่สัดส่วนจากทะเบียนสวนหรือการสำรวจภาคสนาม`, unit: "%", items: [{ color: "#8c2d04", label: "น้อยมาก", range: "< 14%" }, { color: "#d94801", label: "น้อย", range: "14% - 28%" }, { color: "#f6e05e", label: "ปานกลาง", range: "28% - 42%" }, { color: "#68d391", label: "ดี", range: "42% - 56%" }, { color: "#238b45", label: "ดีมาก", range: "> 56%" }] };
-  } else {
-    legendConfig = { title: isModeledData ? "ค่า NDVI แบบจำลองรายเขต" : "ค่า NDVI เฉลี่ยรายเขต", description: isModeledData ? "ใช้เปรียบเทียบแนวโน้มเบื้องต้นระหว่างเขต ระหว่างรอนำเข้าผลประมวลผล GEE จริง" : "ค่า NDVI ใช้แปลความหนาแน่นพืชพรรณ ไม่ใช่ทะเบียนพื้นที่สีเขียว", unit: "NDVI", items: [{ color: "#8c2d04", label: "เขียวน้อยมาก", range: "< 0.20" }, { color: "#d94801", label: "เขียวน้อย", range: "0.20 - 0.30" }, { color: "#f6e05e", label: "ปานกลาง", range: "0.30 - 0.40" }, { color: "#68d391", label: "ดี", range: "0.40 - 0.50" }, { color: "#238b45", label: "ดีมาก", range: "> 0.50" }] };
-  }
-
-  const allDistricts = useMemo((): string[] =>
-    [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
-      .sort((a, b) => a.localeCompare(b, "th")),
-    [geojsonData],
-  );
-
-  const csvFilename = `green-space_${ndviLayer}_${selectedYear}`;
-  const csvHeaders = ["เขต", ndviLayerLabel, "หน่วย", "ช่วงเวลา"];
-  const reportData = useMemo((): PDFReportData => ({
-    title: "วิเคราะห์พื้นที่สีเขียวเมือง",
-    subtitle: isModeledData ? "NDVI แบบจำลอง · รอผล GEE จริง" : "Sentinel-2 SR Harmonized · NDVI",
-    source: summary?.sourceLabel ?? summary?.dataSource ?? "ไม่ระบุแหล่งข้อมูล",
-    period: selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel,
-    layer: ndviLayerLabel,
+  const csvRows = (data?.rows ?? []).map((row) => [
+    row.district_name,
+    row.tree_cover_pct,
+    row.tree_cover_rai,
+    row.tree_cover_change_pp,
+    row.tree_gain_pct,
+    row.tree_loss_pct,
+    row.confidence_pct,
+    row.coverage_pct,
+  ]);
+  const csvHeaders = ["เขต", "Tree Cover (%)", "พื้นที่เรือนยอดไม้ (ไร่)", "เปลี่ยนจากปีฐาน (จุด%)", "ต้นไม้เพิ่ม (%)", "ต้นไม้สูญเสีย (%)", "ความเชื่อมั่น (%)", "พื้นที่มีข้อมูล (%)"];
+  const reportData: PDFReportData = {
+    title: "รายงานเรือนยอดไม้ในกรุงเทพมหานคร",
+    subtitle: "Google Dynamic World V1 · Trees class",
+    source: data?.summary.source ?? "Google Dynamic World V1",
+    period: data?.period.currentLabel ?? `ปี ${year}`,
+    layer: mode === "cover" ? "Tree Cover" : "Tree Cover Change",
     district: activeDistrict,
     kpis: [
-      { label: "NDVI เฉลี่ย กทม.", value: ndviSummary?.avg_ndvi_mean != null ? ndviSummary.avg_ndvi_mean.toFixed(3) : "–" },
-      { label: "พื้นที่สีเขียวรวมโดยประมาณ", value: formatRai(ndviSummary?.total_green_area_rai) },
-      { label: isModeledData ? "เขตที่มี NDVI แบบจำลองสูงสุด" : "เขตที่มี NDVI สูงสุด", value: ndviSummary?.best_district?.district_name ?? "–" },
+      { label: "Tree Cover เฉลี่ย", value: formatTreePercent(activeRow?.tree_cover_pct ?? data?.summary.treeCoverPct) },
+      { label: "พื้นที่เรือนยอดไม้", value: formatTreeRai(activeRow?.tree_cover_rai ?? data?.summary.treeCoverRai) },
+      { label: `เปลี่ยนจากปี ${baselineYear}`, value: formatTreeChange(activeRow?.tree_cover_change_pp ?? data?.summary.treeCoverChangePp) },
+      { label: "เขต Tree Cover สูงสุด", value: data?.summary.highestTreeCoverDistrict ?? "ไม่มีข้อมูล" },
     ],
-    rankingHeaders: ["เขต", ndviLayerLabel],
-    rankingRows: rankingForExport.map(([n, v]) => [n, v]),
-  }), [selectedYear, selectedMonth, periodLabel, ndviLayerLabel, activeDistrict, ndviSummary, rankingForExport, summary, isModeledData]);
+    rankingHeaders: ["เขต", "Tree Cover (%)"],
+    rankingRows: rankingRows.map((row) => [row.district_name, row.tree_cover_pct]),
+  };
 
-  const tableColumns: ColDef[] = [
-    { key: "name", label: "เขต", sortable: false },
-    { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981" },
-    { key: "green_area_rai", label: "พื้นที่เขียว (ประมาณ)", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981" },
-    { key: "green_area_ratio", label: "ความหนาแน่นพื้นที่เขียวรายเขต", unit: "% พื้นที่เขต", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
-    { key: "priority_score", label: "Priority Score", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#f97316", heatmapInvert: true },
-    { key: "low_green_ratio", label: "เขียวน้อย", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f59e0b", hideable: true },
-    { key: "water_ratio", label: "น้ำ", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#38bdf8", hideable: true },
-    { key: "ntl_mean", label: "NTL", unit: "nW/sr/cm²", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#fbbf24", hideable: true },
-    ...(compareMode ? [{ key: "delta", label: "Δ NDVI", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–" } as ColDef] : []),
-  ];
+  const legend = mode === "cover"
+    ? [
+        ["#713f12", "< 5%", "น้อยมาก"],
+        ["#a16207", "5-10%", "น้อย"],
+        ["#65a30d", "10-20%", "ปานกลาง"],
+        ["#16a34a", "20-30%", "มาก"],
+        ["#047857", "> 30%", "มากที่สุด"],
+      ]
+    : [
+        ["#b91c1c", "< -3 จุด%", "ลดลงมาก"],
+        ["#f97316", "-3 ถึง -1", "ลดลง"],
+        ["#cbd5e1", "-1 ถึง +1", "ใกล้เคียงเดิม"],
+        ["#4ade80", "+1 ถึง +3", "เพิ่มขึ้น"],
+        ["#047857", "> +3 จุด%", "เพิ่มขึ้นมาก"],
+      ];
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      <GreenSpaceSidebar
-          onDistrictSelect={setActiveDistrict}
-          activeDistrict={activeDistrict}
-          summary={summary}
-          geojsonData={displayGeoJson}
-          ndviLayer={ndviLayer}
-          loading={loading}
-          compareMode={compareMode}
-          granularity={granularity}
+    <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-50">
+      <TreeCoverSidebar
+        data={data}
+        loading={loading}
+        activeDistrict={activeDistrict}
+        mode={mode}
+        onDistrictSelect={setActiveDistrict}
+        onModeChange={setMode}
       />
 
-      <main className="flex-1 min-w-0 flex flex-col">
-        {/* Tab bar */}
-        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+      <main className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2.5">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="emerald" />
-          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
-          <div className="flex items-center gap-1.5 min-w-0">
-            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+          <div className="hidden h-5 w-px bg-slate-800 sm:block" />
+          <label className="flex items-center gap-1.5 text-[10px] text-slate-500">
+            ปีข้อมูล
             <select
-              value={activeDistrict}
-              onChange={(e) => setActiveDistrict(e.target.value)}
-              disabled={allDistricts.length === 0}
-              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40 max-w-[130px]"
+              value={year}
+              onChange={(event) => setYear(Number(event.target.value))}
+              className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-[11px] text-white outline-none focus:border-emerald-400"
             >
-              <option value="ทั้งหมด">ทุกเขต</option>
-              {allDistricts.map((name) => (
-                <option key={name} value={name}>{name}</option>
+              {Array.from({ length: CURRENT_YEAR - TREE_COVER_MIN_YEAR + 1 }, (_, index) => CURRENT_YEAR - index).map((option) => (
+                <option key={option} value={option}>{option}</option>
               ))}
             </select>
-            {activeDistrict !== "ทั้งหมด" && (
-              <button
-                onClick={() => setActiveDistrict("ทั้งหมด")}
-                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
-                title="ล้างตัวกรอง"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {loading && <span className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-widest animate-pulse ml-1">กำลังโหลด…</span>}
+          </label>
+          <label className="flex items-center gap-1.5 text-[10px] text-slate-500">
+            ปีฐาน
+            <select
+              value={baselineYear}
+              onChange={(event) => setBaselineYear(Number(event.target.value))}
+              className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-[11px] text-white outline-none focus:border-emerald-400"
+            >
+              {Array.from({ length: Math.max(1, year - TREE_COVER_MIN_YEAR) }, (_, index) => year - 1 - index).map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-[10px] text-slate-500 md:hidden">
+            เขต
+            <select
+              value={activeDistrict}
+              onChange={(event) => setActiveDistrict(event.target.value)}
+              className="max-w-[118px] rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-[11px] text-white outline-none focus:border-emerald-400"
+            >
+              <option value={ALL_DISTRICTS}>ทุกเขต</option>
+              {(data?.rows ?? []).map((row) => (
+                <option key={row.district_id} value={row.district_name}>{row.district_name}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-md border border-slate-700 px-2 py-1.5 text-[10px] text-slate-400 hover:text-white disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> โหลดใหม่
+          </button>
           <div className="flex-1" />
-          {!loading && summary && viewMode !== "map" && (
-            <div className="flex items-center gap-1.5 shrink-0">
+          {!loading && data && (
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => downloadCSV(csvHeaders, rankingForExport, csvFilename)}
-                disabled={rankingForExport.length === 0}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+                type="button"
+                onClick={() => downloadCSV(csvHeaders, csvRows, `bangkok_tree_cover_${baselineYear}_${year}`)}
+                className="flex items-center gap-1.5 rounded-md border border-slate-700 px-2 py-1.5 text-[10px] text-slate-400 hover:text-white"
               >
                 <Download className="h-3 w-3" /> CSV
               </button>
               <button
+                type="button"
                 onClick={() => printReport(reportData)}
-                disabled={rankingForExport.length === 0}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-2.5 py-1.5 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-md border border-emerald-700/60 bg-emerald-950/40 px-2 py-1.5 text-[10px] text-emerald-300 hover:text-white"
               >
                 <FileText className="h-3 w-3" /> PDF
               </button>
             </div>
           )}
-        </div>
+        </header>
 
-        <div className="flex-1 min-h-0 flex">
-          {viewMode === "map" && (
+        <div className="min-h-0 flex-1 overflow-auto">
+          {loading && !data ? (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> กำลังจำแนกเรือนยอดไม้จาก Dynamic World
+            </div>
+          ) : error || !data ? (
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-300">
+              {error ?? "ไม่มีข้อมูล Tree Cover"}
+            </div>
+          ) : (
             <>
-              <div className="relative flex-1 min-w-0">
-                <div className="absolute inset-0 z-0">
-                  <ErrorBoundary>
-                    <DistrictMetricsMapView
-                      geojsonData={displayGeoJson}
-                      invertedMask={invertedMask}
+              {viewMode === "map" && (
+                <div className="flex h-full min-h-[560px]">
+                  <div className="relative min-w-0 flex-1">
+                    <TreeCoverMap
+                      geojsonData={data.geojson}
+                      rasterUrl={mode === "cover" ? data.rasters.current.urlFormat : data.rasters.change.urlFormat}
+                      rasterVisible={rasterVisible}
+                      mode={mode}
                       activeDistrict={activeDistrict}
-                      mapMode={mapMode}
-                      compareMode={compareMode}
-                      summary={summary}
                       opacity={opacity}
                       baseMap={baseMap}
-                      analysisType="green"
-                      ndviLayer={ndviLayer}
-                      granularity={granularity}
+                      onDistrictSelect={setActiveDistrict}
                     />
-                  </ErrorBoundary>
-                </div>
-
-                {/* Floating KPI cards */}
-                <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
-                  {kpiCards.map((card) => (
-                    <div key={card.label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
-                      <div className="text-[11px] text-slate-400 font-semibold leading-tight">{card.label}</div>
-                      <div className="text-sm font-black text-slate-100 mt-1 truncate">{card.value}</div>
+                    <div className="pointer-events-none absolute left-4 top-4 grid max-w-3xl grid-cols-2 gap-2 lg:grid-cols-4">
+                      {[
+                        ["Tree Cover", formatTreePercent(activeRow?.tree_cover_pct ?? data.summary.treeCoverPct)],
+                        ["พื้นที่เรือนยอดไม้", formatTreeRai(activeRow?.tree_cover_rai ?? data.summary.treeCoverRai)],
+                        [`เปลี่ยนจาก ${baselineYear}`, formatTreeChange(activeRow?.tree_cover_change_pp ?? data.summary.treeCoverChangePp)],
+                        ["พื้นที่มีข้อมูล", formatTreePercent(activeRow?.coverage_pct ?? data.summary.averageCoveragePct)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-lg bg-slate-950/90 p-3 shadow-lg">
+                          <div className="text-[9px] text-slate-500">{label}</div>
+                          <div className="mt-1 text-sm font-black text-slate-100">{value}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                    <div className="pointer-events-none absolute bottom-4 left-4 rounded-lg bg-slate-950/95 p-3 shadow-xl">
+                      <div className="mb-2 text-[10px] font-bold text-slate-300">{mode === "cover" ? "สัดส่วนเรือนยอดไม้รายเขต" : "การเปลี่ยนแปลงเทียบปีฐาน"}</div>
+                      {legend.map(([color, range, label]) => (
+                        <div key={range} className="grid grid-cols-[12px_70px_1fr] items-center gap-2 py-0.5 text-[9px] text-slate-400">
+                          <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
+                          <span>{range}</span>
+                          <span>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <aside className="hidden w-72 shrink-0 space-y-4 overflow-y-auto border-l border-slate-800 bg-slate-900/70 p-4 xl:block">
+                    <section>
+                      <h2 className="flex items-center gap-2 text-xs font-bold"><Layers3 className="h-4 w-4 text-emerald-400" /> การแสดงผลแผนที่</h2>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => setMode("cover")} className={`rounded-lg border p-2 text-[10px] ${mode === "cover" ? "border-emerald-400 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-400"}`}>Tree Cover</button>
+                        <button type="button" onClick={() => setMode("change")} className={`rounded-lg border p-2 text-[10px] ${mode === "change" ? "border-emerald-400 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-400"}`}>การเปลี่ยนแปลง</button>
+                      </div>
+                    </section>
+                    <section>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span>ชั้นข้อมูลรายพิกเซล</span>
+                        <button type="button" onClick={() => setRasterVisible((value) => !value)} className="text-emerald-300">{rasterVisible ? "เปิด" : "ปิด"}</button>
+                      </div>
+                      <input type="range" min={0.2} max={1} step={0.05} value={opacity} onChange={(event) => setOpacity(Number(event.target.value))} className="mt-3 w-full accent-emerald-500" />
+                    </section>
+                    <section>
+                      <div className="text-[10px] text-slate-400">แผนที่ฐาน</div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {(["dark", "light", "satellite", "streets", "none"] as const).map((item) => (
+                          <button type="button" key={item} onClick={() => setBaseMap(item)} className={`rounded-md px-2 py-1 text-[9px] ${baseMap === item ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-400"}`}>{item}</button>
+                        ))}
+                      </div>
+                    </section>
+                    <section className="rounded-lg bg-slate-950/60 p-3">
+                      <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-300"><CalendarRange className="h-3.5 w-3.5 text-emerald-400" /> ช่วงเปรียบเทียบ</h2>
+                      <p className="mt-2 text-[9px] leading-relaxed text-slate-500">{data.period.baselineLabel} → {data.period.currentLabel}</p>
+                      <p className="mt-2 text-[9px] leading-relaxed text-slate-500">ใช้เฉพาะพิกเซลที่มีข้อมูลทั้งสองช่วงในการคำนวณการเพิ่มและสูญเสีย</p>
+                    </section>
+                  </aside>
                 </div>
+              )}
 
-                {/* Data source badge */}
-                <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แยกแหล่งข้อมูล</span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 leading-relaxed">
-                    <p><span className="text-white">ชั้นแผนที่:</span> {mapMode === "idw" ? "Sentinel-2 ผ่าน GEE รายพิกเซล" : "สถิติรายเขต"}</p>
-                    <p><span className="text-white">KPI/อันดับ:</span> {summary?.sourceLabel ?? "ยังไม่ระบุแหล่ง"}</p>
-                    <p><span className="text-white">คุณภาพ KPI:</span> {summary?.dataQuality === "modeled" ? "แบบจำลอง" : summary?.dataQuality === "estimated" ? "ประมาณการ" : "ข้อมูลสังเกต"}</p>
-                    <p><span className="text-white">ช่วงเวลา:</span> {periodLabel}</p>
-                  </div>
-                </div>
-
-                {/* Legend */}
-                <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
-                  <div className="mb-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
-                    <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
-                    <p className="mt-1 text-[9px] leading-snug text-slate-500">{legendConfig.description}</p>
-                  </div>
-                  <div className="space-y-2">
-                    {legendConfig.items.map((item) => (
-                      <div key={`${item.color}-${item.range}`} className="grid grid-cols-[14px_1fr_auto] items-center gap-2 text-[10px]">
-                        <span className="h-3.5 w-3.5 rounded-sm border border-white/10" style={{ backgroundColor: item.color }} />
-                        <span className="min-w-0 truncate text-slate-300">{item.label}</span>
-                        <span className="font-mono text-[9px] text-slate-400">{item.range} {legendConfig.unit}</span>
+              {viewMode === "stats" && (
+                <div className="space-y-4 p-4 sm:p-5">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      ["Tree Cover เฉลี่ย", formatTreePercent(data.summary.treeCoverPct), "text-emerald-300"],
+                      ["พื้นที่เรือนยอดไม้รวม", formatTreeRai(data.summary.treeCoverRai), "text-green-300"],
+                      [`เปลี่ยนจาก ${baselineYear}`, formatTreeChange(data.summary.treeCoverChangePp), (data.summary.treeCoverChangePp ?? 0) >= 0 ? "text-green-300" : "text-red-300"],
+                      ["ความเชื่อมั่นเฉลี่ย", formatTreePercent(data.summary.averageConfidencePct), "text-cyan-300"],
+                    ].map(([label, value, color]) => (
+                      <div key={label} className="rounded-xl bg-slate-900/70 p-4">
+                        <div className="text-[10px] text-slate-500">{label}</div>
+                        <div className={`mt-1 text-xl font-black ${color}`}>{value}</div>
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-
-              {/* Right aside — map mode only */}
-              <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
-                <div className="flex min-h-full flex-col gap-3">
-                  <MapControlPanel
-                    accent="emerald"
-                    granularity={granularity}
-                    onGranularityChange={setGranularity}
-                    mapMode={mapMode}
-                    mapModes={[
-                      { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีพื้นที่ด้วยค่าที่เลือกจากสถิติรายเขต" },
-                      { value: "idw", label: "ภาพรายพิกเซล", description: "แสดง NDVI จาก Sentinel-2 ผ่าน GEE ที่ความละเอียดประมาณ 10 เมตร" },
-                    ]}
-                    onMapModeChange={(m) => { setMapMode(m as MapMode); if (m === "idw") setNdviLayer("ndvi_mean"); }}
-                    showOpacity={mapMode === "idw"}
-                    opacity={opacity}
-                    onOpacityChange={setOpacity}
-                    baseMap={baseMap}
-                    onBaseMapChange={setBaseMap}
-                    onReset={handleReset}
-                    currentLayer={compareMode ? `ผลต่าง NDVI ${selectedYear} - ${compareYear}` : ndviLayerLabel}
-                    currentPeriod={selectedMonth ? buildPeriodLabel(selectedYear, selectedMonth) : periodLabel}
-                    dataSource={mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.dataSource ?? "สถิติรายเขต"}
-                    interactionHint={mapMode === "idw" ? "คลิกบนภาพเพื่ออ่านค่า NDVI ของพิกเซล ณ ตำแหน่งนั้น" : "วางเมาส์บนพื้นที่เพื่อดู NDVI สัดส่วน และขนาดพื้นที่สีเขียว"}
-                    extraControls={mapMode === "district" ? (
-                      <div className="mt-2 grid grid-cols-1 gap-1.5">
-                        {([["green_area_rai", "พื้นที่สีเขียวโดยประมาณ"], ["green_area_ratio", "สัดส่วนโดยประมาณ"], ["ndvi_mean", isModeledData ? "ค่า NDVI แบบจำลอง" : "ค่า NDVI เฉลี่ย"]] as const).map(([id, label]) => (
-                          <button key={id} onClick={() => setNdviLayer(id as NdviLayer)} className={`text-left text-[10px] px-3 py-2 rounded-lg border transition-all font-bold ${ndviLayer === id ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}>{label}</button>
-                        ))}
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <section className="rounded-xl bg-slate-900/60 p-4">
+                      <h2 className="text-xs font-bold">15 เขตที่มี Tree Cover สูง</h2>
+                      <p className="mt-1 text-[10px] text-slate-500">สัดส่วนพิกเซลที่จำแนกเป็นต้นไม้ในพื้นที่ที่มีข้อมูล</p>
+                      <div className="mt-4 h-[380px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={rankingRows} layout="vertical" margin={{ left: 12, right: 18 }}>
+                            <CartesianGrid stroke="#1e293b" horizontal={false} />
+                            <XAxis type="number" unit="%" stroke="#64748b" fontSize={9} />
+                            <YAxis type="category" dataKey="district_name" width={82} stroke="#94a3b8" fontSize={9} />
+                            <Tooltip formatter={(value) => formatTreePercent(Number(value))} contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }} />
+                            <Bar dataKey="tree_cover_pct" radius={[0, 4, 4, 0]}>
+                              {rankingRows.map((row) => <Cell key={row.district_id} fill={treeCoverColor(row.tree_cover_pct)} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
-                    ) : undefined}
-                  />
+                    </section>
+                    <section className="rounded-xl bg-slate-900/60 p-4">
+                      <h2 className="text-xs font-bold">Tree gain และ tree loss</h2>
+                      <p className="mt-1 text-[10px] text-slate-500">12 เขตที่มีสัดส่วนการสูญเสียสูงสุดเทียบปีฐาน</p>
+                      <div className="mt-4 h-[380px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={gainLossRows} layout="vertical" margin={{ left: 12, right: 18 }}>
+                            <CartesianGrid stroke="#1e293b" horizontal={false} />
+                            <XAxis type="number" unit="%" stroke="#64748b" fontSize={9} />
+                            <YAxis type="category" dataKey="district" width={82} stroke="#94a3b8" fontSize={9} />
+                            <Tooltip formatter={(value) => formatTreePercent(Number(value))} contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }} />
+                            <Legend wrapperStyle={{ fontSize: 10 }} />
+                            <Bar dataKey="เพิ่ม" fill="#4ade80" radius={[0, 3, 3, 0]} />
+                            <Bar dataKey="สูญเสีย" fill="#ef4444" radius={[0, 3, 3, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </section>
+                  </div>
+                  <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                      <div>
+                        <h2 className="text-xs font-bold text-amber-100">วิธีอ่านผล</h2>
+                        <p className="mt-1 max-w-4xl text-[10px] leading-relaxed text-amber-100/70">
+                          Tree Cover ในหน้านี้หมายถึงพื้นที่ที่ Dynamic World จำแนกเป็นคลาส trees จากภาพ Sentinel-2 ไม่ใช่จำนวนต้นไม้
+                          และไม่ครอบคลุมสนามหญ้า พืชเกษตร หรือพุ่มไม้ที่ระบบจำแนกเป็นคลาสอื่น
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              )}
 
-                  <MonthYearPicker
-                    year={selectedYear} month={selectedMonth} minYear={2018} maxYear={2026}
-                    onYearChange={setSelectedYear} onMonthChange={setSelectedMonth}
+              {viewMode === "table" && (
+                <div className="h-full p-4 sm:p-5">
+                  <DistrictDataTable
+                    features={data.geojson.features}
+                    columns={TABLE_COLUMNS}
+                    getRowData={(properties) => ({
+                      name: properties.district_name,
+                      tree_cover_pct: properties.tree_cover_pct,
+                      tree_cover_rai: properties.tree_cover_rai,
+                      tree_cover_change_pp: properties.tree_cover_change_pp,
+                      tree_gain_pct: properties.tree_gain_pct,
+                      tree_loss_pct: properties.tree_loss_pct,
+                      stable_tree_pct: properties.stable_tree_pct,
+                      confidence_pct: properties.confidence_pct,
+                      coverage_pct: properties.coverage_pct,
+                    })}
+                    csvFilename={`bangkok_tree_cover_${baselineYear}_${year}`}
+                    filterDistrict={activeDistrict}
+                    onDistrictChange={setActiveDistrict}
+                    districts={data.rows.map((row) => row.district_name)}
                     accentColor="emerald"
-                    compareMode={compareMode} compareYear={compareYear}
-                    onCompareModeChange={setCompareMode} onCompareYearChange={setCompareYear}
-                  />
-
-                  <ExportPanel
-                    accentColor="emerald"
-                    csvFilename={csvFilename}
-                    csvHeaders={csvHeaders}
-                    csvRows={rankingForExport}
-                    reportData={reportData}
+                    dataSource={data.summary.source}
+                    contextNote={`${baselineYear} → ${year} · Dynamic World 10 ม. · confidence ≥ 45% · trees class`}
+                    expectedRows={activeDistrict === ALL_DISTRICTS ? 50 : 1}
                   />
                 </div>
-              </aside>
+              )}
+
+              {viewMode === "guide" && (
+                <PlainLanguageGuide
+                  module="treecover"
+                  accent="emerald"
+                  records={displayedRows}
+                  year={year}
+                  activeArea={activeDistrict}
+                  compareMode
+                  compareYear={baselineYear}
+                  dataSource={data.summary.source}
+                  dataQuality={data.summary.dataQuality}
+                  metricKey="tree_cover_pct"
+                  metricLabel="สัดส่วนเรือนยอดไม้"
+                  unit="%"
+                  decimals={2}
+                  nameKey="district_name"
+                  extraSummary={[
+                    `เขตที่มี Tree Cover สูงสุด: ${data.summary.highestTreeCoverDistrict ?? "ไม่มีข้อมูล"}`,
+                    `เขตที่สูญเสีย Tree Cover สูงสุด: ${data.summary.highestTreeLossDistrict ?? "ไม่มีข้อมูล"}`,
+                    `พื้นที่ที่มีข้อมูลเฉลี่ย: ${formatTreePercent(data.summary.averageCoveragePct)}`,
+                  ]}
+                />
+              )}
             </>
-          )}
-
-          {viewMode === "stats" && (
-            <StatsDashboard
-              summary={summary} metric="vegetation" year={selectedYear} compareMode={compareMode}
-              accentColor="emerald" activeDistrict={activeDistrict}
-              onYearChange={setSelectedYear} onDistrictChange={setActiveDistrict}
-              districts={allDistricts} minYear={2018} maxYear={2026}
-              onCompareModeChange={setCompareMode}
-              compareYear={compareYear} onCompareYearChange={setCompareYear}
-            />
-          )}
-
-          {viewMode === "table" && (
-            <DistrictDataTable
-              features={displayGeoJson?.features ?? []}
-              columns={tableColumns}
-              getRowData={(props) => ({
-                name: props.name_th,
-                ndvi_mean: props.ndvi_mean,
-                green_area_rai: props.green_area_rai,
-                green_area_ratio: props.green_area_ratio,
-                priority_score: props.priority_score,
-                low_green_ratio: props.low_green_ratio,
-                water_ratio: props.water_ratio,
-                ntl_mean: props.ntl_mean,
-                delta: props.vegetation_delta ?? props.delta,
-              })}
-              csvFilename={`green-space_${selectedYear}`}
-              filterDistrict={activeDistrict}
-              year={selectedYear} onYearChange={setSelectedYear}
-              minYear={2018} maxYear={2026}
-              enableMultiYear accentColor="emerald"
-              compareMode={compareMode}
-              onCompareModeChange={setCompareMode}
-              compareYear={compareYear}
-              onCompareYearChange={setCompareYear}
-              onDistrictChange={setActiveDistrict}
-              districts={allDistricts}
-              dataSource={summary?.dataSource}
-              contextNote={isModeledData
-                ? "NDVI เป็นแบบจำลอง และพื้นที่/สัดส่วนสีเขียวเป็นค่าประมาณ ใช้เปรียบเทียบเบื้องต้น ไม่ใช่ผลสำรวจภาคสนาม"
-                : "พื้นที่และสัดส่วนสีเขียวเป็นค่าประมาณจาก NDVI ไม่ใช่ทะเบียนสวนสาธารณะ"}
-              expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
-            />
-          )}
-
-          {viewMode === "guide" && (
-            <PlainLanguageGuide
-              module="green"
-              accent="emerald"
-              records={displayGeoJson?.features ?? []}
-              year={selectedYear}
-              activeArea={activeDistrict}
-              compareMode={compareMode}
-              compareYear={compareYear}
-              dataSource={summary?.sourceLabel ?? summary?.dataSource}
-              dataQuality={summary?.dataQuality}
-              extraSummary={isModeledData ? ["ข้อมูลชุดนี้ระบุว่าเป็นแบบจำลอง จึงเหมาะกับการเปรียบเทียบแนวโน้มเบื้องต้นมากกว่าการยืนยันขนาดพื้นที่จริง"] : []}
-            />
           )}
         </div>
       </main>
