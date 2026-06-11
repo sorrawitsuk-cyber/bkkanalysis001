@@ -160,8 +160,7 @@ export default function GreenSpacePage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      {viewMode === "map" && (
-        <GreenSpaceSidebar
+      <GreenSpaceSidebar
           onDistrictSelect={setActiveDistrict}
           activeDistrict={activeDistrict}
           summary={summary}
@@ -170,8 +169,7 @@ export default function GreenSpacePage() {
           loading={loading}
           compareMode={compareMode}
           granularity={granularity}
-        />
-      )}
+      />
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}

@@ -31,15 +31,22 @@ export default function ViewTabs({ view, onChange, accentColor = "cyan" }: ViewT
   ];
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-900/80 p-1 backdrop-blur-sm">
+    <div
+      className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/80 p-1"
+      role="tablist"
+      aria-label="เลือกมุมมองข้อมูล"
+    >
       {tabs.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
+          type="button"
           onClick={() => onChange(id)}
-          className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[11px] font-bold transition-all duration-200 ${
+          role="tab"
+          aria-selected={view === id}
+          className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:px-3.5 ${
             view === id
               ? `${active} shadow-md`
-              : "text-slate-500 hover:text-slate-200"
+              : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
           }`}
         >
           <Icon className="h-3.5 w-3.5" />

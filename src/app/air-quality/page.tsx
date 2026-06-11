@@ -220,8 +220,7 @@ export default function AirQualityPage() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-950 text-slate-50">
 
-      {viewMode === "map" && (
-        <AirQualitySidebar
+      <AirQualitySidebar
           onDistrictSelect={setActiveDistrict}
           activeDistrict={activeDistrict}
           summary={summary}
@@ -236,8 +235,7 @@ export default function AirQualityPage() {
           granularity={granularity}
           selectedYear={selectedYear}
           compareYear={compareYear}
-        />
-      )}
+      />
 
       {/* ── Main: tab bar + content ── */}
       <main className="flex-1 min-w-0 flex flex-col">

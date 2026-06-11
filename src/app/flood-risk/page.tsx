@@ -592,8 +592,7 @@ export default function FloodRiskPage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      {viewMode === "map" && (
-        <FloodRiskSidebar
+      <FloodRiskSidebar
           onDistrictSelect={setActiveDistrict}
           activeDistrict={activeDistrict}
           summary={summary}
@@ -602,8 +601,7 @@ export default function FloodRiskPage() {
           compareMode={compareMode}
           mapMode={mapMode}
           granularity={granularity}
-        />
-      )}
+      />
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}

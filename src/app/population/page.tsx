@@ -28,10 +28,9 @@ import {
 } from "recharts";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
-import DataSourceBadge from "@/components/ui/DataSourceBadge";
-import SidebarFooter from "@/components/gee/SidebarFooter";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import PopulationSidebar from "@/components/population/PopulationSidebar";
 import {
   POPULATION_MAX_YEAR,
   POPULATION_MIN_YEAR,
@@ -208,8 +207,8 @@ export default function PopulationPage() {
   });
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#07101e] text-slate-100">
-      <header className="border-b border-slate-800/80 bg-slate-950/80 px-4 py-3 backdrop-blur">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#07101e] text-slate-100">
+      <header className="shrink-0 border-b border-slate-800/80 bg-slate-950/80 px-4 py-3">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="rounded-lg border border-slate-800 p-2 text-slate-500 hover:text-white">
@@ -227,41 +226,66 @@ export default function PopulationPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] p-3 sm:p-4">
-        <div className="mb-3 grid gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="text-[10px] text-slate-500">
+      <div className="flex min-h-0 flex-1">
+        <PopulationSidebar
+          year={year}
+          level={level}
+          metric={metric}
+          districtFilter={districtFilter}
+          districtNames={districtNames}
+          ranked={ranked}
+          activeId={activeId}
+          data={data}
+          loading={loading}
+          onYearChange={setYear}
+          onLevelChange={setLevel}
+          onMetricChange={setMetric}
+          onDistrictChange={(district) => {
+            setDistrictFilter(district);
+            setActiveId(null);
+          }}
+          onSelectRow={selectRow}
+          onReload={loadData}
+        />
+
+        <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4">
+        <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3 md:hidden">
+          <label className="text-[10px] text-slate-400">
             ปีข้อมูล
-            <select value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
-              {Array.from({ length: POPULATION_MAX_YEAR - POPULATION_MIN_YEAR + 1 }, (_, index) => POPULATION_MAX_YEAR - index).map((option) => (
-                <option key={option} value={option}>{option + 543} ({option})</option>
+            <select
+              value={year}
+              onChange={(event) => setYear(Number(event.target.value))}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-indigo-400"
+            >
+              {Array.from(
+                { length: POPULATION_MAX_YEAR - POPULATION_MIN_YEAR + 1 },
+                (_, index) => POPULATION_MAX_YEAR - index,
+              ).map((option) => (
+                <option key={option} value={option}>{option + 543}</option>
               ))}
             </select>
           </label>
-          <label className="text-[10px] text-slate-500">
+          <label className="text-[10px] text-slate-400">
             ระดับพื้นที่
-            <select value={level} onChange={(event) => setLevel(event.target.value as PopulationLevel)} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
-              <option value="district">เขต (50)</option>
-              <option value="subdistrict">แขวง (180)</option>
+            <select
+              value={level}
+              onChange={(event) => setLevel(event.target.value as PopulationLevel)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-indigo-400"
+            >
+              <option value="district">เขต</option>
+              <option value="subdistrict">แขวง</option>
             </select>
           </label>
-          <label className="text-[10px] text-slate-500">
-            ตัวชี้วัดบนแผนที่
-            <select value={metric} onChange={(event) => setMetric(event.target.value as PopulationMetric)} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white">
+          <label className="col-span-2 text-[10px] text-slate-400">
+            ตัวชี้วัด
+            <select
+              value={metric}
+              onChange={(event) => setMetric(event.target.value as PopulationMetric)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-indigo-400"
+            >
               {METRICS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
-          <label className="text-[10px] text-slate-500">
-            กรองเขต
-            <select disabled={level === "district"} value={districtFilter} onChange={(event) => { setDistrictFilter(event.target.value); setActiveId(null); }} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white disabled:opacity-40">
-              <option value="ทั้งหมด">ทุกเขต</option>
-              {districtNames.map((name) => <option key={name} value={name}>{name}</option>)}
-            </select>
-          </label>
-          <div className="flex items-end">
-            <button onClick={loadData} className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold hover:bg-indigo-500">
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> โหลดข้อมูลใหม่
-            </button>
-          </div>
         </div>
 
         {loading && (
@@ -283,25 +307,10 @@ export default function PopulationPage() {
             </div>
 
             {view === "map" && (
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div>
                 <div className="h-[560px] overflow-hidden rounded-xl border border-slate-800">
                   <PopulationMap geojsonData={geojson} rows={rows} metric={metric} activeId={activeId} onSelect={selectRow} />
                 </div>
-                <aside className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <DataSourceBadge dataSource={data.summary.source} dataQuality="observed" sourceLabel={`${data.summary.source} · ธันวาคม ${year + 543}`} sourceNote="จำนวนประชากรตามทะเบียนราษฎร" />
-                  <h2 className="mt-5 text-xs font-bold text-slate-300">อันดับ {METRICS.find((item) => item.value === metric)?.label}</h2>
-                  <div className="mt-3 max-h-[410px] space-y-2 overflow-y-auto pr-1">
-                    {ranked.map((row, index) => (
-                      <button key={row.id} onClick={() => selectRow(row)} className={`flex w-full items-center gap-2 rounded-lg border px-2 py-2 text-left ${activeId === row.id ? "border-indigo-400 bg-indigo-500/10" : "border-slate-800 bg-slate-950/40"}`}>
-                        <span className="w-5 text-center text-[9px] font-black text-slate-600">{index + 1}</span>
-                        <span className="min-w-0 flex-1 truncate text-[10px] text-slate-300">{row.name}</span>
-                        <span className="text-[10px] font-bold text-indigo-300">
-                          {metric === "change_pct" ? formatPopulationPercent(row.change_pct) : formatPopulation(Number(row[metric]))}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </aside>
               </div>
             )}
 
@@ -376,8 +385,8 @@ export default function PopulationPage() {
             )}
           </>
         )}
+        </main>
       </div>
-      <SidebarFooter exclude={["population"]} />
     </div>
   );
 }

@@ -125,8 +125,7 @@ export default function UrbanExpansionPage() {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
-      {viewMode === "map" && (
-        <BuiltUpSidebar
+      <BuiltUpSidebar
           onDistrictSelect={setActiveDistrict}
           activeDistrict={activeDistrict}
           summary={summary}
@@ -134,8 +133,7 @@ export default function UrbanExpansionPage() {
           compareMode={compareMode}
           granularity={granularity}
           subdistrictFeatures={granularity === "subdistrict" ? (displayGeoJson?.features ?? []) : []}
-        />
-      )}
+      />
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}
