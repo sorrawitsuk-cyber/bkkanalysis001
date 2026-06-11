@@ -4,6 +4,46 @@ const { google } = require('googleapis');
 
 const GEE_SCOPE = 'https://www.googleapis.com/auth/earthengine';
 
+type GeeCredentials = {
+  clientEmail: string;
+  privateKey: string;
+  projectId?: string;
+};
+
+function getGeeCredentials(): GeeCredentials {
+  const rawServiceAccount = process.env.GEE_SERVICE_ACCOUNT_JSON;
+  if (rawServiceAccount) {
+    try {
+      const serviceAccount = JSON.parse(rawServiceAccount);
+      const clientEmail = serviceAccount.client_email;
+      const privateKey = serviceAccount.private_key;
+      const projectId = serviceAccount.project_id;
+
+      if (typeof clientEmail === 'string' && typeof privateKey === 'string') {
+        return {
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
+          projectId: typeof projectId === 'string' ? projectId : undefined,
+        };
+      }
+    } catch {
+      throw new Error('GEE_SERVICE_ACCOUNT_JSON is not valid JSON');
+    }
+
+    throw new Error('GEE_SERVICE_ACCOUNT_JSON is missing client_email or private_key');
+  }
+
+  const clientEmail = process.env.GEE_CLIENT_EMAIL;
+  const privateKey = process.env.GEE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const projectId = process.env.GEE_PROJECT_ID;
+
+  if (!clientEmail || !privateKey) {
+    throw new Error('GEE credentials missing in environment variables');
+  }
+
+  return { clientEmail, privateKey, projectId };
+}
+
 function getAccessToken(email: string, key: string, retries = 2): Promise<string> {
   return new Promise((resolve, reject) => {
     const jwtAuth = new google.auth.JWT(email, null, key, [GEE_SCOPE]);
@@ -29,13 +69,7 @@ function getAccessToken(email: string, key: string, retries = 2): Promise<string
  * that breaks the built-in authenticateViaPrivateKey on Node.js 22+.
  */
 export const initGEE = async (): Promise<void> => {
-  const clientEmail = process.env.GEE_CLIENT_EMAIL;
-  const privateKey = process.env.GEE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  const projectId = process.env.GEE_PROJECT_ID;
-
-  if (!clientEmail || !privateKey) {
-    throw new Error('GEE credentials missing in environment variables');
-  }
+  const { clientEmail, privateKey, projectId } = getGeeCredentials();
 
   const token = await getAccessToken(clientEmail, privateKey);
 

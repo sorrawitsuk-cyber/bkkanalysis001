@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  ArrowRightLeft,
   Building2,
   CloudRain,
   Database,
@@ -75,6 +76,19 @@ const modules = [
     tag: "builtup",
   },
   {
+    title: "การเปลี่ยนสิ่งปกคลุมดิน",
+    subtitle: "Land Cover Change · Dynamic World",
+    description: "ติดตามพื้นที่สีเขียว สิ่งปลูกสร้าง น้ำ และ transition ระหว่างปีด้วยข้อมูล 10 เมตร",
+    href: "/land-cover-change",
+    icon: ArrowRightLeft,
+    accent: "from-lime-400 to-emerald-600",
+    accentBg: "bg-lime-500/10 border-lime-500/20",
+    accentText: "text-lime-400",
+    metric: "LULC",
+    metricLabel: "Dynamic World",
+    tag: "landcover",
+  },
+  {
     title: "ปริมาณฝน",
     subtitle: "Rainfall · GPM IMERG",
     description: "ฝนสะสม 1–30 วัน แนวโน้มรายวัน การกระจายเชิงพื้นที่ และเปรียบเทียบช่วงเดียวกันปีก่อน",
@@ -129,7 +143,7 @@ const modules = [
 ];
 
 const platformStats = [
-  { label: "โมดูลวิเคราะห์", value: "9", icon: BarChart3, color: "text-cyan-400" },
+  { label: "โมดูลวิเคราะห์", value: "10", icon: BarChart3, color: "text-cyan-400" },
   { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
   { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
   { label: "ดาวเทียม",       value: "5 ภารกิจ", icon: Satellite, color: "text-purple-400" },
@@ -138,6 +152,7 @@ const platformStats = [
 const dataSources = [
   { src: "Landsat 8/9",      desc: "Land Surface Temp (LST)",    color: "text-orange-400" },
   { src: "Sentinel-2 MSI",   desc: "NDVI · NDBI · NDWI",         color: "text-emerald-400" },
+  { src: "Dynamic World",    desc: "Land cover classes · change", color: "text-lime-400" },
   { src: "VIIRS DNB",        desc: "Nighttime Lights annual",     color: "text-yellow-400" },
   { src: "Sentinel-5P TROPOMI", desc: "NO₂ · CO · SO₂",         color: "text-cyan-400" },
   { src: "GPM IMERG V07",   desc: "Rainfall half-hourly",       color: "text-blue-400" },

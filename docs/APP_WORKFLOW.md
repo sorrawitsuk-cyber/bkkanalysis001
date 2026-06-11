@@ -10,6 +10,7 @@ flowchart TD
   Home --> Heat["/heat-island"]
   Home --> Green["/green-space"]
   Home --> BuiltUp["/urban-expansion"]
+  Home --> LandCover["/land-cover-change"]
   Home --> Rain["/rainfall"]
   Home --> Flood["/flood-risk"]
   Home --> Night["/nighttime-lights"]
@@ -29,6 +30,8 @@ flowchart TD
   Heat --> GeeTiles["/api/gee/tiles + /api/gee/point"]
   Green --> GeeTiles
   BuiltUp --> GeeTiles
+  LandCover --> LandCoverApi["/api/land-cover-change"]
+  LandCoverApi --> GEE
   Rain --> RainApi["/api/rainfall"]
   RainApi --> GEE
   Night --> GeeTiles
@@ -75,6 +78,12 @@ NDVI and green-space dashboard. It uses `/api/district-metrics?metric=vegetation
 ### `/urban-expansion`
 
 Built-up/NDBI dashboard. It uses `/api/district-metrics?metric=builtup` and shares the same map workflow as heat and green-space analysis.
+
+### `/land-cover-change`
+
+Land-cover transition dashboard. It reads Google Dynamic World V1 through `/api/land-cover-change`, creates annual probability composites at 10-meter resolution, applies a confidence threshold, and compares a baseline year with a selected year. It reports current green/built/water/bare composition, net percentage-point changes, green-to-built and built-to-green transitions, total class change, confidence, and spatial coverage for all 50 districts.
+
+The `Verify Land Cover Change` GitHub Actions workflow runs the real API against the configured GEE service account and validates all 50 district rows, transition invariants, scene availability, and tile URLs. It runs automatically when the API or its GEE helpers change and can also be dispatched manually for another year pair.
 
 ### `/flood-risk`
 
