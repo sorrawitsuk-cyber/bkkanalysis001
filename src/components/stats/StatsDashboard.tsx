@@ -19,7 +19,6 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, Activity, MapPin, Lightbulb, ChevronLeft, ChevronRight, X, Database, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-import PopulationDensityPanel from "@/components/stats/PopulationDensityPanel";
 
 type Metric = "lst" | "vegetation" | "builtup" | "air_pollution";
 
@@ -801,13 +800,6 @@ export default function StatsDashboard({
 
         </div>
       )}
-
-      <div className="shrink-0 p-4">
-        <PopulationDensityPanel
-          activeDistrict={activeDistrict}
-          accentColor={cfg.accentHex}
-        />
-      </div>
     </div>
   );
 }

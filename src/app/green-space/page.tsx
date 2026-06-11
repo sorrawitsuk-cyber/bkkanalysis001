@@ -148,10 +148,9 @@ export default function GreenSpacePage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: false },
-    { key: "population_density", label: "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", format: (v) => v != null ? Number(v).toLocaleString("th-TH") : "–", heatmap: true, heatmapHex: "#38bdf8" },
     { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#10b981" },
     { key: "green_area_rai", label: "พื้นที่เขียว (ประมาณ)", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#10b981" },
-    { key: "green_area_ratio", label: "สัดส่วน (ประมาณ)", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
+    { key: "green_area_ratio", label: "ความหนาแน่นพื้นที่เขียวรายเขต", unit: "% พื้นที่เขต", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#34d399" },
     { key: "priority_score", label: "Priority Score", format: (v) => v != null ? Number(v).toFixed(2) : "–", heatmap: true, heatmapHex: "#f97316", heatmapInvert: true },
     { key: "low_green_ratio", label: "เขียวน้อย", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(1)}` : "–", heatmap: true, heatmapHex: "#f59e0b", hideable: true },
     { key: "water_ratio", label: "น้ำ", unit: "%", format: (v) => v != null ? `${(Number(v) * 100).toFixed(2)}` : "–", heatmap: true, heatmapHex: "#38bdf8", hideable: true },
@@ -358,7 +357,6 @@ export default function GreenSpacePage() {
               columns={tableColumns}
               getRowData={(props) => ({
                 name: props.name_th,
-                population_density: props.density ?? null,
                 ndvi_mean: props.ndvi_mean,
                 green_area_rai: props.green_area_rai,
                 green_area_ratio: props.green_area_ratio,

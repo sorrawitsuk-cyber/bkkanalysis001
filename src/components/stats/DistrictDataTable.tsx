@@ -288,13 +288,13 @@ export default function DistrictDataTable({
   }
 
   return (
-    <div className="flex-1 w-full flex h-full flex-col bg-slate-950">
+    <div className="flex-1 w-full min-w-0 flex h-full flex-col overflow-hidden bg-slate-950">
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-800/60 bg-slate-900/30">
+      <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 sm:px-4 py-3 border-b border-slate-800/60 bg-slate-900/30">
 
         {/* Search */}
-        <div className="relative w-44 shrink-0">
+        <div className="relative min-w-[11rem] flex-1 sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
@@ -337,7 +337,7 @@ export default function DistrictDataTable({
           {sorted.length}{!multiYearMode && ` / ${rows.length} เขต`}{multiYearMode && " แถว"}
         </span>
 
-        <div className="flex-1" />
+        <div className="hidden lg:block lg:flex-1" />
 
         {/* Multi-year toggle (only when district is selected) */}
         {enableMultiYear && isDistrictFiltered && (
@@ -382,7 +382,7 @@ export default function DistrictDataTable({
             คอลัมน์
           </button>
           {showColPicker && (
-            <div className="absolute right-0 top-full mt-1 z-50 rounded-xl border border-slate-700 bg-slate-900/98 shadow-2xl backdrop-blur p-3 min-w-[160px]">
+            <div className="absolute right-0 top-full mt-1 z-50 max-h-72 min-w-[190px] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/98 p-3 shadow-2xl backdrop-blur">
               <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mb-2">แสดง/ซ่อนคอลัมน์</p>
               {columns.filter((c) => c.hideable !== false && c.key !== "name").map((col) => (
                 <label key={col.key} className="flex items-center gap-2 py-1 cursor-pointer group">
@@ -475,8 +475,8 @@ export default function DistrictDataTable({
       )}
 
       {/* ── Table ────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-[12px] border-collapse">
+      <div className="flex-1 min-h-0 overflow-auto overscroll-contain">
+        <table className="w-max min-w-full text-[12px] border-collapse">
           <thead className="sticky top-0 z-10 bg-slate-900/98 backdrop-blur">
             <tr className="border-b border-slate-800">
               {(showRank && !multiYearMode) && (
@@ -492,7 +492,7 @@ export default function DistrictDataTable({
                 <th
                   key={col.key}
                   onClick={() => col.sortable !== false && handleSort(col.key)}
-                  className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${col.sortable !== false ? "cursor-pointer select-none" : ""} ${sortKey === col.key ? "text-slate-200" : "text-slate-600 hover:text-slate-400"}`}
+                  className={`px-3 sm:px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${col.sortable !== false ? "cursor-pointer select-none" : ""} ${sortKey === col.key ? "text-slate-200" : "text-slate-600 hover:text-slate-400"}`}
                 >
                   <div className="flex items-center gap-1.5">
                     {col.label}
@@ -560,7 +560,7 @@ export default function DistrictDataTable({
                       <td
                         key={col.key}
                         style={{ backgroundColor: bg, color }}
-                        className={`px-4 py-2 ${isName ? "font-semibold text-slate-200" : isNum ? "font-mono tabular-nums text-slate-300" : "text-slate-400"}`}
+                        className={`px-3 sm:px-4 py-2 whitespace-nowrap ${isName ? "sticky left-0 z-[1] bg-slate-950/95 font-semibold text-slate-200" : isNum ? "font-mono tabular-nums text-slate-300" : "text-slate-400"}`}
                       >
                         {display === "–" ? (
                           <span className="text-slate-700">–</span>

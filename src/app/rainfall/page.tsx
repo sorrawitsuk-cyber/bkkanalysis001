@@ -33,7 +33,6 @@ import DataSourceBadge from "@/components/ui/DataSourceBadge";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import SidebarFooter from "@/components/gee/SidebarFooter";
 import MapSkeleton from "@/components/ui/MapSkeleton";
-import PopulationDensityPanel from "@/components/stats/PopulationDensityPanel";
 import {
   RAINFALL_WINDOWS,
   formatRainfall,
@@ -71,8 +70,7 @@ function changeText(value: number | null | undefined): string {
 
 const TABLE_COLUMNS: ColDef[] = [
   { key: "name", label: "เขต", sortable: true },
-  { key: "population_density", label: "ความหนาแน่นประชากร", unit: "คน/ตร.กม.", sortable: true, heatmap: true, heatmapHex: "#38bdf8" },
-  { key: "rainfall_mm", label: "ฝนสะสม", unit: "มม.", sortable: true, heatmap: true, heatmapHex: "#0ea5e9" },
+  { key: "rainfall_mm", label: "ฝนสะสมเฉลี่ยเชิงพื้นที่รายเขต", unit: "มม.", sortable: true, heatmap: true, heatmapHex: "#0ea5e9" },
   { key: "daily_average_mm", label: "เฉลี่ยต่อวัน", unit: "มม.", sortable: true },
   { key: "previous_mm", label: "ช่วงเดียวกันปีก่อน", unit: "มม.", sortable: true },
   { key: "change_mm", label: "เปลี่ยนแปลง", unit: "มม.", sortable: true },
@@ -464,8 +462,6 @@ export default function RainfallPage() {
                       </div>
                     </section>
                   </div>
-
-                  <PopulationDensityPanel activeDistrict={activeDistrict} accentColor="#22d3ee" />
                 </div>
               )}
 
@@ -476,7 +472,6 @@ export default function RainfallPage() {
                     columns={TABLE_COLUMNS}
                     getRowData={(properties) => ({
                       name: properties.district_name,
-                      population_density: properties.density ?? null,
                       rainfall_mm: properties.rainfall_mm,
                       daily_average_mm: properties.daily_average_mm,
                       previous_mm: properties.previous_mm,

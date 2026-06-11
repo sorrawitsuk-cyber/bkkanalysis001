@@ -28,9 +28,7 @@ import {
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
-import PopulationDensityPanel from "@/components/stats/PopulationDensityPanel";
 import type { DecisionMode } from "@/lib/decision-support";
-import { formatPopulationDensity, getDistrictDensity } from "@/lib/district-density";
 
 const DecisionSupportMap = dynamic(
   () => import("@/components/map/DecisionSupportMap"),
@@ -123,10 +121,7 @@ export default function DecisionSupportPage() {
     const base = activeDistrict === "ทั้งหมด"
       ? [...(data?.rows ?? [])]
       : (data?.rows ?? []).filter((row: any) => row.district_name === activeDistrict);
-    return base.map((row: any) => ({
-      ...row,
-      population_density: getDistrictDensity(row.district_name),
-    })).sort((a: any, b: any) => {
+    return base.sort((a: any, b: any) => {
       const av = a[sortKey];
       const bv = b[sortKey];
       if (av === null || av === undefined) return 1;
@@ -156,7 +151,7 @@ export default function DecisionSupportPage() {
         ["sar_wetness", "SAR change", "dB"],
         ["water_signal", "สัญญาณน้ำ", "สัดส่วน"],
         ["elevation", "ระดับสูง", "ม."],
-        ["complaint_density", "ร้องเรียน", "เรื่อง/ตร.กม."],
+        ["complaint_density", "ความหนาแน่นข้อร้องเรียนรายเขต", "เรื่อง/ตร.กม."],
       ]
     : [
         ["mean_lst", "LST median", "°C"],
@@ -388,11 +383,6 @@ export default function DecisionSupportPage() {
                     </div>
                   </section>
                 </div>
-
-                <PopulationDensityPanel
-                  activeDistrict={activeDistrict}
-                  accentColor={mode === "flood" ? "#38bdf8" : "#f97316"}
-                />
               </div>
             )}
 
@@ -411,7 +401,6 @@ export default function DecisionSupportPage() {
                       <tr>
                         {[
                           ["district_name", "เขต"],
-                          ["population_density", "ความหนาแน่นประชากร (คน/ตร.กม.)"],
                           ["score", "คะแนน"],
                           ["level", "ระดับ"],
                           ["coverage", "Coverage"],
@@ -429,9 +418,6 @@ export default function DecisionSupportPage() {
                       {displayRows.map((row: any) => (
                         <tr key={row.district_name} className="border-b border-slate-800/70 hover:bg-slate-900/70">
                           <td className="px-3 py-2.5 font-bold text-slate-200">{row.district_name}</td>
-                          <td className="px-3 py-2.5 font-mono text-cyan-300">
-                            {formatPopulationDensity(row.population_density)}
-                          </td>
                           <td className="px-3 py-2.5 font-mono">{row.score ?? "–"}</td>
                           <td className="px-3 py-2.5">{row.level}</td>
                           <td className="px-3 py-2.5 font-mono">{row.coverage}%</td>
