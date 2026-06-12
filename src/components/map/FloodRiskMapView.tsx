@@ -23,22 +23,21 @@ interface FloodRiskMapViewProps {
 const ALL_DISTRICTS = "ทั้งหมด";
 const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13.956, 100.935]];
 
-function getWaterColor(value: number | null | undefined): string {
+function getIndexColor(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "#334155";
-  // Scale tuned for Bangkok's actual water_ratio range (0–20%)
-  if (value > 0.15) return "#075985";   // > 15%: major water body / river
-  if (value > 0.08) return "#0369a1";   // 8–15%: significant water / canal-rich
-  if (value > 0.04) return "#0ea5e9";   // 4–8%: moderate water
-  if (value > 0.015) return "#7dd3fc";  // 1.5–4%: some water
-  return "#bae6fd";                      // < 1.5%: mostly dry
+  if (value > 0.30) return "#075985";
+  if (value > 0.10) return "#7EC8E3";
+  if (value > -0.10) return "#F7F7F7";
+  if (value > -0.30) return "#C4974A";
+  return "#78350F";
 }
 
 function getDeltaColor(delta: number | null | undefined): string {
   if (delta === null || delta === undefined || Number.isNaN(delta)) return "#334155";
-  if (delta > 0.10)  return "#1e3a5f";
-  if (delta > 0.03)  return "#0369a1";
-  if (delta > -0.03) return "#94a3b8";
-  if (delta > -0.10) return "#b45309";
+  if (delta > 0.15)  return "#1e3a5f";
+  if (delta > 0.05)  return "#0369a1";
+  if (delta > -0.05) return "#94a3b8";
+  if (delta > -0.15) return "#b45309";
   return "#78350f";
 }
 
@@ -168,8 +167,7 @@ export default function FloodRiskMapView({
 
   const getFeatureColor = useCallback((feature: any) => {
     if (compareMode) return getDeltaColor(feature?.properties?.delta);
-    const value = feature?.properties?.seasonal_water_ratio ?? feature?.properties?.water_ratio;
-    return getWaterColor(value);
+    return getIndexColor(feature?.properties?.display_value);
   }, [compareMode]);
 
   // GeoJSON district layer
@@ -210,16 +208,16 @@ export default function FloodRiskMapView({
         const cmpYear = summary?.compareYear ?? "–";
 
         const deltaLine = compareMode && delta !== null
-          ? `<div class="text-[10px] text-slate-400 mt-1">เปลี่ยนแปลง: <span class="${delta >= 0 ? "text-sky-300" : "text-amber-300"} font-mono font-bold">${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)}%</span> <span class="text-slate-500">(${cmpYear}→${year})</span></div>
-           <div class="text-[10px] text-slate-400">ปีฐาน: <span class="text-slate-200 font-mono">${formatPct(compareRatio ?? undefined)}</span></div>`
+          ? `<div class="text-[10px] text-slate-400 mt-1">ผลต่างดัชนี: <span class="${delta >= 0 ? "text-sky-300" : "text-amber-300"} font-mono font-bold">${delta >= 0 ? "+" : ""}${delta.toFixed(4)}</span> <span class="text-slate-500">(${cmpYear}→${year})</span></div>
+           <div class="text-[10px] text-slate-400">สัดส่วนพิกเซลผ่านเกณฑ์ปีฐาน: <span class="text-slate-200 font-mono">${formatPct(compareRatio ?? undefined)}</span></div>`
           : "";
 
         layer.bindTooltip(`
           <div class="bg-slate-900 text-slate-100 p-2.5 rounded border border-slate-700 shadow-xl min-w-[200px]">
             <div class="font-bold mb-1 border-b border-slate-800 pb-1 text-sky-300">${props.name_th || "Unknown"}${granularity === "subdistrict" && props.district_name ? `<span class="text-slate-500 text-[9px] ml-1">· เขต${props.district_name}</span>` : ""}</div>
             <div class="text-[10px] text-slate-400">${displayLabel}: <span class="text-sky-300 text-lg font-mono ml-1">${formatIndex(displayValue ?? seasonalRatio ?? undefined)}</span></div>
-            <div class="text-[10px] text-slate-400 mt-1">สัดส่วนสัญญาณน้ำ: <span class="text-sky-200 font-mono">${formatPct(seasonalRatio ?? undefined)}</span>${riverCorrected ? `<span class="text-slate-500 text-[9px] ml-1">(ไม่รวมแหล่งน้ำถาวร)</span>` : ""}</div>
-            ${displayAreaRai !== null || waterAreaRai !== null ? `<div class="text-[10px] text-slate-400 mt-1">ขนาดพื้นที่: <span class="text-sky-200 font-mono">${formatNumber(displayAreaRai ?? waterAreaRai, 0)} ไร่</span></div>` : ""}
+            <div class="text-[10px] text-slate-400 mt-1">พิกเซลผ่านเกณฑ์ NDWI: <span class="text-sky-200 font-mono">${formatPct(seasonalRatio ?? undefined)}</span>${riverCorrected ? `<span class="text-slate-500 text-[9px] ml-1">(ตัดน้ำถาวรด้วย mask)</span>` : `<span class="text-slate-500 text-[9px] ml-1">(อาจรวมแหล่งน้ำถาวร)</span>`}</div>
+            ${displayAreaRai !== null || waterAreaRai !== null ? `<div class="text-[10px] text-slate-400 mt-1">พื้นที่พิกเซลผ่านเกณฑ์: <span class="text-sky-200 font-mono">${formatNumber(displayAreaRai ?? waterAreaRai, 0)} ไร่</span></div>` : ""}
             ${deltaLine}
             <div class="text-[9px] text-slate-500 mt-2">ปีที่แสดง: ${year}</div>
           </div>

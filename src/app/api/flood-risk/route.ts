@@ -168,6 +168,8 @@ export async function GET(request: Request) {
     const districtFilter = searchParams.get("district");
     const compareYearStr = searchParams.get("compareYear");
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
+    const requestedLayer = searchParams.get("layer") === "mndwi_mean" ? "mndwi_mean" : "ndwi_mean";
+    const displayLabel = requestedLayer === "mndwi_mean" ? "MNDWI (mean)" : "NDWI (mean)";
 
     const districtNameById = new Map<number, string>(
       (geojson.features as any[]).map((f: any) => [f.properties.id, f.properties.name_th])
@@ -240,17 +242,19 @@ export async function GET(request: Request) {
       const effectiveWaterRatio = seasonalWaterRatio ?? waterRatio;
       const compareRatio: number | null =
         compareRow?.seasonal_water_ratio ?? compareRow?.water_ratio ?? null;
-      const delta = effectiveWaterRatio !== null && compareRatio !== null
-        ? +(effectiveWaterRatio - compareRatio).toFixed(4)
+      const displayValue: number | null = row?.[requestedLayer] ?? null;
+      const compareDisplayValue: number | null = compareRow?.[requestedLayer] ?? null;
+      const delta = displayValue !== null && compareDisplayValue !== null
+        ? +(displayValue - compareDisplayValue).toFixed(4)
         : null;
       const areaRai = districtAreaRaiMap.get(feature.properties.id) ?? 0;
       const waterAreaRai = effectiveWaterRatio !== null
         ? Math.round(effectiveWaterRatio * areaRai)
         : null;
 
-      if (effectiveWaterRatio !== null) {
-        minValue = Math.min(minValue, effectiveWaterRatio);
-        maxValue = Math.max(maxValue, effectiveWaterRatio);
+      if (displayValue !== null) {
+        minValue = Math.min(minValue, displayValue);
+        maxValue = Math.max(maxValue, displayValue);
       }
 
       return {
@@ -265,8 +269,8 @@ export async function GET(request: Request) {
           compare_water_ratio:   compareRatio,
           ndwi_mean:             ndwiMean,
           mndwi_mean:            mndwiMean,
-          display_value:         ndwiMean ?? waterRatio,
-          display_label:         "NDWI",
+          display_value:         displayValue,
+          display_label:         displayLabel,
           river_corrected:       seasonalWaterRatio !== null,
         },
       };
@@ -284,25 +288,33 @@ export async function GET(request: Request) {
     }
 
     // Yearly trend (from Supabase historical data; GEE provides current year only)
-    const trendAcc: Record<number, { sum: number; count: number }> = {};
+    const trendAcc: Record<number, { weightedSum: number; area: number }> = {};
     summaryRows.forEach((r: any) => {
-      if (!trendAcc[r.year]) trendAcc[r.year] = { sum: 0, count: 0 };
-      trendAcc[r.year].sum   += r.water_ratio;
-      trendAcc[r.year].count += 1;
+      if (typeof r?.[requestedLayer] !== "number") return;
+      const area = districtAreaRaiMap.get(r.district_id) ?? 0;
+      if (!trendAcc[r.year]) trendAcc[r.year] = { weightedSum: 0, area: 0 };
+      trendAcc[r.year].weightedSum += r[requestedLayer] * area;
+      trendAcc[r.year].area += area;
     });
     // Include current GEE year in trend if it's not already present
     if (geeYearRows.length > 0 && !trendAcc[year]) {
-      const geeWaterRows = geeYearRows.filter((r: any) => r.water_ratio !== null);
-      if (geeWaterRows.length > 0) {
+      const geeDisplayRows = geeYearRows.filter((r: any) => typeof r?.[requestedLayer] === "number");
+      if (geeDisplayRows.length > 0) {
         trendAcc[year] = {
-          sum: geeWaterRows.reduce((s: number, r: any) => s + r.water_ratio, 0),
-          count: geeWaterRows.length,
+          weightedSum: geeDisplayRows.reduce((sum: number, row: any) => {
+            const area = districtAreaRaiMap.get(row.district_id) ?? 0;
+            return sum + row[requestedLayer] * area;
+          }, 0),
+          area: geeDisplayRows.reduce(
+            (sum: number, row: any) => sum + (districtAreaRaiMap.get(row.district_id) ?? 0),
+            0,
+          ),
         };
       }
     }
     const yearlyTrend = Object.keys(trendAcc).sort().map((y) => [
       y,
-      parseFloat((trendAcc[Number(y)].sum / trendAcc[Number(y)].count).toFixed(4)),
+      parseFloat((trendAcc[Number(y)].weightedSum / trendAcc[Number(y)].area).toFixed(4)),
     ]);
 
     const areaTrendAcc: Record<number, number> = {};
@@ -320,11 +332,26 @@ export async function GET(request: Request) {
       row?.seasonal_water_ratio ?? row?.water_ratio ?? null;
     const riverCorrected = currentYearRows.length > 0 &&
       currentYearRows.every((row) => typeof row.seasonal_water_ratio === "number");
-    const avgWaterRatio = currentYearRows.length
-      ? parseFloat((currentYearRows.reduce((s, r) => s + (effectiveRatio(r) ?? 0), 0) / currentYearRows.length).toFixed(4))
+    const totalDistrictArea = currentYearRows.reduce(
+      (sum, row) => sum + (districtAreaRaiMap.get(row.district_id) ?? 0),
+      0,
+    );
+    const avgWaterRatio = totalDistrictArea > 0
+      ? parseFloat((currentYearRows.reduce((sum, row) => {
+          const area = districtAreaRaiMap.get(row.district_id) ?? 0;
+          return sum + (effectiveRatio(row) ?? 0) * area;
+        }, 0) / totalDistrictArea).toFixed(4))
       : null;
-    const avgNdwiMean = yearRows.some((r: any) => r.ndwi_mean !== null)
-      ? parseFloat((yearRows.filter((r: any) => r.ndwi_mean !== null).reduce((s: number, r: any) => s + r.ndwi_mean, 0) / yearRows.filter((r: any) => r.ndwi_mean !== null).length).toFixed(4))
+    const displayRows = yearRows.filter((row: any) => typeof row?.[requestedLayer] === "number");
+    const displayArea = displayRows.reduce(
+      (sum: number, row: any) => sum + (districtAreaRaiMap.get(row.district_id) ?? 0),
+      0,
+    );
+    const avgDisplayValue = displayArea > 0
+      ? parseFloat((displayRows.reduce((sum: number, row: any) => {
+          const area = districtAreaRaiMap.get(row.district_id) ?? 0;
+          return sum + row[requestedLayer] * area;
+        }, 0) / displayArea).toFixed(4))
       : null;
     const totalWaterAreaRai = currentYearRows.length
       ? currentYearRows.reduce((s, r) => {
@@ -334,12 +361,13 @@ export async function GET(request: Request) {
       : null;
 
     const ranking = [...currentYearRows]
-      .sort((a, b) => (effectiveRatio(b) ?? 0) - (effectiveRatio(a) ?? 0))
+      .filter((row) => typeof row?.[requestedLayer] === "number")
+      .sort((a, b) => (b[requestedLayer] ?? -Infinity) - (a[requestedLayer] ?? -Infinity))
       .map((r) => {
         const areaRai = districtAreaRaiMap.get(r.district_id) ?? 0;
         return [
           r.district_name ?? districtNameById.get(r.district_id) ?? "ไม่ระบุ",
-          r.ndwi_mean ?? effectiveRatio(r),
+          r[requestedLayer],
           Math.round((effectiveRatio(r) ?? 0) * areaRai),
         ];
       });
@@ -347,12 +375,19 @@ export async function GET(request: Request) {
     const topWet = ranking.slice(0, 5);
     const topDry = [...ranking].reverse().slice(0, 5);
 
-    const compareYearRows = compareRows.filter((r) => r.water_ratio !== null);
-    const baselineAvg = compareYearRows.length
-      ? parseFloat((compareYearRows.reduce((s, r) => s + (r.water_ratio ?? 0), 0) / compareYearRows.length).toFixed(4))
+    const compareYearRows = compareRows.filter((row) => typeof row?.[requestedLayer] === "number");
+    const compareArea = compareYearRows.reduce(
+      (sum, row) => sum + (districtAreaRaiMap.get(row.district_id) ?? 0),
+      0,
+    );
+    const baselineAvg = compareArea > 0
+      ? parseFloat((compareYearRows.reduce((sum, row) => {
+          const area = districtAreaRaiMap.get(row.district_id) ?? 0;
+          return sum + row[requestedLayer] * area;
+        }, 0) / compareArea).toFixed(4))
       : null;
-    const avgDelta = avgWaterRatio !== null && baselineAvg !== null
-      ? parseFloat((avgWaterRatio - baselineAvg).toFixed(4))
+    const avgDelta = avgDisplayValue !== null && baselineAvg !== null
+      ? parseFloat((avgDisplayValue - baselineAvg).toFixed(4))
       : null;
 
     return NextResponse.json(
@@ -363,7 +398,7 @@ export async function GET(request: Request) {
           selectedYear: year,
           compareYear,
           avgWaterRatio,
-          avgDisplayValue: avgNdwiMean ?? avgWaterRatio,
+          avgDisplayValue,
           totalWaterAreaRai,
           baselineAvg,
           avgDelta,
@@ -374,7 +409,7 @@ export async function GET(request: Request) {
           waterAreaTrend,
           min_value: minValue !== Infinity ? minValue : 0,
           max_value: maxValue !== -Infinity ? maxValue : 0.5,
-          displayLabel: "NDWI",
+          displayLabel,
           riverCorrected,
           dataSource,
           dataQuality: dataSource === "no data"
@@ -386,7 +421,7 @@ export async function GET(request: Request) {
           sourceNote: dataSource === "no data"
             ? "ไม่พบข้อมูลดาวเทียมสำหรับปีที่เลือก"
             : dataSource.startsWith("GEE")
-              ? "ตรวจสัญญาณน้ำหรือความชื้นจาก NDWI > 0.05 ไม่ใช่แบบจำลองยืนยันขอบเขตน้ำท่วม"
+              ? "Sentinel-2 composite ค่าเฉลี่ย, สถิติรายเขตคำนวณที่ scale 100 เมตร; NDWI > 0.05 ใช้คัดกรองสัญญาณน้ำหรือความชื้น ไม่ใช่ขอบเขตน้ำท่วม"
               : "ค่าจากฐานเดิมไม่มี provenance รายแถว จึงใช้สำรวจแนวโน้มเท่านั้น",
         },
       },

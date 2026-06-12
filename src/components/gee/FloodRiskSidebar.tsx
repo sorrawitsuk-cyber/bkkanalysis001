@@ -138,13 +138,13 @@ export default function FloodRiskSidebar({
   const trendData: [string, number][] = useMemo(() => {
     return (summary?.yearlyTrend || []).map(([y, v]: [string, number]) => [y, +v.toFixed(4)]);
   }, [summary?.yearlyTrend]);
-  const trendMin = Math.min(0, ...trendData.map((d) => d[1]));
-  const maxTrend = Math.max(1, ...trendData.map((d) => d[1]));
+  const trendMin = trendData.length ? Math.min(...trendData.map((d) => d[1])) : 0;
+  const trendMax = trendData.length ? Math.max(...trendData.map((d) => d[1])) : 1;
 
   if (loading || !summary) return <SidebarSkeleton />;
 
   return (
-    <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
+    <div className="w-80 bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-800/60 flex-col h-full z-10 relative shadow-2xl shrink-0 overflow-y-auto custom-scrollbar hidden 2xl:flex">
       {/* Header */}
       <div className="p-5 border-b border-slate-800/60 sticky top-0 bg-[#0f172a]/95 backdrop-blur z-20">
         <div className="flex items-center gap-3 mb-4">
@@ -197,7 +197,7 @@ export default function FloodRiskSidebar({
           {/* Row 1 */}
           <div className="col-span-3 min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1">
-              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่ตรวจพบสัญญาณน้ำ {summary?.riverCorrected ? "(ไม่รวมแหล่งน้ำถาวร)" : "(อาจรวมแหล่งน้ำถาวร)"}
+              <Droplets className="w-3 h-3 text-sky-400 shrink-0" /> พื้นที่พิกเซลผ่านเกณฑ์ NDWI {summary?.riverCorrected ? "(ตัดน้ำถาวรด้วย mask)" : "(อาจรวมแหล่งน้ำถาวร)"}
             </div>
             <div className="text-base font-bold font-mono text-slate-100">
               {formatRai(summary.totalWaterAreaRai)}
@@ -212,18 +212,16 @@ export default function FloodRiskSidebar({
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 leading-tight">ค่าสูงสุด</div>
             <div className="text-sm font-bold font-mono text-sky-300 truncate">
-              {compareMode && summary.avgDelta !== null
-                ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(1)}%`
-                : formatIndex(rankingRows[0]?.displayValue ?? rankingRows[0]?.waterRatio)}
+              {formatIndex(rankingRows[0]?.displayValue ?? rankingRows[0]?.waterRatio)}
             </div>
           </div>
           <div className="min-w-0 bg-slate-900/50 rounded-lg p-2.5 border border-slate-800">
             <div className="text-[8px] text-slate-500 uppercase tracking-wide mb-1 leading-tight">
-              {compareMode ? "เปลี่ยนแปลง" : "ต่ำสุด"}
+              {compareMode ? "เฉลี่ยเปลี่ยน" : "ต่ำสุด"}
             </div>
             <div className="text-sm font-bold font-mono text-slate-400 truncate">
               {compareMode
-                ? (summary.avgDelta !== null ? `${summary.avgDelta >= 0 ? "+" : ""}${(summary.avgDelta * 100).toFixed(2)}pp` : "–")
+                ? (summary.avgDelta !== null ? `${summary.avgDelta >= 0 ? "+" : ""}${summary.avgDelta.toFixed(4)}` : "–")
                 : formatIndex(rankingRows[rankingRows.length - 1]?.displayValue ?? rankingRows[rankingRows.length - 1]?.waterRatio)}
             </div>
           </div>
@@ -239,7 +237,7 @@ export default function FloodRiskSidebar({
           </h3>
           <div className="flex items-end gap-[3px] h-20 mb-2">
             {trendData.map(([yr, val], idx) => {
-              const pct = Math.max(4, Math.min(100, ((val - trendMin) / (maxTrend - trendMin || 1)) * 100));
+              const pct = Math.max(8, Math.min(100, ((val - trendMin) / (trendMax - trendMin || 1)) * 92 + 8));
               return (
                 <div key={`${yr}-${idx}`} className="flex-1 flex flex-col items-center group relative h-full justify-end">
                   <div
@@ -269,7 +267,7 @@ export default function FloodRiskSidebar({
           <div className="flex justify-between items-start gap-2 mb-3">
             <h3 className="min-w-0 flex-1 text-[9px] font-bold text-slate-500 uppercase tracking-[0.12em] flex items-start gap-1.5 leading-tight">
               <MapPin className="w-3 h-3 shrink-0" />
-              {compareMode ? "การเปลี่ยนแปลงพื้นที่น้ำ"
+              {compareMode ? `การเปลี่ยนแปลง ${displayLabel}`
                 : `${rankingModeCopy.title}${granularity === "subdistrict" ? "รายแขวง" : "รายเขต"}`}
             </h3>
             <div className="flex shrink-0 flex-col items-end gap-1">
@@ -320,7 +318,7 @@ export default function FloodRiskSidebar({
             {rankingRows.slice(0, showAll ? 50 : 10).map((row: any, idx: number) => {
               const isSelected = activeDistrict === row.district;
               const displayVal = compareMode && row.delta !== null
-                    ? `${row.delta >= 0 ? "+" : ""}${(row.delta * 100).toFixed(1)}%`
+                    ? `${row.delta >= 0 ? "+" : ""}${row.delta.toFixed(4)}`
                     : displayMode === "density"
                       ? (row.densityPct !== null ? `${row.densityPct}%` : "ไม่มีข้อมูล")
                       : displayMode === "area"
@@ -328,7 +326,7 @@ export default function FloodRiskSidebar({
                       : formatIndex(row.displayValue ?? row.waterRatio);
               const areaVal = row.displayAreaRai ?? row.waterAreaRai;
               const barPct = compareMode && row.delta !== null
-                    ? Math.min(100, Math.abs(row.delta) / 0.1 * 100)
+                    ? Math.min(100, Math.abs(row.delta) / 0.5 * 100)
                     : displayMode === "density"
                       ? Math.min(100, (row.densityPct ?? 0))
                       : displayMode === "area"

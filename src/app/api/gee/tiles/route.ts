@@ -120,7 +120,7 @@ export async function GET(request: Request) {
           const nir = image.select('B8').divide(10000);
           return green.subtract(nir).divide(green.add(nir)).rename('NDWI');
         });
-      return collection.median().clip(bkkBoundary);
+      return collection.mean().clip(bkkBoundary);
     };
 
     const getSentinelMndwiImage = (y: number, endMMDD = '12-31') => {
@@ -135,7 +135,7 @@ export async function GET(request: Request) {
           const swir = image.select('B11').divide(10000);
           return green.subtract(swir).divide(green.add(swir)).rename('MNDWI');
         });
-      return collection.median().clip(bkkBoundary);
+      return collection.mean().clip(bkkBoundary);
     };
 
     const getSentinelNdbiImage = (y: number, endMMDD = '12-31') => {
@@ -362,9 +362,9 @@ export async function GET(request: Request) {
             : metric === 'air_pollution'
               ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()} (ความละเอียด 1,000m — ตีความระดับเขตด้วยความระมัดระวัง)`
             : metric === 'ndwi'
-              ? 'Sentinel-2 SR Harmonized yearly median NDWI'
+              ? 'Sentinel-2 SR Harmonized yearly mean NDWI'
               : metric === 'mndwi'
-                ? 'Sentinel-2 SR Harmonized yearly median MNDWI'
+                ? 'Sentinel-2 SR Harmonized yearly mean MNDWI'
                 : 'Landsat 8/9 C2 L2 yearly median LST (emissivity-corrected)',
       resolutionMeters: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30,
     };

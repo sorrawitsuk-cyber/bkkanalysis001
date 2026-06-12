@@ -9,7 +9,7 @@ import MapControlPanel from "@/components/map/MapControlPanel";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import * as turf from "@turf/turf";
-import { TrendingUp, TrendingDown, MapPin, X, Download, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, MapPin, X, Download, FileText, SlidersHorizontal } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
 import {
   fetchCacheIndex,
@@ -59,21 +59,14 @@ const DISTRICT_AREA_RAI = new Map<number, number>(
 function getLayerValue(row: any, layer: WaterCacheLayer): number | null {
   const value = row?.[layer];
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (layer === "ndwi_max") {
-    const fallback = row?.ndwi_mean;
-    return typeof fallback === "number" && Number.isFinite(fallback) ? fallback : null;
-  }
   return null;
 }
 
-function applyJrcCorrection(
+function getWaterSignalRatio(
   rawRatio: number | null,
   seasonalFromCache: number | null,
-  jrcFraction: number,
 ): number | null {
-  if (seasonalFromCache != null) return seasonalFromCache; // cache has exact value
-  if (rawRatio == null) return null;
-  return parseFloat(Math.max(0, rawRatio - jrcFraction).toFixed(4));
+  return seasonalFromCache ?? rawRatio;
 }
 
 function buildFloodRiskView(
@@ -82,7 +75,6 @@ function buildFloodRiskView(
   selectedYear: number,
   compareYearVal: number | null,
   selectedLayer: WaterCacheLayer,
-  jrcBaseline: Record<number, number> = {},
 ) {
   const rows = (meta?.district_stats ?? []) as any[];
   const baselineRows = (baselineMeta?.district_stats ?? []) as any[];
@@ -96,25 +88,22 @@ function buildFloodRiskView(
     const districtId = Number(feature.properties.id);
     const row = rowById.get(districtId);
     const rawWaterRatio: number | null = row?.water_ratio ?? null;
-    const jrcFraction = jrcBaseline[districtId] ?? 0;
-    // seasonal_water_ratio = river/canal excluded; derive from cache or apply JRC correction
-    const seasonalWaterRatio = applyJrcCorrection(rawWaterRatio, row?.seasonal_water_ratio ?? null, jrcFraction);
+    const seasonalWaterRatio = getWaterSignalRatio(rawWaterRatio, row?.seasonal_water_ratio ?? null);
     const layerValue = getLayerValue(row, selectedLayer);
     const districtAreaRai = DISTRICT_AREA_RAI.get(districtId) ?? null;
-    // Water area is based on seasonal (river-excluded) ratio
     const waterAreaRai = seasonalWaterRatio !== null && districtAreaRai !== null
       ? Math.round(seasonalWaterRatio * districtAreaRai)
       : null;
-    // Compare (baseline) — also apply JRC correction
     const baselineRow = compareYearVal !== null ? baselineById.get(districtId) : null;
     const rawCompareRatio: number | null = baselineRow?.water_ratio ?? null;
-    const compareRatio = applyJrcCorrection(rawCompareRatio, baselineRow?.seasonal_water_ratio ?? null, jrcFraction);
-    const delta = seasonalWaterRatio !== null && compareRatio !== null
-      ? +(seasonalWaterRatio - compareRatio).toFixed(4) : null;
+    const compareRatio = getWaterSignalRatio(rawCompareRatio, baselineRow?.seasonal_water_ratio ?? null);
+    const baselineLayerValue = getLayerValue(baselineRow, selectedLayer);
+    const delta = layerValue !== null && baselineLayerValue !== null
+      ? +(layerValue - baselineLayerValue).toFixed(4) : null;
 
-    if (seasonalWaterRatio !== null) {
-      minValue = Math.min(minValue, seasonalWaterRatio);
-      maxValue = Math.max(maxValue, seasonalWaterRatio);
+    if (layerValue !== null) {
+      minValue = Math.min(minValue, layerValue);
+      maxValue = Math.max(maxValue, layerValue);
     }
 
     return {
@@ -134,40 +123,69 @@ function buildFloodRiskView(
         display_area_rai: waterAreaRai,
         display_layer: selectedLayer,
         display_label: WATER_LAYER_LABELS[selectedLayer],
-        river_corrected: jrcFraction > 0 || (row?.seasonal_water_ratio != null),
+        river_corrected: row?.seasonal_water_ratio != null,
       },
     };
   });
 
   const validRows = rows.filter((r: any) => typeof getLayerValue(r, selectedLayer) === "number");
-  const avgDisplayValue = validRows.length
-    ? parseFloat((validRows.reduce((s: number, r: any) => s + (getLayerValue(r, selectedLayer) ?? 0), 0) / validRows.length).toFixed(4))
+  const displayWeight = validRows.reduce(
+    (sum: number, row: any) => sum + (DISTRICT_AREA_RAI.get(Number(row.district_id)) ?? 0),
+    0,
+  );
+  const avgDisplayValue = displayWeight > 0
+    ? parseFloat((validRows.reduce((sum: number, row: any) => {
+        const area = DISTRICT_AREA_RAI.get(Number(row.district_id)) ?? 0;
+        return sum + (getLayerValue(row, selectedLayer) ?? 0) * area;
+      }, 0) / displayWeight).toFixed(4))
     : null;
-  // Average and totals use corrected (river-excluded) seasonal ratios
   const correctedFeatures = features.filter((f: any) => f.properties.seasonal_water_ratio != null);
-  const avgWaterRatio = correctedFeatures.length
-    ? parseFloat((correctedFeatures.reduce((s: number, f: any) => s + f.properties.seasonal_water_ratio, 0) / correctedFeatures.length).toFixed(4))
+  const ratioWeight = correctedFeatures.reduce(
+    (sum: number, feature: any) => sum + (feature.properties.district_area_rai ?? 0),
+    0,
+  );
+  const avgWaterRatio = ratioWeight > 0
+    ? parseFloat((correctedFeatures.reduce((sum: number, feature: any) => (
+        sum + feature.properties.seasonal_water_ratio * (feature.properties.district_area_rai ?? 0)
+      ), 0) / ratioWeight).toFixed(4))
     : null;
-  const baselineCorrectedFeatures = features.filter((f: any) => f.properties.compare_water_ratio != null);
-  const baselineAvg = baselineCorrectedFeatures.length
-    ? parseFloat((baselineCorrectedFeatures.reduce((s: number, f: any) => s + f.properties.compare_water_ratio, 0) / baselineCorrectedFeatures.length).toFixed(4))
+  const compareDisplayRows = validRows.filter((row: any) => (
+    getLayerValue(baselineById.get(Number(row.district_id)), selectedLayer) !== null
+  ));
+  const compareDisplayWeight = compareDisplayRows.reduce(
+    (sum: number, row: any) => sum + (DISTRICT_AREA_RAI.get(Number(row.district_id)) ?? 0),
+    0,
+  );
+  const baselineAvg = compareDisplayWeight > 0
+    ? parseFloat((compareDisplayRows.reduce((sum: number, row: any) => {
+        const districtId = Number(row.district_id);
+        const area = DISTRICT_AREA_RAI.get(districtId) ?? 0;
+        return sum + (getLayerValue(baselineById.get(districtId), selectedLayer) ?? 0) * area;
+      }, 0) / compareDisplayWeight).toFixed(4))
     : null;
-  const avgDelta = avgWaterRatio !== null && baselineAvg !== null
-    ? parseFloat((avgWaterRatio - baselineAvg).toFixed(4)) : null;
+  const avgDelta = compareDisplayWeight > 0
+    ? parseFloat((compareDisplayRows.reduce((sum: number, row: any) => {
+        const districtId = Number(row.district_id);
+        const area = DISTRICT_AREA_RAI.get(districtId) ?? 0;
+        const current = getLayerValue(row, selectedLayer) ?? 0;
+        const baseline = getLayerValue(baselineById.get(districtId), selectedLayer) ?? 0;
+        return sum + (current - baseline) * area;
+      }, 0) / compareDisplayWeight).toFixed(4))
+    : null;
 
   const ranking = [...validRows]
     .sort((a: any, b: any) => (getLayerValue(b, selectedLayer) ?? -Infinity) - (getLayerValue(a, selectedLayer) ?? -Infinity))
     .map((r: any) => {
       const dId = Number(r.district_id);
       const areaRai = DISTRICT_AREA_RAI.get(dId) ?? null;
-      const corrected = applyJrcCorrection(r.water_ratio ?? null, r.seasonal_water_ratio ?? null, jrcBaseline[dId] ?? 0);
+      const corrected = getWaterSignalRatio(r.water_ratio ?? null, r.seasonal_water_ratio ?? null);
       const waterAreaRai = corrected != null && areaRai != null ? Math.round(corrected * areaRai) : null;
-      return [r.district_name ?? "ไม่ระบุ", corrected ?? getLayerValue(r, selectedLayer), waterAreaRai];
+      return [r.district_name ?? "ไม่ระบุ", getLayerValue(r, selectedLayer), waterAreaRai];
     });
   const totalWaterAreaRai = correctedFeatures.length > 0
     ? correctedFeatures.reduce((sum: number, f: any) => sum + (f.properties.water_area_rai ?? 0), 0)
     : null;
-  const riverCorrected = Object.keys(jrcBaseline).length > 0 || rows.some((r: any) => r.seasonal_water_ratio != null);
+  const riverCorrected = rows.length > 0 && rows.every((r: any) => r.seasonal_water_ratio != null);
 
   return {
     geojson: { type: "FeatureCollection", features },
@@ -192,10 +210,14 @@ function buildFloodRiskView(
       dataQuality: rows.length ? "observed" : "unavailable",
       sourceLabel: rows.length ? "Sentinel-2 ผ่าน R2 cache" : null,
       sourceNote: rows.length
-        ? "ตรวจสัญญาณน้ำหรือความชื้นจาก NDWI ไม่ใช่แบบจำลองยืนยันขอบเขตน้ำท่วม"
+        ? `${meta?.image_count ?? "ไม่ทราบจำนวน"} ภาพ, composite ${selectedLayer.endsWith("_max") ? "ค่าสูงสุด" : "ค่าเฉลี่ย"}; ใช้คัดกรองสัญญาณน้ำหรือความชื้น ไม่ใช่ขอบเขตน้ำท่วม`
         : "ไม่พบข้อมูลดาวเทียมสำหรับช่วงเวลาที่เลือก",
       cacheStatus: meta?.status ?? "pending",
       riverCorrected,
+      imageCount: meta?.image_count ?? null,
+      cloudFilter: meta?.cloud_filter ?? null,
+      generatedAt: meta?.generated_at ?? null,
+      metricAvailable: validRows.length > 0,
     },
   };
 }
@@ -233,13 +255,7 @@ export default function FloodRiskPage() {
   const [yearlyMeta, setYearlyMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
   const [cacheDataMissing, setCacheDataMissing] = useState(false);
-  const [jrcBaseline, setJrcBaseline] = useState<Record<number, number>>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const cached = localStorage.getItem("jrc-baseline-v1");
-      return cached ? JSON.parse(cached) : {};
-    } catch { return {}; }
-  });
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -260,7 +276,7 @@ export default function FloodRiskPage() {
         const hasWaterCache = stats.some((r: any) => typeof r.water_ratio === "number");
 
         if (hasWaterCache) {
-          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null, cacheLayer, jrcBaseline);
+          const built = buildFloodRiskView(meta, baselineMeta, selectedYear, compareMode ? compareYear : null, cacheLayer);
           setGeojsonData(built.geojson);
           setSummary(built.summary);
           setLoading(false);
@@ -270,7 +286,21 @@ export default function FloodRiskPage() {
         // No cache data for this period — flag it so the UI can warn the user
         if (selectedMonth) setCacheDataMissing(true);
 
+        if (cacheLayer === "ndwi_max") {
+          const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
+          setGeojsonData(built.geojson);
+          setSummary({
+            ...built.summary,
+            dataSource: "ไม่มี NDWI max สำหรับช่วงเวลานี้",
+            dataQuality: "unavailable",
+            sourceNote: "ระบบไม่แทน NDWI max ด้วย NDWI mean เพื่อป้องกันการตีความผิด",
+          });
+          setLoading(false);
+          return;
+        }
+
         const params = new URLSearchParams({ year: selectedYear.toString() });
+        params.append("layer", cacheLayer);
         if (activeDistrict !== "ทั้งหมด") params.append("district", activeDistrict);
         if (compareMode) params.append("compareYear", compareYearStr);
 
@@ -280,7 +310,7 @@ export default function FloodRiskPage() {
           setGeojsonData(data.geojson);
           setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
         } else {
-          const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
+          const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
           setGeojsonData(built.geojson);
           setSummary({
             ...built.summary,
@@ -295,7 +325,7 @@ export default function FloodRiskPage() {
       .catch((err) => {
         console.error(err);
         if (selectedMonth) setCacheDataMissing(true);
-        const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer, jrcBaseline);
+        const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
         setGeojsonData(built.geojson);
         setSummary({
           ...built.summary,
@@ -307,24 +337,9 @@ export default function FloodRiskPage() {
         setLoading(false);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer, jrcBaseline]);
+  }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer]);
 
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
-
-  // Fetch JRC permanent water fractions once (cached in localStorage for 30 days)
-  useEffect(() => {
-    if (Object.keys(jrcBaseline).length > 0) return;
-    fetch("/api/flood-risk/jrc-baseline")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.fractions && Object.keys(data.fractions).length > 0) {
-          setJrcBaseline(data.fractions);
-          try { localStorage.setItem("jrc-baseline-v1", JSON.stringify(data.fractions)); } catch { /* ignore */ }
-        }
-      })
-      .catch(console.error);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (!cacheIndex?.yearly?.length) return;
@@ -332,10 +347,17 @@ export default function FloodRiskPage() {
       (cacheIndex.yearly as string[]).map((yr) =>
         fetchCacheMetadata("yearly", yr).then((m) => {
           const stats = (m?.district_stats ?? []) as any[];
-          const vals  = stats
-            .map((r: any) => getLayerValue(r, cacheLayer))
-            .filter((v: any): v is number => typeof v === "number" && Number.isFinite(v));
-          const avg = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+          const validStats = stats.filter((row: any) => getLayerValue(row, cacheLayer) !== null);
+          const totalArea = validStats.reduce(
+            (sum: number, row: any) => sum + (DISTRICT_AREA_RAI.get(Number(row.district_id)) ?? 0),
+            0,
+          );
+          const avg = totalArea > 0
+            ? validStats.reduce((sum: number, row: any) => {
+                const area = DISTRICT_AREA_RAI.get(Number(row.district_id)) ?? 0;
+                return sum + (getLayerValue(row, cacheLayer) ?? 0) * area;
+              }, 0) / totalArea
+            : null;
           return [yr, avg !== null ? +avg.toFixed(4) : null] as [string, number | null];
         })
       )
@@ -367,6 +389,21 @@ export default function FloodRiskPage() {
   };
 
   const cachePreviewUrl = getCacheLayerPreviewUrl(yearlyMeta, cacheLayer);
+  const layerAvailability = useMemo(() => {
+    const stats = (yearlyMeta?.district_stats ?? []) as any[];
+    return Object.fromEntries(WATER_CACHE_LAYERS.map((layer) => [
+      layer,
+      stats.length > 0
+        ? stats.some((row: any) => getLayerValue(row, layer) !== null)
+        : layer !== "ndwi_max",
+    ])) as Record<WaterCacheLayer, boolean>;
+  }, [yearlyMeta]);
+
+  useEffect(() => {
+    if (!layerAvailability[cacheLayer] || (mapMode === "idw" && cacheLayer === "ndwi_max")) {
+      setCacheLayer("ndwi_mean");
+    }
+  }, [cacheLayer, layerAvailability, mapMode]);
 
   const allDistricts = useMemo((): string[] =>
     [...new Set<string>((geojsonData?.features ?? []).map((f: any) => f.properties.name_th as string).filter((s: unknown): s is string => !!s))]
@@ -401,16 +438,16 @@ export default function FloodRiskPage() {
   const reportData = useMemo((): PDFReportData => ({
     title: "วิเคราะห์สัญญาณน้ำและความชื้น",
     subtitle: "Sentinel-2 SR Harmonized",
-    source: "Sentinel-2 (R2 Cache)",
+    source: summary?.sourceLabel ?? summary?.dataSource ?? "Sentinel-2",
     period: periodLabel,
     layer: WATER_LAYER_LABELS[cacheLayer],
     district: activeDistrict,
     kpis: [
-      { label: "Water Ratio เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
-      { label: "พื้นที่น้ำรวม", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
+      { label: "พิกเซลผ่านเกณฑ์เฉลี่ย", value: summary?.avgWaterRatio !== null ? `${(+(summary?.avgWaterRatio ?? 0) * 100).toFixed(2)}%` : "–" },
+      { label: "พื้นที่พิกเซลผ่านเกณฑ์", value: summary?.totalWaterAreaRai != null ? `${summary.totalWaterAreaRai.toLocaleString()} ไร่` : "–" },
       { label: "ปีที่เลือก", value: String(selectedYear) },
     ],
-    rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่น้ำ (ไร่)"],
+    rankingHeaders: ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่พิกเซลผ่านเกณฑ์ (ไร่)"],
     rankingRows: rankingForExport.map(([name, val, area]) => [name, val, area]),
   }), [periodLabel, cacheLayer, activeDistrict, summary, selectedYear, rankingForExport]);
 
@@ -420,8 +457,12 @@ export default function FloodRiskPage() {
     return (geojsonData.features as any[])
       .map((f: any) => ({
         name: f.properties.name_th ?? "–",
-        water_ratio: typeof f.properties.water_ratio === "number" ? f.properties.water_ratio : null,
-        water_ratio_pct: typeof f.properties.water_ratio === "number" ? +(f.properties.water_ratio * 100).toFixed(2) : null,
+        water_ratio: typeof (f.properties.seasonal_water_ratio ?? f.properties.water_ratio) === "number"
+          ? (f.properties.seasonal_water_ratio ?? f.properties.water_ratio)
+          : null,
+        water_ratio_pct: typeof (f.properties.seasonal_water_ratio ?? f.properties.water_ratio) === "number"
+          ? +((f.properties.seasonal_water_ratio ?? f.properties.water_ratio) * 100).toFixed(2)
+          : null,
         water_area_rai: f.properties.water_area_rai ?? null,
         district_area_rai: f.properties.district_area_rai ?? null,
         ndwi_mean: f.properties.ndwi_mean ?? null,
@@ -478,8 +519,8 @@ export default function FloodRiskPage() {
     const insights: string[] = [];
     const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
     insights.push(`ค่าเฉลี่ย water ratio ทุกเขต: ${pct(statsComputed.mean)} (Median: ${pct(statsComputed.median)})`);
-    if (statsBarData[0]) insights.push(`${statsBarData[0].name} มีสัดส่วนพื้นที่น้ำสูงสุด: ${pct(statsBarData[0].water_ratio ?? 0)}`);
-    if (statsWaterAreaRanking[0]) insights.push(`${statsWaterAreaRanking[0].name} มีพื้นที่แหล่งน้ำมากที่สุด: ${Number(statsWaterAreaRanking[0].water_area_rai).toLocaleString()} ไร่`);
+    if (statsBarData[0]) insights.push(`${statsBarData[0].name} มีสัดส่วนพิกเซลผ่านเกณฑ์สูงสุด: ${pct(statsBarData[0].water_ratio ?? 0)}`);
+    if (statsWaterAreaRanking[0]) insights.push(`${statsWaterAreaRanking[0].name} มีพื้นที่พิกเซลผ่านเกณฑ์มากที่สุด: ${Number(statsWaterAreaRanking[0].water_area_rai).toLocaleString()} ไร่`);
     if (statsComputed.aboveThreshold > 0)
       insights.push(`${statsComputed.aboveThreshold} เขต (${Math.round(statsComputed.aboveThreshold / statsComputed.n * 100)}%) มีสัดส่วนน้ำ ≥ 4% ของพื้นที่เขต`);
     const cv = (statsComputed.stdDev / statsComputed.mean) * 100;
@@ -505,21 +546,20 @@ export default function FloodRiskPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: granularity === "subdistrict" ? "แขวง" : "เขต", sortable: false },
     ...(granularity === "subdistrict" ? [{ key: "district", label: "เขตแม่", sortable: false, hideable: true } as ColDef] : []),
-    { key: "water_ratio", label: "ความหนาแน่นพื้นที่น้ำรายเขต", unit: "% พื้นที่เขต", format: (v) => v != null ? (v * 100).toFixed(2) : "–", heatmap: true, heatmapHex: "#3b82f6" },
-    { key: "water_area_rai", label: "พื้นที่น้ำ", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#60a5fa" },
+    { key: "water_ratio", label: "พิกเซลผ่านเกณฑ์ NDWI", unit: "% พื้นที่เขต", format: (v) => v != null ? (v * 100).toFixed(2) : "–", heatmap: true, heatmapHex: "#3b82f6" },
+    { key: "water_area_rai", label: "พื้นที่พิกเซลผ่านเกณฑ์", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#60a5fa" },
     { key: "ndwi_mean", label: "NDWI mean", format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#06b6d4" },
     { key: "ndwi_max",  label: "NDWI max",  format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#0284c7", hideable: true },
     { key: "mndwi_mean",label: "MNDWI mean",format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#7c3aed", hideable: true },
     { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
     ...(compareMode ? [
-      { key: "delta", label: "Δ สัดส่วนน้ำ", format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%` : "–", heatmap: true, heatmapHex: "#f59e0b" } as ColDef,
-      { key: "compare_water_ratio", label: `ปี ${compareYear}`, unit: "%", format: (v: any) => v != null ? `${(v * 100).toFixed(2)}` : "–", hideable: true } as ColDef,
+      { key: "delta", label: `Δ ${WATER_LAYER_LABELS[cacheLayer]}`, format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–", heatmap: true, heatmapHex: "#f59e0b" } as ColDef,
     ] : []),
   ];
 
   // Legend config
   let legendConfig: { title: string; description: string; unit: string; items: { color: string; label: string; range: string }[] };
-  if (compareMode && mapMode === "idw") {
+  if (compareMode) {
     legendConfig = {
       title: `ผลต่าง ${WATER_LAYER_LABELS[cacheLayer]} จากภาพดาวเทียม`,
       description: `ค่าดัชนีปี ${selectedYear} ลบปีฐาน ${compareYear}; ค่าบวกหมายถึงสัญญาณน้ำ/ความชื้นเพิ่มขึ้น`,
@@ -532,23 +572,12 @@ export default function FloodRiskPage() {
         { color: "#78350f", label: "ลดลงมาก", range: "< -0.15" },
       ],
     };
-  } else if (compareMode) {
-    legendConfig = {
-      title: "การเปลี่ยนแปลงพื้นที่น้ำ",
-      description: `ค่าน้ำปี ${selectedYear} ลบปีฐาน ${compareYear} (บวก = น้ำเพิ่ม)`,
-      unit: "",
-      items: [
-        { color: "#1e3a5f", label: "น้ำเพิ่มมาก", range: "> +10%" },
-        { color: "#0369a1", label: "น้ำเพิ่ม", range: "+3% ถึง +10%" },
-        { color: "#94a3b8", label: "ใกล้เคียงเดิม", range: "-3% ถึง +3%" },
-        { color: "#b45309", label: "น้ำลด", range: "-10% ถึง -3%" },
-        { color: "#78350f", label: "น้ำลดมาก", range: "< -10%" },
-      ],
-    };
-  } else if (mapMode === "satellite-cache" && (cacheLayer === "ndwi_mean" || cacheLayer === "ndwi_max")) {
+  } else if (cacheLayer === "ndwi_mean" || cacheLayer === "ndwi_max") {
     legendConfig = {
       title: `NDWI — ดัชนีน้ำผิวดิน (${WATER_LAYER_LABELS[cacheLayer]})`,
-      description: "ค่าสูง = น้ำ/ความชื้นสูง  ค่าต่ำ = ดินแห้ง พืช หรือสิ่งปลูกสร้าง",
+      description: mapMode === "idw"
+        ? "สีคือค่ารายพิกเซลจาก composite; ค่าสูงหมายถึงสัญญาณน้ำหรือความชื้นสูงขึ้น"
+        : "สีคือค่าดัชนีเฉลี่ยรายเขต; ค่าสูงหมายถึงสัญญาณน้ำหรือความชื้นสูงขึ้น",
       unit: "",
       items: [
         { color: "#92400E", label: "ดินแห้ง/พืช",   range: "< -0.30" },
@@ -558,10 +587,12 @@ export default function FloodRiskPage() {
         { color: "#0369A1", label: "น้ำผิวดิน",     range: "> 0.30" },
       ],
     };
-  } else if (mapMode === "satellite-cache") {
+  } else {
     legendConfig = {
       title: "MNDWI — ดัชนีน้ำในเมือง (mean)",
-      description: "แม่นกว่า NDWI ในพื้นที่เมือง ลดการรบกวนจากสิ่งปลูกสร้าง",
+      description: mapMode === "idw"
+        ? "สีคือค่ารายพิกเซลจาก composite และลดการรบกวนจากสิ่งปลูกสร้างเมื่อเทียบกับ NDWI"
+        : "สีคือค่าเฉลี่ยรายเขต และลดการรบกวนจากสิ่งปลูกสร้างเมื่อเทียบกับ NDWI",
       unit: "",
       items: [
         { color: "#92400E", label: "ดิน/พืช",       range: "< -0.30" },
@@ -569,23 +600,6 @@ export default function FloodRiskPage() {
         { color: "#F7F7F7", label: "กลาง",           range: "-0.10 ถึง 0.10" },
         { color: "#60ACD8", label: "น้ำตื้น/ชื้น",  range: "0.10 ถึง 0.30" },
         { color: "#0284C7", label: "น้ำ/คลอง",      range: "> 0.30" },
-      ],
-    };
-  } else {
-    legendConfig = {
-      title: summary?.riverCorrected
-        ? "สัดส่วนพื้นที่น้ำรายเขต (ไม่รวมแม่น้ำถาวร)"
-        : "สัดส่วนพื้นที่น้ำรายเขต (อาจรวมแหล่งน้ำถาวร)",
-      description: summary?.riverCorrected
-        ? "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต หลังตัดแหล่งน้ำถาวรด้วย JRC"
-        : "สัดส่วนพิกเซล NDWI > 0.05 ต่อพื้นที่เขต โดยยังไม่มีหลักฐานว่าตัดแหล่งน้ำถาวรแล้ว",
-      unit: "",
-      items: [
-        { color: "#bae6fd", label: "แห้งมาก",       range: "< 1.5%" },
-        { color: "#7dd3fc", label: "มีน้ำน้อย",     range: "1.5% – 4%" },
-        { color: "#0ea5e9", label: "มีน้ำปานกลาง", range: "4% – 8%" },
-        { color: "#0369a1", label: "มีน้ำมาก",      range: "8% – 15%" },
-        { color: "#075985", label: "สัญญาณน้ำสูงมาก", range: "> 15%" },
       ],
     };
   }
@@ -605,7 +619,7 @@ export default function FloodRiskPage() {
 
       <main className="flex-1 min-w-0 flex flex-col">
         {/* Tab bar */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur">
+        <div className="shrink-0 flex items-center gap-3 overflow-x-auto px-3 py-2.5 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur custom-scrollbar">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="sky" />
           <div className="flex items-center gap-1.5">
             <select
@@ -641,7 +655,7 @@ export default function FloodRiskPage() {
               </button>
             </div>
           )}
-          <div className="ml-auto text-[10px] text-slate-500">
+          <div className="ml-auto hidden shrink-0 text-[10px] text-slate-500 sm:block">
             {loading ? "กำลังโหลด…" : `${selectedYear}${selectedMonth ? `-${String(selectedMonth).padStart(2, "0")}` : ""} • ${WATER_LAYER_LABELS[cacheLayer]}`}
           </div>
         </div>
@@ -669,8 +683,17 @@ export default function FloodRiskPage() {
                 </ErrorBoundary>
               </div>
 
+              <button
+                type="button"
+                onClick={() => setMobileControlsOpen(true)}
+                className="absolute right-3 top-3 z-[1100] flex items-center gap-2 rounded-lg border border-sky-500/40 bg-slate-900/95 px-3 py-2 text-[11px] font-bold text-sky-200 shadow-lg lg:hidden"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                ตัวกรอง
+              </button>
+
               {/* Data source info */}
-              <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+              <div className="absolute bottom-4 left-4 z-[1000] hidden bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none lg:block">
                 <div className="flex items-center gap-2 mb-1">
                   <div className={`w-2 h-2 rounded-full ${summary?.dataQuality === "unavailable" ? "bg-slate-500" : summary?.dataQuality === "unknown" ? "bg-amber-400" : mapMode === "satellite-cache" ? "bg-sky-400" : "bg-cyan-500"}`} />
                   <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">สถานะแหล่งข้อมูล</span>
@@ -698,15 +721,22 @@ export default function FloodRiskPage() {
                     <>
                       <p><span className="text-white">Satellite:</span> Sentinel-2 SR Harmonized</p>
                       <p><span className="text-white">Period:</span> {periodLabel}</p>
-                      <p><span className="text-white">Index:</span> water_ratio (NDWI-based)</p>
+                      <p><span className="text-white">Index:</span> {WATER_LAYER_LABELS[cacheLayer]}</p>
                       <p><span className="text-white">Resolution:</span> district-level</p>
+                      {(summary?.imageCount ?? yearlyMeta?.image_count) != null && (
+                        <p><span className="text-white">Scenes:</span> {summary?.imageCount ?? yearlyMeta?.image_count} ภาพ</p>
+                      )}
+                      {(summary?.cloudFilter ?? yearlyMeta?.cloud_filter) != null && (
+                        <p><span className="text-white">Cloud filter:</span> &lt; {summary?.cloudFilter ?? yearlyMeta?.cloud_filter}%</p>
+                      )}
+                      <p><span className="text-white">Water signal:</span> NDWI &gt; 0.05, แสดงแยกจากสีดัชนี</p>
                     </>
                   )}
                 </div>
               </div>
 
               {/* Legend */}
-              <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+              <div className="absolute bottom-4 right-4 z-[1000] hidden w-72 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md lg:block xl:w-80">
                 <div className="mb-3">
                   <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
                   <p className="mt-1 text-[10px] leading-snug text-slate-400">{legendConfig.title}</p>
@@ -724,9 +754,36 @@ export default function FloodRiskPage() {
               </div>
             </div>
 
+            {mobileControlsOpen && (
+              <button
+                type="button"
+                aria-label="ปิดตัวกรองจากพื้นหลัง"
+                className="fixed inset-0 z-[1900] bg-slate-950/75 backdrop-blur-sm lg:hidden"
+                onClick={() => setMobileControlsOpen(false)}
+              />
+            )}
+
             {/* Right control panel */}
-            <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+            <aside className={`shrink-0 bg-[#0f172a]/98 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 ${
+              mobileControlsOpen
+                ? "fixed inset-y-0 right-0 z-[2000] block w-[min(22rem,calc(100vw-1rem))]"
+                : "hidden"
+            } lg:static lg:z-auto lg:block lg:w-72 xl:w-80`}>
               <div className="flex min-h-full flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3 lg:hidden">
+                  <div>
+                    <p className="text-xs font-bold text-slate-100">ตัวกรองแผนที่</p>
+                    <p className="mt-0.5 text-[9px] text-slate-500">{WATER_LAYER_LABELS[cacheLayer]} · {periodLabel}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobileControlsOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-400 hover:text-white"
+                    aria-label="ปิดแผงควบคุม"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
                 <MapControlPanel
                   accent="sky"
@@ -734,7 +791,7 @@ export default function FloodRiskPage() {
                   onGranularityChange={setGranularity}
                   mapMode={mapMode}
                   mapModes={[
-                    { value: "district", label: "สรุปรายพื้นที่", description: "ระบายสีพื้นที่ด้วยสัดส่วนพิกเซลน้ำที่สรุปเป็นค่ารายเขต" },
+                    { value: "district", label: "สรุปรายพื้นที่", description: `ระบายสีพื้นที่ด้วย ${WATER_LAYER_LABELS[cacheLayer]} ที่สรุปเป็นค่าเฉลี่ยรายเขต` },
                     { value: "idw", label: "ภาพรายพิกเซล", description: "แสดงดัชนีน้ำ NDWI/MNDWI จาก Sentinel-2 ผ่าน GEE ที่ความละเอียดประมาณ 10 เมตร" },
                   ]}
                   onMapModeChange={(m) => setMapMode(m as MapMode)}
@@ -744,24 +801,40 @@ export default function FloodRiskPage() {
                   baseMap={baseMap}
                   onBaseMapChange={setBaseMap}
                   onReset={handleReset}
-                  currentLayer={compareMode
-                    ? mapMode === "idw" ? `ผลต่าง ${WATER_LAYER_LABELS[cacheLayer]}: ${selectedYear} - ${compareYear}` : `ผลต่างสัดส่วนพื้นที่น้ำ: ${selectedYear} - ${compareYear}`
-                    : mapMode === "idw" ? WATER_LAYER_LABELS[cacheLayer] : "สัดส่วนพื้นที่น้ำรายเขต"}
+                   currentLayer={compareMode
+                     ? `ผลต่าง ${WATER_LAYER_LABELS[cacheLayer]}: ${selectedYear} - ${compareYear}`
+                     : mapMode === "idw" ? `${WATER_LAYER_LABELS[cacheLayer]} รายพิกเซล` : `${WATER_LAYER_LABELS[cacheLayer]} เฉลี่ยรายเขต`}
                   currentPeriod={periodLabel}
                     dataSource={summary?.dataQuality === "unavailable"
                       ? "ยังไม่มีข้อมูลสำหรับช่วงเวลานี้"
-                      : mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.sourceLabel ?? summary?.dataSource ?? "สถิติรายเขต"}
-                  interactionHint={mapMode === "idw" ? "สีบนภาพคือค่าดัชนีน้ำรายพิกเซล ส่วน tooltip รายพื้นที่เป็นค่าสรุประดับเขต" : "วางเมาส์บนพื้นที่เพื่อดูสัดส่วนและขนาดพื้นที่น้ำ"}
+                      : mapMode === "idw"
+                        ? "Sentinel-2 ผ่าน GEE"
+                        : `${summary?.sourceLabel ?? summary?.dataSource ?? "สถิติรายเขต"}${(summary?.imageCount ?? yearlyMeta?.image_count) != null ? ` · ${summary?.imageCount ?? yearlyMeta?.image_count} ภาพ` : ""}`}
+                  interactionHint={mapMode === "idw" ? "สีบนภาพคือค่าดัชนีรายพิกเซล ส่วน tooltip รายพื้นที่แสดงทั้งค่าดัชนีและสัดส่วนพิกเซลผ่านเกณฑ์" : "สีพื้นที่คือค่าดัชนีที่เลือก วางเมาส์เพื่อดูค่าดัชนีและสัดส่วนพิกเซลผ่านเกณฑ์"}
                   granularityNote={granularity === "subdistrict" ? "ขอบเขตแขวงสืบทอดค่าสถิติจากเขตแม่ ไม่ใช่การคำนวณพื้นที่น้ำใหม่รายแขวง" : "สรุปและเลือกพื้นที่ตาม 50 เขต"}
                   extraControls={
                     <div className="mt-1 rounded-lg border border-sky-800/50 bg-sky-950/30 p-3 space-y-2">
                       <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5">ชั้นข้อมูล (WATER)</p>
                       <div className="flex flex-col gap-1">
-                        {WATER_CACHE_LAYERS.map((key) => (
-                          <button key={key} onClick={() => setCacheLayer(key)} className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${cacheLayer === key ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"}`}>
-                            {WATER_LAYER_LABELS[key]}
-                          </button>
-                        ))}
+                        {WATER_CACHE_LAYERS.map((key) => {
+                          const available = layerAvailability[key] && !(mapMode === "idw" && key === "ndwi_max");
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => setCacheLayer(key)}
+                              disabled={!available}
+                              className={`text-[9px] px-2 py-1.5 rounded-lg border transition-all font-bold text-left ${
+                                !available
+                                ? "cursor-not-allowed border-slate-800 bg-slate-900/40 text-slate-700"
+                                : cacheLayer === key
+                                  ? "bg-sky-500/20 border-sky-500/60 text-sky-300"
+                                  : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200"
+                              }`}
+                            >
+                              {WATER_LAYER_LABELS[key]}{!available ? (mapMode === "idw" && key === "ndwi_max" ? " · ไม่มีภาพรายพิกเซล" : " · ไม่มีข้อมูล") : ""}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   }
@@ -815,7 +888,7 @@ export default function FloodRiskPage() {
                       <span className="text-slate-100 font-bold">MNDWI</span> = (Green - SWIR) / (Green + SWIR) มักเหมาะกับเมืองมากขึ้น เพราะลดการรบกวนจาก built-up surface เมื่อเทียบกับ NDWI
                     </p>
                     <p>
-                      <span className="text-sky-300 font-bold">Water ratio</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0.05 ใช้ตรวจสัญญาณน้ำหรือความชื้นรายเขต/แขวง
+                      <span className="text-sky-300 font-bold">สัดส่วนพิกเซลผ่านเกณฑ์</span> คือสัดส่วนพิกเซลที่มีค่า NDWI มากกว่า 0.05 ใช้คัดกรองสัญญาณน้ำหรือความชื้น ไม่ใช่ขอบเขตน้ำท่วม
                     </p>
                     <p className="text-slate-500">
                       ค่า NDWI/MNDWI เป็นดัชนีดาวเทียม ควรอ่านร่วมกับฤดูกาล เมฆ และจำนวนภาพที่นำมาทำ composite
