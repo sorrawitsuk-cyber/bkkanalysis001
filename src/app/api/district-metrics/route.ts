@@ -604,10 +604,23 @@ export async function GET(request: Request) {
       const trendValue = valueFor(row, metric);
       if (trendValue === null) return acc;
       if (!acc[row.year]) {
-        acc[row.year] = { sum: 0, count: 0, max: -Infinity, monthlyData: new Array(12).fill(0), monthlyCount: new Array(12).fill(0) };
+        acc[row.year] = {
+          sum: 0,
+          count: 0,
+          weightedSum: 0,
+          totalWeight: 0,
+          max: -Infinity,
+          monthlyData: new Array(12).fill(0),
+          monthlyCount: new Array(12).fill(0),
+        };
       }
       acc[row.year].sum += trendValue;
       acc[row.year].count += 1;
+      if (metric === "vegetation") {
+        const areaWeight = districtAreaRaiMap.get(row.district_id) ?? 0;
+        acc[row.year].weightedSum += trendValue * areaWeight;
+        acc[row.year].totalWeight += areaWeight;
+      }
       const maxTrendValue = metric === "lst" && typeof row.max_lst === "number" ? row.max_lst : trendValue;
       acc[row.year].max = Math.max(acc[row.year].max, maxTrendValue);
       if (metric === "lst" && row.monthly_lst) {
@@ -621,7 +634,11 @@ export async function GET(request: Request) {
 
     const yearlyTrend = Object.keys(trendData).sort().map((trendYear) => {
       const isIndexMetric = metric === "vegetation" || metric === "builtup" || metric === "air_pollution";
-      const avg = parseFloat((trendData[trendYear].sum / trendData[trendYear].count).toFixed(isIndexMetric ? 6 : 2));
+      const aggregate = trendData[trendYear];
+      const mean = metric === "vegetation" && aggregate.totalWeight > 0
+        ? aggregate.weightedSum / aggregate.totalWeight
+        : aggregate.sum / aggregate.count;
+      const avg = parseFloat(mean.toFixed(isIndexMetric ? 6 : 2));
       let maxMonthIdx = -1;
       let maxMonthTemp = -Infinity;
       trendData[trendYear].monthlyData.forEach((sum: number, idx: number) => {
@@ -739,13 +756,29 @@ export async function GET(request: Request) {
     let encroachmentRanking: any[] = [];
 
     if (currentYearData.length > 0) {
-      currentAvg = currentYearData.reduce((sum: number, row: any) => sum + (valueFor(row, metric) || 0), 0) / currentYearData.length;
+      const weightedMetricMean = (data: any[]) => {
+        if (metric !== "vegetation") {
+          return data.reduce((sum: number, row: any) => sum + (valueFor(row, metric) || 0), 0) / data.length;
+        }
+        const aggregate = data.reduce((acc: { sum: number; weight: number }, row: any) => {
+          const value = valueFor(row, metric);
+          const weight = districtAreaRaiMap.get(row.district_id) ?? 0;
+          if (value !== null && weight > 0) {
+            acc.sum += value * weight;
+            acc.weight += weight;
+          }
+          return acc;
+        }, { sum: 0, weight: 0 });
+        return aggregate.weight > 0 ? aggregate.sum / aggregate.weight : 0;
+      };
+
+      currentAvg = weightedMetricMean(currentYearData);
       maxCurrentValue = currentYearData.reduce((max: number, row: any) => Math.max(max, valueFor(row, metric) ?? -Infinity), -Infinity);
 
       if (compareYear) {
         const compYearData = summaryData.filter((row: any) => row.year === compareYear);
         baselineAvg = compYearData.length > 0
-          ? compYearData.reduce((sum: number, row: any) => sum + (valueFor(row, metric) || 0), 0) / compYearData.length
+          ? weightedMetricMean(compYearData)
           : 0;
         const compMap = new Map(compYearData.map((row: any) => [row.district_id, row]));
         ranking = currentYearData

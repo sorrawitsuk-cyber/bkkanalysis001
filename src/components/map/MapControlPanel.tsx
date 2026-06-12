@@ -87,6 +87,7 @@ interface MapControlPanelProps {
   dataSource?: string;
   interactionHint?: string;
   granularityNote?: string;
+  showGranularity?: boolean;
 }
 
 export default function MapControlPanel({
@@ -108,6 +109,7 @@ export default function MapControlPanel({
   dataSource,
   interactionHint,
   granularityNote,
+  showGranularity = true,
 }: MapControlPanelProps) {
   const theme = THEMES[accent];
   const inactive = "text-slate-500 hover:text-slate-300";
@@ -139,26 +141,30 @@ export default function MapControlPanel({
           </div>
         )}
 
-        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขตอ้างอิง</p>
-        <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
-          {(["district", "subdistrict"] as const).map((g) => {
-            const isActive = granularity === g;
-            return (
-              <button
-                key={g}
-                onClick={() => onGranularityChange(g)}
-                className={`text-[10px] py-2 rounded-lg transition-all font-bold ${isActive ? theme.activeBtn : inactive}`}
-              >
-                {g === "district" ? "เขต (50)" : "แขวง (180)"}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mb-3 text-[9px] leading-snug text-slate-600">
-          {granularityNote ?? (granularity === "district"
-            ? "สรุปและเลือกพื้นที่ตาม 50 เขต"
-            : "แสดงขอบเขต 180 แขวง โดยค่ารายแขวงอาจอ้างอิงจากเขตแม่")}
-        </p>
+        {showGranularity && (
+          <>
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ขอบเขตอ้างอิง</p>
+            <div className="grid grid-cols-2 bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800">
+              {(["district", "subdistrict"] as const).map((g) => {
+                const isActive = granularity === g;
+                return (
+                  <button
+                    key={g}
+                    onClick={() => onGranularityChange(g)}
+                    className={`text-[10px] py-2 rounded-lg transition-all font-bold ${isActive ? theme.activeBtn : inactive}`}
+                  >
+                    {g === "district" ? "เขต (50)" : "แขวง (180)"}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mb-3 text-[9px] leading-snug text-slate-600">
+              {granularityNote ?? (granularity === "district"
+                ? "สรุปและเลือกพื้นที่ตาม 50 เขต"
+                : "แสดงขอบเขต 180 แขวง โดยค่ารายแขวงอาจอ้างอิงจากเขตแม่")}
+            </p>
+          </>
+        )}
 
         <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">วิธีแสดงผล</p>
         <div className={`grid bg-slate-900/80 rounded-xl p-1 mb-3 border border-slate-800`} style={{ gridTemplateColumns: `repeat(${mapModes.length}, 1fr)` }}>

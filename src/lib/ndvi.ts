@@ -1,11 +1,11 @@
 import type { DistrictStatistic, NdviClass } from "@/types/district";
 
 const NDVI_CLASS_THAI: Record<NdviClass, string> = {
-  "Very Low": "พื้นผิวแข็ง/ไม่มีพืช",
-  Low: "พืชพรรณเบาบาง",
-  "Urban Green": "สีเขียวในเมือง",
-  Park: "สวน/ต้นไม้หนาแน่น",
-  Forest: "ป่า/พืชพรรณหนาแน่น",
+  "Very Low": "แทบไม่มีสัญญาณพืชพรรณ",
+  Low: "สัญญาณพืชพรรณต่ำ",
+  "Urban Green": "สัญญาณพืชพรรณปานกลาง",
+  Park: "สัญญาณพืชพรรณค่อนข้างสูง",
+  Forest: "สัญญาณพืชพรรณสูง",
   Unknown: "ไม่มีข้อมูล",
 };
 

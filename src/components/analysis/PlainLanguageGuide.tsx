@@ -12,6 +12,7 @@ import {
 export type GuideModule =
   | "heat"
   | "green"
+  | "ndvi"
   | "treecover"
   | "builtup"
   | "air"
@@ -99,6 +100,40 @@ const GUIDES: Record<GuideModule, GuideConfig> = {
       "หาเขตที่มีความเขียวน้อยและควรสำรวจพื้นที่เพิ่มต้นไม้",
       "ติดตามการเพิ่มหรือลดของพืชพรรณข้ามปี",
       "อ่านร่วมกับความร้อนเมืองเพื่อหาพื้นที่ที่ขาดทั้งร่มเงาและความเย็น",
+    ],
+  },
+  ndvi: {
+    title: "ดัชนีพืชพรรณ NDVI และการเปลี่ยนแปลงความเขียว",
+    shortTitle: "NDVI",
+    metricKey: "ndvi_mean",
+    metricLabel: "NDVI",
+    unit: "",
+    decimals: 3,
+    overview: "NDVI เป็นดัชนีจากการสะท้อนแสงสีแดงและอินฟราเรดใกล้ ใช้บอกสัญญาณปริมาณและความสมบูรณ์ของพืชพรรณ ค่าทางทฤษฎีอยู่ระหว่าง -1 ถึง +1 และไม่มีหน่วย",
+    whyItMatters: "NDVI ช่วยคัดกรองพื้นที่ที่พืชพรรณน้อย ติดตามความเปลี่ยนแปลงของความเขียว และอ่านร่วมกับความร้อนเมืองได้ แต่ไม่ใช่จำนวนต้นไม้ พื้นที่เรือนยอดไม้ หรือพื้นที่สวนสาธารณะ",
+    method: [
+      "ชั้นภาพรายพิกเซลใช้ Sentinel-2 Surface Reflectance โดยคัดกรองเมฆ เงาเมฆ และพิกเซลคุณภาพต่ำด้วยชั้น SCL",
+      "ชั้นภาพรายพิกเซลคำนวณ NDVI = (B8 - B4) / (B8 + B4) จากแถบอินฟราเรดใกล้และแถบสีแดง",
+      "รวมภาพหลายวันเป็น composite มัธยฐานรายปีเพื่อลดผลของเมฆและค่าผิดปกติ",
+      "เมื่อเปรียบเทียบปี ใช้หน้าต่างฤดูกาลเดียวกันเพื่อให้ผลต่างสะท้อนการเปลี่ยนแปลงมากกว่าความต่างของช่วงเวลา",
+    ],
+    reading: [
+      "ค่ามากขึ้นโดยทั่วไปหมายถึงพืชพรรณหนาแน่นหรือมีการสังเคราะห์แสงมากขึ้น แต่ความหมายขึ้นกับบริบทพื้นผิว",
+      "ผลต่างเป็นหน่วย NDVI เช่น +0.05 ไม่ใช่เพิ่มขึ้น 5 เปอร์เซ็นต์",
+      "ค่าเฉลี่ยรายเขตควรใช้เปรียบเทียบภาพรวม ส่วนภาพรายพิกเซลใช้ค้นหาความแตกต่างภายในเขต",
+      "ควรพิจารณาจำนวนภาพ แหล่งข้อมูล และสถานะ modeled/observed ก่อนสรุปผล",
+    ],
+    limitations: [
+      "NDVI อิ่มตัวในพืชพรรณที่หนาแน่นมาก และไวต่อดิน เงา ความชื้น เมฆ และสภาพบรรยากาศ",
+      "ไม่สามารถแยกต้นไม้ หญ้า พุ่มไม้ หรือพืชเกษตรได้อย่างน่าเชื่อถือด้วยดัชนีเดียว",
+      "ค่าเฉลี่ยรายเขตซ่อนความไม่สม่ำเสมอ และไม่บอกว่าพื้นที่สีเขียวเปิดให้ประชาชนใช้หรือไม่",
+      "ข้อมูลปีปัจจุบันอาจเป็น year-to-date จึงต้องเทียบกับช่วงวันเดียวกันของปีฐาน",
+    ],
+    practicalUse: [
+      "คัดกรองพื้นที่ที่ความเขียวต่ำหรือมีแนวโน้มลดลงเพื่อสำรวจภาพละเอียดและภาคสนาม",
+      "ติดตามผลโครงการเพิ่มต้นไม้หรือฟื้นฟูพืชพรรณในระดับพื้นที่",
+      "อ่านร่วมกับ Tree Cover เพื่อแยกคำถามเรื่องสภาพพืชพรรณออกจากพื้นที่เรือนยอดไม้",
+      "อ่านร่วมกับ LST และประชากรเพื่อจัดลำดับพื้นที่ที่ขาดร่มเงาและมีความเสี่ยงจากความร้อน",
     ],
   },
   treecover: {
@@ -472,6 +507,7 @@ interface PlainLanguageGuideProps {
   decimals?: number;
   scale?: number;
   nameKey?: string;
+  weightKey?: string;
   extraSummary?: string[];
 }
 
@@ -502,6 +538,7 @@ export default function PlainLanguageGuide({
   decimals,
   scale,
   nameKey,
+  weightKey,
   extraSummary = [],
 }: PlainLanguageGuideProps) {
   const config = GUIDES[module];
@@ -516,12 +553,16 @@ export default function PlainLanguageGuide({
     .map((record) => ({
       name: nameFromRecord(record, nameKey),
       value: valueFromRecord(record, finalMetricKey),
+      weight: weightKey ? valueFromRecord(record, weightKey) : null,
     }))
-    .filter((item): item is { name: string; value: number } => item.value !== null)
+    .filter((item): item is { name: string; value: number; weight: number | null } => item.value !== null)
     .sort((a, b) => b.value - a.value);
 
+  const totalWeight = measured.reduce((sum, item) => sum + (item.weight && item.weight > 0 ? item.weight : 0), 0);
   const average = measured.length
-    ? measured.reduce((sum, item) => sum + item.value, 0) / measured.length
+    ? totalWeight > 0
+      ? measured.reduce((sum, item) => sum + item.value * (item.weight && item.weight > 0 ? item.weight : 0), 0) / totalWeight
+      : measured.reduce((sum, item) => sum + item.value, 0) / measured.length
     : null;
   const format = (value: number) => `${(value * finalScale).toFixed(finalDecimals)}${finalUnit ? ` ${finalUnit}` : ""}`;
   const areaLabel = activeArea === "ทั้งหมด" ? "กรุงเทพมหานครทั้ง 50 เขต" : `พื้นที่ ${activeArea}`;
@@ -540,6 +581,12 @@ export default function PlainLanguageGuide({
         "ตรวจสอบช่วงเวลา ตัวกรองพื้นที่ และสถานะแหล่งข้อมูลก่อนนำผลไปใช้",
         ...extraSummary,
       ];
+  const methodItems = module === "ndvi" && dataQuality === "modeled"
+    ? [
+        "ค่าสรุปรายเขตที่กำลังแสดงมีสถานะ modeled และไม่ใช่ผลสรุปโดยตรงจากชั้นภาพ Sentinel-2 จึงควรใช้สาธิตแนวโน้มและตรวจสอบกับข้อมูล observed ก่อนอ้างอิงเชิงนโยบาย",
+        ...config.method,
+      ]
+    : config.method;
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
@@ -585,7 +632,7 @@ export default function PlainLanguageGuide({
         </section>
 
         <div className="grid gap-5 lg:grid-cols-2">
-          <GuideSection icon={Database} title="ข้อมูลถูกสร้างขึ้นอย่างไร" items={config.method} colors={colors} />
+          <GuideSection icon={Database} title="ข้อมูลถูกสร้างขึ้นอย่างไร" items={methodItems} colors={colors} />
           <GuideSection icon={ListChecks} title="อ่านผลอย่างไรให้ถูกต้อง" items={config.reading} colors={colors} />
           <GuideSection icon={CheckCircle2} title="นำไปใช้ทำอะไรได้บ้าง" items={config.practicalUse} colors={colors} />
           <GuideSection icon={AlertTriangle} title="ข้อจำกัดที่ต้องรู้" items={config.limitations} colors={colors} warning />

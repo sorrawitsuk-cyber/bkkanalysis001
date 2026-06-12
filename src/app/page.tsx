@@ -20,6 +20,7 @@ import {
   Globe,
   FileSearch,
   Gauge,
+  Leaf,
   Users,
 } from "lucide-react";
 
@@ -75,6 +76,19 @@ const modules = [
     metric: "Tree Cover",
     metricLabel: "Sentinel-2",
     tag: "vegetation",
+  },
+  {
+    title: "ดัชนีพืชพรรณ NDVI",
+    subtitle: "Vegetation Condition · Sentinel-2",
+    description: "สภาพและความหนาแน่นพืชพรรณจากการสะท้อนแสง พร้อมแนวโน้มและผลต่างระหว่างปี",
+    href: "/ndvi",
+    icon: Leaf,
+    accent: "from-lime-400 to-emerald-600",
+    accentBg: "bg-lime-500/10 border-lime-500/20",
+    accentText: "text-lime-400",
+    metric: "NDVI",
+    metricLabel: "Sentinel-2",
+    tag: "vegetation-index",
   },
   {
     title: "การขยายตัวของเมือง",
@@ -157,7 +171,7 @@ const modules = [
 ];
 
 const platformStats = [
-  { label: "โมดูลวิเคราะห์", value: "11", icon: BarChart3, color: "text-cyan-400" },
+  { label: "โมดูลวิเคราะห์", value: "12", icon: BarChart3, color: "text-cyan-400" },
   { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
   { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
   { label: "ดาวเทียม",       value: "5 ภารกิจ", icon: Satellite, color: "text-purple-400" },

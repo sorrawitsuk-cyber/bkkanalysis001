@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightLeft, Building2, ChevronRight, CloudRain, Droplets, Flame, Gauge, Home, Moon, ShieldAlert, Trees, Users, Wind } from "lucide-react";
+import { ArrowRightLeft, Building2, ChevronRight, CloudRain, Droplets, Flame, Gauge, Home, Leaf, Moon, ShieldAlert, Trees, Users, Wind } from "lucide-react";
 
-export type NavKey = "home" | "decision-support" | "traffy" | "population" | "heat-island" | "green-space" | "urban-expansion" | "land-cover-change" | "rainfall" | "flood-risk" | "nighttime-lights" | "air-quality";
+export type NavKey = "home" | "decision-support" | "traffy" | "population" | "heat-island" | "green-space" | "ndvi" | "urban-expansion" | "land-cover-change" | "rainfall" | "flood-risk" | "nighttime-lights" | "air-quality";
 
 const NAV_ITEMS: Array<{ key: NavKey; href: string; label: string; icon: React.ReactNode; colorClass: string }> = [
   { key: "home",              href: "/",                  label: "หน้า Home ศูนย์วิเคราะห์เมือง",    icon: <Home className="w-3 h-3" />,         colorClass: "text-cyan-400 hover:text-cyan-300"    },
@@ -12,6 +12,7 @@ const NAV_ITEMS: Array<{ key: NavKey; href: string; label: string; icon: React.R
   { key: "population",        href: "/population",         label: "วิเคราะห์ประชากรเขตและแขวง",      icon: <Users className="w-3 h-3" />,         colorClass: "text-indigo-400 hover:text-indigo-300"},
   { key: "heat-island",       href: "/heat-island",        label: "วิเคราะห์เกาะความร้อนเมือง",        icon: <Flame className="w-3 h-3" />,         colorClass: "text-red-400 hover:text-red-300"      },
   { key: "green-space",       href: "/green-space",        label: "วิเคราะห์เรือนยอดไม้เมือง",        icon: <Trees className="w-3 h-3" />,         colorClass: "text-emerald-400 hover:text-emerald-300"},
+  { key: "ndvi",              href: "/ndvi",               label: "วิเคราะห์ดัชนีพืชพรรณ NDVI",      icon: <Leaf className="w-3 h-3" />,          colorClass: "text-lime-400 hover:text-lime-300"    },
   { key: "urban-expansion",   href: "/urban-expansion",    label: "พื้นที่สิ่งปลูกสร้างและการขยายตัว", icon: <Building2 className="w-3 h-3" />,     colorClass: "text-orange-400 hover:text-orange-300"},
   { key: "land-cover-change", href: "/land-cover-change",  label: "วิเคราะห์การเปลี่ยนสิ่งปกคลุมดิน", icon: <ArrowRightLeft className="w-3 h-3" />, colorClass: "text-lime-400 hover:text-lime-300" },
   { key: "rainfall",          href: "/rainfall",           label: "วิเคราะห์ปริมาณฝน",                 icon: <CloudRain className="w-3 h-3" />,      colorClass: "text-cyan-400 hover:text-cyan-300"    },
