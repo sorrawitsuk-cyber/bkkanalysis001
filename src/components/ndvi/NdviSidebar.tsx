@@ -36,13 +36,16 @@ export default function NdviSidebar({
   const weightedMean = weightedArea > 0
     ? ranked.reduce((sum, row) => sum + row.ndvi_mean * (row.district_area_rai ?? 0), 0) / weightedArea
     : null;
+  const activeRow = activeDistrict === "ทั้งหมด"
+    ? null
+    : ranked.find((row) => row.name === activeDistrict) ?? null;
   const trend = summary?.yearlyTrend ?? [];
   const trendValues = trend.map((item: any) => Number(item[1])).filter(Number.isFinite);
   const trendMin = trendValues.length ? Math.min(...trendValues) : 0;
   const trendMax = trendValues.length ? Math.max(...trendValues) : 1;
 
   return (
-    <div className="hidden h-full w-80 shrink-0 flex-col overflow-y-auto border-r border-slate-800/60 bg-[#0f172a]/95 shadow-2xl 2xl:flex">
+    <div className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-slate-800/60 bg-[#0f172a]/95 shadow-2xl xl:flex 2xl:w-80">
       <div className="sticky top-0 z-20 border-b border-slate-800/60 bg-[#0f172a]/98 p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/15">
@@ -83,9 +86,9 @@ export default function NdviSidebar({
 
         <div className="grid grid-cols-3 gap-2">
           {[
-            ["เฉลี่ยถ่วงพื้นที่", formatNdvi(weightedMean)],
-            ["สูงสุด", formatNdvi(ranked[0]?.ndvi_mean)],
-            ["ต่ำสุด", formatNdvi(ranked[ranked.length - 1]?.ndvi_mean)],
+            [activeRow ? "NDVI เขต" : "เฉลี่ยถ่วงพื้นที่", formatNdvi(activeRow?.ndvi_mean ?? weightedMean)],
+            [activeRow ? "คะแนน /10" : "สูงสุด", activeRow ? Number(activeRow.ndvi_score ?? 0).toFixed(1) : formatNdvi(ranked[0]?.ndvi_mean)],
+            [activeRow ? "ผ่านเกณฑ์" : "ต่ำสุด", activeRow && typeof activeRow.green_area_ratio === "number" ? `${(activeRow.green_area_ratio * 100).toFixed(1)}%` : formatNdvi(ranked[ranked.length - 1]?.ndvi_mean)],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-slate-800 bg-slate-900/55 p-2.5">
               <div className="min-h-[22px] text-[8px] leading-tight text-slate-500">{label}</div>

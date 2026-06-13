@@ -977,7 +977,7 @@ export async function GET(request: Request) {
             reasons: getPriorityReasons(row),
           }))
       : [];
-    const provenance = metricProvenance(metric, currentYearData, useDbYear, airDataSource);
+    const provenance = metricProvenance(metric, yearData, useDbYear, airDataSource);
 
     return NextResponse.json({
       geojson: { type: "FeatureCollection", features },

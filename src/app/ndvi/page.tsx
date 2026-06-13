@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Download, FileText, Leaf, SlidersHorizontal, X } from "lucide-react";
+import { Download, FileText, SlidersHorizontal, X } from "lucide-react";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
@@ -61,6 +61,7 @@ export default function NdviPage() {
     setError(null);
     const params = new URLSearchParams({ year: String(year), metric: "vegetation" });
     if (compareMode) params.set("compareYear", String(compareYear));
+    if (activeDistrict !== ALL_DISTRICTS) params.set("district", activeDistrict);
     fetch(`/api/district-metrics?${params}`)
       .then(async (response) => {
         const payload = await response.json();
@@ -75,7 +76,7 @@ export default function NdviPage() {
         setSummary(null);
       })
       .finally(() => setLoading(false));
-  }, [compareMode, compareYear, year]);
+  }, [activeDistrict, compareMode, compareYear, year]);
 
   useEffect(() => {
     if (compareYear >= year) setCompareYear(Math.max(MIN_YEAR, year - 1));
@@ -88,6 +89,12 @@ export default function NdviPage() {
       ndvi_class: feature.properties.ndvi_class,
       delta: feature.properties.vegetation_delta,
       district_area_rai: feature.properties.district_area_rai,
+      ndvi_score: feature.properties.ndvi_score,
+      green_area_ratio: feature.properties.green_area_ratio,
+      green_area_rai: feature.properties.green_area_rai,
+      low_green_ratio: feature.properties.low_green_ratio,
+      water_ratio: feature.properties.water_ratio,
+      priority_score: feature.properties.priority_score,
       data_quality: summary?.dataQuality,
     }))
   ), [geojsonData, summary?.dataQuality]);
@@ -95,6 +102,7 @@ export default function NdviPage() {
   const filteredRows = activeDistrict === ALL_DISTRICTS
     ? rows
     : rows.filter((row: any) => row.name === activeDistrict);
+  const activeRow = activeDistrict === ALL_DISTRICTS ? null : filteredRows[0] ?? null;
   const validRows = rows.filter((row: any) => typeof row.ndvi_mean === "number");
   const totalArea = validRows.reduce((sum: number, row: any) => sum + (row.district_area_rai ?? 0), 0);
   const weightedMean = totalArea > 0
@@ -109,11 +117,26 @@ export default function NdviPage() {
     ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${year} (YTD)`
     : `1 ม.ค. – 31 ธ.ค. ${year}`;
 
-  const csvHeaders = ["เขต", "NDVI เฉลี่ย", "ระดับเชิงพรรณนา", ...(compareMode ? [`ผลต่างจาก ${compareYear}`] : []), "ปี", "สถานะข้อมูล"];
+  const csvHeaders = [
+    "เขต",
+    "NDVI เฉลี่ย",
+    "คะแนน NDVI (0-10)",
+    "ระดับเชิงพรรณนา",
+    "พื้นที่ผ่านเกณฑ์ NDVI > 0.30 (%)",
+    "พื้นที่ผ่านเกณฑ์ (ไร่)",
+    "พื้นที่เขต (ไร่)",
+    ...(compareMode ? [`ผลต่างจาก ${compareYear}`] : []),
+    "ปี",
+    "สถานะข้อมูล",
+  ];
   const csvRows = rankedRows.map((row: any) => [
     row.name,
     row.ndvi_mean,
+    row.ndvi_score,
     getNdviClassThai(row.ndvi_class),
+    typeof row.green_area_ratio === "number" ? row.green_area_ratio * 100 : null,
+    row.green_area_rai,
+    row.district_area_rai,
     ...(compareMode ? [row.delta] : []),
     year,
     summary?.dataQuality ?? "unknown",
@@ -138,7 +161,48 @@ export default function NdviPage() {
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: true },
     { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (value) => formatNdvi(Number(value)), heatmap: true, heatmapHex: "#22c55e" },
+    {
+      key: "ndvi_score",
+      label: "คะแนน NDVI",
+      unit: "/10",
+      format: (value) => typeof value === "number" ? value.toFixed(1) : "–",
+      heatmap: true,
+      heatmapHex: "#10b981",
+    },
     { key: "ndvi_class", label: "ระดับเชิงพรรณนา", format: (value) => getNdviClassThai(String(value)) },
+    {
+      key: "green_area_ratio",
+      label: "พื้นที่ผ่านเกณฑ์",
+      unit: "%",
+      format: (value) => typeof value === "number" ? (value * 100).toFixed(1) : "–",
+      heatmap: true,
+      heatmapHex: "#84cc16",
+    },
+    {
+      key: "green_area_rai",
+      label: "พื้นที่ผ่านเกณฑ์",
+      unit: "ไร่",
+      format: (value) => typeof value === "number" ? Math.round(value).toLocaleString("th-TH") : "–",
+      heatmap: true,
+      heatmapHex: "#22c55e",
+      hideable: true,
+    },
+    {
+      key: "district_area_rai",
+      label: "พื้นที่เขต",
+      unit: "ไร่",
+      format: (value) => typeof value === "number" ? Math.round(value).toLocaleString("th-TH") : "–",
+      hideable: true,
+    },
+    {
+      key: "priority_score",
+      label: "คะแนนตรวจสอบ",
+      unit: "/100",
+      format: (value) => typeof value === "number" ? value.toFixed(0) : "–",
+      heatmap: true,
+      heatmapHex: "#f59e0b",
+      hideable: true,
+    },
     ...(compareMode ? [{
       key: "delta",
       label: `ผลต่างจาก ${compareYear}`,
@@ -332,10 +396,30 @@ export default function NdviPage() {
               <div className="mx-auto max-w-7xl space-y-5">
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {[
-                    ["NDVI เฉลี่ยถ่วงพื้นที่", formatNdvi(weightedMean)],
-                    ["เขต NDVI สูงสุด", rankedRows[0]?.name ?? "ไม่มีข้อมูล"],
-                    ["เขต NDVI ต่ำสุด", rankedRows[rankedRows.length - 1]?.name ?? "ไม่มีข้อมูล"],
-                    [compareMode ? `ลดลงมากสุดจาก ${compareYear}` : "จำนวนเขตที่มีข้อมูล", compareMode ? `${changeRows[0]?.name ?? "ไม่มีข้อมูล"} · ${formatNdvi(changeRows[0]?.delta, true)}` : `${validRows.length} เขต`],
+                    [
+                      activeRow ? `NDVI เฉลี่ย · ${activeRow.name}` : "NDVI เฉลี่ยถ่วงพื้นที่",
+                      formatNdvi(activeRow?.ndvi_mean ?? weightedMean),
+                    ],
+                    [
+                      activeRow ? "ระดับเชิงพรรณนา" : "เขต NDVI สูงสุด",
+                      activeRow ? getNdviClassThai(activeRow.ndvi_class) : rankedRows[0]?.name ?? "ไม่มีข้อมูล",
+                    ],
+                    [
+                      activeRow ? "พื้นที่ผ่านเกณฑ์ NDVI > 0.30" : "เขต NDVI ต่ำสุด",
+                      activeRow && typeof activeRow.green_area_ratio === "number"
+                        ? `${(activeRow.green_area_ratio * 100).toFixed(1)}%`
+                        : rankedRows[rankedRows.length - 1]?.name ?? "ไม่มีข้อมูล",
+                    ],
+                    [
+                      activeRow
+                        ? "พื้นที่ผ่านเกณฑ์โดยประมาณ"
+                        : compareMode ? `ลดลงมากสุดจาก ${compareYear}` : "จำนวนเขตที่มีข้อมูล",
+                      activeRow && typeof activeRow.green_area_rai === "number"
+                        ? `${Math.round(activeRow.green_area_rai).toLocaleString("th-TH")} ไร่`
+                        : compareMode
+                          ? `${changeRows[0]?.name ?? "ไม่มีข้อมูล"} · ${formatNdvi(changeRows[0]?.delta, true)}`
+                          : `${validRows.length} เขต`,
+                    ],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                       <div className="text-[10px] text-slate-500">{label}</div>
@@ -370,7 +454,11 @@ export default function NdviPage() {
                   </section>
 
                   <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
-                    <h2 className="text-sm font-black">{compareMode ? `ผลต่างจากปี ${compareYear}` : "แนวโน้มค่าเฉลี่ยกรุงเทพฯ แบบถ่วงพื้นที่"}</h2>
+                    <h2 className="text-sm font-black">
+                      {compareMode
+                        ? `ผลต่างจากปี ${compareYear}`
+                        : activeRow ? `แนวโน้ม NDVI · ${activeRow.name}` : "แนวโน้มค่าเฉลี่ยกรุงเทพฯ แบบถ่วงพื้นที่"}
+                    </h2>
                     <p className="mt-1 text-[10px] text-slate-500">{compareMode ? "ค่าบวก = เพิ่มขึ้น ค่าลบ = ลดลง ในหน่วย NDVI" : "ควรเปรียบเทียบช่วงฤดูกาลเดียวกัน"}</p>
                     <div className="mt-4 h-[390px]">
                       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -411,7 +499,6 @@ export default function NdviPage() {
                     </div>
                   </section>
                 </div>
-                <NdviSciencePanel />
               </div>
             </div>
           ) : viewMode === "table" ? (
@@ -422,7 +509,12 @@ export default function NdviPage() {
                 getRowData={(properties) => ({
                   name: properties.name_th,
                   ndvi_mean: properties.ndvi_mean,
+                  ndvi_score: properties.ndvi_score,
                   ndvi_class: properties.ndvi_class,
+                  green_area_ratio: properties.green_area_ratio,
+                  green_area_rai: properties.green_area_rai,
+                  district_area_rai: properties.district_area_rai,
+                  priority_score: properties.priority_score,
                   delta: properties.vegetation_delta,
                 })}
                 csvFilename={`bangkok_ndvi_${year}`}
@@ -431,28 +523,43 @@ export default function NdviPage() {
                 districts={districts}
                 accentColor="emerald"
                 dataSource={summary?.sourceLabel ?? summary?.dataSource}
-                contextNote={`${periodLabel} · NDVI ไม่มีหน่วย · ไม่ใช่ Tree Cover หรือทะเบียนสวน`}
+                contextNote={`${periodLabel} · NDVI ไม่มีหน่วย · พื้นที่ผ่านเกณฑ์ใช้ NDVI > 0.30 และเป็นค่าประมาณจากภาพดาวเทียม`}
                 expectedRows={activeDistrict === ALL_DISTRICTS ? 50 : 1}
+                showStatsFooter={activeDistrict === ALL_DISTRICTS}
+                year={year}
+                onYearChange={setYear}
+                minYear={MIN_YEAR}
+                maxYear={CURRENT_YEAR}
+                enableMultiYear
+                compareMode={compareMode}
+                onCompareModeChange={setCompareMode}
+                compareYear={compareYear}
+                onCompareYearChange={setCompareYear}
               />
             </div>
           ) : (
-            <PlainLanguageGuide
-              module="ndvi"
-              accent="emerald"
-              records={filteredRows}
-              year={year}
-              activeArea={activeDistrict}
-              compareMode={compareMode}
-              compareYear={compareYear}
-              dataSource={summary?.sourceLabel ?? summary?.dataSource}
-              dataQuality={summary?.dataQuality}
-              nameKey="name"
-              weightKey="district_area_rai"
-              extraSummary={[
-                "ค่าเฉลี่ยภาพรวมถ่วงตามพื้นที่เขต เพื่อไม่ให้เขตขนาดเล็กและขนาดใหญ่มีน้ำหนักเท่ากัน",
-                tileMetadata?.sceneCount != null && tileMetadata.sceneCount >= 0 ? `ภาพ Sentinel-2 ที่ผ่านตัวกรองเบื้องต้น: ${tileMetadata.sceneCount} ภาพ` : "จำนวนภาพรายพิกเซลจะแสดงเมื่อเปิดชั้นแผนที่ GEE",
-              ]}
-            />
+            <div className="h-full overflow-y-auto p-4 sm:p-6">
+              <div className="mx-auto max-w-6xl space-y-5">
+                <PlainLanguageGuide
+                  module="ndvi"
+                  accent="emerald"
+                  records={filteredRows}
+                  year={year}
+                  activeArea={activeDistrict}
+                  compareMode={compareMode}
+                  compareYear={compareYear}
+                  dataSource={summary?.sourceLabel ?? summary?.dataSource}
+                  dataQuality={summary?.dataQuality}
+                  nameKey="name"
+                  weightKey="district_area_rai"
+                  extraSummary={[
+                    "ค่าเฉลี่ยภาพรวมถ่วงตามพื้นที่เขต เพื่อไม่ให้เขตขนาดเล็กและขนาดใหญ่มีน้ำหนักเท่ากัน",
+                    tileMetadata?.sceneCount != null && tileMetadata.sceneCount >= 0 ? `ภาพ Sentinel-2 ที่ผ่านตัวกรองเบื้องต้น: ${tileMetadata.sceneCount} ภาพ` : "จำนวนภาพรายพิกเซลจะแสดงเมื่อเปิดชั้นแผนที่ GEE",
+                  ]}
+                />
+                <NdviSciencePanel />
+              </div>
+            </div>
           )}
         </div>
       </main>
