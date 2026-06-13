@@ -75,6 +75,12 @@ export async function GET(request: Request) {
 
     const districtRows = (rpcRows ?? []).filter((r: any) => r.row_type === "district");
     const bkkAvgRows   = (rpcRows ?? []).filter((r: any) => r.row_type === "bkk_avg");
+    const { data: ndviRangeRows } = await supabase
+      .from("district_statistics")
+      .select("year, ndvi_median, ndvi_min, ndvi_max, ndvi_data_source")
+      .eq("district_id", districtId)
+      .order("year", { ascending: true });
+    const ndviRangeByYear = new Map((ndviRangeRows ?? []).map((row: any) => [row.year, row]));
 
     // ── Build per-year metrics map for the district ───────────────────────────
     const metrics: Record<number, any> = {};
@@ -91,11 +97,16 @@ export async function GET(request: Request) {
         row.water_ratio != null && areaRai > 0
           ? Math.round(row.water_ratio * areaRai)
           : null;
+      const ndviRange = ndviRangeByYear.get(row.year);
 
       metrics[row.year] = {
         mean_lst:         row.mean_lst         ?? null,
         max_lst:          row.max_lst          ?? null,
         ndvi_mean:        row.ndvi_mean        ?? null,
+        ndvi_median:      ndviRange?.ndvi_median ?? null,
+        ndvi_min:         ndviRange?.ndvi_min ?? null,
+        ndvi_max:         ndviRange?.ndvi_max ?? null,
+        ndvi_data_source: ndviRange?.ndvi_data_source ?? null,
         ndvi_score:       row.ndvi_score       ?? null,
         green_area_rai:   row.green_area_rai   != null ? Math.round(row.green_area_rai) : null,
         green_area_ratio: row.green_area_ratio ?? null,

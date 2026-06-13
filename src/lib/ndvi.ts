@@ -77,6 +77,36 @@ export function getNdviColor(value: number | null | undefined): string {
   return NDVI_CLASS_COLORS[getNdviClass(value)];
 }
 
+export function getNdviInterpretationReason(stat: Partial<DistrictStatistic> & { delta?: number | null }): string {
+  const mean = resolveNdviMean(stat);
+  if (mean === null) return "ยังไม่มีค่า NDVI ที่เพียงพอสำหรับอธิบาย";
+
+  const reasons: string[] = [];
+  if (mean < 0.20) reasons.push("ค่าเฉลี่ยต่ำ สะท้อนสัญญาณพืชพรรณโดยรวมค่อนข้างน้อย");
+  else if (mean < 0.35) reasons.push("ค่าเฉลี่ยอยู่ระดับปานกลางและยังมีพื้นที่ให้ตรวจสอบเพิ่มเติม");
+  else if (mean < 0.50) reasons.push("ค่าเฉลี่ยค่อนข้างสูง สะท้อนสัญญาณพืชพรรณที่เห็นได้ชัด");
+  else reasons.push("ค่าเฉลี่ยสูงเมื่อเทียบกับบริบทเมือง");
+
+  const min = toNumber(stat.ndvi_min);
+  const max = toNumber(stat.ndvi_max);
+  if (min !== null && max !== null) {
+    const range = max - min;
+    if (range >= 0.45) reasons.push("ช่วงค่ากว้าง แสดงว่าภายในเขตมีพื้นผิวหลากหลาย");
+    else if (range <= 0.20) reasons.push("ช่วงค่าค่อนข้างแคบ สัญญาณภายในเขตสม่ำเสมอกว่า");
+  }
+
+  const greenRatio = toNumber(stat.green_area_ratio);
+  if (greenRatio !== null && greenRatio < 0.15) reasons.push("สัดส่วนพื้นที่ผ่านเกณฑ์ NDVI ยังต่ำ");
+
+  const delta = toNumber(stat.delta);
+  if (delta !== null) {
+    if (delta <= -0.05) reasons.push("ลดลงจากปีฐานเกิน 0.05 NDVI ควรตรวจภาพและฤดูกาลประกอบ");
+    else if (delta >= 0.05) reasons.push("เพิ่มจากปีฐานเกิน 0.05 NDVI แต่ยังต้องแยกผลของฤดูกาล");
+  }
+
+  return reasons.join(" · ");
+}
+
 export function formatPercent(value: number | null | undefined): string {
   const num = toNumber(value);
   if (num === null) return "ไม่มีข้อมูล";

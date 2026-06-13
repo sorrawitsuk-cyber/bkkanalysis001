@@ -87,8 +87,8 @@ export default function NdviSidebar({
         <div className="grid grid-cols-3 gap-2">
           {[
             [activeRow ? "NDVI เขต" : "เฉลี่ยถ่วงพื้นที่", formatNdvi(activeRow?.ndvi_mean ?? weightedMean)],
-            [activeRow ? "คะแนน /10" : "สูงสุด", activeRow ? Number(activeRow.ndvi_score ?? 0).toFixed(1) : formatNdvi(ranked[0]?.ndvi_mean)],
-            [activeRow ? "ผ่านเกณฑ์" : "ต่ำสุด", activeRow && typeof activeRow.green_area_ratio === "number" ? `${(activeRow.green_area_ratio * 100).toFixed(1)}%` : formatNdvi(ranked[ranked.length - 1]?.ndvi_mean)],
+            [activeRow ? "ต่ำสุด" : "เขตเฉลี่ยสูงสุด", activeRow ? formatNdvi(activeRow.ndvi_min) : formatNdvi(ranked[0]?.ndvi_mean)],
+            [activeRow ? "สูงสุด" : "เขตเฉลี่ยต่ำสุด", activeRow ? formatNdvi(activeRow.ndvi_max) : formatNdvi(ranked[ranked.length - 1]?.ndvi_mean)],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-slate-800 bg-slate-900/55 p-2.5">
               <div className="min-h-[22px] text-[8px] leading-tight text-slate-500">{label}</div>

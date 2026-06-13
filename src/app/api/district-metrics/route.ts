@@ -112,7 +112,6 @@ function toVegetationFallbackRow(row: any): DistrictStatistic {
 function enrichVegetationRow(row: any): any {
   const ndviMean = typeof row.ndvi_mean === "number" ? row.ndvi_mean : null;
   if (ndviMean === null) return row;
-  if (row.green_area_ratio != null && row.green_area_rai != null && row.low_green_ratio != null) return row;
   const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 19600;
   const greenAreaRatio = row.green_area_ratio ?? Math.max(0.03, Math.min(0.65, ndviMean - 0.08));
   return {
@@ -154,7 +153,7 @@ function remapRow(row: any): DistrictStatistic {
 const MAP_COLUMNS = [
   "district_id", "year",
   "mean_lst", "max_lst",
-  "ndvi_mean", "ndvi_score", "ndvi_class", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
+  "ndvi_mean", "ndvi_median", "ndvi_min", "ndvi_max", "ndvi_score", "ndvi_class", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
   "ndvi_data_source", "ndbi_mean", "ndbi_max", "ndbi_data_source",
   "no2_mean", "no2_max", "co_mean", "co_max", "so2_mean", "so2_max",
   "aerosol_index_mean", "aerosol_index_max", "pollution_score", "pollution_class",
@@ -165,7 +164,7 @@ const MAP_COLUMNS = [
 const TREND_COLUMNS = [
   "district_id", "year",
   "mean_lst", "max_lst",
-  "ndvi_mean", "ndvi_score", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
+  "ndvi_mean", "ndvi_median", "ndvi_min", "ndvi_max", "ndvi_score", "green_area_ratio", "green_area_rai", "low_green_ratio", "water_ratio", "ntl_mean",
   "ndvi_data_source", "ndbi_mean", "ndbi_data_source",
   "no2_mean", "pollution_score",
 ].join(", ");
@@ -194,6 +193,15 @@ async function loadAllDbRows(): Promise<DistrictStatistic[]> {
 // Efficient single-district multi-year query via RPC — replaces 450-row full scan
 // when a district filter is active. Returns ~9 rows instead of 450.
 async function loadTrendRowsForDistrict(districtId: number): Promise<DistrictStatistic[]> {
+  const { data: directData, error: directError } = await supabase
+    .from("district_statistics")
+    .select(TREND_COLUMNS)
+    .eq("district_id", districtId)
+    .order("year", { ascending: true });
+  if (!directError && directData && directData.length > 0) {
+    return (directData as any[]).map(remapRow);
+  }
+
   const { data, error } = await supabase
     .rpc("get_district_trend", { p_district_id: districtId });
   if (error || !data || data.length === 0) {
@@ -419,13 +427,16 @@ export async function GET(request: Request) {
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
 
     const invertedMask = getInvertedMask();
-    await getGeoJsonIdBySupabaseId();
+    const geoJsonIdBySupabaseId = await getGeoJsonIdBySupabaseId();
 
     // Resolve district filter to a numeric GeoJSON ID (used for efficient DB query)
     const filteredDistrictId =
       districtFilter && districtFilter !== ALL_DISTRICTS
         ? (geoJsonIdByName.get(districtFilter) ?? geoJsonIdByName.get(districtFilter.replace(/^เขต/, "")) ?? null)
         : null;
+    const filteredSupabaseId = filteredDistrictId === null
+      ? null
+      : [...geoJsonIdBySupabaseId.entries()].find(([, geoJsonId]) => geoJsonId === filteredDistrictId)?.[0] ?? filteredDistrictId;
 
     const [dbYearRows, dbCompareRows] = await Promise.all([
       loadDbRows(year),
@@ -437,7 +448,7 @@ export async function GET(request: Request) {
     const dbAllRows =
       dbYearRows.length > 0
         ? filteredDistrictId
-          ? await loadTrendRowsForDistrict(filteredDistrictId)
+          ? await loadTrendRowsForDistrict(filteredSupabaseId ?? filteredDistrictId)
           : await loadAllDbRows()
         : [];
 
@@ -567,6 +578,9 @@ export async function GET(request: Request) {
           vegetation_index: ndviMean,
           ndvi: ndviMean,
           ndvi_mean: ndviMean,
+          ndvi_median: row?.ndvi_median ?? null,
+          ndvi_min: row?.ndvi_min ?? null,
+          ndvi_max: row?.ndvi_max ?? null,
           ndvi_score: ndviScore,
           ndvi_class: metric === "vegetation" ? (row?.ndvi_class || getNdviClass(ndviMean)) : null,
           green_area_ratio: row?.green_area_ratio ?? null,
@@ -610,6 +624,8 @@ export async function GET(request: Request) {
           weightedSum: 0,
           totalWeight: 0,
           max: -Infinity,
+          ndviMin: Infinity,
+          ndviMax: -Infinity,
           monthlyData: new Array(12).fill(0),
           monthlyCount: new Array(12).fill(0),
         };
@@ -623,6 +639,10 @@ export async function GET(request: Request) {
       }
       const maxTrendValue = metric === "lst" && typeof row.max_lst === "number" ? row.max_lst : trendValue;
       acc[row.year].max = Math.max(acc[row.year].max, maxTrendValue);
+      if (metric === "vegetation") {
+        if (typeof row.ndvi_min === "number") acc[row.year].ndviMin = Math.min(acc[row.year].ndviMin, row.ndvi_min);
+        if (typeof row.ndvi_max === "number") acc[row.year].ndviMax = Math.max(acc[row.year].ndviMax, row.ndvi_max);
+      }
       if (metric === "lst" && row.monthly_lst) {
         row.monthly_lst.forEach((temp: number, idx: number) => {
           acc[row.year].monthlyData[idx] += temp;
@@ -658,6 +678,17 @@ export async function GET(request: Request) {
           parseFloat((trendData[trendYear].max > -Infinity ? trendData[trendYear].max : trendData[trendYear].sum / trendData[trendYear].count).toFixed(2)),
           -1,
         ])
+      : [];
+    const yearlyRangeTrend = metric === "vegetation"
+      ? yearlyTrend.map(([trendYear, mean]) => {
+          const aggregate = trendData[trendYear];
+          return [
+            trendYear,
+            mean,
+            aggregate.ndviMin < Infinity ? parseFloat(aggregate.ndviMin.toFixed(6)) : null,
+            aggregate.ndviMax > -Infinity ? parseFloat(aggregate.ndviMax.toFixed(6)) : null,
+          ];
+        })
       : [];
     const greenAreaTrend = metric === "vegetation"
       ? Object.entries(summaryData.reduce((acc: any, row: any) => {
@@ -991,6 +1022,7 @@ export async function GET(request: Request) {
         avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : 0,
         maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
         yearlyTrend,
+        yearlyRangeTrend,
         yearlyMaxTrend,
         greenAreaTrend,
         builtupAreaTrend,

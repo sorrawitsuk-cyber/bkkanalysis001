@@ -508,6 +508,7 @@ export default function DistrictMetricsMapView({
             ${airDetails}
             ${analysisType === "green" ? `
               ${ndviLayer === "ndvi_mean" ? `<div class="text-[10px] text-slate-400 mt-1">NDVI เฉลี่ย: <span class="text-emerald-300 font-mono">${formatValue(props.ndvi_mean, 3)}</span></div>` : ""}
+              ${ndviLayer === "ndvi_mean" ? `<div class="text-[10px] text-slate-400 mt-1">ช่วงต่ำสุด–สูงสุด: <span class="text-slate-200 font-mono">${formatValue(props.ndvi_min, 3)} – ${formatValue(props.ndvi_max, 3)}</span></div>` : ""}
               ${ndviPresentation === "green-space" && ndviLayer !== "green_area_ratio" ? `<div class="text-[10px] text-slate-400 mt-1">สัดส่วนสีเขียวโดยประมาณ: <span class="text-emerald-300 font-mono">${props.green_area_ratio != null ? `${(props.green_area_ratio * 100).toFixed(1)}%` : "–"}</span></div>` : ""}
               ${ndviPresentation === "green-space" && ndviLayer !== "green_area_rai" ? `<div class="text-[10px] text-slate-400 mt-1">พื้นที่สีเขียวโดยประมาณ: <span class="text-emerald-300 font-mono">${props.green_area_rai != null ? `${Number(props.green_area_rai).toLocaleString("th-TH")} ไร่` : "–"}</span></div>` : ""}
               <div class="text-[10px] text-slate-400 mt-1">ระดับ NDVI: <span class="text-emerald-300">${getNdviClassThai(props.ndvi_class)}</span></div>

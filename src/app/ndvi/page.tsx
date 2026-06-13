@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Download, FileText, SlidersHorizontal, X } from "lucide-react";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapSkeleton from "@/components/ui/MapSkeleton";
@@ -15,7 +15,7 @@ import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import NdviSciencePanel from "@/components/ndvi/NdviSciencePanel";
 import NdviSidebar from "@/components/ndvi/NdviSidebar";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
-import { getNdviClassThai, getNdviColor } from "@/lib/ndvi";
+import { getNdviClassThai, getNdviColor, getNdviInterpretationReason } from "@/lib/ndvi";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), {
   ssr: false,
@@ -59,7 +59,7 @@ export default function NdviPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams({ year: String(year), metric: "vegetation" });
+    const params = new URLSearchParams({ year: String(year), metric: "vegetation", schema: "ndvi-range-v1" });
     if (compareMode) params.set("compareYear", String(compareYear));
     if (activeDistrict !== ALL_DISTRICTS) params.set("district", activeDistrict);
     fetch(`/api/district-metrics?${params}`)
@@ -86,6 +86,9 @@ export default function NdviPage() {
     (geojsonData?.features ?? []).map((feature: any) => ({
       name: feature.properties.name_th,
       ndvi_mean: feature.properties.ndvi_mean,
+      ndvi_median: feature.properties.ndvi_median,
+      ndvi_min: feature.properties.ndvi_min,
+      ndvi_max: feature.properties.ndvi_max,
       ndvi_class: feature.properties.ndvi_class,
       delta: feature.properties.vegetation_delta,
       district_area_rai: feature.properties.district_area_rai,
@@ -109,34 +112,65 @@ export default function NdviPage() {
     ? validRows.reduce((sum: number, row: any) => sum + row.ndvi_mean * (row.district_area_rai ?? 0), 0) / totalArea
     : null;
   const rankedRows = [...validRows].sort((a: any, b: any) => b.ndvi_mean - a.ndvi_mean);
+  const lowestPixelRow = [...validRows]
+    .filter((row: any) => typeof row.ndvi_min === "number")
+    .sort((a: any, b: any) => a.ndvi_min - b.ndvi_min)[0];
+  const highestPixelRow = [...validRows]
+    .filter((row: any) => typeof row.ndvi_max === "number")
+    .sort((a: any, b: any) => b.ndvi_max - a.ndvi_max)[0];
   const changeRows = [...validRows]
     .filter((row: any) => typeof row.delta === "number")
     .sort((a: any, b: any) => a.delta - b.delta);
   const districts = rows.map((row: any) => row.name).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b, "th"));
+  const yearlyRangeRows = (summary?.yearlyRangeTrend ?? []).map(
+    ([trendYear, mean, min, max]: [string, number, number | null, number | null]) => ({
+      year: trendYear,
+      mean,
+      min,
+      max,
+    }),
+  );
+  const currentYearRange = yearlyRangeRows.find((row: any) => Number(row.year) === year) ?? null;
+  const displayMin = activeRow?.ndvi_min ?? lowestPixelRow?.ndvi_min ?? currentYearRange?.min ?? null;
+  const displayMax = activeRow?.ndvi_max ?? highestPixelRow?.ndvi_max ?? currentYearRange?.max ?? null;
+  const distributionRows = [
+    { label: "< 0.20", count: validRows.filter((row: any) => row.ndvi_mean < 0.20).length, color: "#b45309" },
+    { label: "0.20–0.35", count: validRows.filter((row: any) => row.ndvi_mean >= 0.20 && row.ndvi_mean < 0.35).length, color: "#facc15" },
+    { label: "0.35–0.50", count: validRows.filter((row: any) => row.ndvi_mean >= 0.35 && row.ndvi_mean < 0.50).length, color: "#84cc16" },
+    { label: "≥ 0.50", count: validRows.filter((row: any) => row.ndvi_mean >= 0.50).length, color: "#047857" },
+  ];
   const periodLabel = year === CURRENT_YEAR
     ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${year} (YTD)`
     : `1 ม.ค. – 31 ธ.ค. ${year}`;
 
   const csvHeaders = [
     "เขต",
+    "NDVI ต่ำสุด",
     "NDVI เฉลี่ย",
+    "NDVI สูงสุด",
+    "ช่วง NDVI",
     "คะแนน NDVI (0-10)",
     "ระดับเชิงพรรณนา",
     "พื้นที่ผ่านเกณฑ์ NDVI > 0.30 (%)",
     "พื้นที่ผ่านเกณฑ์ (ไร่)",
     "พื้นที่เขต (ไร่)",
+    "เหตุผลประกอบ",
     ...(compareMode ? [`ผลต่างจาก ${compareYear}`] : []),
     "ปี",
     "สถานะข้อมูล",
   ];
   const csvRows = rankedRows.map((row: any) => [
     row.name,
+    row.ndvi_min,
     row.ndvi_mean,
+    row.ndvi_max,
+    typeof row.ndvi_min === "number" && typeof row.ndvi_max === "number" ? row.ndvi_max - row.ndvi_min : null,
     row.ndvi_score,
     getNdviClassThai(row.ndvi_class),
     typeof row.green_area_ratio === "number" ? row.green_area_ratio * 100 : null,
     row.green_area_rai,
     row.district_area_rai,
+    getNdviInterpretationReason(row),
     ...(compareMode ? [row.delta] : []),
     year,
     summary?.dataQuality ?? "unknown",
@@ -150,8 +184,8 @@ export default function NdviPage() {
     district: activeDistrict,
     kpis: [
       { label: "NDVI เฉลี่ยถ่วงพื้นที่", value: formatNdvi(weightedMean) },
-      { label: "เขตค่าสูงสุด", value: rankedRows[0]?.name ?? "ไม่มีข้อมูล" },
-      { label: "เขตค่าต่ำสุด", value: rankedRows[rankedRows.length - 1]?.name ?? "ไม่มีข้อมูล" },
+      { label: "NDVI ต่ำสุด", value: `${lowestPixelRow?.name ?? "–"} · ${formatNdvi(lowestPixelRow?.ndvi_min)}` },
+      { label: "NDVI สูงสุด", value: `${highestPixelRow?.name ?? "–"} · ${formatNdvi(highestPixelRow?.ndvi_max)}` },
       { label: "สถานะข้อมูล", value: summary?.dataQuality ?? "unknown" },
     ],
     rankingHeaders: ["เขต", "NDVI เฉลี่ย"],
@@ -160,7 +194,17 @@ export default function NdviPage() {
 
   const tableColumns: ColDef[] = [
     { key: "name", label: "เขต", sortable: true },
+    { key: "ndvi_min", label: "NDVI ต่ำสุด", format: (value) => formatNdvi(value as number), heatmap: true, heatmapHex: "#f59e0b", hideable: true },
     { key: "ndvi_mean", label: "NDVI เฉลี่ย", format: (value) => formatNdvi(Number(value)), heatmap: true, heatmapHex: "#22c55e" },
+    { key: "ndvi_max", label: "NDVI สูงสุด", format: (value) => formatNdvi(value as number), heatmap: true, heatmapHex: "#047857", hideable: true },
+    {
+      key: "ndvi_range",
+      label: "ช่วง NDVI",
+      format: (value) => formatNdvi(value as number),
+      heatmap: true,
+      heatmapHex: "#38bdf8",
+      hideable: true,
+    },
     {
       key: "ndvi_score",
       label: "คะแนน NDVI",
@@ -203,6 +247,7 @@ export default function NdviPage() {
       heatmapHex: "#f59e0b",
       hideable: true,
     },
+    { key: "reason", label: "เหตุผลประกอบ", sortable: false, hideable: true },
     ...(compareMode ? [{
       key: "delta",
       label: `ผลต่างจาก ${compareYear}`,
@@ -401,21 +446,23 @@ export default function NdviPage() {
                       formatNdvi(activeRow?.ndvi_mean ?? weightedMean),
                     ],
                     [
-                      activeRow ? "ระดับเชิงพรรณนา" : "เขต NDVI สูงสุด",
-                      activeRow ? getNdviClassThai(activeRow.ndvi_class) : rankedRows[0]?.name ?? "ไม่มีข้อมูล",
+                      activeRow ? "NDVI ต่ำสุดภายในเขต" : "ค่าต่ำสุดที่พบ",
+                      activeRow
+                        ? formatNdvi(displayMin)
+                        : `${lowestPixelRow?.name ?? "ทั้งกรุงเทพฯ"} · ${formatNdvi(displayMin)}`,
                     ],
                     [
-                      activeRow ? "พื้นที่ผ่านเกณฑ์ NDVI > 0.30" : "เขต NDVI ต่ำสุด",
-                      activeRow && typeof activeRow.green_area_ratio === "number"
-                        ? `${(activeRow.green_area_ratio * 100).toFixed(1)}%`
-                        : rankedRows[rankedRows.length - 1]?.name ?? "ไม่มีข้อมูล",
+                      activeRow ? "NDVI สูงสุดภายในเขต" : "ค่าสูงสุดที่พบ",
+                      activeRow
+                        ? formatNdvi(displayMax)
+                        : `${highestPixelRow?.name ?? "ทั้งกรุงเทพฯ"} · ${formatNdvi(displayMax)}`,
                     ],
                     [
                       activeRow
-                        ? "พื้นที่ผ่านเกณฑ์โดยประมาณ"
+                        ? "ช่วงต่ำสุด–สูงสุด"
                         : compareMode ? `ลดลงมากสุดจาก ${compareYear}` : "จำนวนเขตที่มีข้อมูล",
-                      activeRow && typeof activeRow.green_area_rai === "number"
-                        ? `${Math.round(activeRow.green_area_rai).toLocaleString("th-TH")} ไร่`
+                      activeRow && typeof displayMin === "number" && typeof displayMax === "number"
+                        ? formatNdvi(displayMax - displayMin)
                         : compareMode
                           ? `${changeRows[0]?.name ?? "ไม่มีข้อมูล"} · ${formatNdvi(changeRows[0]?.delta, true)}`
                           : `${validRows.length} เขต`,
@@ -427,6 +474,21 @@ export default function NdviPage() {
                     </div>
                   ))}
                 </div>
+
+                <section className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                  <h2 className="text-sm font-black text-emerald-100">
+                    เหตุผลประกอบการอ่านค่า {activeRow ? `· ${activeRow.name}` : `· ภาพรวม ${year}`}
+                  </h2>
+                  <p className="mt-2 text-xs leading-6 text-slate-300">
+                    {activeRow
+                      ? getNdviInterpretationReason(activeRow)
+                      : `ค่าเฉลี่ยถ่วงพื้นที่ ${formatNdvi(weightedMean)} โดยค่าเฉลี่ยรายเขตสูงสุดคือ ${rankedRows[0]?.name ?? "ไม่มีข้อมูล"} และต่ำสุดคือ ${rankedRows[rankedRows.length - 1]?.name ?? "ไม่มีข้อมูล"} การกระจายมี ${distributionRows[0].count} เขตต่ำกว่า 0.20 และ ${distributionRows[3].count} เขตตั้งแต่ 0.50 ขึ้นไป`}
+                  </p>
+                  <p className="mt-2 text-[10px] leading-5 text-amber-200/70">
+                    Min/max เป็นค่าปลายช่วงภายในพื้นที่ จึงไวต่อเมฆ เงา น้ำ และพิกเซลผิดปกติมากกว่าค่าเฉลี่ย
+                    {summary?.dataQuality === "modeled" ? " สำหรับชุดข้อมูล modeled ช่วงค่าอาจเป็นค่าประมาณจากค่าเฉลี่ย ไม่ใช่ extrema ที่วัดจากพิกเซลจริง" : ""}
+                  </p>
+                </section>
 
                 <div className="grid gap-5 xl:grid-cols-2">
                   <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
@@ -499,6 +561,47 @@ export default function NdviPage() {
                     </div>
                   </section>
                 </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+                    <h2 className="text-sm font-black">ต่ำสุด–เฉลี่ย–สูงสุด รายปี</h2>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {activeRow ? `ช่วงค่าภายในเขต${activeRow.name}` : "ค่าปลายช่วงของทุกเขตในแต่ละปี"} ใช้ดูการกระจาย ไม่ควรอ่าน min/max เพียงค่าเดียว
+                    </p>
+                    <div className="mt-4 h-[340px]">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <BarChart data={yearlyRangeRows}>
+                          <CartesianGrid stroke="#1e293b" vertical={false} />
+                          <XAxis dataKey="year" stroke="#64748b" fontSize={9} />
+                          <YAxis domain={[-0.2, 0.9]} tickFormatter={(value) => Number(value).toFixed(1)} stroke="#64748b" fontSize={9} />
+                          <Tooltip formatter={(value, name) => [formatNdvi(Number(value)), name]} contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }} />
+                          <Legend wrapperStyle={{ fontSize: 10 }} />
+                          <Bar dataKey="min" name="ต่ำสุด" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="mean" name="เฉลี่ย" fill="#22c55e" radius={[3, 3, 0, 0]} />
+                          <Bar dataKey="max" name="สูงสุด" fill="#047857" radius={[3, 3, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/55 p-4">
+                    <h2 className="text-sm font-black">การกระจายระดับ NDVI รายเขต</h2>
+                    <p className="mt-1 text-[10px] text-slate-500">จำนวนเขตตามค่าเฉลี่ยในปี {year} ช่วยดูว่าภาพรวมกระจุกอยู่ในระดับใด</p>
+                    <div className="mt-4 h-[340px]">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <BarChart data={distributionRows}>
+                          <CartesianGrid stroke="#1e293b" vertical={false} />
+                          <XAxis dataKey="label" stroke="#64748b" fontSize={9} />
+                          <YAxis allowDecimals={false} stroke="#64748b" fontSize={9} />
+                          <Tooltip formatter={(value) => [`${value} เขต`, "จำนวน"]} contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }} />
+                          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                            {distributionRows.map((row) => <Cell key={row.label} fill={row.color} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
           ) : viewMode === "table" ? (
@@ -508,13 +611,22 @@ export default function NdviPage() {
                 columns={tableColumns}
                 getRowData={(properties) => ({
                   name: properties.name_th,
+                  ndvi_min: properties.ndvi_min,
                   ndvi_mean: properties.ndvi_mean,
+                  ndvi_max: properties.ndvi_max,
+                  ndvi_range: typeof properties.ndvi_min === "number" && typeof properties.ndvi_max === "number"
+                    ? properties.ndvi_max - properties.ndvi_min
+                    : null,
                   ndvi_score: properties.ndvi_score,
                   ndvi_class: properties.ndvi_class,
                   green_area_ratio: properties.green_area_ratio,
                   green_area_rai: properties.green_area_rai,
                   district_area_rai: properties.district_area_rai,
                   priority_score: properties.priority_score,
+                  reason: getNdviInterpretationReason({
+                    ...properties,
+                    delta: properties.vegetation_delta,
+                  }),
                   delta: properties.vegetation_delta,
                 })}
                 csvFilename={`bangkok_ndvi_${year}`}
