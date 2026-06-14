@@ -21,10 +21,24 @@ import {
   FileSearch,
   Gauge,
   Leaf,
+  Footprints,
   Users,
 } from "lucide-react";
 
 const modules = [
+  {
+    title: "การเข้าถึงบริการเมือง",
+    subtitle: "15-Minute City · Proximity",
+    description: "ประเมินการเข้าถึงสุขภาพ การศึกษา ตลาด นันทนาการ และขนส่งสาธารณะ พร้อมเกณฑ์เดินมาตรฐานและกลุ่มเดินช้า",
+    href: "/accessibility",
+    icon: Footprints,
+    accent: "from-emerald-400 to-cyan-600",
+    accentBg: "bg-emerald-500/10 border-emerald-500/20",
+    accentText: "text-emerald-400",
+    metric: "898 จุด",
+    metricLabel: "5 หมวดบริการ",
+    tag: "accessibility",
+  },
   {
     title: "ประชากรเขตและแขวง",
     subtitle: "Population Registry · DOPA",
@@ -171,7 +185,7 @@ const modules = [
 ];
 
 const platformStats = [
-  { label: "โมดูลวิเคราะห์", value: "12", icon: BarChart3, color: "text-cyan-400" },
+  { label: "โมดูลวิเคราะห์", value: "13", icon: BarChart3, color: "text-cyan-400" },
   { label: "เขต / แขวง",    value: "50 / 180", icon: MapPin, color: "text-emerald-400" },
   { label: "ปีข้อมูล",       value: "9 ปี",   icon: Database, color: "text-amber-400" },
   { label: "ดาวเทียม",       value: "5 ภารกิจ", icon: Satellite, color: "text-purple-400" },

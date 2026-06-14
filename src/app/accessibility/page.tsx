@@ -1,0 +1,582 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Bus,
+  Cross,
+  Database,
+  GraduationCap,
+  Info,
+  MapPin,
+  RefreshCw,
+  ShoppingBasket,
+  Trees,
+  Users,
+} from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
+import MapSkeleton from "@/components/ui/MapSkeleton";
+import {
+  ACCESSIBILITY_CATEGORIES,
+  ACCESSIBILITY_LABELS,
+  accessibilityColor,
+  accessibilityLevel,
+  accessibilityValue,
+  type AccessibilityCategory,
+  type AccessibilityDistrict,
+  type AccessibilityMetric,
+} from "@/lib/accessibility";
+
+const AccessibilityMap = dynamic(
+  () => import("@/components/map/AccessibilityMap"),
+  { ssr: false, loading: () => <MapSkeleton /> },
+);
+
+const CATEGORY_ICONS = {
+  health: Cross,
+  education: GraduationCap,
+  food: ShoppingBasket,
+  recreation: Trees,
+  transit: Bus,
+};
+
+const METRICS: Array<{ value: AccessibilityMetric; label: string }> = [
+  { value: "accessibility_score", label: "คะแนนเฉลี่ย 5 หมวด" },
+  { value: "complete_coverage_pct", label: "ครบทั้ง 5 หมวด" },
+  { value: "inclusive_complete_coverage_pct", label: "ครบ 5 หมวด: เดินช้า" },
+  ...ACCESSIBILITY_CATEGORIES.map((category) => ({
+    value: category,
+    label: ACCESSIBILITY_LABELS[category],
+  })),
+];
+
+function formatNumber(value: number | null | undefined, digits = 1) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "ไม่มีข้อมูล";
+  return value.toLocaleString("th-TH", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function MetricCard({
+  label,
+  value,
+  note,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  icon: any;
+  color: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/65 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</span>
+        <Icon className={`h-4 w-4 ${color}`} />
+      </div>
+      <div className={`mt-2 text-2xl font-black tabular-nums ${color}`}>{value}</div>
+      <p className="mt-1 text-[10px] text-slate-500">{note}</p>
+    </div>
+  );
+}
+
+export default function AccessibilityPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<ViewMode>("map");
+  const [metric, setMetric] = useState<AccessibilityMetric>("accessibility_score");
+  const [category, setCategory] = useState<AccessibilityCategory | "all">("all");
+  const [activeDistrictId, setActiveDistrictId] = useState<number | null>(null);
+  const [showServices, setShowServices] = useState(true);
+  const [sortKey, setSortKey] = useState<AccessibilityMetric | "district_name" | "services_per_10000">(
+    "accessibility_score",
+  );
+  const [descending, setDescending] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/accessibility", { signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "โหลดข้อมูลไม่สำเร็จ");
+        return body;
+      })
+      .then(setData)
+      .catch((reason) => {
+        if (reason.name !== "AbortError") setError(reason.message);
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, []);
+
+  const rows: AccessibilityDistrict[] = data?.districts ?? [];
+  const overview = useMemo<AccessibilityDistrict | null>(() => {
+    if (!rows.length) return null;
+    const average = (values: number[]) =>
+      values.reduce((sum, value) => sum + value, 0) / values.length;
+    return {
+      district_id: 0,
+      district_name: "กรุงเทพมหานคร",
+      population: rows.reduce((sum, row) => sum + row.population, 0),
+      sample_count: rows.reduce((sum, row) => sum + row.sample_count, 0),
+      service_count: data?.summary?.service_count ?? 0,
+      services_per_10000: null,
+      accessibility_score: data?.summary?.average_accessibility_score ?? 0,
+      complete_coverage_pct: data?.summary?.average_complete_coverage_pct ?? 0,
+      inclusive_complete_coverage_pct: average(
+        rows.map((row) => row.inclusive_complete_coverage_pct),
+      ),
+      rank: 0,
+      categories: Object.fromEntries(
+        ACCESSIBILITY_CATEGORIES.map((item) => [
+          item,
+          {
+            coverage_pct: average(rows.map((row) => row.categories[item].coverage_pct)),
+            inclusive_coverage_pct: average(
+              rows.map((row) => row.categories[item].inclusive_coverage_pct),
+            ),
+            median_minutes: average(
+              rows
+                .map((row) => row.categories[item].median_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            p90_minutes: average(
+              rows
+                .map((row) => row.categories[item].p90_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            service_count: data?.summary?.category_totals?.[item] ?? 0,
+          },
+        ]),
+      ) as AccessibilityDistrict["categories"],
+    };
+  }, [data?.summary, rows]);
+  const selected =
+    rows.find((row) => row.district_id === activeDistrictId) ?? overview;
+  const sortedRows = useMemo(() => {
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      if (sortKey === "district_name") {
+        return a.district_name.localeCompare(b.district_name, "th") * (descending ? -1 : 1);
+      }
+      const av =
+        sortKey === "services_per_10000"
+          ? a.services_per_10000 ?? -Infinity
+          : accessibilityValue(a, sortKey as AccessibilityMetric);
+      const bv =
+        sortKey === "services_per_10000"
+          ? b.services_per_10000 ?? -Infinity
+          : accessibilityValue(b, sortKey as AccessibilityMetric);
+      return (av - bv) * (descending ? -1 : 1);
+    });
+    return copy;
+  }, [descending, rows, sortKey]);
+
+  function selectCategory(next: AccessibilityCategory | "all") {
+    setCategory(next);
+    if (next !== "all") setMetric(next);
+  }
+
+  function changeSort(key: typeof sortKey) {
+    if (sortKey === key) setDescending((value) => !value);
+    else {
+      setSortKey(key);
+      setDescending(key !== "district_name");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
+        <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> กำลังโหลดข้อมูลการเข้าถึงบริการเมือง
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-red-300">
+        {error || "ไม่พบข้อมูล"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+      <header className="flex flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-3">
+        <Link href="/" className="rounded-lg border border-slate-800 p-2 text-slate-400 hover:text-white">
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <div>
+          <h1 className="text-base font-black">การเข้าถึงบริการเมือง · 15-Minute City</h1>
+          <p className="text-[10px] text-slate-500">
+            การคัดกรองความใกล้เชิงพื้นที่ 5 หมวดบริการ ครบ 50 เขต
+          </p>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <ViewTabs view={view} onChange={setView} accentColor="emerald" />
+          <select
+            value={metric}
+            onChange={(event) => setMetric(event.target.value as AccessibilityMetric)}
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs"
+          >
+            {METRICS.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-80 shrink-0 overflow-y-auto border-r border-slate-800 bg-slate-900/55 p-4 lg:block">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <div className="flex items-center gap-2 text-emerald-300">
+              <MapPin className="h-5 w-5" />
+              <h2 className="text-sm font-black">พื้นที่ใกล้บริการแค่ไหน</h2>
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+              ประเมินจากจุดตัวอย่างทุก 250 เมตร ระยะตรงคูณ detour factor 1.25 และเวลาเดิน
+              5 กม./ชม. เกณฑ์ 15 นาที ผลนี้เป็น proximity screening ไม่ใช่เวลาเดินจากโครงข่ายทางเท้าจริง
+            </p>
+          </div>
+
+          <label className="mt-4 block text-[9px] font-bold uppercase tracking-widest text-slate-500">
+            เลือกเขต
+          </label>
+          <select
+            value={activeDistrictId ?? ""}
+            onChange={(event) => setActiveDistrictId(event.target.value ? Number(event.target.value) : null)}
+            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs"
+          >
+            <option value="">กรุงเทพมหานครทั้งหมด</option>
+            {[...rows].sort((a, b) => a.district_name.localeCompare(b.district_name, "th")).map((row) => (
+              <option key={row.district_id} value={row.district_id}>เขต{row.district_name}</option>
+            ))}
+          </select>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+              <div className="text-[9px] text-slate-500">คะแนนเฉลี่ย</div>
+              <div className="mt-1 text-2xl font-black text-emerald-400">
+                {formatNumber(selected?.accessibility_score)}%
+              </div>
+              <div className="text-[9px] text-slate-500">
+                {selected && accessibilityLevel(selected.accessibility_score)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+              <div className="text-[9px] text-slate-500">ครบทั้ง 5 หมวด</div>
+              <div className="mt-1 text-2xl font-black text-cyan-400">
+                {formatNumber(selected?.complete_coverage_pct)}%
+              </div>
+              <div className="text-[9px] text-slate-500">
+                {activeDistrictId ? `อันดับ ${selected?.rank}/50` : "ค่าเฉลี่ยรายเขต"}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {ACCESSIBILITY_CATEGORIES.map((item) => {
+              const Icon = CATEGORY_ICONS[item];
+              const categoryMetric = selected?.categories[item];
+              return (
+                <button
+                  key={item}
+                  onClick={() => selectCategory(category === item ? "all" : item)}
+                  className={`w-full rounded-xl border p-3 text-left transition ${
+                    category === item
+                      ? "border-emerald-500/50 bg-emerald-500/10"
+                      : "border-slate-800 bg-slate-950/55 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-emerald-400" />
+                    <span className="flex-1 text-[10px] font-bold">{ACCESSIBILITY_LABELS[item]}</span>
+                    <span className="text-xs font-black">{formatNumber(categoryMetric?.coverage_pct)}%</span>
+                  </div>
+                  <div className="mt-1 flex justify-between text-[9px] text-slate-500">
+                    <span>มัธยฐาน {formatNumber(categoryMetric?.median_minutes)} นาที</span>
+                    <span>
+                      {categoryMetric?.service_count ?? 0} แห่ง
+                      {activeDistrictId ? "ในเขต" : "ทั่วกรุงเทพฯ"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="mt-4 flex items-center gap-2 text-[10px] text-slate-400">
+            <input
+              type="checkbox"
+              checked={showServices}
+              onChange={(event) => setShowServices(event.target.checked)}
+              className="accent-emerald-500"
+            />
+            แสดงจุดบริการบนแผนที่
+          </label>
+        </aside>
+
+        <main className="min-w-0 flex-1 overflow-auto">
+          {view === "map" && (
+            <div className="h-full min-h-[560px]">
+              <AccessibilityMap
+                geojson={data.geojson}
+                districts={rows}
+                services={data.services}
+                metric={metric}
+                category={category}
+                activeDistrictId={activeDistrictId}
+                showServices={showServices}
+                onSelectDistrict={(district) => setActiveDistrictId(district.district_id)}
+              />
+            </div>
+          )}
+
+          {view === "stats" && (
+            <div className="space-y-5 p-4 md:p-6">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="จุดบริการ"
+                  value={data.summary.service_count.toLocaleString("th-TH")}
+                  note="ผ่านการตรวจพิกัดและตัดรายการซ้ำ"
+                  icon={MapPin}
+                  color="text-emerald-400"
+                />
+                <MetricCard
+                  label="คะแนนเฉลี่ย 50 เขต"
+                  value={`${formatNumber(data.summary.average_accessibility_score)}%`}
+                  note="ค่าเฉลี่ย coverage ของบริการ 5 หมวด"
+                  icon={Database}
+                  color="text-cyan-400"
+                />
+                <MetricCard
+                  label="พื้นที่ครบ 5 หมวด"
+                  value={`${formatNumber(data.summary.average_complete_coverage_pct)}%`}
+                  note="ต้องผ่าน 15 นาทีพร้อมกันทุกหมวด"
+                  icon={Users}
+                  color="text-violet-400"
+                />
+                <MetricCard
+                  label="จุดประเมิน"
+                  value={data.summary.sample_count.toLocaleString("th-TH")}
+                  note="ตารางตัวอย่างระยะห่าง 250 เมตร"
+                  icon={MapPin}
+                  color="text-amber-400"
+                />
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/55 p-4">
+                  <h2 className="text-sm font-black">15 เขตที่เข้าถึงบริการสูงสุด</h2>
+                  <ResponsiveContainer width="100%" height={420}>
+                    <BarChart data={rows.slice(0, 15)} layout="vertical" margin={{ left: 20, top: 15 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 10 }} />
+                      <YAxis dataKey="district_name" type="category" width={82} tick={{ fill: "#94a3b8", fontSize: 10 }} />
+                      <Tooltip
+                        contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+                        formatter={(value) => [`${value}%`, "คะแนน"]}
+                      />
+                      <Bar dataKey="accessibility_score" radius={[0, 5, 5, 0]}>
+                        {rows.slice(0, 15).map((row) => (
+                          <Cell key={row.district_id} fill={accessibilityColor(row.accessibility_score)} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/55 p-4">
+                  <h2 className="text-sm font-black">Coverage รายหมวดของเขตที่เลือก</h2>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    เปรียบเทียบเกณฑ์มาตรฐาน 5 กม./ชม. กับเกณฑ์เดินช้า 4 กม./ชม.
+                  </p>
+                  <ResponsiveContainer width="100%" height={420}>
+                    <BarChart
+                      data={ACCESSIBILITY_CATEGORIES.map((item) => ({
+                        name: ACCESSIBILITY_LABELS[item],
+                        standard: selected?.categories[item].coverage_pct ?? 0,
+                        inclusive: selected?.categories[item].inclusive_coverage_pct ?? 0,
+                      }))}
+                      margin={{ top: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 10 }} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 10 }} />
+                      <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
+                      <Legend />
+                      <Bar dataKey="standard" name="เดิน 5 กม./ชม." fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="inclusive" name="เดิน 4 กม./ชม." fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {view === "table" && (
+            <div className="p-4 md:p-6">
+              <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                <table className="w-full min-w-[1100px] text-left text-xs">
+                  <thead className="bg-slate-900 text-[9px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                      {[
+                        ["district_name", "เขต"],
+                        ["accessibility_score", "คะแนน 5 หมวด"],
+                        ["complete_coverage_pct", "ครบ 5 หมวด"],
+                        ["inclusive_complete_coverage_pct", "ครบ 5 หมวด: เดินช้า"],
+                        ["health", "สุขภาพ"],
+                        ["education", "การศึกษา"],
+                        ["food", "อาหาร"],
+                        ["recreation", "นันทนาการ"],
+                        ["transit", "ขนส่ง"],
+                        ["services_per_10000", "บริการ/10,000 คน"],
+                      ].map(([key, label]) => (
+                        <th
+                          key={key}
+                          onClick={() => changeSort(key as typeof sortKey)}
+                          className="cursor-pointer px-3 py-3 hover:text-white"
+                        >
+                          {label}{sortKey === key ? (descending ? " ↓" : " ↑") : ""}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedRows.map((row) => (
+                      <tr
+                        key={row.district_id}
+                        onClick={() => {
+                          setActiveDistrictId(row.district_id);
+                          setView("map");
+                        }}
+                        className="cursor-pointer border-t border-slate-800 bg-slate-950/40 hover:bg-slate-900"
+                      >
+                        <td className="px-3 py-3 font-bold">เขต{row.district_name}<span className="ml-2 text-[9px] text-slate-600">#{row.rank}</span></td>
+                        <td className="px-3 py-3 font-black" style={{ color: accessibilityColor(row.accessibility_score) }}>{formatNumber(row.accessibility_score)}%</td>
+                        <td className="px-3 py-3">{formatNumber(row.complete_coverage_pct)}%</td>
+                        <td className="px-3 py-3">{formatNumber(row.inclusive_complete_coverage_pct)}%</td>
+                        {ACCESSIBILITY_CATEGORIES.map((item) => (
+                          <td key={item} className="px-3 py-3">{formatNumber(row.categories[item].coverage_pct)}%</td>
+                        ))}
+                        <td className="px-3 py-3">{formatNumber(row.services_per_10000, 2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {view === "guide" && (
+            <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-7">
+              <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                <div className="flex items-center gap-2 text-emerald-300">
+                  <BookOpen className="h-5 w-5" />
+                  <h2 className="text-base font-black">วิธีอ่านผลอย่างถูกต้อง</h2>
+                </div>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  คะแนนแสดงสัดส่วนพื้นที่ตัวอย่างที่อยู่ใกล้บริการภายในเวลาเทียบเท่า 15 นาที
+                  ไม่ใช่ร้อยละประชากร และไม่ใช่เวลาเดินจาก routing engine ผลเหมาะสำหรับคัดกรองพื้นที่
+                  เพื่อสำรวจทางเท้า ทางเข้า จุดข้ามถนน และเวลาเปิดบริการต่อในภาคสนาม
+                </p>
+              </section>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <section className="rounded-2xl border border-slate-800 bg-slate-900/55 p-5">
+                  <h3 className="font-black">ขั้นตอนคำนวณ</h3>
+                  <ol className="mt-3 space-y-2 text-xs leading-6 text-slate-400">
+                    <li>1. ตรวจพิกัดให้อยู่ในกรุงเทพฯ และ spatial join กับขอบเขต 50 เขต</li>
+                    <li>2. สุ่มจุดเป็นตารางทุก 250 เมตรภายในแต่ละเขต รวม {data.summary.sample_count.toLocaleString("th-TH")} จุด</li>
+                    <li>3. หาบริการที่ใกล้ที่สุดในแต่ละหมวดด้วยระยะ geodesic</li>
+                    <li>4. คูณ route-detour factor 1.25 เพื่อประมาณความคดเคี้ยวของเส้นทาง</li>
+                    <li>5. แปลงเป็นเวลาเดิน 5 กม./ชม. และ sensitivity test ที่ 4 กม./ชม.</li>
+                    <li>6. คะแนนเขตคือค่าเฉลี่ย coverage ของ 5 หมวดโดยให้น้ำหนักเท่ากัน</li>
+                  </ol>
+                </section>
+                <section className="rounded-2xl border border-slate-800 bg-slate-900/55 p-5">
+                  <h3 className="font-black">ข้อจำกัดสำคัญ</h3>
+                  <ul className="mt-3 space-y-2 text-xs leading-6 text-slate-400">
+                    <li>• ยังไม่รวมโครงข่ายทางเท้า สะพาน ทางเข้า และเวลารอสัญญาณ</li>
+                    <li>• ไม่ได้ถ่วงน้ำหนักด้วยตำแหน่งประชากรรายกริด จึงเป็น area coverage</li>
+                    <li>• การมีสถานที่ไม่ได้ยืนยันกำลังรองรับ คุณภาพ ค่าใช้จ่าย หรือเวลาเปิด</li>
+                    <li>• ตลาดใช้เป็นตัวแทนการเข้าถึงอาหาร ไม่ครอบคลุมร้านค้าปลีกทั้งหมด</li>
+                    <li>• การเดินในอากาศร้อน ฝนตก หรือสำหรับผู้พิการอาจใช้เวลามากกว่าเกณฑ์</li>
+                  </ul>
+                </section>
+              </div>
+
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/55 p-5">
+                <h3 className="flex items-center gap-2 font-black"><Database className="h-4 w-4 text-cyan-400" /> แหล่งข้อมูลที่ใช้จริง</h3>
+                <div className="mt-3 grid gap-2">
+                  {data.metadata.sources.map((source: any) => (
+                    <a
+                      key={`${source.key}-${source.subtype}`}
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 hover:border-cyan-700"
+                    >
+                      <div className="text-xs font-bold text-slate-200">{source.dataset}</div>
+                      <div className="mt-1 text-[10px] text-slate-500">
+                        รับ {source.rows_received.toLocaleString("th-TH")} แถว · ใช้ {source.rows_accepted.toLocaleString("th-TH")} แถว · ตัดออก {source.rows_rejected.toLocaleString("th-TH")} แถว
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 text-xs leading-6 text-slate-400">
+                <h3 className="flex items-center gap-2 font-black text-blue-300"><Info className="h-4 w-4" /> กรอบอ้างอิง</h3>
+                <p className="mt-2">
+                  แนวคิด 15-Minute City เน้น proximity, diversity, density และ ubiquity
+                  ส่วน UN-Habitat แนะนำให้ประเมินการเข้าถึงพื้นที่สาธารณะผ่านโครงข่ายถนน
+                  ระบบนี้ใช้วิธี proximity screening เนื่องจากข้อมูลโครงข่ายทางเท้าที่ตรวจสอบแล้ว
+                  ยังไม่ครบทั้งกรุงเทพฯ จึงแสดงข้อจำกัดและ sensitivity scenario แทนการอ้างว่าเป็นเวลาเดินจริง
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <a
+                    href="https://doi.org/10.3390/smartcities4010006"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold text-blue-300 hover:text-blue-200"
+                  >
+                    Moreno et al. (2021)
+                  </a>
+                  <a
+                    href="https://unhabitat.org/sites/default/files/2020/07/indicator_11.7.1_training_module_public_space.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold text-blue-300 hover:text-blue-200"
+                  >
+                    UN-Habitat SDG 11.7.1 methodology
+                  </a>
+                </div>
+              </section>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

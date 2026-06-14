@@ -8,6 +8,7 @@
     "build:next": "next build",
     "start": "next start",
     "lint": "next lint",
+    "accessibility:update": "node scripts/update-accessibility-data.mjs",
     "gee:air-pollution": "node scripts/gee/run-air-pollution.mjs",
     "cf:dev": "npx wrangler dev",
     "cf:deploy": "npx wrangler deploy"
@@ -20,6 +21,7 @@
     "@turf/turf": "^7.3.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "csv-parse": "^6.2.1",
     "dotenv": "^17.4.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

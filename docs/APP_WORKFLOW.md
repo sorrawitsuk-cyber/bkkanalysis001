@@ -16,6 +16,7 @@ flowchart TD
   Home --> Flood["/flood-risk"]
   Home --> Night["/nighttime-lights"]
   Home --> Air["/air-quality"]
+  Home --> Access["/accessibility"]
 
   Traffy --> TraffyApi["/api/traffy"]
   TraffyApi --> BigQuery["BigQuery: traffy_complaints"]
@@ -53,6 +54,9 @@ flowchart TD
   AirMetrics --> SupabaseStats
   Air --> AirTiles["/api/gee/tiles?metric=air_pollution"]
   AirTiles --> GEE
+  Access --> AccessApi["/api/accessibility"]
+  AccessApi --> BkkOpenData["BKK Open Data: health, schools, markets, parks, libraries, sport, BTS/MRT"]
+  AccessApi --> DOPA
 ```
 
 ## Naming Rules
@@ -113,6 +117,20 @@ Runtime proof points:
 - `/api/district-metrics?metric=air_pollution&year=2024` must return `summary.dataSource = "supabase district_statistics"` and 50 GeoJSON features with `no2_mean`.
 - `/api/gee/tiles?metric=air_pollution&year=2026&pollutant=no2` must return an Earth Engine `urlFormat`.
 - `/air-quality` should show Average, Highest, and Ranking after the first fetch finishes.
+
+### `/accessibility`
+
+15-Minute City proximity-screening dashboard for all 50 districts. The reproducible
+`scripts/update-accessibility-data.mjs` pipeline downloads eight official BKK Open Data
+CSV resources covering public-health centers, BMA schools, markets, parks, libraries,
+sports centers, BTS, and MRT. It validates coordinates, spatially joins services to
+district boundaries, samples each district at 250-meter spacing, and estimates access
+to the nearest service in five categories.
+
+The standard scenario uses a 5 km/h walking speed, a 1.25 route-detour factor, and a
+15-minute threshold. An inclusive sensitivity scenario uses 4 km/h. Results are
+area-based proximity estimates, not population coverage or pedestrian-network travel
+times. The UI must preserve that distinction in the guide and source metadata.
 
 ## Data Preparation Flow
 
