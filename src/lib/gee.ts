@@ -1,6 +1,5 @@
 import ee from '@google/earthengine';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { google } = require('googleapis');
+import { getServiceAccountAccessToken } from '@/lib/google-service-account';
 
 const GEE_SCOPE = 'https://www.googleapis.com/auth/earthengine';
 
@@ -45,26 +44,22 @@ function getGeeCredentials(): GeeCredentials {
 }
 
 function getAccessToken(email: string, key: string, retries = 2): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const jwtAuth = new google.auth.JWT(email, null, key, [GEE_SCOPE]);
-    jwtAuth.getAccessToken((err: any, token: string | null) => {
-      if (err || !token) {
-        if (retries > 0) {
-          // Short delay before retry to handle transient Google OAuth failures
-          setTimeout(() => getAccessToken(email, key, retries - 1).then(resolve).catch(reject), 500);
-        } else {
-          reject(new Error(`GEE auth failed after retries: ${err?.message ?? 'No token returned'}`));
-        }
-      } else {
-        resolve(token);
-      }
-    });
+  return getServiceAccountAccessToken({
+    clientEmail: email,
+    privateKey: key,
+    scope: GEE_SCOPE,
+  }).catch(async (error) => {
+    if (retries <= 0) {
+      throw new Error(`GEE auth failed after retries: ${error?.message ?? error}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return getAccessToken(email, key, retries - 1);
   });
 }
 
 /**
  * Initialize Google Earth Engine with Service Account.
- * Uses googleapis JWT to get an access token, then injects it via
+ * Uses a Web Crypto JWT to get an access token, then injects it via
  * ee.apiclient.setAuthToken — avoids the OpenSSL legacy key issue
  * that breaks the built-in authenticateViaPrivateKey on Node.js 22+.
  */
@@ -90,7 +85,7 @@ export const initGEE = async (): Promise<void> => {
     ee.initialize(
       null, null,
       () => { console.log('✅ GEE Initialized Successfully'); resolve(); },
-      (e: any) => { console.error('❌ GEE Initialization Failed:', e); reject(e); },
+      (e: unknown) => { console.error('❌ GEE Initialization Failed:', e); reject(e); },
       null,
       projectId
     );
