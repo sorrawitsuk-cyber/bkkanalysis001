@@ -129,8 +129,17 @@ to the nearest service in five categories.
 
 The standard scenario uses a 5 km/h walking speed, a 1.25 route-detour factor, and a
 15-minute threshold. An inclusive sensitivity scenario uses 4 km/h. Results are
-area-based proximity estimates, not population coverage or pedestrian-network travel
-times. The UI must preserve that distinction in the guide and source metadata.
+available in two bases. Population coverage distributes each subdistrict's latest DOPA
+registered population evenly across its 250-meter sample points; area coverage gives
+every sample point equal weight. The population result is therefore a subdistrict-level
+estimate, not a residential population grid. Neither basis is a pedestrian-network
+travel time. The UI must preserve those distinctions in the controls, guide, and source
+metadata.
+
+Run `node scripts/verify-accessibility-data.mjs` after regenerating the dataset. The
+verifier checks all 50 districts, percentage ranges, population reconciliation, service
+counts, and the invariant that the slower walking scenario cannot exceed the standard
+scenario.
 
 ## Data Preparation Flow
 

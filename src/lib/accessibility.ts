@@ -10,8 +10,9 @@ export type AccessibilityCategory = (typeof ACCESSIBILITY_CATEGORIES)[number];
 export type AccessibilityMetric =
   | "accessibility_score"
   | "complete_coverage_pct"
-  | "inclusive_complete_coverage_pct"
   | AccessibilityCategory;
+export type AccessibilityBasis = "population" | "area";
+export type AccessibilityScenario = "standard" | "inclusive";
 
 export const ACCESSIBILITY_LABELS: Record<AccessibilityCategory, string> = {
   health: "สุขภาพ",
@@ -24,8 +25,14 @@ export const ACCESSIBILITY_LABELS: Record<AccessibilityCategory, string> = {
 export interface AccessibilityCategoryMetric {
   coverage_pct: number;
   inclusive_coverage_pct: number;
+  area_coverage_pct: number;
+  inclusive_area_coverage_pct: number;
   median_minutes: number | null;
   p90_minutes: number | null;
+  area_median_minutes: number | null;
+  area_p90_minutes: number | null;
+  covered_population: number;
+  inclusive_covered_population: number;
   service_count: number;
 }
 
@@ -37,8 +44,16 @@ export interface AccessibilityDistrict {
   service_count: number;
   services_per_10000: number | null;
   accessibility_score: number;
+  inclusive_accessibility_score: number;
+  area_accessibility_score: number;
+  inclusive_area_accessibility_score: number;
   complete_coverage_pct: number;
   inclusive_complete_coverage_pct: number;
+  area_complete_coverage_pct: number;
+  inclusive_area_complete_coverage_pct: number;
+  complete_covered_population: number;
+  underserved_population: number;
+  represented_population: number;
   rank: number;
   categories: Record<AccessibilityCategory, AccessibilityCategoryMetric>;
 }
@@ -58,11 +73,38 @@ export interface AccessibilityService {
 export function accessibilityValue(
   district: AccessibilityDistrict,
   metric: AccessibilityMetric,
+  basis: AccessibilityBasis = "population",
+  scenario: AccessibilityScenario = "standard",
 ): number {
   if (metric in district.categories) {
-    return district.categories[metric as AccessibilityCategory].coverage_pct;
+    const category = district.categories[metric as AccessibilityCategory];
+    if (basis === "area") {
+      return scenario === "inclusive"
+        ? category.inclusive_area_coverage_pct
+        : category.area_coverage_pct;
+    }
+    return scenario === "inclusive"
+      ? category.inclusive_coverage_pct
+      : category.coverage_pct;
   }
-  return district[metric as Exclude<AccessibilityMetric, AccessibilityCategory>];
+  if (metric === "complete_coverage_pct") {
+    if (basis === "area") {
+      return scenario === "inclusive"
+        ? district.inclusive_area_complete_coverage_pct
+        : district.area_complete_coverage_pct;
+    }
+    return scenario === "inclusive"
+      ? district.inclusive_complete_coverage_pct
+      : district.complete_coverage_pct;
+  }
+  if (basis === "area") {
+    return scenario === "inclusive"
+      ? district.inclusive_area_accessibility_score
+      : district.area_accessibility_score;
+  }
+  return scenario === "inclusive"
+    ? district.inclusive_accessibility_score
+    : district.accessibility_score;
 }
 
 export function accessibilityColor(value: number): string {

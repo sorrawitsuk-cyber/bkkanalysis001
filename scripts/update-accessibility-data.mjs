@@ -11,6 +11,27 @@ const districts = JSON.parse(
 const population = JSON.parse(
   await fs.readFile(path.join(ROOT, "src", "data", "bkk_population.json"), "utf8"),
 );
+const subdistricts = JSON.parse(
+  await fs.readFile(path.join(ROOT, "src", "data", "bkk_subdistricts.json"), "utf8"),
+);
+
+function closeRing(ring) {
+  if (!ring.length) return ring;
+  const first = ring[0];
+  const last = ring.at(-1);
+  if (first[0] === last[0] && first[1] === last[1]) return ring;
+  return [...ring, first];
+}
+
+for (const feature of subdistricts.features) {
+  if (feature.geometry.type === "Polygon") {
+    feature.geometry.coordinates = feature.geometry.coordinates.map(closeRing);
+  } else if (feature.geometry.type === "MultiPolygon") {
+    feature.geometry.coordinates = feature.geometry.coordinates.map((polygon) =>
+      polygon.map(closeRing),
+    );
+  }
+}
 
 const WALKING = {
   thresholdMinutes: 15,
@@ -123,6 +144,21 @@ function percentile(values, p) {
   return sorted[index];
 }
 
+function weightedPercentile(items, p) {
+  const valid = items
+    .filter(({ value, weight }) => Number.isFinite(value) && Number.isFinite(weight) && weight > 0)
+    .sort((a, b) => a.value - b.value);
+  if (!valid.length) return null;
+  const totalWeight = valid.reduce((sum, item) => sum + item.weight, 0);
+  const target = totalWeight * p;
+  let cumulative = 0;
+  for (const item of valid) {
+    cumulative += item.weight;
+    if (cumulative >= target) return item.value;
+  }
+  return valid.at(-1).value;
+}
+
 function round(value, digits = 1) {
   if (value === null || !Number.isFinite(value)) return null;
   const factor = 10 ** digits;
@@ -210,8 +246,10 @@ const servicesByCategory = Object.fromEntries(
 );
 
 const latestPopulation = new Map();
+const latestSubdistrictPopulation = new Map();
 for (const subdistrict of population.subdistricts) {
   const record = subdistrict.records.find((item) => item.year === population.metadata.max_year);
+  latestSubdistrictPopulation.set(subdistrict.id, record?.population ?? 0);
   latestPopulation.set(
     subdistrict.district_id,
     (latestPopulation.get(subdistrict.district_id) ?? 0) + (record?.population ?? 0),
@@ -229,16 +267,45 @@ for (const feature of districts.features) {
   if (!grid.features.length) grid.features.push(turf.centroid(feature));
   totalSampleCount += grid.features.length;
 
-  const sampleResults = grid.features.map((sample) => {
+  const localSubdistricts = subdistricts.features.filter(
+    (subdistrict) => subdistrict.properties.district_id === feature.properties.id,
+  );
+  const samplesBySubdistrict = new Map();
+  const preparedSamples = grid.features.map((sample) => {
+    const subdistrict = localSubdistricts.find((candidate) =>
+      turf.booleanPointInPolygon(sample, candidate),
+    );
+    const subdistrictId = subdistrict?.properties?.id ?? null;
+    if (subdistrictId !== null) {
+      samplesBySubdistrict.set(
+        subdistrictId,
+        (samplesBySubdistrict.get(subdistrictId) ?? 0) + 1,
+      );
+    }
+    return { sample, subdistrictId };
+  });
+
+  const sampleResults = preparedSamples.map(({ sample, subdistrictId }) => {
     const result = {};
     for (const category of categories) {
       const standard = nearestMinutes(sample, servicesByCategory[category], WALKING.standardSpeedKmh);
       const inclusive = nearestMinutes(sample, servicesByCategory[category], WALKING.inclusiveSpeedKmh);
       result[category] = { standard, inclusive };
     }
-    return { sample, result };
+    const subdistrictPopulation = latestSubdistrictPopulation.get(subdistrictId) ?? 0;
+    const sampleCount = samplesBySubdistrict.get(subdistrictId) ?? 0;
+    return {
+      sample,
+      result,
+      populationWeight: sampleCount ? subdistrictPopulation / sampleCount : 0,
+    };
   });
 
+  const districtPopulation = latestPopulation.get(feature.properties.id) ?? 0;
+  const representedPopulation = sampleResults.reduce(
+    (sum, sample) => sum + sample.populationWeight,
+    0,
+  );
   const categoryMetrics = {};
   for (const category of categories) {
     const standardTimes = sampleResults
@@ -247,30 +314,71 @@ for (const feature of districts.features) {
     const inclusiveTimes = sampleResults
       .map(({ result }) => result[category].inclusive)
       .filter((value) => value !== null);
+    const weightedStandardTimes = sampleResults.map(({ result, populationWeight }) => ({
+      value: result[category].standard,
+      weight: populationWeight,
+    }));
+    const weightedInclusiveTimes = sampleResults.map(({ result, populationWeight }) => ({
+      value: result[category].inclusive,
+      weight: populationWeight,
+    }));
+    const standardCoveredPopulation = weightedStandardTimes
+      .filter(({ value }) => value !== null && value <= WALKING.thresholdMinutes)
+      .reduce((sum, item) => sum + item.weight, 0);
+    const inclusiveCoveredPopulation = weightedInclusiveTimes
+      .filter(({ value }) => value !== null && value <= WALKING.thresholdMinutes)
+      .reduce((sum, item) => sum + item.weight, 0);
     categoryMetrics[category] = {
       coverage_pct: round(
-        (standardTimes.filter((value) => value <= WALKING.thresholdMinutes).length / standardTimes.length) * 100,
+        representedPopulation
+          ? (standardCoveredPopulation / representedPopulation) * 100
+          : 0,
       ),
       inclusive_coverage_pct: round(
+        representedPopulation
+          ? (inclusiveCoveredPopulation / representedPopulation) * 100
+          : 0,
+      ),
+      area_coverage_pct: round(
+        (standardTimes.filter((value) => value <= WALKING.thresholdMinutes).length / standardTimes.length) * 100,
+      ),
+      inclusive_area_coverage_pct: round(
         (inclusiveTimes.filter((value) => value <= WALKING.thresholdMinutes).length / inclusiveTimes.length) * 100,
       ),
-      median_minutes: round(percentile(standardTimes, 0.5)),
-      p90_minutes: round(percentile(standardTimes, 0.9)),
+      median_minutes: round(weightedPercentile(weightedStandardTimes, 0.5)),
+      p90_minutes: round(weightedPercentile(weightedStandardTimes, 0.9)),
+      area_median_minutes: round(percentile(standardTimes, 0.5)),
+      area_p90_minutes: round(percentile(standardTimes, 0.9)),
+      covered_population: Math.round(standardCoveredPopulation),
+      inclusive_covered_population: Math.round(inclusiveCoveredPopulation),
       service_count: dedupedServices.filter(
         (service) => service.category === category && service.district_id === feature.properties.id,
       ).length,
     };
   }
 
-  const completeCoverage = sampleResults.filter(({ result }) =>
+  const completeSamples = sampleResults.filter(({ result }) =>
     categories.every((category) => (result[category].standard ?? Infinity) <= WALKING.thresholdMinutes),
-  ).length / sampleResults.length;
-  const inclusiveCompleteCoverage = sampleResults.filter(({ result }) =>
+  );
+  const inclusiveCompleteSamples = sampleResults.filter(({ result }) =>
     categories.every((category) => (result[category].inclusive ?? Infinity) <= WALKING.thresholdMinutes),
-  ).length / sampleResults.length;
+  );
+  const completeCoveredPopulation = completeSamples.reduce(
+    (sum, sample) => sum + sample.populationWeight,
+    0,
+  );
+  const inclusiveCompleteCoveredPopulation = inclusiveCompleteSamples.reduce(
+    (sum, sample) => sum + sample.populationWeight,
+    0,
+  );
   const accessibilityScore =
     categories.reduce((sum, category) => sum + categoryMetrics[category].coverage_pct, 0) / categories.length;
-  const districtPopulation = latestPopulation.get(feature.properties.id) ?? 0;
+  const inclusiveAccessibilityScore =
+    categories.reduce((sum, category) => sum + categoryMetrics[category].inclusive_coverage_pct, 0) / categories.length;
+  const areaAccessibilityScore =
+    categories.reduce((sum, category) => sum + categoryMetrics[category].area_coverage_pct, 0) / categories.length;
+  const inclusiveAreaAccessibilityScore =
+    categories.reduce((sum, category) => sum + categoryMetrics[category].inclusive_area_coverage_pct, 0) / categories.length;
   const localServices = dedupedServices.filter((service) => service.district_id === feature.properties.id).length;
 
   districtRows.push({
@@ -281,8 +389,28 @@ for (const feature of districts.features) {
     service_count: localServices,
     services_per_10000: districtPopulation ? round((localServices / districtPopulation) * 10000, 2) : null,
     accessibility_score: round(accessibilityScore),
-    complete_coverage_pct: round(completeCoverage * 100),
-    inclusive_complete_coverage_pct: round(inclusiveCompleteCoverage * 100),
+    inclusive_accessibility_score: round(inclusiveAccessibilityScore),
+    area_accessibility_score: round(areaAccessibilityScore),
+    inclusive_area_accessibility_score: round(inclusiveAreaAccessibilityScore),
+    complete_coverage_pct: round(
+      representedPopulation
+        ? (completeCoveredPopulation / representedPopulation) * 100
+        : 0,
+    ),
+    inclusive_complete_coverage_pct: round(
+      representedPopulation
+        ? (inclusiveCompleteCoveredPopulation / representedPopulation) * 100
+        : 0,
+    ),
+    area_complete_coverage_pct: round(
+      (completeSamples.length / sampleResults.length) * 100,
+    ),
+    inclusive_area_complete_coverage_pct: round(
+      (inclusiveCompleteSamples.length / sampleResults.length) * 100,
+    ),
+    complete_covered_population: Math.round(completeCoveredPopulation),
+    underserved_population: Math.max(0, Math.round(districtPopulation - completeCoveredPopulation)),
+    represented_population: Math.round(representedPopulation),
     categories: categoryMetrics,
   });
 
@@ -293,16 +421,34 @@ districtRows.forEach((row, index) => {
   row.rank = index + 1;
 });
 
+const totalPopulation = districtRows.reduce((sum, row) => sum + row.population, 0);
+const totalCompleteCoveredPopulation = districtRows.reduce(
+  (sum, row) => sum + row.complete_covered_population,
+  0,
+);
+const weightedAverage = (key) =>
+  totalPopulation
+    ? districtRows.reduce((sum, row) => sum + row[key] * row.population, 0) / totalPopulation
+    : 0;
+
 const summary = {
   district_count: districtRows.length,
   service_count: dedupedServices.length,
   sample_count: totalSampleCount,
-  average_accessibility_score: round(
-    districtRows.reduce((sum, row) => sum + row.accessibility_score, 0) / districtRows.length,
+  population: totalPopulation,
+  average_accessibility_score: round(weightedAverage("accessibility_score")),
+  inclusive_average_accessibility_score: round(weightedAverage("inclusive_accessibility_score")),
+  average_area_accessibility_score: round(
+    districtRows.reduce((sum, row) => sum + row.area_accessibility_score, 0) / districtRows.length,
   ),
   average_complete_coverage_pct: round(
-    districtRows.reduce((sum, row) => sum + row.complete_coverage_pct, 0) / districtRows.length,
+    totalPopulation ? (totalCompleteCoveredPopulation / totalPopulation) * 100 : 0,
   ),
+  average_area_complete_coverage_pct: round(
+    districtRows.reduce((sum, row) => sum + row.area_complete_coverage_pct, 0) / districtRows.length,
+  ),
+  complete_covered_population: totalCompleteCoveredPopulation,
+  underserved_population: Math.max(0, totalPopulation - totalCompleteCoveredPopulation),
   lowest_district: districtRows.at(-1)?.district_name ?? null,
   highest_district: districtRows[0]?.district_name ?? null,
   category_totals: Object.fromEntries(
@@ -323,9 +469,11 @@ await fs.writeFile(
           inclusive_speed_kmh: WALKING.inclusiveSpeedKmh,
           route_detour_factor: WALKING.routeDetourFactor,
           sample_spacing_km: WALKING.sampleSpacingKm,
+          coverage_basis:
+            "Population coverage distributes each subdistrict's DOPA registered population evenly across its 250 m sample points. Area coverage gives every sample point equal weight.",
           categories,
           interpretation:
-            "Area-based proximity screening from regularly spaced sample points. Distances are geodesic distances multiplied by a route-detour factor; they are not pedestrian-network travel times.",
+            "Population-weighted and area-based proximity screening from regularly spaced sample points. Distances are geodesic distances multiplied by a route-detour factor; they are not pedestrian-network travel times.",
         },
         population_year: population.metadata.max_year,
         population_source: population.metadata.population_source,
