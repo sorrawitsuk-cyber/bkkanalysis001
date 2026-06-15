@@ -33,16 +33,34 @@ for (const feature of subdistricts.features) {
   }
 }
 
-const WALKING = {
+const MOBILITY = {
   thresholdMinutes: 15,
-  standardSpeedKmh: 5,
-  inclusiveSpeedKmh: 4,
-  routeDetourFactor: 1.25,
   sampleSpacingKm: 0.25,
+  modes: {
+    standard: {
+      label: "เดิน 5 กม./ชม.",
+      speedKmh: 5,
+      routeDetourFactor: 1.25,
+      fixedMinutes: 0,
+    },
+    inclusive: {
+      label: "เดิน 4 กม./ชม.",
+      speedKmh: 4,
+      routeDetourFactor: 1.25,
+      fixedMinutes: 0,
+    },
+    cycling: {
+      label: "จักรยาน 15 กม./ชม.",
+      speedKmh: 15,
+      routeDetourFactor: 1.3,
+      fixedMinutes: 2,
+    },
+  },
 };
 
 const SOURCES = [
   {
+    type: "csv",
     key: "health",
     label: "ศูนย์บริการสาธารณสุข",
     dataset: "ข้อมูลศูนย์บริการสาธารณสุข สำนักอนามัย",
@@ -52,6 +70,7 @@ const SOURCES = [
     lng: (row) => row.longitude,
   },
   {
+    type: "csv",
     key: "education",
     label: "โรงเรียนสังกัดกรุงเทพมหานคร",
     dataset: "สถานที่ตั้งโรงเรียนสังกัดกรุงเทพมหานคร ปีการศึกษา 2566",
@@ -61,6 +80,7 @@ const SOURCES = [
     lng: (row) => row.Longitude,
   },
   {
+    type: "csv",
     key: "food",
     label: "ตลาด",
     dataset: "ที่ตั้งตลาดในเขตกรุงเทพมหานคร",
@@ -70,6 +90,7 @@ const SOURCES = [
     lng: (row) => row.longitude,
   },
   {
+    type: "csv",
     key: "recreation",
     subtype: "park",
     label: "สวนสาธารณะ",
@@ -80,6 +101,7 @@ const SOURCES = [
     lng: (row) => row.lng,
   },
   {
+    type: "csv",
     key: "recreation",
     subtype: "library",
     label: "ห้องสมุด",
@@ -90,6 +112,7 @@ const SOURCES = [
     lng: (row) => row.lng,
   },
   {
+    type: "csv",
     key: "recreation",
     subtype: "sport",
     label: "ศูนย์กีฬา",
@@ -100,6 +123,7 @@ const SOURCES = [
     lng: (row) => row.lng,
   },
   {
+    type: "csv",
     key: "transit",
     subtype: "bts",
     label: "สถานี BTS",
@@ -110,6 +134,7 @@ const SOURCES = [
     lng: (row) => row.lng,
   },
   {
+    type: "csv",
     key: "transit",
     subtype: "mrt",
     label: "สถานี MRT",
@@ -118,6 +143,50 @@ const SOURCES = [
     name: (row) => row.name,
     lat: (row) => row.lat,
     lng: (row) => row.lng,
+  },
+  {
+    type: "csv",
+    key: "transit",
+    subtype: "brt",
+    label: "สถานี BRT",
+    dataset: "สถานีเดินรถโดยสารประจำทางด่วนพิเศษ BRT",
+    url: "https://data.bangkok.go.th/dataset/1d9fbdd7-b81b-4114-a9ec-76965b097c44/resource/15a812a7-fd0b-4cfa-b56c-e24a4775de19/download/brt_station.csv",
+    name: (row) => row.name,
+    lat: (row) => row.lat,
+    lng: (row) => row.lng,
+  },
+  {
+    type: "csv",
+    key: "transit",
+    subtype: "sansab_pier",
+    label: "ท่าเรือคลองแสนแสบ",
+    dataset: "ที่ตั้งท่าเรือโดยสารคลองแสนแสบ",
+    url: "https://data.bangkok.go.th/dataset/0bdffda7-c3c2-4f76-9ca0-a410a8d422da/resource/b9a46067-ef75-475a-8e1e-2f20f5454146/download/sansab_pier.csv",
+    name: (row) => row.name_pier,
+    lat: (row) => row.lat,
+    lng: (row) => row.lng,
+  },
+  {
+    type: "csv",
+    key: "transit",
+    subtype: "chao_phraya_pier",
+    label: "ท่าเรือเจ้าพระยา",
+    dataset: "ที่ตั้งท่าเทียบเรือโดยสารในแม่น้ำเจ้าพระยา",
+    url: "https://data.bangkok.go.th/dataset/d4b9d9d9-4f6e-423d-bc3b-118f00109934/resource/e4dd77d4-1758-49e9-845f-9ffe55110511/download/terminal.csv",
+    name: (row) => row.name,
+    lat: (row) => row.lat,
+    lng: (row) => row.lng,
+  },
+  {
+    type: "arcgis",
+    key: "transit",
+    subtype: "bus_stop",
+    label: "ป้ายรถเมล์",
+    dataset: "ตำแหน่งป้ายหยุดรถโดยสารประจำทาง",
+    url: "https://cpudgiportal.bangkok.go.th/portal/sharing/servers/c78fec5a0db94d92baef153508e952e1/rest/services/Enterprise_Site_Service/TRANSPORTATION/MapServer/0",
+    name: (feature) => feature.properties.LOCATION || feature.properties.NAME,
+    lat: (feature) => feature.geometry.coordinates[1],
+    lng: (feature) => feature.geometry.coordinates[0],
   },
 ];
 
@@ -165,30 +234,76 @@ function round(value, digits = 1) {
   return Math.round(value * factor) / factor;
 }
 
-function nearestMinutes(origin, candidates, speedKmh) {
+function nearestDistanceKm(origin, candidates) {
   if (!candidates.length) return null;
+  const [originLng, originLat] = origin.geometry.coordinates;
+  const latitudeScale = Math.cos((originLat * Math.PI) / 180);
   let nearestKm = Infinity;
   for (const candidate of candidates) {
-    const distance = turf.distance(origin, candidate.point, { units: "kilometers" });
+    const latDelta = candidate.lat - originLat;
+    const lngDelta = (candidate.lng - originLng) * latitudeScale;
+    const distance = Math.sqrt(latDelta * latDelta + lngDelta * lngDelta) * 111.32;
     if (distance < nearestKm) nearestKm = distance;
   }
-  return (nearestKm * WALKING.routeDetourFactor / speedKmh) * 60;
+  return nearestKm;
+}
+
+function travelMinutes(distanceKm, mode) {
+  if (distanceKm === null) return null;
+  return (
+    (distanceKm * mode.routeDetourFactor / mode.speedKmh) * 60 +
+    mode.fixedMinutes
+  );
 }
 
 const services = [];
 const sourceMetadata = [];
 
-for (const source of SOURCES) {
+async function fetchCsvSource(source) {
   const response = await fetch(source.url);
-  if (!response.ok) throw new Error(`${source.key}: HTTP ${response.status}`);
-  const text = new TextDecoder("utf-8").decode(await response.arrayBuffer()).replace(/^\uFEFF/, "");
-  const rows = parse(text, {
+  if (!response.ok) throw new Error(`${source.key}/${source.subtype ?? source.key}: HTTP ${response.status}`);
+  const text = new TextDecoder("utf-8")
+    .decode(await response.arrayBuffer())
+    .replace(/^\uFEFF/, "");
+  return parse(text, {
     columns: true,
     skip_empty_lines: true,
     relax_column_count: true,
     relax_quotes: true,
     trim: true,
   });
+}
+
+async function fetchArcgisSource(source) {
+  const metadataResponse = await fetch(`${source.url}?f=json`);
+  if (!metadataResponse.ok) throw new Error(`${source.subtype}: metadata HTTP ${metadataResponse.status}`);
+  const metadata = await metadataResponse.json();
+  const pageSize = metadata.maxRecordCount || 2000;
+  const features = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const params = new URLSearchParams({
+      where: "1=1",
+      outFields: "*",
+      returnGeometry: "true",
+      outSR: "4326",
+      resultOffset: String(offset),
+      resultRecordCount: String(pageSize),
+      f: "geojson",
+    });
+    const response = await fetch(`${source.url}/query?${params}`);
+    if (!response.ok) throw new Error(`${source.subtype}: query HTTP ${response.status}`);
+    const page = await response.json();
+    features.push(...(page.features ?? []));
+    if (!page.properties?.exceededTransferLimit && page.features.length < pageSize) break;
+    if (!page.features.length) break;
+  }
+  return features;
+}
+
+for (const source of SOURCES) {
+  const rows = source.type === "arcgis"
+    ? await fetchArcgisSource(source)
+    : await fetchCsvSource(source);
   let accepted = 0;
   let rejected = 0;
   for (const row of rows) {
@@ -240,8 +355,7 @@ const servicesByCategory = Object.fromEntries(
   categories.map((category) => [
     category,
     dedupedServices
-      .filter((service) => service.category === category)
-      .map((service) => ({ ...service, point: turf.point([service.lng, service.lat]) })),
+      .filter((service) => service.category === category),
   ]),
 );
 
@@ -260,7 +374,7 @@ const districtRows = [];
 let totalSampleCount = 0;
 
 for (const feature of districts.features) {
-  const grid = turf.pointGrid(turf.bbox(feature), WALKING.sampleSpacingKm, {
+  const grid = turf.pointGrid(turf.bbox(feature), MOBILITY.sampleSpacingKm, {
     units: "kilometers",
     mask: feature,
   });
@@ -288,9 +402,13 @@ for (const feature of districts.features) {
   const sampleResults = preparedSamples.map(({ sample, subdistrictId }) => {
     const result = {};
     for (const category of categories) {
-      const standard = nearestMinutes(sample, servicesByCategory[category], WALKING.standardSpeedKmh);
-      const inclusive = nearestMinutes(sample, servicesByCategory[category], WALKING.inclusiveSpeedKmh);
-      result[category] = { standard, inclusive };
+      const nearestKm = nearestDistanceKm(sample, servicesByCategory[category]);
+      result[category] = Object.fromEntries(
+        Object.entries(MOBILITY.modes).map(([key, mode]) => [
+          key,
+          travelMinutes(nearestKm, mode),
+        ]),
+      );
     }
     const subdistrictPopulation = latestSubdistrictPopulation.get(subdistrictId) ?? 0;
     const sampleCount = samplesBySubdistrict.get(subdistrictId) ?? 0;
@@ -314,6 +432,9 @@ for (const feature of districts.features) {
     const inclusiveTimes = sampleResults
       .map(({ result }) => result[category].inclusive)
       .filter((value) => value !== null);
+    const cyclingTimes = sampleResults
+      .map(({ result }) => result[category].cycling)
+      .filter((value) => value !== null);
     const weightedStandardTimes = sampleResults.map(({ result, populationWeight }) => ({
       value: result[category].standard,
       weight: populationWeight,
@@ -322,11 +443,18 @@ for (const feature of districts.features) {
       value: result[category].inclusive,
       weight: populationWeight,
     }));
+    const weightedCyclingTimes = sampleResults.map(({ result, populationWeight }) => ({
+      value: result[category].cycling,
+      weight: populationWeight,
+    }));
     const standardCoveredPopulation = weightedStandardTimes
-      .filter(({ value }) => value !== null && value <= WALKING.thresholdMinutes)
+      .filter(({ value }) => value !== null && value <= MOBILITY.thresholdMinutes)
       .reduce((sum, item) => sum + item.weight, 0);
     const inclusiveCoveredPopulation = weightedInclusiveTimes
-      .filter(({ value }) => value !== null && value <= WALKING.thresholdMinutes)
+      .filter(({ value }) => value !== null && value <= MOBILITY.thresholdMinutes)
+      .reduce((sum, item) => sum + item.weight, 0);
+    const cyclingCoveredPopulation = weightedCyclingTimes
+      .filter(({ value }) => value !== null && value <= MOBILITY.thresholdMinutes)
       .reduce((sum, item) => sum + item.weight, 0);
     categoryMetrics[category] = {
       coverage_pct: round(
@@ -339,18 +467,35 @@ for (const feature of districts.features) {
           ? (inclusiveCoveredPopulation / representedPopulation) * 100
           : 0,
       ),
+      cycling_coverage_pct: round(
+        representedPopulation
+          ? (cyclingCoveredPopulation / representedPopulation) * 100
+          : 0,
+      ),
       area_coverage_pct: round(
-        (standardTimes.filter((value) => value <= WALKING.thresholdMinutes).length / standardTimes.length) * 100,
+        (standardTimes.filter((value) => value <= MOBILITY.thresholdMinutes).length / standardTimes.length) * 100,
       ),
       inclusive_area_coverage_pct: round(
-        (inclusiveTimes.filter((value) => value <= WALKING.thresholdMinutes).length / inclusiveTimes.length) * 100,
+        (inclusiveTimes.filter((value) => value <= MOBILITY.thresholdMinutes).length / inclusiveTimes.length) * 100,
+      ),
+      cycling_area_coverage_pct: round(
+        (cyclingTimes.filter((value) => value <= MOBILITY.thresholdMinutes).length / cyclingTimes.length) * 100,
       ),
       median_minutes: round(weightedPercentile(weightedStandardTimes, 0.5)),
       p90_minutes: round(weightedPercentile(weightedStandardTimes, 0.9)),
+      inclusive_median_minutes: round(weightedPercentile(weightedInclusiveTimes, 0.5)),
+      inclusive_p90_minutes: round(weightedPercentile(weightedInclusiveTimes, 0.9)),
+      cycling_median_minutes: round(weightedPercentile(weightedCyclingTimes, 0.5)),
+      cycling_p90_minutes: round(weightedPercentile(weightedCyclingTimes, 0.9)),
       area_median_minutes: round(percentile(standardTimes, 0.5)),
       area_p90_minutes: round(percentile(standardTimes, 0.9)),
+      inclusive_area_median_minutes: round(percentile(inclusiveTimes, 0.5)),
+      inclusive_area_p90_minutes: round(percentile(inclusiveTimes, 0.9)),
+      cycling_area_median_minutes: round(percentile(cyclingTimes, 0.5)),
+      cycling_area_p90_minutes: round(percentile(cyclingTimes, 0.9)),
       covered_population: Math.round(standardCoveredPopulation),
       inclusive_covered_population: Math.round(inclusiveCoveredPopulation),
+      cycling_covered_population: Math.round(cyclingCoveredPopulation),
       service_count: dedupedServices.filter(
         (service) => service.category === category && service.district_id === feature.properties.id,
       ).length,
@@ -358,10 +503,13 @@ for (const feature of districts.features) {
   }
 
   const completeSamples = sampleResults.filter(({ result }) =>
-    categories.every((category) => (result[category].standard ?? Infinity) <= WALKING.thresholdMinutes),
+    categories.every((category) => (result[category].standard ?? Infinity) <= MOBILITY.thresholdMinutes),
   );
   const inclusiveCompleteSamples = sampleResults.filter(({ result }) =>
-    categories.every((category) => (result[category].inclusive ?? Infinity) <= WALKING.thresholdMinutes),
+    categories.every((category) => (result[category].inclusive ?? Infinity) <= MOBILITY.thresholdMinutes),
+  );
+  const cyclingCompleteSamples = sampleResults.filter(({ result }) =>
+    categories.every((category) => (result[category].cycling ?? Infinity) <= MOBILITY.thresholdMinutes),
   );
   const completeCoveredPopulation = completeSamples.reduce(
     (sum, sample) => sum + sample.populationWeight,
@@ -371,14 +519,22 @@ for (const feature of districts.features) {
     (sum, sample) => sum + sample.populationWeight,
     0,
   );
+  const cyclingCompleteCoveredPopulation = cyclingCompleteSamples.reduce(
+    (sum, sample) => sum + sample.populationWeight,
+    0,
+  );
   const accessibilityScore =
     categories.reduce((sum, category) => sum + categoryMetrics[category].coverage_pct, 0) / categories.length;
   const inclusiveAccessibilityScore =
     categories.reduce((sum, category) => sum + categoryMetrics[category].inclusive_coverage_pct, 0) / categories.length;
+  const cyclingAccessibilityScore =
+    categories.reduce((sum, category) => sum + categoryMetrics[category].cycling_coverage_pct, 0) / categories.length;
   const areaAccessibilityScore =
     categories.reduce((sum, category) => sum + categoryMetrics[category].area_coverage_pct, 0) / categories.length;
   const inclusiveAreaAccessibilityScore =
     categories.reduce((sum, category) => sum + categoryMetrics[category].inclusive_area_coverage_pct, 0) / categories.length;
+  const cyclingAreaAccessibilityScore =
+    categories.reduce((sum, category) => sum + categoryMetrics[category].cycling_area_coverage_pct, 0) / categories.length;
   const localServices = dedupedServices.filter((service) => service.district_id === feature.properties.id).length;
 
   districtRows.push({
@@ -390,8 +546,10 @@ for (const feature of districts.features) {
     services_per_10000: districtPopulation ? round((localServices / districtPopulation) * 10000, 2) : null,
     accessibility_score: round(accessibilityScore),
     inclusive_accessibility_score: round(inclusiveAccessibilityScore),
+    cycling_accessibility_score: round(cyclingAccessibilityScore),
     area_accessibility_score: round(areaAccessibilityScore),
     inclusive_area_accessibility_score: round(inclusiveAreaAccessibilityScore),
+    cycling_area_accessibility_score: round(cyclingAreaAccessibilityScore),
     complete_coverage_pct: round(
       representedPopulation
         ? (completeCoveredPopulation / representedPopulation) * 100
@@ -402,13 +560,22 @@ for (const feature of districts.features) {
         ? (inclusiveCompleteCoveredPopulation / representedPopulation) * 100
         : 0,
     ),
+    cycling_complete_coverage_pct: round(
+      representedPopulation
+        ? (cyclingCompleteCoveredPopulation / representedPopulation) * 100
+        : 0,
+    ),
     area_complete_coverage_pct: round(
       (completeSamples.length / sampleResults.length) * 100,
     ),
     inclusive_area_complete_coverage_pct: round(
       (inclusiveCompleteSamples.length / sampleResults.length) * 100,
     ),
+    cycling_area_complete_coverage_pct: round(
+      (cyclingCompleteSamples.length / sampleResults.length) * 100,
+    ),
     complete_covered_population: Math.round(completeCoveredPopulation),
+    cycling_complete_covered_population: Math.round(cyclingCompleteCoveredPopulation),
     underserved_population: Math.max(0, Math.round(districtPopulation - completeCoveredPopulation)),
     represented_population: Math.round(representedPopulation),
     categories: categoryMetrics,
@@ -438,6 +605,7 @@ const summary = {
   population: totalPopulation,
   average_accessibility_score: round(weightedAverage("accessibility_score")),
   inclusive_average_accessibility_score: round(weightedAverage("inclusive_accessibility_score")),
+  cycling_average_accessibility_score: round(weightedAverage("cycling_accessibility_score")),
   average_area_accessibility_score: round(
     districtRows.reduce((sum, row) => sum + row.area_accessibility_score, 0) / districtRows.length,
   ),
@@ -464,16 +632,14 @@ await fs.writeFile(
         generated_at: new Date().toISOString(),
         title: "Bangkok 15-minute city proximity screening",
         methodology: {
-          threshold_minutes: WALKING.thresholdMinutes,
-          standard_speed_kmh: WALKING.standardSpeedKmh,
-          inclusive_speed_kmh: WALKING.inclusiveSpeedKmh,
-          route_detour_factor: WALKING.routeDetourFactor,
-          sample_spacing_km: WALKING.sampleSpacingKm,
+          threshold_minutes: MOBILITY.thresholdMinutes,
+          sample_spacing_km: MOBILITY.sampleSpacingKm,
+          modes: MOBILITY.modes,
           coverage_basis:
             "Population coverage distributes each subdistrict's DOPA registered population evenly across its 250 m sample points. Area coverage gives every sample point equal weight.",
           categories,
           interpretation:
-            "Population-weighted and area-based proximity screening from regularly spaced sample points. Distances are geodesic distances multiplied by a route-detour factor; they are not pedestrian-network travel times.",
+            "Population-weighted and area-based proximity screening from regularly spaced sample points. Straight-line distance uses a local equirectangular approximation suitable for the Bangkok extent, then applies mode-specific route-detour factors. Cycling also includes a fixed two-minute access and parking allowance. Results are not pedestrian, bicycle, road, or public-transit network travel times.",
         },
         population_year: population.metadata.max_year,
         population_source: population.metadata.population_source,

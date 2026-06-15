@@ -15,6 +15,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   ACCESSIBILITY_LABELS,
+  ACCESSIBILITY_SUBTYPE_LABELS,
   accessibilityColor,
   accessibilityLevel,
   accessibilityValue,
@@ -62,6 +63,7 @@ interface AccessibilityMapProps {
   basis: AccessibilityBasis;
   scenario: AccessibilityScenario;
   category: AccessibilityCategory | "all";
+  serviceSubtype: string;
   activeDistrictId: number | null;
   selectedServiceId: string | null;
   showServices: boolean;
@@ -109,6 +111,7 @@ export default function AccessibilityMap({
   basis,
   scenario,
   category,
+  serviceSubtype,
   activeDistrictId,
   selectedServiceId,
   showServices,
@@ -121,14 +124,28 @@ export default function AccessibilityMap({
     () => new Map(districts.map((district) => [district.district_id, district])),
     [districts],
   );
+  const rankById = useMemo(
+    () =>
+      new Map(
+        [...districts]
+          .sort(
+            (a, b) =>
+              accessibilityValue(b, metric, basis, scenario) -
+              accessibilityValue(a, metric, basis, scenario),
+          )
+          .map((district, index) => [district.district_id, index + 1]),
+      ),
+    [basis, districts, metric, scenario],
+  );
   const visibleServices = useMemo(
     () =>
       services.filter(
         (service) =>
           (category === "all" || service.category === category) &&
+          (serviceSubtype === "all" || service.subtype === serviceSubtype) &&
           (!activeDistrictId || service.district_id === activeDistrictId),
       ),
-    [activeDistrictId, category, services],
+    [activeDistrictId, category, serviceSubtype, services],
   );
   const metricLabel =
     metric === "accessibility_score"
@@ -137,7 +154,12 @@ export default function AccessibilityMap({
         ? "ครบทั้ง 5 หมวด"
         : ACCESSIBILITY_LABELS[metric];
   const basisLabel = basis === "population" ? "ประชากรโดยประมาณ" : "พื้นที่";
-  const scenarioLabel = scenario === "standard" ? "เดิน 5 กม./ชม." : "เดิน 4 กม./ชม.";
+  const scenarioLabel =
+    scenario === "standard"
+      ? "เดิน 5 กม./ชม."
+      : scenario === "inclusive"
+        ? "เดิน 4 กม./ชม."
+        : "จักรยาน 15 กม./ชม.";
   const tile = BASEMAPS[basemap];
 
   return (
@@ -145,6 +167,7 @@ export default function AccessibilityMap({
       center={[13.7563, 100.5018]}
       zoom={10}
       zoomControl={false}
+      preferCanvas
       className="h-full w-full bg-slate-950"
       attributionControl
     >
@@ -170,8 +193,9 @@ export default function AccessibilityMap({
           const district = rowById.get(Number(feature.properties?.id));
           if (!district) return;
           const value = accessibilityValue(district, metric, basis, scenario);
+          const rank = rankById.get(district.district_id);
           layer.bindTooltip(
-            `<strong>เขต${district.district_name}</strong><br/>${metricLabel}: <strong>${value.toFixed(1)}%</strong><br/>ฐาน: ${basisLabel}<br/>${scenarioLabel}<br/>${accessibilityLevel(value)} · อันดับ ${district.rank}/50`,
+            `<strong>เขต${district.district_name}</strong><br/>${metricLabel}: <strong>${value.toFixed(1)}%</strong><br/>ฐาน: ${basisLabel}<br/>${scenarioLabel}<br/>${accessibilityLevel(value)} · อันดับ ${rank}/50`,
             { sticky: true, direction: "top" },
           );
           layer.on({
@@ -214,6 +238,8 @@ export default function AccessibilityMap({
                 <strong>{service.name}</strong>
                 <br />
                 {ACCESSIBILITY_LABELS[service.category]}
+                <br />
+                {ACCESSIBILITY_SUBTYPE_LABELS[service.subtype] ?? service.subtype}
                 <br />
                 <span>เขต{service.district_name ?? "ไม่ทราบเขต"}</span>
               </Tooltip>

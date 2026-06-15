@@ -122,24 +122,31 @@ Runtime proof points:
 
 15-Minute City proximity-screening dashboard for all 50 districts. The reproducible
 `scripts/update-accessibility-data.mjs` pipeline downloads eight official BKK Open Data
-CSV resources covering public-health centers, BMA schools, markets, parks, libraries,
-sports centers, BTS, and MRT. It validates coordinates, spatially joins services to
-district boundaries, samples each district at 250-meter spacing, and estimates access
-to the nearest service in five categories.
+CSV and ArcGIS resources covering public-health centers, BMA schools, markets, parks,
+libraries, sports centers, BTS, MRT, BRT, bus stops, Saen Saep piers, and Chao Phraya
+piers. It validates coordinates, spatially joins services to district boundaries,
+samples each district at 250-meter spacing, and estimates access to the nearest service
+in five categories.
 
 The standard scenario uses a 5 km/h walking speed, a 1.25 route-detour factor, and a
-15-minute threshold. An inclusive sensitivity scenario uses 4 km/h. Results are
-available in two bases. Population coverage distributes each subdistrict's latest DOPA
-registered population evenly across its 250-meter sample points; area coverage gives
-every sample point equal weight. The population result is therefore a subdistrict-level
-estimate, not a residential population grid. Neither basis is a pedestrian-network
-travel time. The UI must preserve those distinctions in the controls, guide, and source
-metadata.
+15-minute threshold. An inclusive sensitivity scenario uses 4 km/h. A cycling scenario
+uses 15 km/h, a 1.30 route-detour factor, and a fixed two-minute access/parking
+allowance. Results are available in two bases. Population coverage distributes each
+subdistrict's latest DOPA registered population evenly across its 250-meter sample
+points; area coverage gives every sample point equal weight. The population result is
+therefore a subdistrict-level estimate, not a residential population grid. None of the
+scenarios is a pedestrian, bicycle, road, or public-transit network travel time.
+
+The transit category measures access to a boarding point. It must not be described as
+the time required to ride public transport to a destination. A true transit travel-time
+scenario remains dependent on validated route connectivity, schedules or headways,
+waiting time, transfer rules, and a routing engine such as OpenTripPlanner.
 
 Run `node scripts/verify-accessibility-data.mjs` after regenerating the dataset. The
 verifier checks all 50 districts, percentage ranges, population reconciliation, service
-counts, and the invariant that the slower walking scenario cannot exceed the standard
-scenario.
+counts, the invariant that the slower walking scenario cannot exceed the standard
+scenario, and the invariant that cycling coverage cannot be lower than standard walking
+coverage under the configured screening assumptions.
 
 ## Data Preparation Flow
 

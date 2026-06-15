@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  Bike,
   BookOpen,
   Bus,
   Cross,
@@ -38,6 +39,7 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import {
   ACCESSIBILITY_CATEGORIES,
   ACCESSIBILITY_LABELS,
+  ACCESSIBILITY_SUBTYPE_LABELS,
   accessibilityColor,
   accessibilityLevel,
   accessibilityValue,
@@ -69,6 +71,16 @@ const METRICS: Array<{ value: AccessibilityMetric; label: string }> = [
     value: category,
     label: ACCESSIBILITY_LABELS[category],
   })),
+];
+
+const SCENARIOS: Array<{
+  value: AccessibilityScenario;
+  label: string;
+  shortLabel: string;
+}> = [
+  { value: "standard", label: "เดิน 5 กม./ชม.", shortLabel: "เดินมาตรฐาน" },
+  { value: "inclusive", label: "เดิน 4 กม./ชม.", shortLabel: "เดินช้า" },
+  { value: "cycling", label: "จักรยาน 15 กม./ชม.", shortLabel: "จักรยาน" },
 ];
 
 function formatNumber(value: number | null | undefined, digits = 1) {
@@ -113,11 +125,12 @@ export default function AccessibilityPage() {
   const [basis, setBasis] = useState<AccessibilityBasis>("population");
   const [scenario, setScenario] = useState<AccessibilityScenario>("standard");
   const [category, setCategory] = useState<AccessibilityCategory | "all">("all");
+  const [serviceSubtype, setServiceSubtype] = useState("all");
   const [activeDistrictId, setActiveDistrictId] = useState<number | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [showServices, setShowServices] = useState(true);
+  const [showServices, setShowServices] = useState(false);
   const [sortKey, setSortKey] = useState<
     AccessibilityMetric | "district_name" | "services_per_10000" | "underserved_population"
   >("accessibility_score");
@@ -157,22 +170,37 @@ export default function AccessibilityPage() {
       accessibility_score: data?.summary?.average_accessibility_score ?? 0,
       inclusive_accessibility_score:
         data?.summary?.inclusive_average_accessibility_score ?? 0,
+      cycling_accessibility_score:
+        data?.summary?.cycling_average_accessibility_score ?? 0,
       area_accessibility_score:
         data?.summary?.average_area_accessibility_score ?? 0,
       inclusive_area_accessibility_score: average(
         rows.map((row) => row.inclusive_area_accessibility_score),
       ),
+      cycling_area_accessibility_score: average(
+        rows.map((row) => row.cycling_area_accessibility_score),
+      ),
       complete_coverage_pct: data?.summary?.average_complete_coverage_pct ?? 0,
       inclusive_complete_coverage_pct: average(
         rows.map((row) => row.inclusive_complete_coverage_pct),
+      ),
+      cycling_complete_coverage_pct: average(
+        rows.map((row) => row.cycling_complete_coverage_pct),
       ),
       area_complete_coverage_pct:
         data?.summary?.average_area_complete_coverage_pct ?? 0,
       inclusive_area_complete_coverage_pct: average(
         rows.map((row) => row.inclusive_area_complete_coverage_pct),
       ),
+      cycling_area_complete_coverage_pct: average(
+        rows.map((row) => row.cycling_area_complete_coverage_pct),
+      ),
       complete_covered_population:
         data?.summary?.complete_covered_population ?? 0,
+      cycling_complete_covered_population: rows.reduce(
+        (sum, row) => sum + row.cycling_complete_covered_population,
+        0,
+      ),
       underserved_population: data?.summary?.underserved_population ?? 0,
       represented_population: rows.reduce(
         (sum, row) => sum + row.represented_population,
@@ -187,11 +215,17 @@ export default function AccessibilityPage() {
             inclusive_coverage_pct: average(
               rows.map((row) => row.categories[item].inclusive_coverage_pct),
             ),
+            cycling_coverage_pct: average(
+              rows.map((row) => row.categories[item].cycling_coverage_pct),
+            ),
             area_coverage_pct: average(
               rows.map((row) => row.categories[item].area_coverage_pct),
             ),
             inclusive_area_coverage_pct: average(
               rows.map((row) => row.categories[item].inclusive_area_coverage_pct),
+            ),
+            cycling_area_coverage_pct: average(
+              rows.map((row) => row.categories[item].cycling_area_coverage_pct),
             ),
             median_minutes: average(
               rows
@@ -201,6 +235,26 @@ export default function AccessibilityPage() {
             p90_minutes: average(
               rows
                 .map((row) => row.categories[item].p90_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            inclusive_median_minutes: average(
+              rows
+                .map((row) => row.categories[item].inclusive_median_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            inclusive_p90_minutes: average(
+              rows
+                .map((row) => row.categories[item].inclusive_p90_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            cycling_median_minutes: average(
+              rows
+                .map((row) => row.categories[item].cycling_median_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            cycling_p90_minutes: average(
+              rows
+                .map((row) => row.categories[item].cycling_p90_minutes)
                 .filter((value): value is number => value !== null),
             ),
             area_median_minutes: average(
@@ -213,12 +267,36 @@ export default function AccessibilityPage() {
                 .map((row) => row.categories[item].area_p90_minutes)
                 .filter((value): value is number => value !== null),
             ),
+            inclusive_area_median_minutes: average(
+              rows
+                .map((row) => row.categories[item].inclusive_area_median_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            inclusive_area_p90_minutes: average(
+              rows
+                .map((row) => row.categories[item].inclusive_area_p90_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            cycling_area_median_minutes: average(
+              rows
+                .map((row) => row.categories[item].cycling_area_median_minutes)
+                .filter((value): value is number => value !== null),
+            ),
+            cycling_area_p90_minutes: average(
+              rows
+                .map((row) => row.categories[item].cycling_area_p90_minutes)
+                .filter((value): value is number => value !== null),
+            ),
             covered_population: rows.reduce(
               (sum, row) => sum + row.categories[item].covered_population,
               0,
             ),
             inclusive_covered_population: rows.reduce(
               (sum, row) => sum + row.categories[item].inclusive_covered_population,
+              0,
+            ),
+            cycling_covered_population: rows.reduce(
+              (sum, row) => sum + row.categories[item].cycling_covered_population,
               0,
             ),
             service_count: data?.summary?.category_totals?.[item] ?? 0,
@@ -255,6 +333,24 @@ export default function AccessibilityPage() {
     data?.services?.find(
       (service: AccessibilityService) => service.id === selectedServiceId,
     ) ?? null;
+  const serviceSubtypeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          ((data?.services ?? []) as AccessibilityService[])
+            .filter(
+              (service) => category === "all" || service.category === category,
+            )
+            .map((service) => service.subtype),
+        ),
+      ).sort((a, b) =>
+        (ACCESSIBILITY_SUBTYPE_LABELS[a] ?? a).localeCompare(
+          ACCESSIBILITY_SUBTYPE_LABELS[b] ?? b,
+          "th",
+        ),
+      ),
+    [category, data?.services],
+  );
   const searchResults = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("th");
     if (term.length < 2) return [];
@@ -290,9 +386,23 @@ export default function AccessibilityPage() {
         })),
     [basis, metric, rows, scenario],
   );
+  const displayRankById = useMemo(
+    () =>
+      new Map(
+        [...rows]
+          .sort(
+            (a, b) =>
+              accessibilityValue(b, metric, basis, scenario) -
+              accessibilityValue(a, metric, basis, scenario),
+          )
+          .map((row, index) => [row.district_id, index + 1]),
+      ),
+    [basis, metric, rows, scenario],
+  );
 
   function selectCategory(next: AccessibilityCategory | "all") {
     setCategory(next);
+    setServiceSubtype("all");
     if (next !== "all") setMetric(next);
   }
 
@@ -329,7 +439,7 @@ export default function AccessibilityPage() {
         <div>
           <h1 className="text-base font-black">การเข้าถึงบริการเมือง · 15-Minute City</h1>
           <p className="text-[10px] text-slate-500">
-            ประเมินทั้งประชากรและพื้นที่ · 5 หมวดบริการ · ครบ 50 เขต
+            ประชากร/พื้นที่ · เดิน/จักรยาน · 5 หมวดบริการ · 50 เขต
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -359,18 +469,18 @@ export default function AccessibilityPage() {
             ))}
           </div>
           <div className="flex rounded-lg border border-slate-700 bg-slate-900 p-0.5 text-[10px]">
-            {(["standard", "inclusive"] as AccessibilityScenario[]).map((item) => (
+            {SCENARIOS.map((item) => (
               <button
-                key={item}
+                key={item.value}
                 type="button"
-                onClick={() => setScenario(item)}
+                onClick={() => setScenario(item.value)}
                 className={`rounded-md px-2.5 py-1.5 font-bold ${
-                  scenario === item
+                  scenario === item.value
                     ? "bg-cyan-700 text-white"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                {item === "standard" ? "เดิน 5 กม./ชม." : "เดิน 4 กม./ชม."}
+                {item.shortLabel}
               </button>
             ))}
           </div>
@@ -419,11 +529,20 @@ export default function AccessibilityPage() {
               <h2 className="text-sm font-black">พื้นที่ใกล้บริการแค่ไหน</h2>
             </div>
             <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
-              ประเมินจากจุดตัวอย่างทุก 250 เมตร ระยะตรงคูณ detour factor 1.25 และเวลาเดิน
-              ตาม scenario ที่เลือก เกณฑ์ 15 นาที ผลนี้เป็น proximity screening
-              ไม่ใช่เวลาเดินจากโครงข่ายทางเท้าจริง
+              ประเมินจากจุดตัวอย่างทุก 250 เมตร ด้วยความเร็วและ detour factor
+              ตามวิธีเดินทางที่เลือก เกณฑ์ 15 นาที ผลนี้เป็น proximity screening
+              ไม่ใช่เวลาเดินทางจากโครงข่ายจริง
             </p>
           </div>
+          {(category === "transit" || metric === "transit") && (
+            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[10px] leading-5 text-amber-100">
+              <strong>หมวดขนส่ง = ถึงจุดขึ้นรถ/เรือภายใน 15 นาที</strong>
+              <div className="mt-1 text-amber-200/70">
+                ยังไม่ใช่เวลานั่งรถไปถึงปลายทาง เพราะไม่มีตารางเวลา เส้นทาง
+                เวลารอ และการเปลี่ยนสายครบระบบ
+              </div>
+            </div>
+          )}
 
           <div className="relative mt-4">
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-600" />
@@ -461,6 +580,7 @@ export default function AccessibilityPage() {
                         setActiveDistrictId(result.service.district_id);
                         setSelectedServiceId(result.service.id);
                         setCategory(result.service.category);
+                        setServiceSubtype(result.service.subtype);
                         setShowServices(true);
                       }
                       setSearch("");
@@ -481,7 +601,7 @@ export default function AccessibilityPage() {
                       </span>
                       <span className="block truncate text-[9px] text-slate-500">
                         {result.type === "district"
-                          ? `อันดับ ${result.row.rank}/50`
+                          ? `อันดับ ${displayRankById.get(result.row.district_id)}/50`
                           : `${ACCESSIBILITY_LABELS[result.service.category]} · เขต${result.service.district_name ?? "ไม่ทราบ"}`}
                       </span>
                     </span>
@@ -535,7 +655,9 @@ export default function AccessibilityPage() {
                 )}%
               </div>
               <div className="text-[9px] text-slate-500">
-                {activeDistrictId ? `อันดับ ${selected?.rank}/50` : "ค่าเฉลี่ยรายเขต"}
+                {activeDistrictId
+                  ? `อันดับ ${displayRankById.get(activeDistrictId)}/50`
+                  : "ค่าเฉลี่ยรายเขต"}
               </div>
             </div>
           </div>
@@ -565,9 +687,17 @@ export default function AccessibilityPage() {
                   <div className="mt-1 flex justify-between text-[9px] text-slate-500">
                     <span>
                       มัธยฐาน {formatNumber(
-                        basis === "population"
-                          ? categoryMetric?.median_minutes
-                          : categoryMetric?.area_median_minutes,
+                        scenario === "cycling"
+                          ? basis === "population"
+                            ? categoryMetric?.cycling_median_minutes
+                            : categoryMetric?.cycling_area_median_minutes
+                          : scenario === "inclusive"
+                            ? basis === "population"
+                              ? categoryMetric?.inclusive_median_minutes
+                              : categoryMetric?.inclusive_area_median_minutes
+                          : basis === "population"
+                            ? categoryMetric?.median_minutes
+                            : categoryMetric?.area_median_minutes,
                       )} นาที
                     </span>
                     <span>
@@ -589,6 +719,25 @@ export default function AccessibilityPage() {
             />
             แสดงจุดบริการบนแผนที่
           </label>
+          {showServices && (
+            <>
+              <label className="mt-3 block text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                ประเภทจุดบริการ
+              </label>
+              <select
+                value={serviceSubtype}
+                onChange={(event) => setServiceSubtype(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs"
+              >
+                <option value="all">ทุกประเภทที่เลือก</option>
+                {serviceSubtypeOptions.map((subtype) => (
+                  <option key={subtype} value={subtype}>
+                    {ACCESSIBILITY_SUBTYPE_LABELS[subtype] ?? subtype}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </aside>
 
         <main className="min-w-0 flex-1 overflow-auto">
@@ -602,6 +751,7 @@ export default function AccessibilityPage() {
                 basis={basis}
                 scenario={scenario}
                 category={category}
+                serviceSubtype={serviceSubtype}
                 activeDistrictId={activeDistrictId}
                 selectedServiceId={selectedServiceId}
                 showServices={showServices}
@@ -631,7 +781,9 @@ export default function AccessibilityPage() {
                     {selectedService.district_name ?? "ไม่ทราบ"}
                   </div>
                   <div className="mt-3 border-t border-slate-800 pt-3 text-[10px] leading-5 text-slate-400">
-                    <div>ประเภทข้อมูล: {selectedService.subtype}</div>
+                    <div>
+                      ประเภทข้อมูล: {ACCESSIBILITY_SUBTYPE_LABELS[selectedService.subtype] ?? selectedService.subtype}
+                    </div>
                     <div>แหล่งข้อมูล: {selectedService.source}</div>
                     <div className="font-mono text-slate-600">
                       {selectedService.lat.toFixed(5)}, {selectedService.lng.toFixed(5)}
@@ -657,10 +809,12 @@ export default function AccessibilityPage() {
                   value={`${formatNumber(
                     scenario === "standard"
                       ? data.summary.average_accessibility_score
+                      : scenario === "cycling"
+                        ? data.summary.cycling_average_accessibility_score
                       : data.summary.inclusive_average_accessibility_score,
                   )}%`}
-                  note="ถ่วงด้วยประชากรทะเบียนระดับแขวง"
-                  icon={Database}
+                  note={`${SCENARIOS.find((item) => item.value === scenario)?.label} · ถ่วงประชากรระดับแขวง`}
+                  icon={scenario === "cycling" ? Bike : Database}
                   color="text-cyan-400"
                 />
                 <MetricCard
@@ -715,6 +869,9 @@ export default function AccessibilityPage() {
                         inclusive: selected
                           ? accessibilityValue(selected, item, basis, "inclusive")
                           : 0,
+                        cycling: selected
+                          ? accessibilityValue(selected, item, basis, "cycling")
+                          : 0,
                       }))}
                       margin={{ top: 20 }}
                     >
@@ -725,6 +882,7 @@ export default function AccessibilityPage() {
                       <Legend />
                       <Bar dataKey="standard" name="เดิน 5 กม./ชม." fill="#10b981" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="inclusive" name="เดิน 4 กม./ชม." fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="cycling" name="จักรยาน 15 กม./ชม." fill="#a78bfa" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -771,7 +929,7 @@ export default function AccessibilityPage() {
                         }}
                         className="cursor-pointer border-t border-slate-800 bg-slate-950/40 hover:bg-slate-900"
                       >
-                        <td className="px-3 py-3 font-bold">เขต{row.district_name}<span className="ml-2 text-[9px] text-slate-600">#{row.rank}</span></td>
+                        <td className="px-3 py-3 font-bold">เขต{row.district_name}<span className="ml-2 text-[9px] text-slate-600">#{displayRankById.get(row.district_id)}</span></td>
                         <td
                           className="px-3 py-3 font-black"
                           style={{
@@ -833,7 +991,8 @@ export default function AccessibilityPage() {
                 <p className="mt-3 text-sm leading-7 text-slate-300">
                   มุมมองประชากรแสดงสัดส่วนประชากรโดยประมาณที่อยู่ใกล้บริการภายในเวลาเทียบเท่า
                   15 นาที โดยกระจายประชากรทะเบียนสม่ำเสมอในจุดตัวอย่างของแต่ละแขวง
-                  ส่วนมุมมองพื้นที่ให้น้ำหนักทุกจุดเท่ากัน ทั้งสองแบบไม่ใช่เวลาเดินจาก routing engine
+                  ส่วนมุมมองพื้นที่ให้น้ำหนักทุกจุดเท่ากัน เลือกได้ทั้งเดินมาตรฐาน เดินช้า
+                  และจักรยาน ทั้งหมดไม่ใช่เวลาเดินทางจาก routing engine
                   และเหมาะสำหรับคัดกรองพื้นที่เพื่อตรวจภาคสนามต่อ
                 </p>
               </section>
@@ -844,9 +1003,9 @@ export default function AccessibilityPage() {
                   <ol className="mt-3 space-y-2 text-xs leading-6 text-slate-400">
                     <li>1. ตรวจพิกัดให้อยู่ในกรุงเทพฯ และ spatial join กับขอบเขต 50 เขต</li>
                     <li>2. สร้างจุดตารางทุก 250 เมตรภายในแต่ละเขต รวม {data.summary.sample_count.toLocaleString("th-TH")} จุด</li>
-                    <li>3. หาบริการที่ใกล้ที่สุดในแต่ละหมวดด้วยระยะ geodesic</li>
-                    <li>4. คูณ route-detour factor 1.25 เพื่อประมาณความคดเคี้ยวของเส้นทาง</li>
-                    <li>5. แปลงเป็นเวลาเดิน 5 กม./ชม. และ sensitivity test ที่ 4 กม./ชม.</li>
+                    <li>3. หาบริการที่ใกล้ที่สุดด้วยระยะตรงแบบ local equirectangular สำหรับขอบเขตกรุงเทพฯ</li>
+                    <li>4. ใช้ detour factor 1.25 สำหรับเดิน และ 1.30 สำหรับจักรยาน</li>
+                    <li>5. คำนวณเดิน 5 กม./ชม., เดินช้า 4 กม./ชม. และจักรยาน 15 กม./ชม. พร้อมเผื่อ 2 นาทีสำหรับนำรถออก/จอด</li>
                     <li>6. กระจายประชากรทะเบียนปี {data.metadata.population_year} ของแต่ละแขวงให้จุดในแขวงเป็นน้ำหนัก</li>
                     <li>7. ค่าการเข้าถึงเฉลี่ยคือ coverage ของ 5 หมวดโดยให้น้ำหนักแต่ละหมวดเท่ากัน</li>
                   </ol>
@@ -855,10 +1014,13 @@ export default function AccessibilityPage() {
                   <h3 className="font-black">ข้อจำกัดสำคัญ</h3>
                   <ul className="mt-3 space-y-2 text-xs leading-6 text-slate-400">
                     <li>• ยังไม่รวมโครงข่ายทางเท้า สะพาน ทางเข้า และเวลารอสัญญาณ</li>
+                    <li>• จักรยานยังไม่รวมความต่อเนื่องของทางจักรยาน ความชัน จุดห้ามผ่าน และความปลอดภัยบนถนน</li>
                     <li>• น้ำหนักประชากรยังสมมติว่ากระจายสม่ำเสมอภายในแขวง ไม่ใช่ตำแหน่งที่พักอาศัยจริงรายกริด</li>
                     <li>• การมีสถานที่ไม่ได้ยืนยันกำลังรองรับ คุณภาพ ค่าใช้จ่าย หรือเวลาเปิด</li>
                     <li>• ตลาดใช้เป็นตัวแทนการเข้าถึงอาหาร ไม่ครอบคลุมร้านค้าปลีกทั้งหมด</li>
-                    <li>• ขนส่งสาธารณะยังครอบคลุมเฉพาะ BTS/MRT และสุขภาพยังครอบคลุมเฉพาะศูนย์บริการสาธารณสุข กทม.</li>
+                    <li>• หมวดขนส่งหมายถึงการเข้าถึงจุดขึ้น BTS, MRT, BRT, รถเมล์ และเรือ ไม่ใช่เวลานั่งรถไปถึงปลายทาง</li>
+                    <li>• ยังไม่มี GTFS ตารางเวลาและเส้นทางครบระบบ จึงไม่คำนวณเวลารอ เปลี่ยนสาย และเวลาอยู่บนรถ</li>
+                    <li>• สุขภาพยังครอบคลุมเฉพาะศูนย์บริการสาธารณสุข กทม.</li>
                     <li>• การเดินในอากาศร้อน ฝนตก หรือสำหรับผู้พิการอาจใช้เวลามากกว่าเกณฑ์</li>
                   </ul>
                 </section>
@@ -889,8 +1051,9 @@ export default function AccessibilityPage() {
                 <p className="mt-2">
                   แนวคิด 15-Minute City เน้น proximity, diversity, density และ ubiquity
                   ส่วน UN-Habitat แนะนำให้ประเมินการเข้าถึงพื้นที่สาธารณะผ่านโครงข่ายถนน
-                  ระบบนี้ใช้วิธี proximity screening เนื่องจากข้อมูลโครงข่ายทางเท้าที่ตรวจสอบแล้ว
-                  ยังไม่ครบทั้งกรุงเทพฯ จึงแสดงข้อจำกัดและ sensitivity scenario แทนการอ้างว่าเป็นเวลาเดินจริง
+                  ระบบนี้ใช้วิธี proximity screening เนื่องจากโครงข่ายทางเท้า ทางจักรยาน
+                  และ GTFS ที่ตรวจสอบแล้ว ยังไม่ครบทั้งกรุงเทพฯ จึงแสดงข้อจำกัดและ sensitivity
+                  scenario แทนการอ้างว่าเป็นเวลาเดินทางจริง
                 </p>
                 <div className="mt-3 flex flex-wrap gap-3">
                   <a
