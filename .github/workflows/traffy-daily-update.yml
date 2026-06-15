@@ -6,10 +6,14 @@ on:
     - cron: '0 1 * * *'
   workflow_dispatch:
     inputs:
-      count:
-        description: 'Number of records to fetch (default 15000)'
+      new_count:
+        description: 'Newest records to refresh (default 5000)'
         required: false
-        default: '15000'
+        default: '5000'
+      deep_count:
+        description: 'Records in the rotating deep scan (default 10000)'
+        required: false
+        default: '10000'
 
 jobs:
   update:
@@ -42,4 +46,7 @@ jobs:
           BQ_PROJECT_ID: ${{ secrets.BQ_PROJECT_ID }}
           BQ_DATASET: ${{ secrets.BQ_DATASET }}
           BQ_CREDENTIALS: ${{ secrets.BQ_CREDENTIALS }}
-        run: node scripts/update-traffy-bq.mjs --count ${{ github.event.inputs.count || '15000' }}
+        run: >-
+          node scripts/update-traffy-bq.mjs
+          --new ${{ github.event.inputs.new_count || '5000' }}
+          --deep ${{ github.event.inputs.deep_count || '10000' }}

@@ -111,7 +111,7 @@ npm install
 npm run dev
 ```
 
-เปิดหน้า `/green-space` เพื่อดู dashboard พื้นที่สีเขียว, layer selector, KPI cards, ranking เขต NDVI ต่ำ และ trend รายปี
+เปิดหน้า `/green-space` เพื่อดู dashboard Tree Cover จาก Google Dynamic World V1 แสดงสัดส่วนและพื้นที่เรือนยอดไม้รายเขต การเพิ่ม/สูญเสียเทียบปีฐาน confidence และ spatial coverage
 
 ## Limitations
 

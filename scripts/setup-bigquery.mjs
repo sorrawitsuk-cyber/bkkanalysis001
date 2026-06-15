@@ -40,6 +40,7 @@ const SCHEMA = [
   { name: 'photo_url',      type: 'STRING',    mode: 'NULLABLE' },
   { name: 'org',            type: 'STRING',    mode: 'NULLABLE' },
   { name: 'created_at',     type: 'TIMESTAMP', mode: 'NULLABLE' },
+  { name: 'ingested_at',    type: 'TIMESTAMP', mode: 'NULLABLE' },
 ];
 
 // 1. Create dataset (if not exists)
@@ -86,7 +87,7 @@ const viewQuery = `
     SELECT *,
       ROW_NUMBER() OVER (
         PARTITION BY ticket_id
-        ORDER BY COALESCE(ingested_at, created_at) DESC
+        ORDER BY COALESCE(ingested_at, created_at) DESC, created_at DESC
       ) AS rn
     FROM \`${PROJECT_ID}.${DATASET_ID}.traffy_complaints\`
   )

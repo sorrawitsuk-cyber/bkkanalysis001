@@ -50,6 +50,11 @@ const DEEP_COUNT = flag('--deep')  ?? 10_000;
 const DRY_RUN    = args.includes('--dry-run');
 const BATCH      = 500;
 
+if (!Number.isInteger(NEW_COUNT) || NEW_COUNT < 0 || !Number.isInteger(DEEP_COUNT) || DEEP_COUNT <= 0) {
+  console.error('Invalid --new or --deep value');
+  process.exit(1);
+}
+
 const TRAFFY_API = 'https://publicapi.traffy.in.th/share/teamchadchart/search';
 
 // ── Rotating offset: deterministic, stateless, no external state needed ───────
@@ -135,7 +140,7 @@ function transform(item, ingestedAt) {
 async function fetchWithRetry(url, retries = 4) {
   for (let i = 1; i <= retries; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
       if (res.ok) return res.json();
       throw new Error(`HTTP ${res.status}`);
     } catch (err) {
@@ -217,7 +222,7 @@ const { records: tier1 } = await fetchRange(0, NEW_COUNT, 'Tier1 new', ingestedA
 // Divide total records into chunks of DEEP_COUNT.
 // Each day advances one chunk. Cycle restarts after ~(total/DEEP_COUNT) days.
 // e.g. 1,300,000 / 10,000 = 130 days per full cycle → all records refreshed every 4 months.
-const totalChunks  = Math.ceil(apiTotal / DEEP_COUNT);
+const totalChunks  = Math.max(1, Math.ceil(apiTotal / DEEP_COUNT));
 const chunkIndex   = dayNum % totalChunks;
 const deepOffset   = chunkIndex * DEEP_COUNT;
 // Skip if deep window overlaps tier1 (both at offset 0-ish on day 0)
@@ -228,7 +233,14 @@ console.log(`   Cycle      : ${totalChunks} days per full pass (every record ref
 console.log(`   Today      : chunk ${chunkIndex + 1}/${totalChunks}  (offset ${deepStart.toLocaleString()})`);
 console.log('');
 
-const { records: tier2 } = await fetchRange(deepStart, DEEP_COUNT, 'Tier2 deep', ingestedAt);
+const deepCount = Math.max(0, Math.min(DEEP_COUNT, apiTotal - deepStart));
+let tier2 = [];
+try {
+  ({ records: tier2 } = await fetchRange(deepStart, deepCount, 'Tier2 deep', ingestedAt));
+} catch (error) {
+  console.warn(`\n  Tier 2 skipped: ${error.message}`);
+  console.warn('  Tier 1 will still be loaded so new complaints are not blocked by a deep-offset timeout.');
+}
 
 // ── Deduplicate within this batch (same ticket may appear in both tiers) ──────
 const seen = new Set();

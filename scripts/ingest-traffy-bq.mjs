@@ -6,28 +6,37 @@
  */
 
 import { BigQuery } from '@google-cloud/bigquery';
-import { readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { resolve } from 'path';
 import { tmpdir } from 'os';
 
 // ── Load .env.local ──────────────────────────────────────────────────────────
 const envVars = {};
-for (const line of readFileSync(resolve(process.cwd(), '.env.local'), 'utf-8').split('\n')) {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#')) continue;
-  const eq = trimmed.indexOf('=');
-  if (eq < 0) continue;
-  envVars[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+const envPath = resolve(process.cwd(), '.env.local');
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 0) continue;
+    envVars[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+  }
 }
 
-const PROJECT_ID  = envVars.BQ_PROJECT_ID;
-const DATASET_ID  = envVars.BQ_DATASET;
-const credentials = JSON.parse(envVars.BQ_CREDENTIALS);
+const PROJECT_ID  = process.env.BQ_PROJECT_ID || envVars.BQ_PROJECT_ID;
+const DATASET_ID  = process.env.BQ_DATASET || envVars.BQ_DATASET;
+const rawCreds    = process.env.BQ_CREDENTIALS || envVars.BQ_CREDENTIALS || '{}';
+const credentials = JSON.parse(rawCreds);
+
+if (!PROJECT_ID || !DATASET_ID || !credentials.client_email) {
+  console.error('Missing BQ_PROJECT_ID, BQ_DATASET, or valid BQ_CREDENTIALS');
+  process.exit(1);
+}
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const TRAFFY_API    = 'https://publicapi.traffy.in.th/share/teamchadchart/search';
-const FETCH_BATCH   = 500;    // records per Traffy API call
-const LOAD_EVERY    = 5000;   // flush to BigQuery every N records
+const FETCH_BATCH   = 100;    // records per Traffy API call (small batch for deep offsets)
+const LOAD_EVERY    = 2000;   // flush to BigQuery every N records
 const MAX_RETRIES   = 8;
 
 // ── District / classification helpers ────────────────────────────────────────
@@ -75,7 +84,7 @@ function classifyProblem(desc) {
   for (const [c, kws] of PROBLEM_KEYWORDS) { for (const k of kws) { if (desc.includes(k)) return c; } }
   return 'อื่นๆ';
 }
-function transform(item) {
+function transform(item, ingestedAt) {
   let lon = null, lat = null;
   if (Array.isArray(item.coords) && item.coords.length === 2) {
     let c0 = parseFloat(item.coords[0]), c1 = parseFloat(item.coords[1]);
@@ -99,6 +108,7 @@ function transform(item) {
     photo_url:      item.photo_url || null,
     org:            item.org || null,
     created_at:     item.timestamp ? new Date(item.timestamp).toISOString() : null,
+    ingested_at:    ingestedAt,
   };
 }
 
@@ -119,7 +129,7 @@ function fmtEta(rem, rps) {
 async function fetchWithRetry(url) {
   for (let i = 1; i <= MAX_RETRIES; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
       if (res.ok) return res.json();
       if (res.status < 500) throw new Error(`HTTP ${res.status} (fatal)`);
       throw new Error(`HTTP ${res.status}`);
@@ -177,6 +187,7 @@ let totalLoaded = 0;
 let batchNum    = 0;
 let buffer      = [];
 const startTime = Date.now();
+const ingestedAt = new Date().toISOString();
 
 console.log(`\n🚀 Traffy → BigQuery Load Jobs  (${PROJECT_ID}.${DATASET_ID}.traffy_complaints)`);
 console.log(`   fetch_batch=${FETCH_BATCH}, load_every=${LOAD_EVERY}, retry=${MAX_RETRIES}x`);
@@ -217,7 +228,7 @@ while (true) {
     break;
   }
 
-  buffer.push(...results.map(transform).filter(r => r.ticket_id));
+  buffer.push(...results.map(item => transform(item, ingestedAt)).filter(r => r.ticket_id));
   offset += results.length;
   batchNum++;
 

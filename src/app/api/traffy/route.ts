@@ -29,20 +29,15 @@ export async function GET(request: Request) {
     const bq      = new BigQuery({ projectId: process.env.BQ_PROJECT_ID, credentials });
     const project = process.env.BQ_PROJECT_ID;
     const dataset = process.env.BQ_DATASET;
-    const tbl     = `\`${project}.${dataset}.traffy_complaints\``;
+    const tbl     = `\`${project}.${dataset}.traffy_complaints_current\``;
 
     // base_filtered = district/category/group only (no date) → used for byMonth/byYear so the charts always
     // show the full timeline regardless of which month/year the user has selected.
     // filtered      = adds year + month on top → used for KPIs, maps, trend charts.
     const query = `
-      WITH deduped AS (
+      WITH base_filtered AS (
         SELECT *
         FROM ${tbl}
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY created_at DESC) = 1
-      ),
-      base_filtered AS (
-        SELECT *
-        FROM deduped
         WHERE (@district       IS NULL OR district       = @district)
           AND (@problem_type   IS NULL OR problem_type   = @problem_type)
           AND (@district_group IS NULL OR district_group = @district_group)
