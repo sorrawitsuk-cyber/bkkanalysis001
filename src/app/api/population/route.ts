@@ -9,6 +9,7 @@ import {
   type PopulationLevel,
   type PopulationRow,
 } from "@/lib/population";
+import { normalizePopulationExposure } from "@/lib/urban-impact";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +112,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const rows: PopulationRow[] = rawRows.map((item) => {
+  const baseRows = rawRows.map((item) => {
     const current = item.current;
     const changeAbs = item.previous ? current.population - item.previous.population : null;
     return {
@@ -135,7 +136,9 @@ export async function GET(request: Request) {
         : null,
       share_pct: selectedTotal > 0 ? round((current.population / selectedTotal) * 100, 3) : 0,
     };
-  }).sort((a, b) => b.population - a.population);
+  });
+  const rows: PopulationRow[] = normalizePopulationExposure(baseRows)
+    .sort((a, b) => b.population - a.population);
 
   const rowById = new Map(rows.map((row) => [row.id, row]));
   const baseFeatures = level === "district"
@@ -167,6 +170,7 @@ export async function GET(request: Request) {
     (a, b) => (b.change_pct ?? -Infinity) - (a.change_pct ?? -Infinity),
   );
   const densityRows = [...rows].sort((a, b) => b.density - a.density);
+  const exposureRows = [...rows].sort((a, b) => b.exposure_score - a.exposure_score);
 
   return NextResponse.json({
     year,
@@ -191,6 +195,7 @@ export async function GET(request: Request) {
       mostPopulous: rows[0]?.name ?? null,
       highestDensity: densityRows[0]?.name ?? null,
       fastestGrowing: growthRows[0]?.name ?? null,
+      highestExposure: exposureRows[0]?.name ?? null,
       source: populationData.metadata.population_source_th,
       sourceUrl: populationData.metadata.population_source_url,
       boundarySource: populationData.metadata.boundary_source,

@@ -2,7 +2,7 @@ export const POPULATION_MIN_YEAR = 2018;
 export const POPULATION_MAX_YEAR = 2025;
 
 export type PopulationLevel = "district" | "subdistrict";
-export type PopulationMetric = "population" | "density" | "change_pct" | "houses";
+export type PopulationMetric = "population" | "density" | "change_pct" | "houses" | "exposure_score";
 
 export interface PopulationRow {
   id: number;
@@ -22,6 +22,15 @@ export interface PopulationRow {
   change_abs: number | null;
   change_pct: number | null;
   share_pct: number;
+  exposure_score: number;
+  exposure_rank: number;
+  exposure_level: "สูงมาก" | "สูง" | "ปานกลาง" | "ต่ำ";
+  exposure_components: {
+    population: number;
+    density: number;
+    houses: number;
+    growth: number;
+  };
 }
 
 export interface PopulationResponse {
@@ -54,6 +63,7 @@ export interface PopulationResponse {
     mostPopulous: string | null;
     highestDensity: string | null;
     fastestGrowing: string | null;
+    highestExposure: string | null;
     source: string;
     sourceUrl: string;
     boundarySource: string;
@@ -87,6 +97,12 @@ export function populationColor(value: number | null, min: number, max: number, 
     if (value < 1) return "#facc15";
     if (value < 2) return "#34d399";
     return "#059669";
+  }
+  if (metric === "exposure_score") {
+    if (value >= 75) return "#be123c";
+    if (value >= 55) return "#ea580c";
+    if (value >= 35) return "#eab308";
+    return "#0891b2";
   }
   const ratio = max > min ? Math.max(0, Math.min(1, (value - min) / (max - min))) : 0.5;
   if (ratio >= 0.8) return "#312e81";

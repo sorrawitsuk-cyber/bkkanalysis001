@@ -35,6 +35,7 @@ const METRIC_LABELS: Record<PopulationMetric, string> = {
   density: "ความหนาแน่น",
   change_pct: "เปลี่ยนจากปีก่อน",
   houses: "จำนวนบ้าน",
+  exposure_score: "แรงกดดันประชากร",
 };
 
 export default function PopulationMap({
@@ -94,6 +95,7 @@ export default function PopulationMap({
                   <br/>เปลี่ยนจากปีก่อน: ${formatPopulationPercent(row.change_pct)}
                   <br/>ชาย ${formatPopulation(row.male)} · หญิง ${formatPopulation(row.female)}
                   <br/>บ้าน: ${formatPopulation(row.houses)} หลัง
+                  <br/>แรงกดดันประชากร: <strong>${row.exposure_score.toFixed(1)}/100</strong> (${row.exposure_level})
                 </div>
               `, { sticky: true });
               layer.on("click", () => onSelect(row));
@@ -110,9 +112,11 @@ export default function PopulationMap({
             <span className={`h-2 w-24 rounded ${
               metric === "change_pct"
                 ? "bg-gradient-to-r from-red-700 via-yellow-400 to-emerald-600"
+                : metric === "exposure_score"
+                  ? "bg-gradient-to-r from-cyan-600 via-yellow-400 to-rose-700"
                 : "bg-gradient-to-r from-indigo-200 via-indigo-500 to-indigo-950"
             }`} />
-            <span>{metric === "change_pct" ? "เพิ่มขึ้น" : "มาก"}</span>
+            <span>{metric === "change_pct" ? "เพิ่มขึ้น" : metric === "exposure_score" ? "แรงกดดันสูง" : "มาก"}</span>
           </div>
         </div>
       </div>

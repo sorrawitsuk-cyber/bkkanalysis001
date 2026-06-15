@@ -37,6 +37,7 @@ const METRICS: Array<{ value: PopulationMetric; label: string }> = [
   { value: "density", label: "ความหนาแน่น" },
   { value: "change_pct", label: "เปลี่ยนจากปีก่อน" },
   { value: "houses", label: "จำนวนบ้าน" },
+  { value: "exposure_score", label: "แรงกดดันประชากร" },
 ];
 
 const controlClass =
@@ -156,6 +157,8 @@ export default function PopulationSidebar({
                     <span className="text-[10px] font-bold tabular-nums text-indigo-300">
                       {metric === "change_pct"
                         ? formatPopulationPercent(row.change_pct)
+                        : metric === "exposure_score"
+                          ? `${row.exposure_score.toFixed(1)}/100`
                         : formatPopulation(Number(row[metric]))}
                     </span>
                   </button>

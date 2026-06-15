@@ -24,6 +24,10 @@ import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import UrbanImpactPanel from "@/components/analysis/UrbanImpactPanel";
+import type { PopulationResponse } from "@/lib/population";
+import type { RainfallResponse } from "@/lib/rainfall";
+import { buildUrbanImpactRows, type UrbanImpactRow } from "@/lib/urban-impact";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, ReferenceLine,
@@ -256,6 +260,8 @@ export default function FloodRiskPage() {
   const [cacheLayer, setCacheLayer] = useState<WaterCacheLayer>("ndwi_mean");
   const [cacheDataMissing, setCacheDataMissing] = useState(false);
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [impactRows, setImpactRows] = useState<UrbanImpactRow[]>([]);
+  const [impactLoading, setImpactLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -340,6 +346,68 @@ export default function FloodRiskPage() {
   }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear, cacheLayer]);
 
   useEffect(() => { fetchCacheIndex().then(setCacheIndex); }, []);
+
+  useEffect(() => {
+    if (!geojsonData?.features?.length) return;
+    const controller = new AbortController();
+    setImpactLoading(true);
+    const today = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const safeCurrentEnd = new Date(today.getTime() - 2 * 86400000).toISOString().slice(0, 10);
+    const monthEnd = selectedMonth
+      ? new Date(Date.UTC(selectedYear, selectedMonth, 0)).toISOString().slice(0, 10)
+      : null;
+    const requestedEnd = monthEnd ?? `${selectedYear}-12-31`;
+    const rainfallEnd = requestedEnd > safeCurrentEnd ? safeCurrentEnd : requestedEnd;
+    const rainfallDays = selectedMonth ? Math.min(30, new Date(Date.UTC(selectedYear, selectedMonth, 0)).getUTCDate()) : 30;
+
+    Promise.all([
+      fetch(`/api/rainfall?days=${rainfallDays}&end=${rainfallEnd}`, { signal: controller.signal })
+        .then((response) => response.ok ? response.json() as Promise<RainfallResponse> : null),
+      fetch(
+        `/api/flood-risk/traffy?year=${selectedYear}&recentDays=${rainfallDays}&referenceDate=${rainfallEnd}&pointLimit=0`,
+        { signal: controller.signal },
+      ).then((response) => response.ok ? response.json() : null),
+      fetch("/api/population?year=2025&level=district", { signal: controller.signal })
+        .then((response) => response.ok ? response.json() as Promise<PopulationResponse> : null),
+    ])
+      .then(([rainfallData, floodData, populationData]) => {
+        const rainfallByDistrict = new Map(
+          (rainfallData?.rows ?? []).map((row) => [row.district_name, row.rainfall_mm] as const),
+        );
+        const waterSignalByDistrict = new Map<string, number | null>(
+          (geojsonData.features as any[]).map((feature: any) => [
+            feature.properties.name_th,
+            typeof (feature.properties.seasonal_water_ratio ?? feature.properties.water_ratio) === "number"
+              ? (feature.properties.seasonal_water_ratio ?? feature.properties.water_ratio) * 100
+              : null,
+          ]),
+        );
+        const floodReportsByDistrict = new Map<string, { recent: number; unresolved: number }>(
+          (floodData?.summary?.byDistrict ?? []).map((row: any) => [
+            row.district,
+            { recent: Number(row.recent ?? 0), unresolved: Number(row.unresolved ?? 0) },
+          ]),
+        );
+        const populationByDistrict = new Map(
+          (populationData?.rows ?? []).map((row) => [
+            row.district_name,
+            { population: row.population, density: row.density },
+          ] as const),
+        );
+        setImpactRows(buildUrbanImpactRows({
+          districts: (geojsonData.features as any[]).map((feature: any) => feature.properties.name_th),
+          rainfallByDistrict,
+          waterSignalByDistrict,
+          floodReportsByDistrict,
+          populationByDistrict,
+        }));
+      })
+      .catch((reason) => {
+        if (reason.name !== "AbortError") setImpactRows([]);
+      })
+      .finally(() => setImpactLoading(false));
+    return () => controller.abort();
+  }, [geojsonData, selectedMonth, selectedYear]);
 
   useEffect(() => {
     if (!cacheIndex?.yearly?.length) return;
@@ -541,6 +609,10 @@ export default function FloodRiskPage() {
       value: typeof val === "number" ? +val.toFixed(4) : null,
     }));
   }, [summary?.yearlyTrend]);
+  const impactByDistrict = useMemo(
+    () => new Map(impactRows.map((row) => [row.district, row])),
+    [impactRows],
+  );
 
   // Table columns — comprehensive
   const tableColumns: ColDef[] = [
@@ -552,6 +624,10 @@ export default function FloodRiskPage() {
     { key: "ndwi_max",  label: "NDWI max",  format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#0284c7", hideable: true },
     { key: "mndwi_mean",label: "MNDWI mean",format: (v) => v != null ? Number(v).toFixed(4) : "–", heatmap: true, heatmapHex: "#7c3aed", hideable: true },
     { key: "district_area_rai", label: "พื้นที่เขต", unit: "ไร่", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
+    { key: "rainfall_mm", label: "ฝนสะสม 30 วัน", unit: "มม.", format: (v) => v != null ? Number(v).toFixed(1) : "–", heatmap: true, heatmapHex: "#06b6d4" },
+    { key: "flood_reports", label: "ร้องเรียนน้ำท่วม", unit: "เรื่อง", format: (v) => v != null ? Number(v).toLocaleString() : "–", heatmap: true, heatmapHex: "#f97316" },
+    { key: "population", label: "ประชากร", unit: "คน", format: (v) => v != null ? Number(v).toLocaleString() : "–", hideable: true },
+    { key: "impact_score", label: "คะแนนคัดกรองผลกระทบ", unit: "/100", format: (v) => v != null ? Number(v).toFixed(1) : "–", heatmap: true, heatmapHex: "#e11d48" },
     ...(compareMode ? [
       { key: "delta", label: `Δ ${WATER_LAYER_LABELS[cacheLayer]}`, format: (v: any) => v != null ? `${v > 0 ? "+" : ""}${Number(v).toFixed(4)}` : "–", heatmap: true, heatmapHex: "#f59e0b" } as ColDef,
     ] : []),
@@ -976,6 +1052,22 @@ export default function FloodRiskPage() {
                   ))}
                 </div>
 
+                <div className="p-4">
+                  {impactLoading ? (
+                    <div className="flex h-28 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/45 text-xs text-slate-500">
+                      กำลังเชื่อมสัญญาณน้ำกับฝน เหตุร้องเรียน และประชากร
+                    </div>
+                  ) : (
+                    <UrbanImpactPanel
+                      rows={impactRows}
+                      activeDistrict={activeDistrict}
+                      onDistrictSelect={setActiveDistrict}
+                      title="ลำดับพื้นที่สำหรับตรวจสอบภาคสนาม"
+                      description="ประกอบสัญญาณน้ำจากดาวเทียม ฝน 30 วัน เหตุร้องเรียนช่วงเดียวกัน และประชากรทะเบียนปี 2568"
+                    />
+                  )}
+                </div>
+
                 {/* ── Main section: bar chart + right column ─────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] border-b border-slate-800/60">
 
@@ -1209,6 +1301,12 @@ export default function FloodRiskPage() {
                 : displayGeoJson?.features) ?? []}
               columns={tableColumns}
               getRowData={(props) => ({
+                ...(impactByDistrict.get(props.name_th) ? {
+                  rainfall_mm: impactByDistrict.get(props.name_th)?.rainfallMm,
+                  flood_reports: impactByDistrict.get(props.name_th)?.floodReports,
+                  population: impactByDistrict.get(props.name_th)?.population,
+                  impact_score: impactByDistrict.get(props.name_th)?.score,
+                } : {}),
                 name: props.name_th,
                 district: props.district_name ?? null,
                 water_ratio: props.water_ratio ?? null,

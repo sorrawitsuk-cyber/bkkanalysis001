@@ -13,6 +13,7 @@ import {
   TrendingUp,
   UserRound,
   Users,
+  ShieldAlert,
 } from "lucide-react";
 import {
   Bar,
@@ -53,6 +54,7 @@ const METRICS: Array<{ value: PopulationMetric; label: string }> = [
   { value: "density", label: "ความหนาแน่น" },
   { value: "change_pct", label: "เปลี่ยนจากปีก่อน" },
   { value: "houses", label: "จำนวนบ้าน" },
+  { value: "exposure_score", label: "แรงกดดันประชากร" },
 ];
 
 const TABLE_COLUMNS: ColDef[] = [
@@ -67,6 +69,8 @@ const TABLE_COLUMNS: ColDef[] = [
   { key: "people_per_house", label: "คนต่อบ้าน", format: (value) => Number(value).toLocaleString("th-TH", { maximumFractionDigits: 2 }), hideable: true },
   { key: "area_km2", label: "พื้นที่", unit: "ตร.กม.", format: (value) => Number(value).toLocaleString("th-TH", { maximumFractionDigits: 3 }), hideable: true },
   { key: "share_pct", label: "สัดส่วน กทม.", unit: "%", format: (value) => `${Number(value).toFixed(2)}%`, hideable: true },
+  { key: "exposure_score", label: "แรงกดดันประชากร", unit: "/100", format: (value) => Number(value).toFixed(1), heatmap: true, heatmapHex: "#e11d48" },
+  { key: "exposure_level", label: "ระดับแรงกดดัน", sortable: true, hideable: true },
 ];
 
 function MetricCard({
@@ -181,6 +185,10 @@ export default function PopulationPage() {
   const displayFemaleSharePct = selected
     ? (selected.female / selected.population) * 100
     : filteredSummary?.femaleSharePct ?? data?.summary.femaleSharePct ?? 0;
+  const displayExposure = selected?.exposure_score
+    ?? (rows.length
+      ? rows.reduce((sum, row) => sum + row.exposure_score, 0) / rows.length
+      : 0);
   const displayAreaName = selected?.name ?? (filteredSummary ? `เขต${districtFilter}` : `กรุงเทพมหานคร ปี ${year + 543}`);
   const ranked = [...rows].sort((a, b) => {
     const av = a[metric] ?? -Infinity;
@@ -190,6 +198,10 @@ export default function PopulationPage() {
   const metricValues = ranked.map((row) => Number(row[metric] ?? 0));
   const metricMin = Math.min(...metricValues, 0);
   const metricMax = Math.max(...metricValues, 1);
+  const exposureRanking = useMemo(
+    () => [...rows].sort((a, b) => b.exposure_score - a.exposure_score).slice(0, 10),
+    [rows],
+  );
 
   const selectRow = (row: PopulationRow) => setActiveId(row.id);
   const rowData = (properties: any) => ({
@@ -204,6 +216,8 @@ export default function PopulationPage() {
     people_per_house: properties.people_per_house,
     area_km2: properties.area_km2,
     share_pct: properties.share_pct,
+    exposure_score: properties.exposure_score,
+    exposure_level: properties.exposure_level,
   });
 
   return (
@@ -298,12 +312,13 @@ export default function PopulationPage() {
         )}
         {!loading && data && (
           <>
-            <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
+            <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
               <MetricCard icon={Users} label="ประชากรรวม" value={`${formatPopulation(displayPopulation)} คน`} note={displayAreaName} color="text-indigo-300" />
               <MetricCard icon={(displayChangePct ?? 0) >= 0 ? TrendingUp : TrendingDown} label="เปลี่ยนจากปีก่อน" value={formatPopulationPercent(displayChangePct)} note={data.previousYear ? `เทียบปี ${data.previousYear + 543}` : "ปีแรกของชุดข้อมูล"} color={(displayChangePct ?? 0) >= 0 ? "text-emerald-300" : "text-orange-300"} />
               <MetricCard icon={MapPin} label="ความหนาแน่น" value={formatPopulation(displayDensity)} note="คนต่อตารางกิโลเมตร" color="text-violet-300" />
               <MetricCard icon={Building} label="จำนวนบ้าน" value={`${formatPopulation(displayHouses)} หลัง`} note={`${displayPeoplePerHouse?.toLocaleString("th-TH", { maximumFractionDigits: 2 }) ?? "-"} คน/บ้าน`} color="text-cyan-300" />
               <MetricCard icon={UserRound} label="สัดส่วนหญิง" value={`${displayFemaleSharePct.toFixed(1)}%`} note="จากประชากรทะเบียนราษฎร" color="text-pink-300" />
+              <MetricCard icon={ShieldAlert} label="แรงกดดันประชากร" value={`${displayExposure.toFixed(1)}/100`} note="คน 35% · หนาแน่น 35% · บ้าน 20% · เติบโต 10%" color="text-rose-300" />
             </div>
 
             {view === "map" && (
@@ -315,8 +330,9 @@ export default function PopulationPage() {
             )}
 
             {view === "stats" && (
-              <div className="grid gap-3 lg:grid-cols-2">
-                <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <div className="space-y-3">
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <h2 className="text-xs font-bold">แนวโน้มประชากรกรุงเทพมหานคร</h2>
                   <p className="mt-1 text-[10px] text-slate-500">ทะเบียนราษฎร ณ เดือนธันวาคมของแต่ละปี</p>
                   <div className="mt-4 h-[320px]">
@@ -330,8 +346,8 @@ export default function PopulationPage() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                </section>
-                <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  </section>
+                  <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <h2 className="text-xs font-bold">15 อันดับตามตัวชี้วัดที่เลือก</h2>
                   <p className="mt-1 text-[10px] text-slate-500">{METRICS.find((item) => item.value === metric)?.label} · ปี {year + 543}</p>
                   <div className="mt-4 h-[320px]">
@@ -340,12 +356,73 @@ export default function PopulationPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
                         <XAxis type="number" tick={{ fill: "#64748b", fontSize: 9 }} />
                         <YAxis type="category" dataKey="name" width={90} tick={{ fill: "#94a3b8", fontSize: 9 }} />
-                        <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} formatter={(value: any) => [metric === "change_pct" ? formatPopulationPercent(Number(value)) : formatPopulation(Number(value)), "ค่า"]} />
+                        <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} formatter={(value: any) => [metric === "change_pct" ? formatPopulationPercent(Number(value)) : metric === "exposure_score" ? `${Number(value).toFixed(1)}/100` : formatPopulation(Number(value)), "ค่า"]} />
                         <Bar dataKey={metric} radius={[0, 4, 4, 0]}>
                           {ranked.map((row) => <Cell key={row.id} fill={populationColor(Number(row[metric] ?? 0), metricMin, metricMax, metric)} />)}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
+                  </div>
+                  </section>
+                </div>
+
+                <section className="rounded-xl border border-slate-800 bg-slate-900/60">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 px-4 py-3">
+                    <div>
+                      <h2 className="flex items-center gap-2 text-sm font-black">
+                        <ShieldAlert className="h-4 w-4 text-rose-300" />
+                        แรงกดดันประชากรสำหรับประกอบการวางแผน
+                      </h2>
+                      <p className="mt-1 text-[10px] leading-5 text-slate-500">
+                        คะแนนสัมพัทธ์ภายในระดับพื้นที่และปีที่เลือก ใช้จำนวนประชากร 35% ความหนาแน่น 35% บ้าน 20% และการเติบโตทางบวก 10%
+                      </p>
+                    </div>
+                    <span className="rounded-lg border border-amber-700/40 bg-amber-950/25 px-2.5 py-1.5 text-[9px] text-amber-300">
+                      ไม่ใช่ดัชนีความเปราะบาง
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-left text-[11px]">
+                      <thead className="bg-slate-950/45 text-[9px] text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">อันดับ</th>
+                          <th className="px-4 py-3">พื้นที่</th>
+                          <th className="px-4 py-3">คะแนน</th>
+                          <th className="px-4 py-3">ประชากร</th>
+                          <th className="px-4 py-3">ความหนาแน่น</th>
+                          <th className="px-4 py-3">บ้าน</th>
+                          <th className="px-4 py-3">เปลี่ยนจากปีก่อน</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {exposureRanking.map((row, index) => (
+                          <tr
+                            key={`exposure-${row.id}`}
+                            onClick={() => {
+                              setActiveId(row.id);
+                              setMetric("exposure_score");
+                              setView("map");
+                            }}
+                            className="cursor-pointer border-t border-slate-800 transition-colors hover:bg-slate-800/35"
+                          >
+                            <td className="px-4 py-3 text-slate-600">{index + 1}</td>
+                            <td className="px-4 py-3 font-bold text-slate-200">{row.name}</td>
+                            <td className="px-4 py-3">
+                              <span className={`font-black tabular-nums ${
+                                row.exposure_score >= 75 ? "text-rose-300" : row.exposure_score >= 55 ? "text-orange-300" : "text-cyan-300"
+                              }`}>
+                                {row.exposure_score.toFixed(1)}/100
+                              </span>
+                              <span className="ml-2 text-[9px] text-slate-500">{row.exposure_level}</span>
+                            </td>
+                            <td className="px-4 py-3 tabular-nums text-slate-300">{formatPopulation(row.population)} คน</td>
+                            <td className="px-4 py-3 tabular-nums text-slate-300">{formatPopulation(row.density)} คน/ตร.กม.</td>
+                            <td className="px-4 py-3 tabular-nums text-slate-300">{formatPopulation(row.houses)} หลัง</td>
+                            <td className="px-4 py-3 tabular-nums text-slate-300">{formatPopulationPercent(row.change_pct)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </section>
               </div>
@@ -380,6 +457,7 @@ export default function PopulationPage() {
                   `พื้นที่ประชากรมากที่สุด: ${data.summary.mostPopulous ?? "ไม่มีข้อมูล"}`,
                   `พื้นที่ความหนาแน่นสูงสุด: ${data.summary.highestDensity ?? "ไม่มีข้อมูล"}`,
                   `พื้นที่เติบโตเร็วสุดจากปีก่อน: ${data.summary.fastestGrowing ?? "ไม่มีข้อมูล"}`,
+                  `พื้นที่แรงกดดันประชากรสูงสุด: ${data.summary.highestExposure ?? "ไม่มีข้อมูล"} คะแนนนี้ใช้จำนวนคน ความหนาแน่น บ้าน และการเติบโต ไม่ใช่ดัชนีความเปราะบาง`,
                 ]}
               />
             )}

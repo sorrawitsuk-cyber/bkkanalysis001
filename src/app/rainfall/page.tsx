@@ -40,6 +40,9 @@ import {
   type RainfallResponse,
   type RainfallWindow,
 } from "@/lib/rainfall";
+import type { PopulationResponse } from "@/lib/population";
+import { buildUrbanImpactRows, type UrbanImpactRow } from "@/lib/urban-impact";
+import UrbanImpactPanel from "@/components/analysis/UrbanImpactPanel";
 
 const RainfallMapView = dynamic(() => import("@/components/map/RainfallMapView"), {
   ssr: false,
@@ -75,6 +78,9 @@ const TABLE_COLUMNS: ColDef[] = [
   { key: "previous_mm", label: "ช่วงเดียวกันปีก่อน", unit: "มม.", sortable: true },
   { key: "change_mm", label: "เปลี่ยนแปลง", unit: "มม.", sortable: true },
   { key: "change_pct", label: "เปลี่ยนแปลง", unit: "%", sortable: true },
+  { key: "flood_reports", label: "ร้องเรียนน้ำท่วม", unit: "เรื่อง", sortable: true, heatmap: true, heatmapHex: "#f97316" },
+  { key: "population", label: "ประชากร", unit: "คน", sortable: true, hideable: true },
+  { key: "impact_score", label: "คะแนนคัดกรองผลกระทบ", unit: "/100", sortable: true, heatmap: true, heatmapHex: "#e11d48" },
 ];
 
 export default function RainfallPage() {
@@ -86,6 +92,8 @@ export default function RainfallPage() {
   const [data, setData] = useState<RainfallResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [impactRows, setImpactRows] = useState<UrbanImpactRow[]>([]);
+  const [impactLoading, setImpactLoading] = useState(false);
 
   const loadRainfall = useCallback(async () => {
     setLoading(true);
@@ -106,6 +114,49 @@ export default function RainfallPage() {
   useEffect(() => {
     loadRainfall();
   }, [loadRainfall]);
+
+  useEffect(() => {
+    if (!data?.rows.length) return;
+    const controller = new AbortController();
+    setImpactLoading(true);
+    const year = Number(endDate.slice(0, 4));
+    Promise.all([
+      fetch(
+        `/api/flood-risk/traffy?year=${year}&recentDays=${days}&referenceDate=${endDate}&pointLimit=0`,
+        { signal: controller.signal },
+      ).then((response) => response.ok ? response.json() : null),
+      fetch("/api/population?year=2025&level=district", { signal: controller.signal })
+        .then((response) => response.ok ? response.json() as Promise<PopulationResponse> : null),
+    ])
+      .then(([floodData, populationData]) => {
+        const rainfallByDistrict = new Map(
+          data.rows.map((row) => [row.district_name, row.rainfall_mm] as const),
+        );
+        const floodReportsByDistrict = new Map<string, { recent: number; unresolved: number }>(
+          (floodData?.summary?.byDistrict ?? []).map((row: any) => [
+            row.district,
+            { recent: Number(row.recent ?? 0), unresolved: Number(row.unresolved ?? 0) },
+          ]),
+        );
+        const populationByDistrict = new Map(
+          (populationData?.rows ?? []).map((row) => [
+            row.district_name,
+            { population: row.population, density: row.density },
+          ] as const),
+        );
+        setImpactRows(buildUrbanImpactRows({
+          districts: data.rows.map((row) => row.district_name),
+          rainfallByDistrict,
+          floodReportsByDistrict,
+          populationByDistrict,
+        }));
+      })
+      .catch((reason) => {
+        if (reason.name !== "AbortError") setImpactRows([]);
+      })
+      .finally(() => setImpactLoading(false));
+    return () => controller.abort();
+  }, [data?.rows, days, endDate]);
 
   const selected = useMemo(() => {
     if (!data?.rows.length) return null;
@@ -132,6 +183,22 @@ export default function RainfallPage() {
   const filteredFeatures = activeDistrict === "ทั้งหมด"
     ? features
     : features.filter((feature: any) => feature.properties?.district_name === activeDistrict);
+  const impactByDistrict = useMemo(
+    () => new Map(impactRows.map((row) => [row.district, row])),
+    [impactRows],
+  );
+  const enrichedFeatures = filteredFeatures.map((feature: any) => {
+    const impact = impactByDistrict.get(feature.properties?.district_name);
+    return {
+      ...feature,
+      properties: {
+        ...feature.properties,
+        flood_reports: impact?.floodReports ?? null,
+        population: impact?.population ?? null,
+        impact_score: impact?.score ?? null,
+      },
+    };
+  });
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
@@ -409,6 +476,24 @@ export default function RainfallPage() {
                     ))}
                   </div>
 
+                  {impactLoading ? (
+                    <div className="flex h-28 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/45 text-xs text-slate-500">
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      กำลังเชื่อมฝนกับเหตุร้องเรียนและประชากร
+                    </div>
+                  ) : (
+                    <UrbanImpactPanel
+                      rows={impactRows}
+                      activeDistrict={activeDistrict}
+                      onDistrictSelect={(district) => {
+                        setActiveDistrict(district);
+                        setViewMode("map");
+                      }}
+                      title="ผลกระทบที่ควรตรวจสอบหลังฝน"
+                      description={`ฝนสะสม ${days} วัน สิ้นสุด ${formatDate(endDate)} · เหตุร้องเรียนในช่วงเดียวกัน · ประชากรทะเบียนปี 2568`}
+                    />
+                  )}
+
                   <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
                     <section className="rounded-xl border border-slate-800 bg-slate-900/45 p-4">
                       <h2 className="text-xs font-black">ปริมาณฝนเฉลี่ยรายวัน</h2>
@@ -468,7 +553,7 @@ export default function RainfallPage() {
               {viewMode === "table" && (
                 <div className="p-5">
                   <DistrictDataTable
-                    features={filteredFeatures}
+                    features={enrichedFeatures}
                     columns={TABLE_COLUMNS}
                     getRowData={(properties) => ({
                       name: properties.district_name,
@@ -477,6 +562,9 @@ export default function RainfallPage() {
                       previous_mm: properties.previous_mm,
                       change_mm: properties.change_mm,
                       change_pct: properties.change_pct,
+                      flood_reports: properties.flood_reports,
+                      population: properties.population,
+                      impact_score: properties.impact_score,
                     })}
                     csvFilename={`bangkok_rainfall_${data.period.end}_${days}d`}
                     filterDistrict={activeDistrict}
@@ -484,7 +572,7 @@ export default function RainfallPage() {
                     districts={data.rows.map((row) => row.district_name)}
                     accentColor="cyan"
                     dataSource={data.summary.source}
-                    contextNote={`ฝนสะสม ${days} วัน สิ้นสุด ${data.period.end} · ความละเอียดประมาณ 11 กม.`}
+                    contextNote={`ฝนสะสม ${days} วัน สิ้นสุด ${data.period.end} · รวมบริบท Traffy และประชากรปี 2568 · คะแนนเป็นการคัดกรอง`}
                     expectedRows={activeDistrict === "ทั้งหมด" ? 50 : 1}
                   />
                 </div>
