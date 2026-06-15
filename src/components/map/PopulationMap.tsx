@@ -30,6 +30,22 @@ function FitBounds({ data, activeId }: { data: any; activeId: number | null }) {
   return null;
 }
 
+function ResizeMap() {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    observer.observe(container);
+    map.invalidateSize({ animate: false });
+    return () => observer.disconnect();
+  }, [map]);
+
+  return null;
+}
+
 const METRIC_LABELS: Record<PopulationMetric, string> = {
   population: "ประชากร",
   density: "ความหนาแน่น",
@@ -68,6 +84,7 @@ export default function PopulationMap({
       attributionControl={false}
     >
       <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+      <ResizeMap />
       {geojsonData && (
         <>
           <GeoJSON

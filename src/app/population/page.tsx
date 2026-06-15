@@ -262,8 +262,8 @@ export default function PopulationPage() {
           onReload={loadData}
         />
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4">
-        <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3 md:hidden">
+        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4">
+        <div className="mb-3 grid shrink-0 grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3 md:hidden">
           <label className="text-[10px] text-slate-400">
             ปีข้อมูล
             <select
@@ -303,7 +303,7 @@ export default function PopulationPage() {
         </div>
 
         {loading && (
-          <div className="flex h-[560px] items-center justify-center rounded-xl border border-slate-800 bg-slate-900/40 text-sm text-slate-500">
+          <div className="flex min-h-[420px] flex-1 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/40 text-sm text-slate-500">
             <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> กำลังจัดเตรียมข้อมูลประชากร
           </div>
         )}
@@ -311,8 +311,8 @@ export default function PopulationPage() {
           <div className="rounded-xl border border-red-900 bg-red-950/30 p-8 text-center text-sm text-red-300">{error}</div>
         )}
         {!loading && data && (
-          <>
-            <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="mb-3 grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
               <MetricCard icon={Users} label="ประชากรรวม" value={`${formatPopulation(displayPopulation)} คน`} note={displayAreaName} color="text-indigo-300" />
               <MetricCard icon={(displayChangePct ?? 0) >= 0 ? TrendingUp : TrendingDown} label="เปลี่ยนจากปีก่อน" value={formatPopulationPercent(displayChangePct)} note={data.previousYear ? `เทียบปี ${data.previousYear + 543}` : "ปีแรกของชุดข้อมูล"} color={(displayChangePct ?? 0) >= 0 ? "text-emerald-300" : "text-orange-300"} />
               <MetricCard icon={MapPin} label="ความหนาแน่น" value={formatPopulation(displayDensity)} note="คนต่อตารางกิโลเมตร" color="text-violet-300" />
@@ -322,8 +322,8 @@ export default function PopulationPage() {
             </div>
 
             {view === "map" && (
-              <div>
-                <div className="h-[560px] overflow-hidden rounded-xl border border-slate-800">
+              <div className="flex min-h-[420px] flex-1">
+                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800">
                   <PopulationMap geojsonData={geojson} rows={rows} metric={metric} activeId={activeId} onSelect={selectRow} />
                 </div>
               </div>
@@ -461,7 +461,7 @@ export default function PopulationPage() {
                 ]}
               />
             )}
-          </>
+          </div>
         )}
         </main>
       </div>
