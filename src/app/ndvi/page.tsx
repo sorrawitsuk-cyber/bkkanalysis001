@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Download, FileText, SlidersHorizontal, X } from "lucide-react";
+import { Download, FileText, SlidersHorizontal, X, MapPin } from "lucide-react";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
@@ -14,6 +14,7 @@ import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataT
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import NdviSciencePanel from "@/components/ndvi/NdviSciencePanel";
 import NdviSidebar from "@/components/ndvi/NdviSidebar";
+import ExportPanel from "@/components/ui/ExportPanel";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
 import { getNdviClassThai, getNdviColor, getNdviInterpretationReason } from "@/lib/ndvi";
 
@@ -296,25 +297,58 @@ export default function NdviPage() {
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-800/70 bg-slate-950/95 px-3 py-2.5">
+        {/* Tab bar */}
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
           <ViewTabs view={viewMode} onChange={setViewMode} accentColor="emerald" />
-          <select
-            value={activeDistrict}
-            onChange={(event) => setActiveDistrict(event.target.value)}
-            className="h-8 max-w-[140px] shrink-0 rounded-md border border-slate-700 bg-slate-900 px-2 text-[11px] text-slate-300"
-          >
-            <option value={ALL_DISTRICTS}>ทุกเขต</option>
-            {districts.map((district: string) => <option key={district} value={district}>{district}</option>)}
-          </select>
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={districts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {districts.map((name: string) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {loading && (
+            <span className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-widest animate-pulse ml-1">
+              กำลังโหลด…
+            </span>
+          )}
           <div className="flex-1" />
-          <span className="hidden shrink-0 text-[10px] text-slate-500 md:block">{periodLabel}</span>
-          <button type="button" onClick={() => downloadCSV(csvHeaders, csvRows, `bangkok_ndvi_${year}`)} className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-slate-700 px-2 text-[10px] text-slate-400 hover:text-white">
-            <Download className="h-3 w-3" /> CSV
-          </button>
-          <button type="button" onClick={() => printReport(reportData)} className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-emerald-700/50 bg-emerald-950/30 px-2 text-[10px] text-emerald-300 hover:text-white">
-            <FileText className="h-3 w-3" /> PDF
-          </button>
-        </header>
+          {!loading && summary && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => downloadCSV(csvHeaders, csvRows, `bangkok_ndvi_${year}`)}
+                disabled={csvRows.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                onClick={() => printReport(reportData)}
+                disabled={csvRows.length === 0}
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-2.5 py-1.5 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="min-h-0 flex-1">
           {loading && !summary ? (
@@ -429,6 +463,13 @@ export default function NdviPage() {
                     compareYear={compareYear}
                     onCompareModeChange={setCompareMode}
                     onCompareYearChange={setCompareYear}
+                  />
+                  <ExportPanel
+                    accentColor="emerald"
+                    csvFilename={`bangkok_ndvi_${year}`}
+                    csvHeaders={csvHeaders}
+                    csvRows={csvRows}
+                    reportData={reportData}
                   />
                   <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-[10px] leading-5 text-amber-100/70">
                     NDVI เป็นดัชนีพืชพรรณ ไม่ใช่ Tree Cover หรือพื้นที่สวน หากต้องการวิเคราะห์เรือนยอดไม้ให้ใช้หน้า Tree Cover

@@ -15,6 +15,9 @@ import {
   RefreshCw,
   TrendingDown,
   TrendingUp,
+  X,
+  Download,
+  FileText,
 } from "lucide-react";
 import {
   Area,
@@ -30,9 +33,12 @@ import {
 } from "recharts";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DataSourceBadge from "@/components/ui/DataSourceBadge";
+import MapControlPanel from "@/components/map/MapControlPanel";
+import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import SidebarFooter from "@/components/gee/SidebarFooter";
 import MapSkeleton from "@/components/ui/MapSkeleton";
+import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
 import {
   RAINFALL_WINDOWS,
   formatRainfall,
@@ -200,268 +206,385 @@ export default function RainfallPage() {
     };
   });
 
+  const districts = useMemo(() =>
+    [...(data?.rows ?? [])]
+      .map((row) => row.district_name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [data?.rows]
+  );
+
+  const csvHeaders = [
+    "เขต",
+    "ฝนสะสมเฉลี่ย (มม.)",
+    "เฉลี่ยต่อวัน (มม.)",
+    "ช่วงเดียวกันปีก่อน (มม.)",
+    "เปลี่ยนแปลง (มม.)",
+    "เปลี่ยนแปลง (%)",
+    "ร้องเรียนน้ำท่วม (เรื่อง)",
+    "ประชากร (คน)",
+    "คะแนนผลกระทบ",
+  ];
+
+  const csvRows = useMemo(() => {
+    if (!data?.rows) return [];
+    return data.rows.map((row) => {
+      const impact = impactRows.find((i) => i.district === row.district_name);
+      return [
+        row.district_name,
+        row.rainfall_mm,
+        row.daily_average_mm,
+        row.previous_mm,
+        row.change_mm,
+        row.change_pct,
+        impact?.floodReports ?? 0,
+        impact?.population ?? 0,
+        impact?.score ?? 0,
+      ];
+    });
+  }, [data?.rows, impactRows]);
+
+  const reportData = useMemo((): PDFReportData => ({
+    title: "รายงานปริมาณน้ำฝนเชิงพื้นที่ กรุงเทพมหานคร",
+    subtitle: "NASA GPM IMERG · Spatial Rainfall Summary",
+    source: data?.summary.source ?? "GPM IMERG",
+    period: data ? `${formatDate(data.period.start)} ถึง ${formatDate(data.period.end)}` : "",
+    layer: `ฝนสะสม ${days} วัน`,
+    district: activeDistrict,
+    kpis: [
+      { label: "ฝนเฉลี่ยเชิงพื้นที่", value: formatRainfall(displayMean) },
+      { label: "ฝนสูงสุดรายเขต", value: data?.summary.maximumDistrictMm != null ? `${formatRainfall(data.summary.maximumDistrictMm)} · ${data.summary.wettestDistrict ?? "–"}` : "–" },
+      { label: "ร้องเรียนสะสม (Traffy)", value: `${impactRows.reduce((sum, r) => sum + (r.floodReports ?? 0), 0)} เรื่อง` },
+      { label: "ความครบถ้วนข้อมูล", value: data ? `${data.summary.completenessPct}%` : "–" },
+    ],
+    rankingHeaders: ["เขต", "ปริมาณฝนสะสม (มม.)"],
+    rankingRows: (data?.rows ?? []).map((row) => [row.district_name, row.rainfall_mm]),
+  }), [data, days, activeDistrict, displayMean, impactRows]);
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
-      <header className="flex flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-3">
-        <Link href="/" className="rounded-lg border border-slate-800 p-2 text-slate-400 transition-colors hover:text-white">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-400/25 bg-blue-400/10">
-            <CloudRain className="h-5 w-5 text-blue-300" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-black">ปริมาณฝนกรุงเทพมหานคร</h1>
-            <p className="truncate text-[10px] text-slate-500">GPM IMERG · ฝนสะสมและแนวโน้มรายวัน</p>
-          </div>
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="cyan" />
-          <button
-            onClick={loadRainfall}
-            disabled={loading}
-            className="rounded-lg border border-slate-700 bg-slate-900 p-2 text-slate-400 transition-colors hover:text-white disabled:opacity-50"
-            title="โหลดข้อมูลใหม่"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-      </header>
-
-      <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-800 bg-[#0c1424] p-2 lg:hidden">
-        <div className="flex shrink-0 rounded-lg border border-slate-800 bg-slate-950/70 p-1">
-          {RAINFALL_WINDOWS.map((windowDays) => (
-            <button
-              key={windowDays}
-              onClick={() => setDays(windowDays)}
-              className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold transition-colors ${
-                days === windowDays ? "bg-cyan-500 text-slate-950" : "text-slate-500"
-              }`}
-            >
-              {windowDays} วัน
-            </button>
-          ))}
-        </div>
-        <input
-          type="date"
-          value={endDate}
-          max={bangkokToday()}
-          min="2000-06-01"
-          aria-label="วันที่สิ้นสุด"
-          onChange={(event) => setEndDate(event.target.value)}
-          className="w-[138px] shrink-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-[10px] text-slate-200 outline-none focus:border-cyan-500"
-        />
-        <select
-          value={activeDistrict}
-          aria-label="เลือกเขต"
-          onChange={(event) => setActiveDistrict(event.target.value)}
-          className="w-[150px] shrink-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-[10px] outline-none focus:border-cyan-500"
-        >
-          <option value="ทั้งหมด">กรุงเทพฯ ทั้งหมด</option>
-          {(data?.rows ?? []).map((row) => (
-            <option key={row.district_id} value={row.district_name}>{row.district_name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-[#0c1424] lg:flex">
-          <div className="space-y-5 p-4">
-            <section>
-              <label className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                <CalendarDays className="h-3.5 w-3.5 text-cyan-400" /> ช่วงฝนสะสม
-              </label>
-              <div className="grid grid-cols-4 gap-1 rounded-lg border border-slate-800 bg-slate-950/70 p-1">
-                {RAINFALL_WINDOWS.map((windowDays) => (
-                  <button
-                    key={windowDays}
-                    onClick={() => setDays(windowDays)}
-                    className={`rounded-md py-2 text-[11px] font-bold transition-colors ${
-                      days === windowDays ? "bg-cyan-500 text-slate-950" : "text-slate-500 hover:text-slate-200"
-                    }`}
-                  >
-                    {windowDays} วัน
-                  </button>
-                ))}
-              </div>
-              <label className="mt-3 block text-[9px] font-bold text-slate-500">วันที่สิ้นสุด</label>
-              <input
-                type="date"
-                value={endDate}
-                max={bangkokToday()}
-                min="2000-06-01"
-                onChange={(event) => setEndDate(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-500"
-              />
-            </section>
-
-            <section>
-              <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                <MapPin className="h-3.5 w-3.5 text-cyan-400" /> พื้นที่
-              </label>
-              <select
-                value={activeDistrict}
-                onChange={(event) => setActiveDistrict(event.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs outline-none focus:border-cyan-500"
-              >
-                <option value="ทั้งหมด">กรุงเทพมหานคร (ทั้งหมด)</option>
-                {(data?.rows ?? []).map((row) => (
-                  <option key={row.district_id} value={row.district_name}>{row.district_name}</option>
-                ))}
-              </select>
-            </section>
-
-            {loading ? (
-              <div className="space-y-2 animate-pulse">
-                <div className="h-24 rounded-lg bg-slate-800/70" />
-                <div className="h-20 rounded-lg bg-slate-800/50" />
-              </div>
-            ) : error ? (
-              <div className="rounded-lg border border-red-900/60 bg-red-950/25 p-3 text-xs leading-relaxed text-red-300">
-                {error}
-              </div>
-            ) : data ? (
-              <>
-                <section>
-                  <div className="text-[10px] text-slate-500">
-                    {activeDistrict === "ทั้งหมด" ? "ค่าเฉลี่ยกรุงเทพฯ" : `เขต${activeDistrict}`}
-                  </div>
-                  <div className="mt-1 text-3xl font-black tabular-nums text-cyan-300">
-                    {formatRainfall(displayMean)}
-                  </div>
-                  <div className="mt-1 text-[10px] text-slate-500">
-                    {formatDate(data.period.start)} ถึง {formatDate(data.period.end)}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-[9px] text-slate-500">ช่วงเดียวกันปีก่อน</div>
-                      <div className="mt-1 text-sm font-bold">{formatRainfall(displayPrevious)}</div>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-[9px] text-slate-500">เปลี่ยนแปลง</div>
-                      <div className={`mt-1 flex items-center gap-1 text-sm font-bold ${
-                        (displayChangePct ?? 0) >= 0 ? "text-orange-300" : "text-emerald-300"
-                      }`}>
-                        {(displayChangePct ?? 0) >= 0
-                          ? <TrendingUp className="h-3.5 w-3.5" />
-                          : <TrendingDown className="h-3.5 w-3.5" />}
-                        {changeText(displayChangePct)}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                      <Layers3 className="h-3.5 w-3.5 text-cyan-400" /> ชั้นข้อมูลแผนที่
-                    </h2>
-                    <button
-                      onClick={() => setRasterVisible((current) => !current)}
-                      className={`rounded-md border px-2 py-1 text-[9px] font-bold transition-colors ${
-                        rasterVisible
-                          ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-300"
-                          : "border-slate-700 text-slate-500"
-                      }`}
-                    >
-                      {rasterVisible ? "GPM เปิดอยู่" : "แสดง GPM"}
-                    </button>
-                  </div>
-                  <p className="text-[9px] leading-relaxed text-slate-500">
-                    Raster แสดงการกระจายฝนจาก GPM ส่วนเส้นเขตใช้สำหรับเลือกและสรุปค่าเฉลี่ยเชิงพื้นที่
-                  </p>
-                </section>
-
-                <section>
-                  <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                    <Gauge className="h-3.5 w-3.5 text-cyan-400" /> เขตที่มีฝนสะสมสูง
-                  </h2>
-                  <div className="space-y-1.5">
-                    {data.rows.slice(0, 8).map((row, index) => (
-                      <button
-                        key={row.district_id}
-                        onClick={() => setActiveDistrict(row.district_name)}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-slate-800/60"
-                      >
-                        <span className="w-4 text-[9px] text-slate-600">{index + 1}</span>
-                        <span className="min-w-0 flex-1 truncate text-[10px] text-slate-300">{row.district_name}</span>
-                        <span className="text-[10px] font-bold tabular-nums text-cyan-300">{formatRainfall(row.rainfall_mm)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <DataSourceBadge
-                  dataSource={data.summary.source}
-                  dataQuality={data.summary.dataQuality}
-                  sourceLabel={`${data.summary.source} · ${data.summary.observationCount.toLocaleString("th-TH")} ช่วงสังเกตการณ์`}
-                  sourceNote={`ความละเอียดประมาณ ${data.summary.approximateResolutionKm} กม. เหมาะสำหรับภาพรวมเมือง ไม่ใช่ค่าจากมาตรวัดฝนรายจุด`}
-                />
-
-                {data.summary.isPartial && (
-                  <section className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3">
-                    <h2 className="text-[10px] font-bold text-amber-300">ข้อมูลช่วงนี้ยังมาไม่ครบ</h2>
-                    <p className="mt-1 text-[9px] leading-relaxed text-amber-200/70">
-                      พบ {data.summary.observationCount.toLocaleString("th-TH")} จากประมาณ{" "}
-                      {data.summary.expectedObservationCount.toLocaleString("th-TH")} ช่วงครึ่งชั่วโมง
-                      ({data.summary.completenessPct}%) ค่าฝนสะสมอาจต่ำกว่าความเป็นจริง
-                    </p>
-                  </section>
-                )}
-
-                <section className="rounded-lg border border-slate-800 bg-slate-950/45 p-3">
-                  <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-300">
-                    <Database className="h-3.5 w-3.5 text-slate-500" /> วิธีอ่านข้อมูล
-                  </h2>
-                  <ul className="mt-2 space-y-1.5 text-[9px] leading-relaxed text-slate-500">
-                    <li>• ปริมาณฝนเป็นค่าประมาณจากดาวเทียม ไม่ใช่มาตรวัดฝนภาคพื้นดิน</li>
-                    <li>• ความแตกต่างระหว่างเขตใกล้กันอาจต่ำกว่าความละเอียดของข้อมูล</li>
-                    <li>• ข้อมูลใกล้เวลาปัจจุบันอาจได้รับการปรับปรุงภายหลังโดยผู้ผลิต</li>
-                  </ul>
-                </section>
-              </>
-            ) : null}
-          </div>
-          <SidebarFooter exclude={["rainfall"]} />
-        </aside>
-
-        <main className="min-w-0 flex-1 overflow-auto">
-          {loading && !data ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500">
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> กำลังประมวลผลข้อมูลฝนจาก GPM
+    <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
+      {/* Left Sidebar */}
+      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-r border-slate-800/70 shadow-2xl flex flex-col h-full overflow-hidden text-slate-200">
+        {/* Sidebar Header with Page Title */}
+        <div className="p-4 border-b border-slate-800/70 bg-slate-900/40">
+          <div className="flex items-center gap-2">
+            <Link href="/" className="rounded-lg border border-slate-800/80 p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors shrink-0">
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Link>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-400/25 bg-blue-400/10 shrink-0">
+              <CloudRain className="h-5 w-5 text-blue-300" />
             </div>
-          ) : error || !data ? (
-            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-300">
-              {error ?? "ไม่มีข้อมูล"}
+            <div className="min-w-0">
+              <h1 className="text-sm font-black text-slate-100">ปริมาณน้ำฝนเชิงพื้นที่</h1>
+              <p className="text-[10px] text-slate-500">GPM IMERG · ฝนสะสมรายเขต</p>
             </div>
-          ) : (
+          </div>
+        </div>
+
+        {/* Scrollable Sidebar Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
+          {loading ? (
+            <div className="space-y-3 animate-pulse">
+              <div className="h-28 rounded-lg bg-slate-800/60" />
+              <div className="h-44 rounded-lg bg-slate-800/40" />
+            </div>
+          ) : error ? (
+            <div className="rounded-lg border border-red-900/60 bg-red-950/25 p-3 text-xs leading-relaxed text-red-300">
+              {error}
+            </div>
+          ) : data ? (
             <>
-              {viewMode === "map" && (
-                <div className="relative h-full min-h-[520px]">
-                  <RainfallMapView
-                    geojsonData={data.geojson}
-                    rasterUrl={data.raster.urlFormat}
-                    rasterVisible={rasterVisible}
-                    activeDistrict={activeDistrict}
-                    onDistrictSelect={setActiveDistrict}
-                    maxValue={maxDistrictValue}
-                  />
-                  <div className="absolute bottom-4 right-4 z-[500] w-48 rounded-lg border border-slate-700 bg-slate-950/95 p-3">
-                    <div className="mb-2 text-[9px] font-bold text-slate-300">ฝนสะสม {days} วัน</div>
-                    <div
-                      className="h-2 rounded-sm"
-                      style={{ background: `linear-gradient(to right, ${data.raster.palette.join(",")})` }}
-                    />
-                    <div className="mt-1 flex justify-between text-[8px] text-slate-500">
-                      <span>0 มม.</span>
-                      <span>{data.raster.max} มม. ขึ้นไป</span>
+              {/* Main KPIs */}
+              <section className="bg-slate-900/45 border border-slate-800/60 rounded-xl p-4">
+                <div className="text-[10px] text-slate-500">
+                  {activeDistrict === "ทั้งหมด" ? "เฉลี่ยพื้นที่กรุงเทพฯ" : `เขต${activeDistrict}`}
+                </div>
+                <div className="mt-1 text-3xl font-black tabular-nums text-cyan-400">
+                  {formatRainfall(displayMean)}
+                </div>
+                <div className="text-[9px] text-slate-400 leading-snug mt-1">
+                  ช่วงสะสมฝน {days} วัน: {formatDate(data.period.start)} ถึง {formatDate(data.period.end)}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5">
+                    <div className="text-[9px] text-slate-500">ช่วงเดียวกันปีก่อน</div>
+                    <div className="mt-0.5 text-xs font-bold text-slate-300">{formatRainfall(displayPrevious)}</div>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5">
+                    <div className="text-[9px] text-slate-500">การเปลี่ยนแปลง</div>
+                    <div className={`mt-0.5 flex items-center gap-1 text-xs font-bold ${
+                      (displayChangePct ?? 0) >= 0 ? "text-orange-400" : "text-emerald-400"
+                    }`}>
+                      {(displayChangePct ?? 0) >= 0
+                        ? <TrendingUp className="h-3 w-3 shrink-0" />
+                        : <TrendingDown className="h-3 w-3 shrink-0" />}
+                      {changeText(displayChangePct)}
                     </div>
                   </div>
                 </div>
+              </section>
+
+              {/* Rain rankings */}
+              <section>
+                <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+                  <Gauge className="h-3.5 w-3.5 text-cyan-400" /> เขตที่มีปริมาณน้ำฝนสูงสุด
+                </h2>
+                <div className="space-y-1 bg-slate-900/35 border border-slate-800/50 rounded-xl p-1.5">
+                  {data.rows.slice(0, 8).map((row, index) => (
+                    <button
+                      key={row.district_id}
+                      onClick={() => setActiveDistrict(row.district_name)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
+                        activeDistrict === row.district_name
+                          ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-300"
+                          : "hover:bg-slate-800/50 border border-transparent text-slate-300 hover:text-white"
+                      }`}
+                    >
+                      <span className="w-4 text-[9px] text-slate-500 font-mono">{index + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-[10px] font-semibold">{row.district_name}</span>
+                      <span className="text-[10px] font-black text-cyan-400">{formatRainfall(row.rainfall_mm)}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <DataSourceBadge
+                dataSource={data.summary.source}
+                dataQuality={data.summary.dataQuality}
+                sourceLabel={`${data.summary.source} · ${data.summary.observationCount.toLocaleString("th-TH")} ช่วงสังเกตการณ์`}
+                sourceNote={`ความละเอียดประมาณ ${data.summary.approximateResolutionKm} กม. เหมาะสำหรับภาพรวมเมือง ไม่ใช่ค่าจากมาตรวัดฝนรายจุด`}
+              />
+
+              {data.summary.isPartial && (
+                <section className="rounded-xl border border-amber-700/40 bg-amber-950/20 p-3.5 text-[10px] leading-5 text-amber-100/70">
+                  <h3 className="font-bold text-amber-300">ข้อมูลยังไม่สมบูรณ์</h3>
+                  <p className="mt-1 text-[9px] leading-relaxed">
+                    พบ {data.summary.observationCount.toLocaleString("th-TH")} จาก {data.summary.expectedObservationCount.toLocaleString("th-TH")} คาบครึ่งชั่วโมง
+                    ({data.summary.completenessPct}%)
+                  </p>
+                </section>
+              )}
+
+              {/* Guide Note */}
+              <section className="rounded-xl border border-slate-800 bg-slate-900/25 p-3.5">
+                <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                  <Database className="h-3.5 w-3.5 text-slate-500" /> วิธีการอ่านผลลัพธ์
+                </h2>
+                <ul className="mt-2 space-y-1.5 text-[9px] leading-relaxed text-slate-500">
+                  <li>• การวัดปริมาณน้ำฝนเป็นค่าประมาณเชิงพื้นที่เฉลี่ย ไม่สามารถเทียบกับความรู้สึกส่วนบุคคลบนถนนจุดใดจุดหนึ่ง</li>
+                  <li>• Traffy เป็นข้อมูลรายงานความเสี่ยงไม่ใช่ฝนตกจริง</li>
+                </ul>
+              </section>
+            </>
+          ) : null}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-slate-800/70 bg-slate-900/20 shrink-0">
+          <SidebarFooter exclude={["rainfall"]} />
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Tab bar */}
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="cyan" />
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={districts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {districts.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {loading && (
+            <span className="text-[10px] font-bold text-cyan-400/70 uppercase tracking-widest animate-pulse ml-1">
+              กำลังโหลด…
+            </span>
+          )}
+          <div className="flex-1" />
+          {!loading && data && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => downloadCSV(csvHeaders, csvRows, `bangkok_rainfall_${data.period.end}_${days}d`)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => printReport(reportData)}
+                className="flex items-center gap-1.5 rounded-lg border border-cyan-700/40 bg-cyan-900/20 px-2.5 py-1.5 text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-h-0 flex">
+          {loading && !data ? (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500 w-full">
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin text-cyan-400" /> กำลังประมวลผลข้อมูลฝนจาก GPM...
+            </div>
+          ) : error || !data ? (
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-300 w-full">{error ?? "ไม่มีข้อมูล"}</div>
+          ) : (
+            <>
+              {viewMode === "map" && (
+                <>
+                  <div className="relative flex-1 min-w-0">
+                    <div className="absolute inset-0 z-0">
+                      <RainfallMapView
+                        geojsonData={data.geojson}
+                        rasterUrl={data.raster.urlFormat}
+                        rasterVisible={rasterVisible}
+                        activeDistrict={activeDistrict}
+                        onDistrictSelect={setActiveDistrict}
+                        maxValue={maxDistrictValue}
+                      />
+                    </div>
+
+                    {/* Floating KPI cards */}
+                    <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
+                      {[
+                        ["ฝนสะสมเฉลี่ย", formatRainfall(displayMean)],
+                        ["ฝนสูงสุดรายเขต", data?.summary.maximumDistrictMm != null ? `${formatRainfall(data.summary.maximumDistrictMm)} · ${data.summary.wettestDistrict ?? "–"}` : "–"],
+                        ["เทียบปีก่อน", changeText(data.summary.changePct)],
+                        ["ความสมบูรณ์ข้อมูล", `${data.summary.completenessPct}%`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
+                          <div className="text-[11px] text-slate-400 font-semibold leading-tight">{label}</div>
+                          <div className="text-sm font-black text-slate-100 mt-1 truncate">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Data Source Badge */}
+                    <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-relaxed">
+                        <p>{data?.summary.source ?? "GPM IMERG"}</p>
+                        <p>ช่วงเวลา: {days} วัน สิ้นสุด {endDate}</p>
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="absolute bottom-4 right-4 z-[500] w-52 rounded-xl border border-slate-700 bg-slate-950/95 p-4 shadow-2xl backdrop-blur-md">
+                      <div className="mb-2 text-[10px] font-bold text-slate-300 uppercase tracking-[0.12em]">ฝนสะสม {days} วัน</div>
+                      <div
+                        className="h-2 rounded-sm border border-white/5"
+                        style={{ background: `linear-gradient(to right, ${data.raster.palette.join(",")})` }}
+                      />
+                      <div className="mt-1 flex justify-between text-[8px] text-slate-400 font-mono">
+                        <span>0 มม.</span>
+                        <span>{data.raster.max} มม. ขึ้นไป</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right aside */}
+                  <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
+                    <div className="flex min-h-full flex-col gap-3">
+                      <MapControlPanel
+                        accent="cyan"
+                        granularity="district"
+                        onGranularityChange={() => undefined}
+                        showGranularity={false}
+                        mapMode={rasterVisible ? "raster" : "district"}
+                        mapModes={[
+                          { value: "raster", label: "ภาพฝนสะสมเชิงพื้นที่ (GPM)", description: "แสดงภาพการกระจายตัวของฝนสะสมละเอียดรายพิกเซล" },
+                          { value: "district", label: "สรุปรายเขตพื้นที่", description: "ระบายสีแต่ละเขตด้วยค่าเฉลี่ยฝนสะสมในเขตนั่น" }
+                        ]}
+                        onMapModeChange={(m) => setRasterVisible(m === "raster")}
+                        showOpacity={false}
+                        opacity={1.0}
+                        onOpacityChange={() => undefined}
+                        baseMap="none"
+                        onBaseMapChange={() => undefined}
+                        onReset={() => {
+                          setDays(7);
+                          setEndDate(defaultRainfallEndDate());
+                          setActiveDistrict("ทั้งหมด");
+                          setRasterVisible(true);
+                        }}
+                        currentLayer={rasterVisible ? "ภาพฝนสะสม (GPM)" : "ฝนสะสมเฉลี่ยรายเขต"}
+                        currentPeriod={`${days} วัน สิ้นสุด ${endDate}`}
+                        dataSource={data?.summary.source ?? "GPM IMERG"}
+                        interactionHint="วางเมาส์บนเขตเพื่อดูปริมาณฝนสะสม"
+                      />
+
+                      {/* Custom Rainfall days & dates */}
+                      <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 space-y-4">
+                        <div>
+                          <label className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <CalendarDays className="h-3.5 w-3.5 text-cyan-400 animate-pulse" /> ช่วงสะสมฝน
+                          </label>
+                          <div className="grid grid-cols-4 gap-1 rounded-lg border border-slate-800 bg-slate-950/70 p-1">
+                            {RAINFALL_WINDOWS.map((windowDays) => (
+                              <button
+                                key={windowDays}
+                                onClick={() => setDays(windowDays)}
+                                className={`rounded-md py-1.5 text-[10px] font-bold transition-colors ${
+                                  days === windowDays ? "bg-cyan-500 text-slate-950" : "text-slate-500 hover:text-slate-200"
+                                }`}
+                              >
+                                {windowDays} วัน
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">วันที่สิ้นสุดข้อมูล</label>
+                          <input
+                            type="date"
+                            value={endDate}
+                            max={bangkokToday()}
+                            min="2000-06-01"
+                            onChange={(event) => setEndDate(event.target.value)}
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-500"
+                          />
+                        </div>
+                      </section>
+
+                      <ExportPanel
+                        accentColor="cyan"
+                        csvFilename={`bangkok_rainfall_${data.period.end}_${days}d`}
+                        csvHeaders={csvHeaders}
+                        csvRows={csvRows}
+                        reportData={reportData}
+                      />
+                    </div>
+                  </aside>
+                </>
               )}
 
               {viewMode === "stats" && (
-                <div className="space-y-4 p-5">
+                <div className="space-y-4 p-5 flex-1 overflow-y-auto custom-scrollbar">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {[
                       ["เฉลี่ยกรุงเทพฯ", formatRainfall(data.summary.bangkokMeanMm)],
@@ -478,71 +601,57 @@ export default function RainfallPage() {
 
                   {impactLoading ? (
                     <div className="flex h-28 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/45 text-xs text-slate-500">
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      กำลังเชื่อมฝนกับเหตุร้องเรียนและประชากร
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin text-cyan-400" /> กำลังประเมินดัชนีผลกระทบภัยพิบัติ (Traffy)...
                     </div>
                   ) : (
                     <UrbanImpactPanel
                       rows={impactRows}
                       activeDistrict={activeDistrict}
-                      onDistrictSelect={(district) => {
-                        setActiveDistrict(district);
-                        setViewMode("map");
-                      }}
-                      title="ผลกระทบที่ควรตรวจสอบหลังฝน"
-                      description={`ฝนสะสม ${days} วัน สิ้นสุด ${formatDate(endDate)} · เหตุร้องเรียนในช่วงเดียวกัน · ประชากรทะเบียนปี 2568`}
+                      onDistrictSelect={setActiveDistrict}
                     />
                   )}
 
-                  <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+                  <div className="grid gap-4 xl:grid-cols-2">
                     <section className="rounded-xl border border-slate-800 bg-slate-900/45 p-4">
-                      <h2 className="text-xs font-black">ปริมาณฝนเฉลี่ยรายวัน</h2>
-                      <p className="mt-1 text-[10px] text-slate-500">ค่าเฉลี่ยเชิงพื้นที่ของกรุงเทพมหานคร</p>
-                      <div className="mt-4 h-[320px]">
+                      <h2 className="text-xs font-black">15 เขตที่มีปริมาณน้ำฝนสะสมสูงสุด</h2>
+                      <p className="mt-1 text-[10px] text-slate-500">ฝนสะสมรวม {days} วัน (มิลลิเมตร)</p>
+                      <div className="mt-4 h-[360px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={trendRows}>
-                            <defs>
-                              <linearGradient id="rainfall-fill" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.55} />
-                                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0.03} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid stroke="#1e293b" vertical={false} />
-                            <XAxis dataKey="date" tickFormatter={(value) => value.slice(5)} stroke="#64748b" fontSize={9} />
-                            <YAxis stroke="#64748b" fontSize={9} unit=" มม." />
-                            <Tooltip
-                              labelFormatter={(value) => formatDate(String(value))}
-                              formatter={(value) => [formatRainfall(Number(value)), "ปริมาณฝน"]}
-                              contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }}
-                            />
-                            <Area type="monotone" dataKey="rainfall_mm" stroke="#22d3ee" fill="url(#rainfall-fill)" strokeWidth={2} />
-                          </AreaChart>
+                          <BarChart data={chartRows} layout="vertical" margin={{ left: 18, right: 18 }}>
+                            <CartesianGrid stroke="#1e293b" horizontal={false} />
+                            <XAxis type="number" stroke="#64748b" fontSize={9} unit=" มม." />
+                            <YAxis type="category" dataKey="district_name" width={82} stroke="#94a3b8" fontSize={9} />
+                            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }}
+                              formatter={(value) => [`${Number(value).toFixed(1)} มม.`, "ปริมาณฝน"]} />
+                            <Bar dataKey="rainfall_mm" radius={[0, 4, 4, 0]}>
+                              {chartRows.map((row) => (
+                                <Cell key={row.district_id} fill={rainfallColor(row.rainfall_mm, maxDistrictValue)} />
+                              ))}
+                            </Bar>
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </section>
 
                     <section className="rounded-xl border border-slate-800 bg-slate-900/45 p-4">
-                      <h2 className="text-xs font-black">15 เขตที่มีฝนสะสมสูง</h2>
-                      <p className="mt-1 text-[10px] text-slate-500">ค่าเฉลี่ยภายในขอบเขตเขต</p>
-                      <div className="mt-4 h-[320px]">
+                      <h2 className="text-xs font-black">แนวโน้มฝนตกสะสมรายวัน</h2>
+                      <p className="mt-1 text-[10px] text-slate-500">เฉลี่ยเชิงพื้นที่กรุงเทพฯ (มิลลิเมตร)</p>
+                      <div className="mt-4 h-[360px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartRows} layout="vertical" margin={{ left: 20, right: 12 }}>
-                            <CartesianGrid stroke="#1e293b" horizontal={false} />
-                            <XAxis type="number" stroke="#64748b" fontSize={9} unit=" มม." />
-                            <YAxis type="category" dataKey="district_name" width={82} stroke="#94a3b8" fontSize={9} />
-                            <Tooltip
-                              formatter={(value) => [formatRainfall(Number(value)), "ฝนสะสม"]}
-                              contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }}
-                            />
-                            <Bar dataKey="rainfall_mm" radius={[0, 4, 4, 0]}>
-                              {chartRows.map((row) => (
-                                <Cell
-                                  key={row.district_id}
-                                  fill={rainfallColor(row.rainfall_mm, maxDistrictValue)}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
+                          <AreaChart data={trendRows} margin={{ left: 12, right: 12 }}>
+                            <defs>
+                              <linearGradient id="rainGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid stroke="#1e293b" vertical={false} />
+                            <XAxis dataKey="label" stroke="#64748b" fontSize={8} />
+                            <YAxis stroke="#64748b" fontSize={9} unit=" มม." />
+                            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11 }}
+                              formatter={(value) => [`${Number(value).toFixed(1)} มม.`, "ปริมาณฝน"]} />
+                            <Area type="monotone" dataKey="rainfall_mm" stroke="#0ea5e9" strokeWidth={2} fillOpacity={1} fill="url(#rainGrad)" />
+                          </AreaChart>
                         </ResponsiveContainer>
                       </div>
                     </section>
@@ -551,7 +660,7 @@ export default function RainfallPage() {
               )}
 
               {viewMode === "table" && (
-                <div className="p-5">
+                <div className="p-5 flex-1 overflow-y-auto custom-scrollbar">
                   <DistrictDataTable
                     features={enrichedFeatures}
                     columns={TABLE_COLUMNS}
@@ -569,7 +678,7 @@ export default function RainfallPage() {
                     csvFilename={`bangkok_rainfall_${data.period.end}_${days}d`}
                     filterDistrict={activeDistrict}
                     onDistrictChange={setActiveDistrict}
-                    districts={data.rows.map((row) => row.district_name)}
+                    districts={districts}
                     accentColor="cyan"
                     dataSource={data.summary.source}
                     contextNote={`ฝนสะสม ${days} วัน สิ้นสุด ${data.period.end} · รวมบริบท Traffy และประชากรปี 2568 · คะแนนเป็นการคัดกรอง`}
@@ -607,8 +716,8 @@ export default function RainfallPage() {
               )}
             </>
           )}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -14,6 +14,10 @@ import {
   RefreshCw,
   ShieldCheck,
   Trees,
+  MapPin,
+  X,
+  Download,
+  FileText,
 } from "lucide-react";
 import {
   Bar,
@@ -28,10 +32,14 @@ import {
 } from "recharts";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
+import MapControlPanel from "@/components/map/MapControlPanel";
+import MonthYearPicker from "@/components/ui/MonthYearPicker";
+import ExportPanel from "@/components/ui/ExportPanel";
 import DataSourceBadge from "@/components/ui/DataSourceBadge";
 import SidebarFooter from "@/components/gee/SidebarFooter";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
 import {
   LAND_COVER_MIN_YEAR,
   conversionColor,
@@ -135,223 +143,368 @@ export default function LandCoverChangePage() {
     coverage_pct: data.summary.averageCoveragePct,
   } : null);
 
+  const districts = useMemo(() =>
+    [...(data?.rows ?? [])]
+      .map((row) => row.district_name)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "th")),
+    [data?.rows]
+  );
+
+  const activeRow = useMemo(() =>
+    activeDistrict === "ทั้งหมด"
+      ? null
+      : data?.rows.find((row) => row.district_name === activeDistrict) ?? null,
+    [activeDistrict, data?.rows]
+  );
+
+  const csvHeaders = [
+    "เขต",
+    "สีเขียว -> สิ่งปลูกสร้าง (%)",
+    "สีเขียวเปลี่ยนสุทธิ (จุด%)",
+    "สิ่งปลูกสร้างเปลี่ยนสุทธิ (จุด%)",
+    "เปลี่ยนประเภทดิน (%)",
+    "พื้นที่สีเขียว (%)",
+    "พื้นที่สิ่งปลูกสร้าง (%)",
+    "พื้นที่น้ำ (%)",
+    "ความเชื่อมั่น (%)",
+    "พื้นที่มีข้อมูล (%)"
+  ];
+  
+  const csvRows = useMemo(() =>
+    (data?.rows ?? []).map((row) => [
+      row.district_name,
+      row.green_to_built_pct,
+      row.green_change_pp,
+      row.built_change_pp,
+      row.changed_pct,
+      row.green_pct,
+      row.built_pct,
+      row.water_pct,
+      row.confidence_pct,
+      row.coverage_pct,
+    ]),
+    [data?.rows]
+  );
+
+  const reportData = useMemo((): PDFReportData => ({
+    title: "รายงานการเปลี่ยนแปลงสิ่งปกคลุมดิน กรุงเทพฯ",
+    subtitle: "Google Dynamic World V1 · Land Cover Transitions",
+    source: data?.summary.source ?? "Google Dynamic World V1",
+    period: `${baselineYear} → ${year}`,
+    layer: layer === "change" ? "การเปลี่ยนแปลงสิ่งปกคลุมดิน" : `ชนิดสิ่งปกคลุมดิน (${layer === "current" ? year : baselineYear})`,
+    district: activeDistrict,
+    kpis: [
+      { label: "เปลี่ยนเป็นสิ่งปลูกสร้าง", value: formatPercent(activeRow?.green_to_built_pct ?? data?.summary.greenToBuiltPct) },
+      { label: "สีเขียวเปลี่ยนสุทธิ", value: formatPercentagePoint(activeRow?.green_change_pp ?? data?.summary.greenChangePp) },
+      { label: "สิ่งปลูกสร้างเปลี่ยนสุทธิ", value: formatPercentagePoint(activeRow?.built_change_pp ?? data?.summary.builtChangePp) },
+      { label: "เฉลี่ยความเชื่อมั่น", value: formatPercent(activeRow?.confidence_pct ?? data?.summary.averageConfidencePct) },
+    ],
+    rankingHeaders: ["เขต", "สีเขียว → สิ่งปลูกสร้าง (%)"],
+    rankingRows: (data?.rows ?? []).map((row) => [row.district_name, row.green_to_built_pct]),
+  }), [data, baselineYear, year, layer, activeDistrict, activeRow]);
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
-      <header className="flex flex-wrap items-center gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-3">
-        <Link href="/" className="rounded-lg border border-slate-800 p-2 text-slate-400 transition-colors hover:text-white">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-lime-400/25 bg-lime-400/10">
-            <ArrowRightLeft className="h-5 w-5 text-lime-300" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-black">การเปลี่ยนแปลงสิ่งปกคลุมดิน</h1>
-            <p className="truncate text-[10px] text-slate-500">Dynamic World · Land Cover Transition 10 เมตร</p>
+    <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
+      {/* Left Sidebar */}
+      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-r border-slate-800/70 shadow-2xl flex flex-col h-full overflow-hidden text-slate-200">
+        {/* Sidebar Header with Page Title */}
+        <div className="p-4 border-b border-slate-800/70 bg-slate-900/40">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-lime-400/25 bg-lime-400/10">
+              <ArrowRightLeft className="h-5 w-5 text-lime-300" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-slate-100">การเปลี่ยนแปลงของดิน</h1>
+              <p className="text-[10px] text-slate-500">Dynamic World · Land Cover Transition</p>
+            </div>
           </div>
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="emerald" />
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="rounded-lg border border-slate-700 bg-slate-900 p-2 text-slate-400 transition-colors hover:text-white disabled:opacity-50"
-            title="โหลดข้อมูลใหม่"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
+        
+        {/* Sidebar Content (KPIs & ranking list) */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
+          {loading ? (
+            <div className="space-y-3 animate-pulse">
+              <div className="h-32 rounded-lg bg-slate-800/60" />
+              <div className="h-48 rounded-lg bg-slate-800/40" />
+            </div>
+          ) : error ? (
+            <div className="rounded-lg border border-red-900/60 bg-red-950/25 p-3 text-xs leading-relaxed text-red-300">
+              {error}
+            </div>
+          ) : data && display ? (
+            <>
+              {/* Main KPI */}
+              <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-4">
+                <div className="text-[10px] text-slate-500">{activeDistrict === "ทั้งหมด" ? "กรุงเทพฯ สรุป 50 เขต" : `เขต${activeDistrict}`}</div>
+                <div className="mt-1 text-3xl font-black tabular-nums text-red-400">{formatPercent(display.green_to_built_pct)}</div>
+                <div className="text-[9px] text-slate-400 leading-snug mt-1">พื้นที่สีเขียวที่เปลี่ยนเป็นสิ่งปลูกสร้าง</div>
+                
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5">
+                    <div className="text-[9px] text-slate-500">สีเขียวเปลี่ยนสุทธิ</div>
+                    <div className={`mt-0.5 text-xs font-bold ${(display.green_change_pp ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {formatPercentagePoint(display.green_change_pp)}
+                    </div>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5">
+                    <div className="text-[9px] text-slate-500">สิ่งปลูกสร้างเปลี่ยนสุทธิ</div>
+                    <div className={`mt-0.5 text-xs font-bold ${(display.built_change_pp ?? 0) <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
+                      {formatPercentagePoint(display.built_change_pp)}
+                    </div>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5">
+                    <div className="text-[9px] text-slate-500">เปลี่ยนคลาสทั้งหมด</div>
+                    <div className="mt-0.5 text-xs font-bold text-purple-400">{formatPercent(display.changed_pct)}</div>
+                  </div>
+                  <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-2.5">
+                    <div className="text-[9px] text-slate-500">ความเชื่อมั่นเฉลี่ย</div>
+                    <div className="mt-0.5 text-xs font-bold text-cyan-400">{formatPercent(display.confidence_pct)}</div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Ranking list */}
+              <section>
+                <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+                  <ArrowRightLeft className="h-3.5 w-3.5 text-red-400" /> เขตที่เปลี่ยนเป็นสิ่งปลูกสร้างสูงสุด
+                </h2>
+                <div className="space-y-1 bg-slate-900/35 border border-slate-800/50 rounded-xl p-1.5">
+                  {data.rows.slice(0, 8).map((row, index) => (
+                    <button
+                      key={row.district_id}
+                      onClick={() => setActiveDistrict(row.district_name)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
+                        activeDistrict === row.district_name
+                          ? "bg-red-500/10 border border-red-500/20 text-red-300"
+                          : "hover:bg-slate-800/50 border border-transparent text-slate-300 hover:text-white"
+                      }`}
+                    >
+                      <span className="w-4 text-[9px] text-slate-500 font-mono">{index + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-[10px] font-semibold">{row.district_name}</span>
+                      <span className="text-[10px] font-black text-red-400">{formatPercent(row.green_to_built_pct)}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {/* Quality Criteria */}
+              <section className="rounded-xl border border-slate-800 bg-slate-900/25 p-3.5">
+                <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                  <ShieldCheck className="h-3.5 w-3.5 text-lime-400" /> เกณฑ์การวิเคราะห์
+                </h2>
+                <ul className="mt-2 space-y-1.5 text-[9px] leading-relaxed text-slate-500">
+                  <li>• คัดกรองพิกเซลที่มีค่าความเชื่อมั่น &ge; 45%</li>
+                  <li>• ข้อมูลปัจจุบันคำนวณแบบสะสม (YTD) สำหรับปีที่ยังไม่สมบูรณ์</li>
+                  <li>• การเปลี่ยนประเภทดินเป็นเพียงข้อบ่งชี้ทางกายภาพจากภาพถ่ายดาวเทียม ไม่ใช่การเปลี่ยนสีผังเมืองตามกฎหมาย</li>
+                </ul>
+              </section>
+            </>
+          ) : null}
         </div>
-      </header>
-
-      <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-800 bg-[#0c1424] p-2 lg:hidden">
-        <select value={baselineYear} onChange={(event) => setBaselineYear(Number(event.target.value))} aria-label="ปีฐาน"
-          className="w-[105px] shrink-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-[10px]">
-          {yearOptions(year - 1).map((option) => <option key={option} value={option}>ฐาน {option}</option>)}
-        </select>
-        <select value={year} onChange={(event) => setYear(Number(event.target.value))} aria-label="ปีปัจจุบัน"
-          className="w-[105px] shrink-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-[10px]">
-          {yearOptions(currentYear).filter((option) => option > LAND_COVER_MIN_YEAR).map((option) => <option key={option} value={option}>ปี {option}</option>)}
-        </select>
-        <select value={layer} onChange={(event) => setLayer(event.target.value as LandCoverLayer)} aria-label="ชั้นข้อมูล"
-          className="w-[145px] shrink-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-[10px]">
-          {LAYER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
-        <select value={activeDistrict} onChange={(event) => setActiveDistrict(event.target.value)} aria-label="เลือกเขต"
-          className="w-[145px] shrink-0 rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-[10px]">
-          <option value="ทั้งหมด">กรุงเทพฯ ทั้งหมด</option>
-          {(data?.rows ?? []).map((row) => <option key={row.district_id} value={row.district_name}>{row.district_name}</option>)}
-        </select>
-      </div>
-
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-80 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-[#0c1424] lg:flex">
-          <div className="space-y-5 p-4">
-            <section>
-              <label className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                <CalendarRange className="h-3.5 w-3.5 text-lime-400" /> ช่วงเปรียบเทียบ
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="mb-1 block text-[9px] text-slate-600">ปีฐาน</span>
-                  <select value={baselineYear} onChange={(event) => setBaselineYear(Number(event.target.value))}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs">
-                    {yearOptions(year - 1).map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <span className="mb-1 block text-[9px] text-slate-600">ปีปัจจุบัน</span>
-                  <select value={year} onChange={(event) => setYear(Number(event.target.value))}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs">
-                    {yearOptions(currentYear).filter((option) => option > LAND_COVER_MIN_YEAR).map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <label className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                <Layers3 className="h-3.5 w-3.5 text-lime-400" /> ชั้นข้อมูลแผนที่
-              </label>
-              <div className="space-y-1.5">
-                {LAYER_OPTIONS.map((option) => (
-                  <button key={option.value} onClick={() => setLayer(option.value)}
-                    className={`w-full rounded-lg border p-2.5 text-left transition-colors ${
-                      layer === option.value ? "border-lime-500/50 bg-lime-500/10" : "border-slate-800 bg-slate-950/45 hover:border-slate-700"
-                    }`}>
-                    <div className={`text-[10px] font-bold ${layer === option.value ? "text-lime-300" : "text-slate-400"}`}>{option.label}</div>
-                    <div className="mt-0.5 text-[9px] leading-relaxed text-slate-600">{option.description}</div>
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setRasterVisible((value) => !value)}
-                className={`mt-2 w-full rounded-lg border px-3 py-2 text-[10px] font-bold ${
-                  rasterVisible ? "border-lime-500/40 bg-lime-500/10 text-lime-300" : "border-slate-700 text-slate-500"
-                }`}>
-                {rasterVisible ? "แสดง raster อยู่" : "แสดง raster"}
-              </button>
-            </section>
-
-            <section>
-              <label className="mb-1.5 text-[10px] font-bold text-slate-400">พื้นที่</label>
-              <select value={activeDistrict} onChange={(event) => setActiveDistrict(event.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs">
-                <option value="ทั้งหมด">กรุงเทพมหานคร (ทั้งหมด)</option>
-                {(data?.rows ?? []).map((row) => <option key={row.district_id} value={row.district_name}>{row.district_name}</option>)}
-              </select>
-            </section>
-
-            {loading ? (
-              <div className="space-y-2 animate-pulse"><div className="h-28 rounded-lg bg-slate-800/70" /><div className="h-24 rounded-lg bg-slate-800/50" /></div>
-            ) : error ? (
-              <div className="rounded-lg border border-red-900/60 bg-red-950/25 p-3 text-xs leading-relaxed text-red-300">{error}</div>
-            ) : data && display ? (
-              <>
-                <section>
-                  <div className="text-[10px] text-slate-500">{activeDistrict === "ทั้งหมด" ? "ค่าเฉลี่ย 50 เขต" : `เขต${activeDistrict}`}</div>
-                  <div className="mt-1 text-3xl font-black tabular-nums text-red-300">{formatPercent(display.green_to_built_pct)}</div>
-                  <div className="text-[9px] text-slate-500">พื้นที่สีเขียวที่เปลี่ยนเป็นสิ่งปลูกสร้าง</div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-[9px] text-slate-500">สีเขียวสุทธิ</div>
-                      <div className={`mt-1 text-sm font-bold ${(display.green_change_pp ?? 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>
-                        {formatPercentagePoint(display.green_change_pp)}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-[9px] text-slate-500">สิ่งปลูกสร้างสุทธิ</div>
-                      <div className={`mt-1 text-sm font-bold ${(display.built_change_pp ?? 0) <= 0 ? "text-emerald-300" : "text-orange-300"}`}>
-                        {formatPercentagePoint(display.built_change_pp)}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-[9px] text-slate-500">เปลี่ยน class ทั้งหมด</div>
-                      <div className="mt-1 text-sm font-bold text-purple-300">{formatPercent(display.changed_pct)}</div>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-[9px] text-slate-500">ความเชื่อมั่น</div>
-                      <div className="mt-1 text-sm font-bold text-cyan-300">{formatPercent(display.confidence_pct)}</div>
-                    </div>
-                  </div>
-                </section>
-
-                <DataSourceBadge
-                  dataSource={data.summary.source}
-                  dataQuality={data.summary.dataQuality}
-                  sourceLabel={`${data.summary.source} · ${data.summary.currentSceneCount.toLocaleString("th-TH")} ภาพปี ${year}`}
-                  sourceNote={data.summary.processingNote}
-                />
-
-                <section>
-                  <h2 className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                    <ArrowRightLeft className="h-3.5 w-3.5 text-red-400" /> เขตที่สีเขียวเปลี่ยนเป็นสิ่งปลูกสร้างสูง
-                  </h2>
-                  <div className="space-y-1">
-                    {data.rows.slice(0, 8).map((row, index) => (
-                      <button key={row.district_id} onClick={() => setActiveDistrict(row.district_name)}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-slate-800/60">
-                        <span className="w-4 text-[9px] text-slate-600">{index + 1}</span>
-                        <span className="min-w-0 flex-1 truncate text-[10px] text-slate-300">{row.district_name}</span>
-                        <span className="text-[10px] font-bold text-red-300">{formatPercent(row.green_to_built_pct)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="rounded-lg border border-slate-800 bg-slate-950/45 p-3">
-                  <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-300">
-                    <ShieldCheck className="h-3.5 w-3.5 text-lime-400" /> เกณฑ์คุณภาพ
-                  </h2>
-                  <ul className="mt-2 space-y-1.5 text-[9px] leading-relaxed text-slate-500">
-                    <li>• ใช้เฉพาะพิกเซลที่ความเชื่อมั่นอย่างน้อย 45%</li>
-                    <li>• ปีปัจจุบันเป็นข้อมูลตั้งแต่ต้นปีถึงวันที่ล่าสุด</li>
-                    <li>• การเปลี่ยน class ไม่เท่ากับการอนุมัติก่อสร้างหรือการใช้ที่ดินทางกฎหมาย</li>
-                  </ul>
-                </section>
-              </>
-            ) : null}
-          </div>
+        
+        {/* Footer */}
+        <div className="p-3 border-t border-slate-800/70 bg-slate-900/20 shrink-0">
           <SidebarFooter exclude={["land-cover-change"]} />
-        </aside>
+        </div>
+      </aside>
 
-        <main className="min-w-0 flex-1 overflow-auto">
+      {/* Main content area */}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {/* Tab bar */}
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-slate-800/70 bg-slate-950/95 backdrop-blur-sm z-[1001]">
+          <ViewTabs view={viewMode} onChange={setViewMode} accentColor="emerald" />
+          <div className="h-4 w-px bg-slate-700/60 mx-0.5 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+            <select
+              value={activeDistrict}
+              onChange={(e) => setActiveDistrict(e.target.value)}
+              disabled={districts.length === 0}
+              className="rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-emerald-500/50 disabled:opacity-40 max-w-[130px]"
+            >
+              <option value="ทั้งหมด">ทุกเขต</option>
+              {districts.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            {activeDistrict !== "ทั้งหมด" && (
+              <button
+                onClick={() => setActiveDistrict("ทั้งหมด")}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="ล้างตัวกรอง"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {loading && (
+            <span className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-widest animate-pulse ml-1">
+              กำลังโหลด…
+            </span>
+          )}
+          <div className="flex-1" />
+          {!loading && data && viewMode !== "map" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => downloadCSV(csvHeaders, csvRows, `bangkok_land_cover_change_${baselineYear}_${year}`)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors disabled:opacity-40"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => printReport(reportData)}
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-700/40 bg-emerald-900/20 px-2.5 py-1.5 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-40"
+              >
+                <FileText className="h-3 w-3" /> PDF
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-h-0 flex">
           {loading && !data ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500">
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> กำลังประมวลผล Dynamic World รายเขต
+            <div className="flex h-full items-center justify-center text-sm text-slate-500 w-full">
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin text-emerald-400" /> กำลังประมวลผล Dynamic World รายเขต...
             </div>
           ) : error || !data ? (
-            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-300">{error ?? "ไม่มีข้อมูล"}</div>
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-300 w-full">{error ?? "ไม่มีข้อมูล"}</div>
           ) : (
             <>
               {viewMode === "map" && (
-                <div className="relative h-full min-h-[520px]">
-                  <LandCoverChangeMap
-                    geojsonData={data.geojson}
-                    rasterUrl={raster?.urlFormat ?? null}
-                    rasterVisible={rasterVisible}
-                    layer={layer}
-                    activeDistrict={activeDistrict}
-                    onDistrictSelect={setActiveDistrict}
-                    maxConversion={maxConversion}
-                  />
-                  <div className="absolute bottom-4 right-4 z-[500] max-h-[46vh] w-60 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950/95 p-3">
-                    <div className="mb-2 text-[9px] font-bold text-slate-200">{LAYER_OPTIONS.find((option) => option.value === layer)?.label}</div>
-                    <div className="space-y-1.5">
-                      {(raster?.labels ?? []).map((labelText, index) => (
-                        <div key={labelText} className="flex items-center gap-2 text-[8px] text-slate-400">
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: raster?.palette[index] }} />
-                          <span>{labelText}</span>
+                <>
+                  <div className="relative flex-1 min-w-0">
+                    <div className="absolute inset-0 z-0">
+                      <LandCoverChangeMap
+                        geojsonData={data.geojson}
+                        rasterUrl={raster?.urlFormat ?? null}
+                        rasterVisible={rasterVisible}
+                        layer={layer}
+                        activeDistrict={activeDistrict}
+                        onDistrictSelect={setActiveDistrict}
+                        maxConversion={maxConversion}
+                      />
+                    </div>
+
+                    {/* Floating KPI cards */}
+                    <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
+                      {[
+                        ["เปลี่ยนเป็นสิ่งปลูกสร้าง", formatPercent(activeRow?.green_to_built_pct ?? data.summary.greenToBuiltPct)],
+                        ["สีเขียวเปลี่ยนสุทธิ", formatPercentagePoint(activeRow?.green_change_pp ?? data.summary.greenChangePp)],
+                        ["สิ่งปลูกสร้างเปลี่ยนสุทธิ", formatPercentagePoint(activeRow?.built_change_pp ?? data.summary.builtChangePp)],
+                        ["ความเชื่อมั่นเฉลี่ย", formatPercent(activeRow?.confidence_pct ?? data.summary.averageConfidencePct)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="bg-[#0f172a]/95 backdrop-blur-md border border-slate-800 rounded-lg p-3 shadow-xl min-w-0">
+                          <div className="text-[11px] text-slate-400 font-semibold leading-tight">{label}</div>
+                          <div className="text-sm font-black text-slate-100 mt-1 truncate">{value}</div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 border-t border-slate-800 pt-2 text-[8px] leading-relaxed text-slate-500">
-                      เส้นเขตและสีพื้นโปร่งใช้แสดงระดับสีเขียว → สิ่งปลูกสร้างรายเขต
+
+                    {/* Data Source Badge */}
+                    <div className="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 backdrop-blur-md p-3 rounded-xl border border-slate-700/50 shadow-lg pointer-events-none">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">แหล่งข้อมูล</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-relaxed">
+                        <p>{data?.summary.source ?? "Google Dynamic World V1"}</p>
+                        <p>เปรียบเทียบ: {baselineYear} → {year}</p>
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="absolute bottom-4 right-4 z-[1000] w-80 max-w-[calc(100%-2rem)] rounded-xl border border-slate-700/60 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md">
+                      <div className="mb-3">
+                        <h4 className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">สัญลักษณ์แผนที่</h4>
+                        <p className="mt-1 text-[10px] leading-snug text-slate-400">{LAYER_OPTIONS.find((option) => option.value === layer)?.label}</p>
+                      </div>
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto custom-scrollbar">
+                        {(raster?.labels ?? []).map((labelText, index) => (
+                          <div key={labelText} className="grid grid-cols-[14px_1fr] items-center gap-2 text-[10px]">
+                            <span className="h-3.5 w-3.5 rounded-sm border border-white/10 shrink-0" style={{ backgroundColor: raster?.palette[index] }} />
+                            <span className="min-w-0 truncate text-slate-300">{labelText}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 border-t border-slate-800 pt-2 text-[9px] leading-relaxed text-slate-500">
+                        เส้นเขตและสีพื้นโปร่งใช้แสดงระดับสีเขียว → สิ่งปลูกสร้างรายเขต
+                      </div>
                     </div>
                   </div>
-                </div>
+
+                  {/* Right aside */}
+                  <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
+                    <div className="flex min-h-full flex-col gap-3">
+                      <MapControlPanel
+                        accent="emerald"
+                        granularity="district"
+                        onGranularityChange={() => undefined}
+                        showGranularity={false}
+                        mapMode={layer}
+                        mapModes={LAYER_OPTIONS}
+                        onMapModeChange={(m) => setLayer(m as LandCoverLayer)}
+                        showOpacity={false}
+                        opacity={1.0}
+                        onOpacityChange={() => undefined}
+                        baseMap="none"
+                        onBaseMapChange={() => undefined}
+                        onReset={() => {
+                          setYear(currentYear);
+                          setBaselineYear(2020);
+                          setLayer("change");
+                          setActiveDistrict("ทั้งหมด");
+                        }}
+                        currentLayer={layer === "change" ? "การเปลี่ยนแปลงสิ่งปกคลุมดิน" : `ชนิดสิ่งปกคลุมดิน (${layer === "current" ? year : baselineYear})`}
+                        currentPeriod={`${baselineYear} → ${year}`}
+                        dataSource={data?.summary.source ?? "Google Dynamic World V1"}
+                        interactionHint="คลิกหรือวางเมาส์บนพื้นที่เขตเพื่อดูรายละเอียด"
+                      />
+
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                          <span>แสดงภาพถ่ายสิ่งปกคลุมดิน</span>
+                          <button
+                            type="button"
+                            onClick={() => setRasterVisible((v) => !v)}
+                            className="rounded-md border border-slate-700 bg-slate-800/60 px-2 py-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+                          >
+                            {rasterVisible ? "แสดงอยู่" : "ซ่อนอยู่"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <MonthYearPicker
+                        year={year}
+                        month={null}
+                        minYear={LAND_COVER_MIN_YEAR}
+                        maxYear={currentYear}
+                        onYearChange={setYear}
+                        onMonthChange={() => undefined}
+                        accentColor="emerald"
+                        compareMode={true}
+                        compareYear={baselineYear}
+                        onCompareYearChange={setBaselineYear}
+                        onCompareModeChange={() => undefined}
+                      />
+
+                      <ExportPanel
+                        accentColor="emerald"
+                        csvFilename={`bangkok_land_cover_change_${baselineYear}_${year}`}
+                        csvHeaders={csvHeaders}
+                        csvRows={csvRows}
+                        reportData={reportData}
+                      />
+                    </div>
+                  </aside>
+                </>
               )}
 
               {viewMode === "stats" && (
-                <div className="space-y-4 p-4 sm:p-5">
+                <div className="space-y-4 p-4 sm:p-5 flex-1 overflow-y-auto custom-scrollbar">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {[
                       ["สีเขียว → สิ่งปลูกสร้าง", formatPercent(data.summary.greenToBuiltPct), "text-red-300"],
@@ -428,7 +581,7 @@ export default function LandCoverChangePage() {
               )}
 
               {viewMode === "table" && (
-                <div className="h-full p-4 sm:p-5">
+                <div className="h-full p-4 sm:p-5 flex-1 overflow-y-auto custom-scrollbar">
                   <DistrictDataTable
                     features={filteredFeatures}
                     columns={TABLE_COLUMNS}
@@ -457,31 +610,34 @@ export default function LandCoverChangePage() {
               )}
 
               {viewMode === "guide" && (
-                <PlainLanguageGuide
-                  module="landcover"
-                  accent="emerald"
-                  records={activeDistrict === "ทั้งหมด" ? data.rows : data.rows.filter((row) => row.district_name === activeDistrict)}
-                  year={year}
-                  activeArea={activeDistrict}
-                  compareMode
-                  compareYear={baselineYear}
-                  dataSource={data.summary.source}
-                  dataQuality={data.summary.dataQuality}
-                  metricKey="green_to_built_pct"
-                  metricLabel="สัดส่วนสีเขียวที่เปลี่ยนเป็นสิ่งปลูกสร้าง"
-                  unit="%"
-                  decimals={2}
-                  nameKey="district_name"
-                  extraSummary={[
-                    `เขตที่มี conversion สูงสุดคือ ${data.summary.highestConversionDistrict ?? "ไม่มีข้อมูล"}`,
-                    `ความเชื่อมั่นเฉลี่ยของพิกเซลที่ใช้คำนวณ ${formatPercent(data.summary.averageConfidencePct)}`,
-                  ]}
-                />
+                <div className="h-full flex-1 overflow-y-auto custom-scrollbar">
+                  <PlainLanguageGuide
+                    module="landcover"
+                    accent="emerald"
+                    records={activeDistrict === "ทั้งหมด" ? data.rows : data.rows.filter((row) => row.district_name === activeDistrict)}
+                    year={year}
+                    activeArea={activeDistrict}
+                    compareMode
+                    compareYear={baselineYear}
+                    dataSource={data.summary.source}
+                    dataQuality={data.summary.dataQuality}
+                    metricKey="green_to_built_pct"
+                    metricLabel="สัดส่วนสีเขียวที่เปลี่ยนเป็นสิ่งปลูกสร้าง"
+                    unit="%"
+                    decimals={2}
+                    nameKey="district_name"
+                    extraSummary={[
+                      `เขตที่มี conversion สูงสุดคือ ${data.summary.highestConversionDistrict ?? "ไม่มีข้อมูล"}`,
+                      `ความเชื่อมั่นเฉลี่ยของพิกเซลที่ใช้คำนวณ ${formatPercent(data.summary.averageConfidencePct)}`,
+                    ]}
+                  />
+                </div>
               )}
             </>
           )}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
+
