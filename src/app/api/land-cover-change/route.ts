@@ -6,6 +6,9 @@ import {
   LAND_COVER_MIN_YEAR,
   type LandCoverDistrictRow,
 } from "@/lib/land-cover";
+import { supabaseServer as supabase } from "@/lib/supabase/server";
+import * as turf from "@turf/turf";
+
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -102,12 +105,12 @@ function annualComposite(year: number, boundary: any) {
 }
 
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const currentYear = new Date().getUTCFullYear();
-    const year = Number.parseInt(searchParams.get("year") || String(currentYear), 10);
-    const baselineYear = Number.parseInt(searchParams.get("baseline") || "2020", 10);
+  const { searchParams } = new URL(request.url);
+  const currentYear = new Date().getUTCFullYear();
+  const year = Number.parseInt(searchParams.get("year") || String(currentYear), 10);
+  const baselineYear = Number.parseInt(searchParams.get("baseline") || "2020", 10);
 
+  try {
     if (!Number.isInteger(year) || year < LAND_COVER_MIN_YEAR || year > currentYear) {
       return NextResponse.json({ error: `year ต้องอยู่ระหว่าง ${LAND_COVER_MIN_YEAR}-${currentYear}` }, { status: 400 });
     }
@@ -307,7 +310,13 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=3600`, "X-Cache": "MISS" },
     });
   } catch (error: any) {
-    console.error("Land cover change API error:", error);
+    console.error("Land cover change API error, attempting DB Fallback:", error);
+    const fallbackPayload = await dbFallback(year, baselineYear);
+    if (fallbackPayload) {
+      return NextResponse.json(fallbackPayload, {
+        headers: { "Cache-Control": "public, s-maxage=3600", "X-Cache": "FALLBACK" }
+      });
+    }
     const message = error?.message ?? "ไม่สามารถประมวลผล Land Cover Change ได้";
     const isAuthError = /credential|service.?account|auth|token|401|403/i.test(message);
     return NextResponse.json(
@@ -316,3 +325,128 @@ export async function GET(request: Request) {
     );
   }
 }
+
+async function dbFallback(year: number, baselineYear: number) {
+  try {
+    const [dbYearRes, dbBaseRes] = await Promise.all([
+      supabase.from("district_statistics").select("district_id, green_area_ratio, water_ratio, ndbi_mean").eq("year", year),
+      supabase.from("district_statistics").select("district_id, green_area_ratio, water_ratio, ndbi_mean").eq("year", baselineYear),
+    ]);
+
+    if (dbYearRes.error || !dbYearRes.data || dbYearRes.data.length === 0) {
+      throw new Error(dbYearRes.error?.message || "No data in Supabase");
+    }
+
+    const yearDataMap = new Map<number, any>(dbYearRes.data.map(r => [r.district_id, r]));
+    const baseDataMap = new Map<number, any>((dbBaseRes.data || []).map(r => [r.district_id, r]));
+
+    const rows: LandCoverDistrictRow[] = sourceFeatures.map((feature: any) => {
+      const id = Number(feature.properties.id);
+      const name = String(feature.properties.name_th);
+      const yearRow = yearDataMap.get(id);
+      const baseRow = baseDataMap.get(id);
+
+      let gPct = yearRow?.green_area_ratio !== undefined && yearRow?.green_area_ratio !== null ? yearRow.green_area_ratio * 100 : 0;
+      let wPct = yearRow?.water_ratio !== undefined && yearRow?.water_ratio !== null ? yearRow.water_ratio * 100 : 0;
+      let bPct = yearRow?.ndbi_mean !== undefined && yearRow?.ndbi_mean !== null ? Math.max(0, Math.min(1, (yearRow.ndbi_mean + 0.2) / 0.6)) * 100 : 0;
+      
+      const sumPct = gPct + wPct + bPct;
+      if (sumPct > 100) {
+        gPct = (gPct / sumPct) * 100;
+        wPct = (wPct / sumPct) * 100;
+        bPct = (bPct / sumPct) * 100;
+      }
+      const barePct = Math.max(0, 100 - gPct - wPct - bPct);
+
+      let baseGPct = baseRow?.green_area_ratio !== undefined && baseRow?.green_area_ratio !== null ? baseRow.green_area_ratio * 100 : 0;
+      let baseWPct = baseRow?.water_ratio !== undefined && baseRow?.water_ratio !== null ? baseRow.water_ratio * 100 : 0;
+      let baseBPct = baseRow?.ndbi_mean !== undefined && baseRow?.ndbi_mean !== null ? Math.max(0, Math.min(1, (baseRow.ndbi_mean + 0.2) / 0.6)) * 100 : 0;
+      
+      const sumBasePct = baseGPct + baseWPct + baseBPct;
+      if (sumBasePct > 100) {
+        baseGPct = (baseGPct / sumBasePct) * 100;
+        baseWPct = (baseWPct / sumBasePct) * 100;
+        baseBPct = (baseBPct / sumBasePct) * 100;
+      }
+
+      const greenPct = roundOrNull(gPct);
+      const builtPct = roundOrNull(bPct);
+      const baselineGreenPct = baseRow ? roundOrNull(baseGPct) : null;
+      const baselineBuiltPct = baseRow ? roundOrNull(baseBPct) : null;
+
+      return {
+        district_id: id,
+        district_name: name,
+        green_pct: greenPct,
+        built_pct: builtPct,
+        water_pct: roundOrNull(wPct),
+        bare_pct: roundOrNull(barePct),
+        baseline_green_pct: baselineGreenPct,
+        baseline_built_pct: baselineBuiltPct,
+        green_change_pp: greenPct !== null && baselineGreenPct !== null ? roundOrNull(greenPct - baselineGreenPct) : null,
+        built_change_pp: builtPct !== null && baselineBuiltPct !== null ? roundOrNull(builtPct - baselineBuiltPct) : null,
+        green_to_built_pct: null,
+        built_to_green_pct: null,
+        changed_pct: null,
+        confidence_pct: null,
+        coverage_pct: 100,
+      };
+    });
+
+    const rowById = new Map(rows.map((row) => [row.district_id, row]));
+
+    const geojson = {
+      type: "FeatureCollection" as const,
+      features: sourceFeatures.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          district_name: feature.properties.name_th,
+          ...(rowById.get(Number(feature.properties.id)) ?? {}),
+        },
+      })),
+    };
+
+    const average = (key: keyof LandCoverDistrictRow) => {
+      const values = rows.map((row) => row[key]).filter((value): value is number => typeof value === "number");
+      return values.length ? roundOrNull(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
+    };
+
+    return {
+      period: {
+        year,
+        baselineYear,
+        currentLabel: `ปี ${year}`,
+        baselineLabel: `ปี ${baselineYear}`,
+      },
+      rows,
+      geojson,
+      summary: {
+        greenPct: average("green_pct"),
+        builtPct: average("built_pct"),
+        waterPct: average("water_pct"),
+        barePct: average("bare_pct"),
+        greenToBuiltPct: null,
+        builtToGreenPct: null,
+        changedPct: null,
+        averageConfidencePct: null,
+        averageCoveragePct: 100,
+        highestBuiltCoverDistrict: rows.sort((a, b) => (b.built_pct ?? -1) - (a.built_pct ?? -1))[0]?.district_name ?? null,
+        highestGreenConversionDistrict: null,
+        currentSceneCount: 0,
+        baselineSceneCount: 0,
+        source: "Supabase fallback (class estimates)",
+        dataQuality: "observed" as const,
+        processingNote: "ข้อมูลสัดส่วนสิ่งปกคลุมดินจำลองจากสถิติฐานข้อมูล Supabase ย้อนหลัง (ไม่มีแผนที่สเปกตรัมสด)",
+      },
+      rasters: {
+        current: { urlFormat: null, palette: CLASS_PALETTE, labels: CLASS_LABELS },
+        baseline: { urlFormat: null, palette: CLASS_PALETTE, labels: CLASS_LABELS },
+      },
+    };
+  } catch (err: any) {
+    console.warn("DB Fallback failed for land-cover-change:", err.message);
+    return null;
+  }
+}
+

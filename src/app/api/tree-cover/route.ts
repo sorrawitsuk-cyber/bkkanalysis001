@@ -6,6 +6,9 @@ import {
   TREE_COVER_MIN_YEAR,
   type TreeCoverDistrictRow,
 } from "@/lib/tree-cover";
+import { supabaseServer as supabase } from "@/lib/supabase/server";
+import * as turf from "@turf/turf";
+
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -90,12 +93,12 @@ function tileUrl(map: any): string | null {
 }
 
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const currentYear = new Date().getUTCFullYear();
-    const year = Number.parseInt(searchParams.get("year") || String(currentYear), 10);
-    const baselineYear = Number.parseInt(searchParams.get("baseline") || "2020", 10);
+  const { searchParams } = new URL(request.url);
+  const currentYear = new Date().getUTCFullYear();
+  const year = Number.parseInt(searchParams.get("year") || String(currentYear), 10);
+  const baselineYear = Number.parseInt(searchParams.get("baseline") || "2020", 10);
 
+  try {
     if (!Number.isInteger(year) || year < TREE_COVER_MIN_YEAR || year > currentYear) {
       return NextResponse.json({ error: `year ต้องอยู่ระหว่าง ${TREE_COVER_MIN_YEAR}-${currentYear}` }, { status: 400 });
     }
@@ -253,7 +256,135 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=3600`, "X-Cache": "MISS" },
     });
   } catch (error: any) {
-    console.error("Tree cover API error:", error);
+    console.error("Tree cover API error, attempting DB Fallback:", error);
+    const fallbackPayload = await dbFallback(year, baselineYear);
+    if (fallbackPayload) {
+      return NextResponse.json(fallbackPayload, {
+        headers: { "Cache-Control": "public, s-maxage=3600", "X-Cache": "FALLBACK" }
+      });
+    }
     return NextResponse.json({ error: error?.message ?? "ไม่สามารถประมวลผล Tree Cover ได้" }, { status: 500 });
   }
 }
+
+async function dbFallback(year: number, baselineYear: number) {
+  try {
+    const [dbYearRes, dbBaseRes] = await Promise.all([
+      supabase.from("district_statistics").select("district_id, green_area_ratio, green_area_rai, low_green_ratio").eq("year", year),
+      supabase.from("district_statistics").select("district_id, green_area_ratio, green_area_rai, low_green_ratio").eq("year", baselineYear),
+    ]);
+
+    if (dbYearRes.error || !dbYearRes.data || dbYearRes.data.length === 0) {
+      throw new Error(dbYearRes.error?.message || "No data in Supabase");
+    }
+
+    const yearDataMap = new Map<number, any>(dbYearRes.data.map(r => [r.district_id, r]));
+    const baseDataMap = new Map<number, any>((dbBaseRes.data || []).map(r => [r.district_id, r]));
+
+    const districtAreaRaiMap = new Map<number, number>(
+      sourceFeatures.map((f: any) => [
+        f.properties.id,
+        Math.round(turf.area(f) / 1600),
+      ])
+    );
+
+    const rows: TreeCoverDistrictRow[] = sourceFeatures.map((feature: any) => {
+      const id = Number(feature.properties.id);
+      const name = String(feature.properties.name_th);
+      const yearRow = yearDataMap.get(id);
+      const baseRow = baseDataMap.get(id);
+
+      const treeCoverPct = yearRow?.green_area_ratio !== undefined && yearRow?.green_area_ratio !== null
+        ? roundOrNull(yearRow.green_area_ratio * 100)
+        : null;
+      const treeCoverRai = yearRow?.green_area_rai !== undefined && yearRow?.green_area_rai !== null
+        ? yearRow.green_area_rai
+        : (treeCoverPct !== null ? Math.round((treeCoverPct / 100) * (districtAreaRaiMap.get(id) ?? 0)) : null);
+      
+      const baselinePct = baseRow?.green_area_ratio !== undefined && baseRow?.green_area_ratio !== null
+        ? roundOrNull(baseRow.green_area_ratio * 100)
+        : null;
+
+      return {
+        district_id: id,
+        district_name: name,
+        tree_cover_pct: treeCoverPct,
+        tree_cover_rai: treeCoverRai,
+        baseline_tree_cover_pct: baselinePct,
+        tree_cover_change_pp: treeCoverPct !== null && baselinePct !== null
+          ? roundOrNull(treeCoverPct - baselinePct)
+          : null,
+        tree_gain_pct: null,
+        tree_loss_pct: yearRow?.low_green_ratio !== undefined && yearRow?.low_green_ratio !== null
+          ? roundOrNull(yearRow.low_green_ratio * 100)
+          : null,
+        stable_tree_pct: null,
+        confidence_pct: null,
+        coverage_pct: 100,
+      };
+    });
+
+    rows.sort((a, b) => (b.tree_cover_pct ?? -1) - (a.tree_cover_pct ?? -1));
+    const rowById = new Map(rows.map((row) => [row.district_id, row]));
+    
+    const geojson = {
+      type: "FeatureCollection" as const,
+      features: sourceFeatures.map((feature) => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          district_name: feature.properties.name_th,
+          ...(rowById.get(Number(feature.properties.id)) ?? {}),
+        },
+      })),
+    };
+
+    const average = (key: keyof TreeCoverDistrictRow) => {
+      const values = rows.map((row) => row[key]).filter((value): value is number => typeof value === "number");
+      return values.length ? roundOrNull(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
+    };
+    const sum = (key: keyof TreeCoverDistrictRow) => {
+      const values = rows.map((row) => row[key]).filter((value): value is number => typeof value === "number");
+      return values.length ? roundOrNull(values.reduce((total, value) => total + value, 0), 0) : null;
+    };
+
+    const byLoss = [...rows].sort((a: any, b: any) => (b.tree_loss_pct ?? -1) - (a.tree_loss_pct ?? -1));
+
+    return {
+      period: {
+        year,
+        baselineYear,
+        currentLabel: `ปี ${year}`,
+        baselineLabel: `ปี ${baselineYear}`,
+      },
+      rows,
+      geojson,
+      summary: {
+        treeCoverPct: average("tree_cover_pct"),
+        treeCoverRai: sum("tree_cover_rai"),
+        treeCoverChangePp: average("tree_cover_change_pp"),
+        treeGainPct: null,
+        treeLossPct: average("tree_loss_pct"),
+        averageConfidencePct: null,
+        averageCoveragePct: 100,
+        highestTreeCoverDistrict: rows[0]?.district_name ?? null,
+        lowestTreeCoverDistrict: rows[rows.length - 1]?.district_name ?? null,
+        highestTreeGainDistrict: null,
+        highestTreeLossDistrict: byLoss[0]?.district_name ?? null,
+        currentSceneCount: 0,
+        baselineSceneCount: 0,
+        source: "Supabase fallback (district_statistics)",
+        dataQuality: "observed" as const,
+        processingNote: "ข้อมูลสถิติพื้นที่สีเขียวสำรองจากฐานข้อมูลภายใน (ไม่มีชั้นข้อมูลแผนที่สด)",
+      },
+      rasters: {
+        current: { urlFormat: null, palette: ["#f8fafc", "#bbf7d0", "#22c55e", "#065f46"], labels: ["โอกาสเป็นเรือนยอดไม้ต่ำ", "ปานกลาง", "สูง", "สูงมาก"] },
+        change: { urlFormat: null, palette: ["#166534", "#4ade80", "#dc2626"], labels: ["ต้นไม้คงเดิม", "ต้นไม้เพิ่ม", "ต้นไม้สูญเสีย"] },
+      },
+    };
+  } catch (err: any) {
+    console.warn("DB Fallback failed:", err.message);
+    return null;
+  }
+}
+

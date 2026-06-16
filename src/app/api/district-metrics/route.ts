@@ -643,11 +643,20 @@ export async function GET(request: Request) {
         if (typeof row.ndvi_min === "number") acc[row.year].ndviMin = Math.min(acc[row.year].ndviMin, row.ndvi_min);
         if (typeof row.ndvi_max === "number") acc[row.year].ndviMax = Math.max(acc[row.year].ndviMax, row.ndvi_max);
       }
-      if (metric === "lst" && row.monthly_lst) {
-        row.monthly_lst.forEach((temp: number, idx: number) => {
-          acc[row.year].monthlyData[idx] += temp;
-          acc[row.year].monthlyCount[idx] += 1;
-        });
+      if (metric === "lst") {
+        let monthlyLst = row.monthly_lst;
+        if (!monthlyLst || monthlyLst.length === 0) {
+          const fallbackRow = lstData.find((r: any) => r.district_id === row.district_id && r.year === row.year);
+          if (fallbackRow && fallbackRow.monthly_lst) {
+            monthlyLst = fallbackRow.monthly_lst;
+          }
+        }
+        if (monthlyLst) {
+          monthlyLst.forEach((temp: number, idx: number) => {
+            acc[row.year].monthlyData[idx] += temp;
+            acc[row.year].monthlyCount[idx] += 1;
+          });
+        }
       }
       return acc;
     }, {});
@@ -933,14 +942,23 @@ export async function GET(request: Request) {
     const monthlyCounts = new Array(12).fill(0);
     const monthlyMaxData = new Array(12).fill(-Infinity);
     currentYearData.forEach((row: any) => {
-      if (metric === "lst" && row.monthly_lst) {
-        row.monthly_lst.forEach((temp: number, monthIdx: number) => {
-          monthlyData[monthIdx] += temp;
-          monthlyCounts[monthIdx] += 1;
-          if (typeof temp === "number" && Number.isFinite(temp)) {
-            monthlyMaxData[monthIdx] = Math.max(monthlyMaxData[monthIdx], temp);
+      if (metric === "lst") {
+        let monthlyLst = row.monthly_lst;
+        if (!monthlyLst || monthlyLst.length === 0) {
+          const fallbackRow = lstData.find((r: any) => r.district_id === row.district_id && r.year === row.year);
+          if (fallbackRow && fallbackRow.monthly_lst) {
+            monthlyLst = fallbackRow.monthly_lst;
           }
-        });
+        }
+        if (monthlyLst) {
+          monthlyLst.forEach((temp: number, monthIdx: number) => {
+            monthlyData[monthIdx] += temp;
+            monthlyCounts[monthIdx] += 1;
+            if (typeof temp === "number" && Number.isFinite(temp)) {
+              monthlyMaxData[monthIdx] = Math.max(monthlyMaxData[monthIdx], temp);
+            }
+          });
+        }
       }
     });
     const monthlyTrend = monthlyData.map((sum, idx) =>
@@ -957,8 +975,15 @@ export async function GET(request: Request) {
       summaryData
         .filter((row: any) => row.year === compareYear)
         .forEach((row: any) => {
-          if (row.monthly_lst) {
-            row.monthly_lst.forEach((temp: number, monthIdx: number) => {
+          let monthlyLst = row.monthly_lst;
+          if (!monthlyLst || monthlyLst.length === 0) {
+            const fallbackRow = lstData.find((r: any) => r.district_id === row.district_id && r.year === row.year);
+            if (fallbackRow && fallbackRow.monthly_lst) {
+              monthlyLst = fallbackRow.monthly_lst;
+            }
+          }
+          if (monthlyLst) {
+            monthlyLst.forEach((temp: number, monthIdx: number) => {
               baselineMonthlyData[monthIdx] += temp;
               baselineMonthlyCounts[monthIdx] += 1;
             });
@@ -1021,6 +1046,33 @@ export async function GET(request: Request) {
         baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
         avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : 0,
         maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
+        
+        // Generic value aliases
+        averageValue: parseFloat(currentAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)),
+        baselineAverageValue: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
+        maxValue: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
+        minValue: minValue !== Infinity ? minValue : null,
+        valueDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : 0,
+        
+        // Metric-specific aliases
+        ...(metric === "vegetation" ? {
+          averageNdvi: parseFloat(currentAvg.toFixed(3)),
+          baselineAverageNdvi: baselineAvg ? parseFloat(baselineAvg.toFixed(3)) : null,
+          maxNdvi: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(3)) : null,
+          minNdvi: minValue !== Infinity ? minValue : null,
+        } : {}),
+        ...(metric === "builtup" ? {
+          averageNdbi: parseFloat(currentAvg.toFixed(3)),
+          baselineAverageNdbi: baselineAvg ? parseFloat(baselineAvg.toFixed(3)) : null,
+          maxNdbi: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(3)) : null,
+          minNdbi: minValue !== Infinity ? minValue : null,
+        } : {}),
+        ...(metric === "air_pollution" ? {
+          averagePollutionScore: parseFloat(currentAvg.toFixed(6)),
+          baselineAveragePollutionScore: baselineAvg ? parseFloat(baselineAvg.toFixed(6)) : null,
+          maxPollutionScore: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(6)) : null,
+          minPollutionScore: minValue !== Infinity ? minValue : null,
+        } : {}),
         yearlyTrend,
         yearlyRangeTrend,
         yearlyMaxTrend,
