@@ -30,6 +30,7 @@ interface DistrictMetricsMapViewProps {
   satelliteCacheBounds?: [[number, number], [number, number]];
   /** "district" renders 50 district polygons; "subdistrict" renders 180 แขวง polygons. */
   granularity?: "district" | "subdistrict";
+  onFeatureSelect?: (districtName: string, feature: any) => void;
   /** Called when GEE tile metadata is received (sceneCount, lowSceneWarning, dataSource) */
   onTileMetadata?: (meta: { sceneCount: number; lowSceneWarning: boolean; dataSource: string }) => void;
 }
@@ -80,6 +81,7 @@ export default function DistrictMetricsMapView({
   satelliteCachePreviewUrl,
   satelliteCacheBounds,
   granularity = "district",
+  onFeatureSelect,
   onTileMetadata,
 }: DistrictMetricsMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
@@ -428,18 +430,38 @@ export default function DistrictMetricsMapView({
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
         const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
         const isSatelliteMode = mapMode === "satellite-cache";
+        const clickHitFill = onFeatureSelect && !showFill ? 0.01 : 0;
         return {
           fillColor: getColor(value),
           weight: isSatelliteMode ? (isSelected ? 2 : 0) : (isSelected ? 3 : 1),
           opacity: isSatelliteMode ? (isSelected ? 0.9 : 0) : 1,
           color: isSelected ? "#ffffff" : "#1e293b",
           dashArray: isSatelliteMode ? undefined : "3",
-          fillOpacity: showFill ? (isDimmed ? 0.2 : 0.72) : 0,
+          fillOpacity: showFill ? (isDimmed ? 0.2 : 0.72) : clickHitFill,
         };
       },
       onEachFeature: (feature, layer) => {
-        if (mapMode !== "district") return;
         const props = feature.properties || {};
+        const districtName = props.district_name || props.name_th;
+        if (onFeatureSelect && districtName) {
+          layer.on({
+            click: (event: L.LeafletMouseEvent) => {
+              L.DomEvent.stopPropagation(event);
+              onFeatureSelect(districtName, feature);
+            },
+            mouseover: () => {
+              const target = layer as L.Path;
+              target.setStyle({ weight: 3, color: "#ffffff" });
+              if (mapRef.current) mapRef.current.getContainer().style.cursor = "pointer";
+            },
+            mouseout: () => {
+              if (geojsonLayerRef.current) geojsonLayerRef.current.resetStyle(layer);
+              if (mapRef.current) mapRef.current.getContainer().style.cursor = mapModeRef.current === "idw" ? "crosshair" : "";
+            },
+          });
+        }
+
+        if (mapMode !== "district") return;
         const value = getFeatureValue(feature);
         const decimals = analysisType === "green" ? (ndviLayer === "green_area_rai" ? 0 : ndviLayer === "green_area_ratio" ? 3 : 3) : analysisType === "nightlights" ? 3 : analysisType === "air" ? (airPollutionLayer === "pollution_score" ? 2 : 6) : 3;
         const unit = analysisType === "heat" ? "°C" : analysisType === "green" && ndviLayer === "green_area_rai" ? " ไร่" : "";
@@ -534,7 +556,7 @@ export default function DistrictMetricsMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, ndviPresentation, airPollutionLayer, analysisType, granularity, satelliteCachePreviewUrl, getColor, getFeatureValue]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, ndviPresentation, airPollutionLayer, analysisType, granularity, satelliteCachePreviewUrl, onFeatureSelect, getColor, getFeatureValue]);
 
   return <div id="lst-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import AirQualitySidebar from "@/components/gee/AirQualitySidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
@@ -179,6 +180,14 @@ export default function AirQualityPage() {
       .sort((a, b) => a.localeCompare(b, "th")),
     [geojsonData],
   );
+  const activeFeature = useMemo(() => {
+    if (activeDistrict === ALL_DISTRICTS) return null;
+    return (displayGeoJson?.features ?? []).find((feature: any) => {
+      const props = feature?.properties ?? {};
+      return props.name_th === activeDistrict || props.district_name === activeDistrict;
+    }) ?? null;
+  }, [activeDistrict, displayGeoJson]);
+  const activeProps = activeFeature?.properties ?? null;
 
   const csvFilename = `air-quality_${layerMeta.id}_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
   const csvHeaders = ["เขต", `${layerMeta.label} (${layerMeta.unit})`, "หน่วย", "ช่วงเวลา"];
@@ -305,6 +314,7 @@ export default function AirQualityPage() {
                     airPollutionLayer={airLayer}
                     dataPeriodLabel={latestLabel}
                     granularity={granularity}
+                    onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
                   />
                 </ErrorBoundary>
                 <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] max-w-xs rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 text-[10px] leading-5 text-slate-400 shadow-xl backdrop-blur">
@@ -335,6 +345,20 @@ export default function AirQualityPage() {
               {/* Right aside */}
               <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
                 <div className="flex min-h-full flex-col gap-3">
+                  <InteractiveDistrictPanel
+                    accent="cyan"
+                    selected={activeDistrict !== ALL_DISTRICTS}
+                    title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
+                    subtitle={activeDistrict !== ALL_DISTRICTS ? "สรุปมลพิษจากพื้นที่ที่คลิก" : "คลิกพื้นที่เขตบนแผนที่เพื่อดูค่ามลพิษและกราฟย่อ"}
+                    onClear={() => setActiveDistrict(ALL_DISTRICTS)}
+                    metrics={[
+                      { label: "คะแนนรวม", value: activeProps?.pollution_score != null ? formatMetric(Number(activeProps.pollution_score), "pollution_score") : "รอเลือก", rawValue: activeProps?.pollution_score, color: "#f87171" },
+                      { label: "NO2", value: activeProps?.no2_mean != null ? formatMetric(Number(activeProps.no2_mean), "no2_mean") : "ไม่มีข้อมูล", rawValue: activeProps?.no2_mean, color: "#a78bfa" },
+                      { label: "CO", value: activeProps?.co_mean != null ? formatMetric(Number(activeProps.co_mean), "co_mean") : "ไม่มีข้อมูล", rawValue: activeProps?.co_mean, color: "#fb923c" },
+                      { label: "Aerosol", value: activeProps?.aerosol_index_mean != null ? formatMetric(Number(activeProps.aerosol_index_mean), "aerosol_index_mean") : "ไม่มีข้อมูล", rawValue: activeProps?.aerosol_index_mean, color: "#67e8f9" },
+                    ]}
+                  />
+
                   <MapControlPanel
                     accent="cyan"
                     granularity={granularity}

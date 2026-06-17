@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
@@ -123,6 +124,11 @@ export default function NdviPage() {
     .filter((row: any) => typeof row.delta === "number")
     .sort((a: any, b: any) => a.delta - b.delta);
   const districts = rows.map((row: any) => row.name).filter(Boolean).sort((a: string, b: string) => a.localeCompare(b, "th"));
+  const activeFeature = useMemo(() => {
+    if (activeDistrict === ALL_DISTRICTS) return null;
+    return (geojsonData?.features ?? []).find((feature: any) => feature?.properties?.name_th === activeDistrict) ?? null;
+  }, [activeDistrict, geojsonData]);
+  const activeProps = activeFeature?.properties ?? null;
   const yearlyRangeRows = (summary?.yearlyRangeTrend ?? []).map(
     ([trendYear, mean, min, max]: [string, number, number | null, number | null]) => ({
       year: trendYear,
@@ -373,6 +379,7 @@ export default function NdviPage() {
                     ndviPresentation="index"
                     dataPeriodLabel={periodLabel}
                     onTileMetadata={setTileMetadata}
+                    onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
                   />
                 </ErrorBoundary>
 
@@ -428,6 +435,20 @@ export default function NdviPage() {
                   </button>
                 </div>
                 <div className="space-y-3">
+                  <InteractiveDistrictPanel
+                    accent="emerald"
+                    selected={activeDistrict !== ALL_DISTRICTS}
+                    title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
+                    subtitle={activeDistrict !== ALL_DISTRICTS ? "สถิติ NDVI ของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อเปิดค่าสถิติและกราฟย่อด้านนี้"}
+                    onClear={() => setActiveDistrict(ALL_DISTRICTS)}
+                    metrics={[
+                      { label: "NDVI เฉลี่ย", value: formatNdvi(activeProps?.ndvi_mean), rawValue: activeProps?.ndvi_mean, color: "#22c55e" },
+                      { label: "NDVI ต่ำสุด", value: formatNdvi(activeProps?.ndvi_min), rawValue: activeProps?.ndvi_min, color: "#f59e0b" },
+                      { label: "NDVI สูงสุด", value: formatNdvi(activeProps?.ndvi_max), rawValue: activeProps?.ndvi_max, color: "#047857" },
+                      { label: "พื้นที่ผ่านเกณฑ์", value: activeProps?.green_area_ratio != null ? `${(Number(activeProps.green_area_ratio) * 100).toFixed(1)}%` : "ไม่มีข้อมูล", rawValue: activeProps?.green_area_ratio != null ? Number(activeProps.green_area_ratio) * 100 : null, color: "#84cc16" },
+                    ]}
+                  />
+
                   <MapControlPanel
                     accent="emerald"
                     granularity="district"

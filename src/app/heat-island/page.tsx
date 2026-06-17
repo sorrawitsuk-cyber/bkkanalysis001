@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import LSTSidebar from "@/components/gee/LSTSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { formatLST, getLSTLegendItems } from "@/lib/lst";
@@ -147,6 +148,14 @@ export default function HeatIslandPage() {
       .sort((a, b) => a.localeCompare(b, "th")),
     [geojsonData],
   );
+  const activeFeature = useMemo(() => {
+    if (activeDistrict === "ทั้งหมด") return null;
+    return (displayGeoJson?.features ?? []).find((feature: any) => {
+      const props = feature?.properties ?? {};
+      return props.name_th === activeDistrict || props.district_name === activeDistrict;
+    }) ?? null;
+  }, [activeDistrict, displayGeoJson]);
+  const activeProps = activeFeature?.properties ?? null;
 
   const csvFilename = `heat-island_LST_${selectedYear}`;
   const csvHeaders = ["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"];
@@ -268,6 +277,7 @@ export default function HeatIslandPage() {
                       baseMap={baseMap}
                       dataPeriodLabel={periodLabel}
                       granularity={granularity}
+                      onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
                     />
                   </ErrorBoundary>
                 </div>
@@ -321,6 +331,20 @@ export default function HeatIslandPage() {
               {/* Right aside (controls) — map mode only */}
               <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
                 <div className="flex min-h-full flex-col gap-3">
+                  <InteractiveDistrictPanel
+                    accent="orange"
+                    selected={activeDistrict !== "ทั้งหมด"}
+                    title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
+                    subtitle={activeDistrict !== "ทั้งหมด" ? "สถิติด้านล่างอัปเดตจาก polygon ที่คลิก" : "คลิกพื้นที่เขตบนแผนที่เพื่อดูสถิติและกราฟย่อของพื้นที่นั้น"}
+                    onClear={() => setActiveDistrict("ทั้งหมด")}
+                    metrics={[
+                      { label: "LST เฉลี่ย", value: activeProps?.mean_lst != null ? formatLST(Number(activeProps.mean_lst)) : "รอเลือก", rawValue: activeProps?.mean_lst, color: "#fb923c" },
+                      { label: "LST สูงสุด", value: activeProps?.max_lst != null ? formatLST(Number(activeProps.max_lst)) : "รอเลือก", rawValue: activeProps?.max_lst, color: "#ef4444" },
+                      { label: "พื้นที่สีเขียว", value: activeProps?.green_area_rai != null ? `${Math.round(Number(activeProps.green_area_rai)).toLocaleString("th-TH")} ไร่` : "ไม่มีข้อมูล", rawValue: activeProps?.green_area_rai, color: "#34d399" },
+                      { label: "สิ่งปลูกสร้าง", value: activeProps?.builtup_ratio != null ? `${(Number(activeProps.builtup_ratio) * 100).toFixed(1)}%` : "ไม่มีข้อมูล", rawValue: activeProps?.builtup_ratio != null ? Number(activeProps.builtup_ratio) * 100 : null, color: "#f87171" },
+                    ]}
+                  />
+
                   <MapControlPanel
                     accent="orange"
                     granularity={granularity}

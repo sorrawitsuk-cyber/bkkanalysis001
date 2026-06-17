@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { Calendar, Moon, TrendingUp, TrendingDown, MapPin, X, Download, FileText } from "lucide-react";
@@ -320,6 +321,14 @@ export default function NighttimeLightsPage() {
       .sort((a, b) => a.localeCompare(b, "th")),
     [geojsonData],
   );
+  const activeFeature = useMemo(() => {
+    if (activeDistrict === "ทั้งหมด") return null;
+    return (displayGeoJson?.features ?? []).find((feature: any) => {
+      const props = feature?.properties ?? {};
+      return props.name_th === activeDistrict || props.district_name === activeDistrict;
+    }) ?? null;
+  }, [activeDistrict, displayGeoJson]);
+  const activeProps = activeFeature?.properties ?? null;
 
   const csvFilename = `nighttime-lights_${isMonthlyPreview ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
   const csvHeaders = ["เขต", "ค่าแสง NTL (nW/sr/cm²)", "หน่วย", "ช่วงเวลา"];
@@ -500,6 +509,7 @@ export default function NighttimeLightsPage() {
                     satelliteCachePreviewUrl={cachePreviewUrl}
                     satelliteCacheBounds={cacheMeta?.bounds}
                     granularity={granularity}
+                    onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
                   />
                 </ErrorBoundary>
               </div>
@@ -540,6 +550,19 @@ export default function NighttimeLightsPage() {
             {/* Right control panel */}
             <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
               <div className="flex min-h-full flex-col gap-3">
+                <InteractiveDistrictPanel
+                  accent="yellow"
+                  selected={activeDistrict !== "ทั้งหมด"}
+                  title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
+                  subtitle={activeDistrict !== "ทั้งหมด" ? "ค่าแสงกลางคืนของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อเปิดข้อมูลแสงและกราฟย่อ"}
+                  onClear={() => setActiveDistrict("ทั้งหมด")}
+                  metrics={[
+                    { label: "NTL เฉลี่ย", value: formatRadiance(activeProps?.ntl_mean, 3), rawValue: activeProps?.ntl_mean, color: "#facc15" },
+                    { label: "NTL สูงสุด", value: formatRadiance(activeProps?.ntl_max, 3), rawValue: activeProps?.ntl_max, color: "#f59e0b" },
+                    { label: "ส่วนต่าง", value: activeProps?.ntl_delta != null ? `${Number(activeProps.ntl_delta) > 0 ? "+" : ""}${formatRadiance(activeProps.ntl_delta, 3)}` : "ไม่มีข้อมูล", rawValue: activeProps?.ntl_delta, color: "#38bdf8" },
+                    { label: "จำนวนพิกเซล", value: activeProps?.pixel_count != null ? Number(activeProps.pixel_count).toLocaleString("th-TH") : "ไม่มีข้อมูล", rawValue: activeProps?.pixel_count, color: "#fde68a" },
+                  ]}
+                />
 
                 <MapControlPanel
                   accent="yellow"
