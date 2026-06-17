@@ -17,6 +17,7 @@ import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
 import DistrictDataTable, { ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), { ssr: false, loading: () => <MapSkeleton /> });
 
@@ -78,7 +79,7 @@ export default function AirQualityPage() {
       .catch((err) => { console.error(err); setGeojsonData(null); setSummary(null); setLoading(false); });
   }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear]);
 
-  const features = geojsonData?.features ?? [];
+  const features = useMemo(() => geojsonData?.features ?? [], [geojsonData]);
   const layerMeta = AIR_LAYERS.find((l) => l.id === airLayer) ?? AIR_LAYERS[0];
   const airLegend = useMemo(() => {
     const gasVals = features
@@ -188,6 +189,27 @@ export default function AirQualityPage() {
     }) ?? null;
   }, [activeDistrict, displayGeoJson]);
   const activeProps = activeFeature?.properties ?? null;
+  const panelAverageValue = rankingRows.length ? rankingRows.reduce((sum, [, value]) => sum + value, 0) / rankingRows.length : null;
+  const panelProvenance = buildProvenance({
+    summary,
+    source: mapMode === "idw" ? "Sentinel-5P ผ่าน GEE" : summary?.sourceLabel ?? summary?.dataSource,
+    period: latestLabel,
+    methodologyId: `air-${airLayer}-district-v1`,
+    qualityFlags: [
+      airLayer === "pollution_score" && "คะแนนรวมเป็น proxy ไม่ใช่ AQI จากสถานีภาคพื้น",
+      granularity === "subdistrict" && "ระดับแขวงใช้ค่าจากเขตแม่",
+      compareMode && `เทียบกับปีฐาน ${compareYear}`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== ALL_DISTRICTS,
+    title: activeDistrict,
+    metricLabel: layerMeta.label,
+    primaryValue: activeProps?.[airLayer],
+    averageValue: panelAverageValue,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   const csvFilename = `air-quality_${layerMeta.id}_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
   const csvHeaders = ["เขต", `${layerMeta.label} (${layerMeta.unit})`, "หน่วย", "ช่วงเวลา"];
@@ -357,6 +379,8 @@ export default function AirQualityPage() {
                       { label: "CO", value: activeProps?.co_mean != null ? formatMetric(Number(activeProps.co_mean), "co_mean") : "ไม่มีข้อมูล", rawValue: activeProps?.co_mean, color: "#fb923c" },
                       { label: "Aerosol", value: activeProps?.aerosol_index_mean != null ? formatMetric(Number(activeProps.aerosol_index_mean), "aerosol_index_mean") : "ไม่มีข้อมูล", rawValue: activeProps?.aerosol_index_mean, color: "#67e8f9" },
                     ]}
+                    provenance={panelProvenance}
+                    insight={panelInsight}
                   />
 
                   <MapControlPanel

@@ -1,7 +1,8 @@
 "use client";
 
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { BarChart3, MousePointer2, X } from "lucide-react";
+import { AlertTriangle, BarChart3, Database, MousePointer2, X } from "lucide-react";
+import { type DataProvenance, getQualityLabel } from "@/lib/data-provenance";
 
 type Metric = {
   label: string;
@@ -16,6 +17,8 @@ interface InteractiveDistrictPanelProps {
   metrics: Metric[];
   accent?: "orange" | "emerald" | "cyan" | "yellow";
   selected?: boolean;
+  provenance?: DataProvenance;
+  insight?: string;
   onClear?: () => void;
 }
 
@@ -33,12 +36,23 @@ const accentText = {
   yellow: "text-yellow-200",
 };
 
+const qualityClasses = {
+  observed: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  modeled: "border-violet-500/30 bg-violet-500/10 text-violet-200",
+  estimated: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  fallback: "border-orange-500/30 bg-orange-500/10 text-orange-200",
+  unavailable: "border-slate-600 bg-slate-800/70 text-slate-300",
+  unknown: "border-slate-600 bg-slate-800/70 text-slate-300",
+};
+
 export default function InteractiveDistrictPanel({
   title,
   subtitle,
   metrics,
   accent = "cyan",
   selected = false,
+  provenance,
+  insight,
   onClear,
 }: InteractiveDistrictPanelProps) {
   const chartRows = metrics
@@ -97,6 +111,42 @@ export default function InteractiveDistrictPanel({
               <Bar dataKey="value" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {insight && (
+        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 p-3 text-[10px] leading-5 text-slate-300" data-testid="district-insight-text">
+          {insight}
+        </div>
+      )}
+
+      {provenance && (
+        <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/30 p-3" data-testid="district-provenance">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[9px] font-bold ${qualityClasses[provenance.quality]}`}>
+              <Database className="h-3 w-3" />
+              {getQualityLabel(provenance.quality)}
+            </span>
+            {provenance.methodologyId && (
+              <span className="rounded-md border border-slate-800 px-2 py-1 text-[9px] font-mono text-slate-500">
+                {provenance.methodologyId}
+              </span>
+            )}
+          </div>
+          <div className="mt-2 space-y-1 text-[9px] leading-4 text-slate-500">
+            <p className="line-clamp-2">แหล่งข้อมูล: {provenance.sourceLabel || provenance.source}</p>
+            {provenance.period && <p>ช่วงข้อมูล: {provenance.period}</p>}
+            {provenance.generatedAt && <p>สร้างข้อมูล: {new Date(provenance.generatedAt).toLocaleString("th-TH")}</p>}
+          </div>
+          {(provenance.sourceNote || provenance.quality !== "observed" || (provenance.qualityFlags?.length ?? 0) > 0) && (
+            <div className="mt-2 flex gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-[9px] leading-4 text-amber-100/80">
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-300" />
+              <p>
+                {provenance.sourceNote || "ข้อมูลนี้มีข้อจำกัดด้านแหล่งที่มา/วิธีประมาณค่า ควรใช้ประกอบการตรวจสอบเพิ่มเติม"}
+                {provenance.qualityFlags?.length ? ` · ${provenance.qualityFlags.join(" · ")}` : ""}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </section>

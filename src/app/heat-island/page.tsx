@@ -13,6 +13,7 @@ import { formatLST, getLSTLegendItems } from "@/lib/lst";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import { MapPin, X, Download, FileText } from "lucide-react";
 import ViewTabs, { ViewMode } from "@/components/ui/ViewTabs";
 import StatsDashboard from "@/components/stats/StatsDashboard";
@@ -156,6 +157,25 @@ export default function HeatIslandPage() {
     }) ?? null;
   }, [activeDistrict, displayGeoJson]);
   const activeProps = activeFeature?.properties ?? null;
+  const panelProvenance = buildProvenance({
+    summary,
+    source: mapMode === "idw" ? "Landsat 8/9 ผ่าน GEE" : summary?.sourceLabel ?? summary?.dataSource,
+    period: periodLabel,
+    methodologyId: "lst-district-v1",
+    qualityFlags: [
+      mapMode === "idw" && "ค่ารายพิกเซลจาก GEE อาจใช้เวลาประมวลผล",
+      compareMode && `เทียบกับปีฐาน ${compareYear}`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== "ทั้งหมด",
+    title: activeDistrict,
+    metricLabel: "LST เฉลี่ย",
+    primaryValue: activeProps?.mean_lst,
+    averageValue: summary?.averageTemp,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   const csvFilename = `heat-island_LST_${selectedYear}`;
   const csvHeaders = ["เขต", "LST เฉลี่ย (°C)", "หน่วย", "ช่วงเวลา"];
@@ -343,6 +363,8 @@ export default function HeatIslandPage() {
                       { label: "พื้นที่สีเขียว", value: activeProps?.green_area_rai != null ? `${Math.round(Number(activeProps.green_area_rai)).toLocaleString("th-TH")} ไร่` : "ไม่มีข้อมูล", rawValue: activeProps?.green_area_rai, color: "#34d399" },
                       { label: "สิ่งปลูกสร้าง", value: activeProps?.builtup_ratio != null ? `${(Number(activeProps.builtup_ratio) * 100).toFixed(1)}%` : "ไม่มีข้อมูล", rawValue: activeProps?.builtup_ratio != null ? Number(activeProps.builtup_ratio) * 100 : null, color: "#f87171" },
                     ]}
+                    provenance={panelProvenance}
+                    insight={panelInsight}
                   />
 
                   <MapControlPanel

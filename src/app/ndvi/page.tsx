@@ -18,6 +18,7 @@ import NdviSidebar from "@/components/ndvi/NdviSidebar";
 import ExportPanel from "@/components/ui/ExportPanel";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
 import { getNdviClassThai, getNdviColor, getNdviInterpretationReason } from "@/lib/ndvi";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 
 const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMetricsMapView"), {
   ssr: false,
@@ -129,6 +130,29 @@ export default function NdviPage() {
     return (geojsonData?.features ?? []).find((feature: any) => feature?.properties?.name_th === activeDistrict) ?? null;
   }, [activeDistrict, geojsonData]);
   const activeProps = activeFeature?.properties ?? null;
+  const panelPeriodLabel = year === CURRENT_YEAR
+    ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${year} (YTD)`
+    : `1 ม.ค. – 31 ธ.ค. ${year}`;
+  const panelProvenance = buildProvenance({
+    summary,
+    source: mapMode === "idw" ? tileMetadata?.dataSource || "Sentinel-2 ผ่าน GEE" : summary?.sourceLabel ?? summary?.dataSource,
+    period: panelPeriodLabel,
+    methodologyId: "ndvi-district-v1",
+    qualityFlags: [
+      tileMetadata?.lowSceneWarning && "จำนวนภาพดาวเทียมที่ผ่านเงื่อนไขมีน้อย",
+      tileMetadata?.sceneCount != null && tileMetadata.sceneCount >= 0 && `${tileMetadata.sceneCount} scenes`,
+      compareMode && `เทียบกับปีฐาน ${compareYear}`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== ALL_DISTRICTS,
+    title: activeDistrict,
+    metricLabel: "NDVI เฉลี่ย",
+    primaryValue: activeProps?.ndvi_mean,
+    averageValue: weightedMean,
+    higherIsConcern: false,
+    provenance: panelProvenance,
+  });
   const yearlyRangeRows = (summary?.yearlyRangeTrend ?? []).map(
     ([trendYear, mean, min, max]: [string, number, number | null, number | null]) => ({
       year: trendYear,
@@ -447,6 +471,8 @@ export default function NdviPage() {
                       { label: "NDVI สูงสุด", value: formatNdvi(activeProps?.ndvi_max), rawValue: activeProps?.ndvi_max, color: "#047857" },
                       { label: "พื้นที่ผ่านเกณฑ์", value: activeProps?.green_area_ratio != null ? `${(Number(activeProps.green_area_ratio) * 100).toFixed(1)}%` : "ไม่มีข้อมูล", rawValue: activeProps?.green_area_ratio != null ? Number(activeProps.green_area_ratio) * 100 : null, color: "#84cc16" },
                     ]}
+                    provenance={panelProvenance}
+                    insight={panelInsight}
                   />
 
                   <MapControlPanel

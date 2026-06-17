@@ -23,6 +23,7 @@ import {
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, LineChart, Line,
@@ -329,6 +330,26 @@ export default function NighttimeLightsPage() {
     }) ?? null;
   }, [activeDistrict, displayGeoJson]);
   const activeProps = activeFeature?.properties ?? null;
+  const panelProvenance = buildProvenance({
+    summary,
+    source: mapMode === "idw" ? "VIIRS DNB ผ่าน GEE" : `R2 cache - ${sourceDataset}`,
+    period: periodLabel,
+    methodologyId: isMonthlyPreview ? "nightlights-monthly-v1" : "nightlights-annual-v1",
+    qualityFlags: [
+      isMonthlyPreview && "ข้อมูลรายเดือนเป็น preview",
+      summary?.dataQuality === "unavailable" && summary?.sourceNote,
+      compareMode && !isMonthlyPreview && `เทียบกับปีฐาน ${compareYear}`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== "ทั้งหมด",
+    title: activeDistrict,
+    metricLabel: "NTL เฉลี่ย",
+    primaryValue: activeProps?.ntl_mean,
+    averageValue: summary?.averageRadiance,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   const csvFilename = `nighttime-lights_${isMonthlyPreview ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
   const csvHeaders = ["เขต", "ค่าแสง NTL (nW/sr/cm²)", "หน่วย", "ช่วงเวลา"];
@@ -562,6 +583,8 @@ export default function NighttimeLightsPage() {
                     { label: "ส่วนต่าง", value: activeProps?.ntl_delta != null ? `${Number(activeProps.ntl_delta) > 0 ? "+" : ""}${formatRadiance(activeProps.ntl_delta, 3)}` : "ไม่มีข้อมูล", rawValue: activeProps?.ntl_delta, color: "#38bdf8" },
                     { label: "จำนวนพิกเซล", value: activeProps?.pixel_count != null ? Number(activeProps.pixel_count).toLocaleString("th-TH") : "ไม่มีข้อมูล", rawValue: activeProps?.pixel_count, color: "#fde68a" },
                   ]}
+                  provenance={panelProvenance}
+                  insight={panelInsight}
                 />
 
                 <MapControlPanel
