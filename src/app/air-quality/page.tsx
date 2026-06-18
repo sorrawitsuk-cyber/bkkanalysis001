@@ -9,6 +9,7 @@ import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import AirQualitySidebar from "@/components/gee/AirQualitySidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
+import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import { buildPeriodLabel, downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
@@ -60,6 +61,7 @@ export default function AirQualityPage() {
   const [summary, setSummary]                 = useState<any>(null);
   const [loading, setLoading]                 = useState(true);
   const [granularity, setGranularity]         = useState<"district" | "subdistrict">("district");
+  const subdistrictFeatures = useSubdistrictFeatures(granularity === "subdistrict");
 
   useEffect(() => {
     setLoading(true);
@@ -139,8 +141,8 @@ export default function AirQualityPage() {
   }, [airLayer, compareMode, compareYear, layerMeta, selectedYear, features]);
 
   const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
-    [geojsonData, granularity],
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData, subdistrictFeatures) : geojsonData,
+    [geojsonData, granularity, subdistrictFeatures],
   );
 
   const rankingRows: [string, number, string?][] = useMemo(() => {

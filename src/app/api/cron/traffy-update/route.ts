@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
+import { timingSafeEqual } from 'node:crypto';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { resolve } from 'path';
@@ -12,6 +13,7 @@ const NEW_COUNT   = 1_000;   // ~4s fetch
 const DEEP_COUNT  = 1_000;   // ~4s fetch  → total ~8-9s within Hobby 10s limit
 const BATCH       = 500;
 const ANCHOR_MS   = Date.UTC(2026, 0, 1);
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 const DISTRICT_NAMES = [
   'พระนคร','ดุสิต','หนองจอก','บางรัก','บางเขน','บางกะปิ','ปทุมวัน','ป้อมปราบศัตรูพ่าย',
@@ -58,6 +60,48 @@ function classifyProblem(desc: string) {
   return 'อื่นๆ';
 }
 
+function jsonNoStore(body: unknown, init: ResponseInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set('Cache-Control', NO_STORE_HEADERS['Cache-Control']);
+  return NextResponse.json(body, { ...init, headers });
+}
+
+function getAllowedSecrets() {
+  return [process.env.TRAFFY_INGEST_SECRET, process.env.CRON_SECRET]
+    .filter((secret): secret is string => Boolean(secret));
+}
+
+function safeSecretEquals(candidate: string, expected: string) {
+  const candidateBuffer = Buffer.from(candidate);
+  const expectedBuffer = Buffer.from(expected);
+  return candidateBuffer.length === expectedBuffer.length
+    && timingSafeEqual(candidateBuffer, expectedBuffer);
+}
+
+function getRequestSecret(request: Request, searchParams: URLSearchParams) {
+  const authHeader = request.headers.get('authorization') || '';
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  return bearerMatch?.[1]
+    || request.headers.get('x-traffy-ingest-secret')
+    || request.headers.get('x-cron-secret')
+    || searchParams.get('secret')
+    || searchParams.get('cronSecret')
+    || '';
+}
+
+function isAuthorized(request: Request, searchParams: URLSearchParams) {
+  const allowedSecrets = getAllowedSecrets();
+  if (allowedSecrets.length === 0) return { ok: false, reason: 'missing-secret' as const };
+
+  const requestSecret = getRequestSecret(request, searchParams);
+  if (!requestSecret) return { ok: false, reason: 'unauthorized' as const };
+
+  return {
+    ok: allowedSecrets.some(secret => safeSecretEquals(requestSecret, secret)),
+    reason: 'unauthorized' as const,
+  };
+}
+
 function transform(item: any, ingestedAt: string) {
   let lon: number | null = null, lat: number | null = null;
   if (Array.isArray(item.coords) && item.coords.length === 2) {
@@ -90,7 +134,10 @@ async function fetchRange(startOffset: number, count: number, ingestedAt: string
   let offset = startOffset;
   while (records.length < count) {
     const limit = Math.min(BATCH, count - records.length);
-    const res   = await fetch(`${TRAFFY_API}?limit=${limit}&offset=${offset}`, { signal: AbortSignal.timeout(25_000) });
+    const res   = await fetch(`${TRAFFY_API}?limit=${limit}&offset=${offset}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(25_000),
+    });
     if (!res.ok) throw new Error(`Traffy API HTTP ${res.status}`);
     const data    = await res.json();
     const results = data.results ?? [];
@@ -130,15 +177,18 @@ async function loadToBigQuery(bq: BigQuery, records: any[]) {
 }
 
 export async function GET(request: Request) {
-  // Allow Vercel cron (Authorization: Bearer <CRON_SECRET>) or explicit secret param
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { searchParams } = new URL(request.url);
+
+  // Allow Vercel cron (Authorization: Bearer <CRON_SECRET>) or an explicit shared secret.
+  const auth = isAuthorized(request, searchParams);
+  if (!auth.ok) {
+    const status = auth.reason === 'missing-secret' ? 503 : 401;
+    const error = auth.reason === 'missing-secret' ? 'Ingest secret not configured' : 'Unauthorized';
+    return jsonNoStore({ error }, { status });
   }
 
   if (!process.env.BQ_PROJECT_ID || !process.env.BQ_DATASET || !process.env.BQ_CREDENTIALS) {
-    return NextResponse.json({ error: 'BQ env vars not set' }, { status: 503 });
+    return jsonNoStore({ error: 'BQ env vars not set' }, { status: 503 });
   }
 
   const t0 = Date.now();
@@ -153,14 +203,16 @@ export async function GET(request: Request) {
     const bq = new BigQuery({ projectId: process.env.BQ_PROJECT_ID, credentials });
 
     // Get total count
-    const firstPage = await fetch(`${TRAFFY_API}?limit=1&offset=0`).then(r => r.json());
+    const firstPageRes = await fetch(`${TRAFFY_API}?limit=1&offset=0`, { cache: 'no-store' });
+    if (!firstPageRes.ok) throw new Error(`Traffy API HTTP ${firstPageRes.status}`);
+    const firstPage = await firstPageRes.json();
     const apiTotal: number = firstPage.total ?? 1_300_000;
 
     // Tier 1: newest 5,000 records
     const tier1 = await fetchRange(0, NEW_COUNT, ingestedAt);
 
     // Tier 2: rotating deep scan
-    const totalChunks = Math.ceil(apiTotal / DEEP_COUNT);
+    const totalChunks = Math.max(1, Math.ceil(apiTotal / DEEP_COUNT));
     const chunkIndex  = dayNum % totalChunks;
     const deepStart   = chunkIndex * DEEP_COUNT < NEW_COUNT ? NEW_COUNT : chunkIndex * DEEP_COUNT;
     const tier2 = await fetchRange(deepStart, DEEP_COUNT, ingestedAt);
@@ -174,7 +226,7 @@ export async function GET(request: Request) {
 
     await loadToBigQuery(bq, all);
 
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       ingestedAt,
       apiTotal,
@@ -187,6 +239,6 @@ export async function GET(request: Request) {
 
   } catch (err: any) {
     console.error('🔴 /api/cron/traffy-update:', err);
-    return NextResponse.json({ error: String(err), elapsed: Date.now() - t0 }, { status: 500 });
+    return jsonNoStore({ error: String(err), elapsed: Date.now() - t0 }, { status: 500 });
   }
 }

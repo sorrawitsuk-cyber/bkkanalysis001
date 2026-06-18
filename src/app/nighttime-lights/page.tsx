@@ -9,6 +9,7 @@ import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
+import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
 import { Calendar, Moon, TrendingUp, TrendingDown, MapPin, X, Download, FileText } from "lucide-react";
 import ExportPanel from "@/components/ui/ExportPanel";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
@@ -172,6 +173,7 @@ export default function NighttimeLightsPage() {
   const [opacity, setOpacity] = useState(0.82);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
   const [cacheIndex, setCacheIndex] = useState<SatelliteCacheIndex | null>(null);
+  const subdistrictFeatures = useSubdistrictFeatures(granularity === "subdistrict");
 
   const firstYear = useMemo(() => {
     if (!cacheIndex?.yearly?.length) return 2013;
@@ -293,8 +295,8 @@ export default function NighttimeLightsPage() {
   }, [cacheIndex, dataProduct]);
 
   const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
-    [geojsonData, granularity],
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData, subdistrictFeatures) : geojsonData,
+    [geojsonData, granularity, subdistrictFeatures],
   );
 
   const handleReset = () => {

@@ -8,6 +8,7 @@ import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
+import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
 import * as turf from "@turf/turf";
 import { TrendingUp, TrendingDown, MapPin, X, Download, FileText, SlidersHorizontal } from "lucide-react";
 import bkkDistricts from "@/data/bkk_districts.json";
@@ -262,6 +263,7 @@ export default function FloodRiskPage() {
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const [impactRows, setImpactRows] = useState<UrbanImpactRow[]>([]);
   const [impactLoading, setImpactLoading] = useState(false);
+  const subdistrictFeatures = useSubdistrictFeatures(granularity === "subdistrict");
 
   useEffect(() => {
     setLoading(true);
@@ -480,8 +482,8 @@ export default function FloodRiskPage() {
   );
 
   const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
-    [geojsonData, granularity],
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData, subdistrictFeatures) : geojsonData,
+    [geojsonData, granularity, subdistrictFeatures],
   );
 
   const periodLabel = selectedMonth

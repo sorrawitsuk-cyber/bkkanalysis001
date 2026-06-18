@@ -4,9 +4,21 @@
  * NDBI, Nighttime Lights, Flood Risk) because it copies all known metric
  * properties from the parent district.
  */
-import bkkSubdistricts from "@/data/bkk_subdistricts.json";
 
 export type Granularity = "district" | "subdistrict";
+
+type FeatureCollection = { type: string; features: any[] };
+
+let subdistrictFeaturesPromise: Promise<any[]> | null = null;
+
+export function loadSubdistrictFeatures(): Promise<any[]> {
+  if (!subdistrictFeaturesPromise) {
+    subdistrictFeaturesPromise = import("@/data/bkk_subdistricts.json").then(
+      (module) => ((module.default as FeatureCollection).features ?? []) as any[],
+    );
+  }
+  return subdistrictFeaturesPromise;
+}
 
 /**
  * Given district-level geojsonData, return subdistrict-level GeoJSON where
@@ -18,9 +30,12 @@ export type Granularity = "district" | "subdistrict";
  */
 export function buildSubdistrictGeoJson(
   districtGeoJson: { type: string; features: any[] } | null | undefined,
+  subdistrictFeatures: any[],
 ): { type: string; features: any[] } {
+  const sourceFeatures = subdistrictFeatures ?? [];
+
   if (!districtGeoJson?.features) {
-    return { type: "FeatureCollection", features: (bkkSubdistricts.features as any[]) };
+    return { type: "FeatureCollection", features: sourceFeatures };
   }
 
   // Map district id → all properties of that district feature
@@ -30,7 +45,7 @@ export function buildSubdistrictGeoJson(
     if (!Number.isNaN(id)) byDistrictId.set(id, f.properties as Record<string, unknown>);
   }
 
-  const features = (bkkSubdistricts.features as any[]).map((f) => {
+  const features = sourceFeatures.map((f) => {
     const p = byDistrictId.get(Number(f.properties.district_id)) ?? {};
     return {
       ...f,

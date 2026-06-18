@@ -9,6 +9,7 @@ import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import LSTSidebar from "@/components/gee/LSTSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
+import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
 import { formatLST, getLSTLegendItems } from "@/lib/lst";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
@@ -37,6 +38,7 @@ export default function HeatIslandPage() {
   const [opacity, setOpacity] = useState(0.8);
   const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const subdistrictFeatures = useSubdistrictFeatures(granularity === "subdistrict");
 
   useEffect(() => {
     setLoading(true);
@@ -57,8 +59,8 @@ export default function HeatIslandPage() {
   }, [activeDistrict, selectedYear, selectedMonth, compareMode, compareYear]);
 
   const displayGeoJson = useMemo(
-    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData) : geojsonData,
-    [geojsonData, granularity],
+    () => granularity === "subdistrict" ? buildSubdistrictGeoJson(geojsonData, subdistrictFeatures) : geojsonData,
+    [geojsonData, granularity, subdistrictFeatures],
   );
 
   const handleReset = () => {
