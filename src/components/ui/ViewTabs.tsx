@@ -25,7 +25,7 @@ const TABS = [
   { id: "map" as ViewMode, label: "แผนที่", description: "สำรวจตำแหน่งและเลือกพื้นที่", icon: Map },
   { id: "stats" as ViewMode, label: "สถิติ", description: "ดูภาพรวม แนวโน้ม และอันดับ", icon: BarChart2 },
   { id: "table" as ViewMode, label: "ตาราง", description: "ค้นหา เรียง และส่งออกข้อมูล", icon: Table2 },
-  { id: "guide" as ViewMode, label: "คำอธิบาย", description: "ตรวจวิธีคำนวณและข้อจำกัด", icon: BookOpen },
+  { id: "guide" as ViewMode, label: "วิธีอ่านผล", description: "ดูวิธีตีความตัวเลข สี และข้อจำกัดของข้อมูล", icon: BookOpen },
 ];
 
 export default function ViewTabs({ view, onChange, accentColor = "cyan" }: ViewTabsProps) {

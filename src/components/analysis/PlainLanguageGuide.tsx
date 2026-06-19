@@ -1,12 +1,8 @@
 "use client";
 
 import {
-  AlertTriangle,
   BookOpen,
-  CheckCircle2,
-  Database,
   Lightbulb,
-  ListChecks,
 } from "lucide-react";
 
 export type GuideModule =
@@ -39,6 +35,10 @@ type GuideConfig = {
   reading: string[];
   limitations: string[];
   practicalUse: string[];
+};
+
+type GuideRecord = object & {
+  properties?: Record<string, unknown>;
 };
 
 const GUIDES: Record<GuideModule, GuideConfig> = {
@@ -494,7 +494,7 @@ const ACCENTS: Record<string, { text: string; border: string; soft: string; dot:
 interface PlainLanguageGuideProps {
   module: GuideModule;
   accent?: keyof typeof ACCENTS;
-  records?: any[];
+  records?: GuideRecord[];
   year: number;
   activeArea?: string;
   compareMode?: boolean;
@@ -511,15 +511,16 @@ interface PlainLanguageGuideProps {
   extraSummary?: string[];
 }
 
-function valueFromRecord(record: any, key: string) {
-  const source = record?.properties ?? record ?? {};
+function valueFromRecord(record: GuideRecord, key: string) {
+  const source = record.properties ?? (record as Record<string, unknown>);
   const value = source[key];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function nameFromRecord(record: any, nameKey?: string) {
-  const source = record?.properties ?? record ?? {};
-  return source[nameKey ?? "name_th"] ?? source.district_name ?? source.name ?? "ไม่ระบุพื้นที่";
+function nameFromRecord(record: GuideRecord, nameKey?: string) {
+  const source = record.properties ?? (record as Record<string, unknown>);
+  const value = source[nameKey ?? "name_th"] ?? source.district_name ?? source.name;
+  return typeof value === "string" && value.trim() ? value : "ไม่ระบุพื้นที่";
 }
 
 export default function PlainLanguageGuide({
@@ -566,10 +567,13 @@ export default function PlainLanguageGuide({
     : null;
   const format = (value: number) => `${(value * finalScale).toFixed(finalDecimals)}${finalUnit ? ` ${finalUnit}` : ""}`;
   const areaLabel = activeArea === "ทั้งหมด" ? "กรุงเทพมหานครทั้ง 50 เขต" : `พื้นที่ ${activeArea}`;
+  const averageMetricLabel = finalMetricLabel.includes("เฉลี่ย")
+    ? finalMetricLabel
+    : `${finalMetricLabel}เฉลี่ย`;
 
   const resultSummary = measured.length
     ? [
-        `ข้อมูลปี ${year} ของ${areaLabel} มี ${finalMetricLabel}เฉลี่ย ${format(average as number)} จาก ${measured.length} พื้นที่ที่มีข้อมูล`,
+        `ข้อมูลปี ${year} ของ${areaLabel} มี ${averageMetricLabel} ${format(average as number)} จาก ${measured.length} พื้นที่ที่มีข้อมูล`,
         `พื้นที่ที่มีค่าสูงสุดคือ ${measured[0].name} ที่ ${format(measured[0].value)} ส่วนค่าต่ำสุดคือ ${measured[measured.length - 1].name} ที่ ${format(measured[measured.length - 1].value)}`,
         compareMode && compareYear
           ? `ขณะนี้เปิดการเปรียบเทียบปี ${year} กับปี ${compareYear} ควรพิจารณาทิศทางการเปลี่ยนแปลงร่วมกับความต่างของฤดูกาลและคุณภาพข้อมูล`
@@ -587,88 +591,83 @@ export default function PlainLanguageGuide({
         ...config.method,
       ]
     : config.method;
+  const joinThaiList = (items: string[]) => items.join(" ");
+  const primaryResult = resultSummary[0];
+  const supportingResult = resultSummary.slice(1).join(" ");
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
-      <div className="mx-auto max-w-6xl space-y-5 p-5 lg:p-7">
-        <section className={`rounded-2xl border ${colors.border} ${colors.soft} p-5 lg:p-6`}>
-          <div className="flex items-start gap-3">
-            <div className={`rounded-xl border ${colors.border} bg-slate-950/70 p-2.5`}>
-              <BookOpen className={`h-5 w-5 ${colors.text}`} />
-            </div>
-            <div>
-              <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${colors.text}`}>คำอธิบายสำหรับคนทั่วไป</p>
-              <h1 className="mt-1 text-xl font-black text-slate-100">{config.title}</h1>
-              <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-300">{config.overview}</p>
-              <p className="mt-2 max-w-4xl text-sm leading-7 text-slate-400">{config.whyItMatters}</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/45 p-5">
-          <div className="flex items-center gap-2">
-            <Lightbulb className={`h-4 w-4 ${colors.text}`} />
-            <h2 className="text-sm font-black text-slate-100">สรุปผลจากข้อมูลที่กำลังแสดง</h2>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {resultSummary.slice(0, 3).map((item, index) => (
-              <div key={item} className="rounded-xl border border-slate-800 bg-slate-950/55 p-4">
-                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black ${colors.soft} ${colors.text}`}>
-                  {index + 1}
-                </span>
-                <p className="mt-3 text-[12px] leading-6 text-slate-300">{item}</p>
+      <div className="mx-auto max-w-4xl p-5 lg:p-7">
+        <article className={`rounded-2xl border ${colors.border} bg-slate-900/45 p-5 shadow-2xl shadow-black/20 lg:p-7`}>
+          <header className={`border-b ${colors.border} pb-5`}>
+            <div className="flex items-start gap-3">
+              <div className={`rounded-xl border ${colors.border} bg-slate-950/70 p-2.5`}>
+                <BookOpen className={`h-5 w-5 ${colors.text}`} />
               </div>
-            ))}
-          </div>
-          {resultSummary.slice(3).map((item) => (
-            <p key={item} className="mt-3 rounded-lg border border-slate-800/80 bg-slate-950/30 px-4 py-3 text-[11px] leading-6 text-slate-400">{item}</p>
-          ))}
-          <div className="mt-4 flex flex-wrap gap-2 text-[10px] text-slate-500">
-            <span className="rounded-full border border-slate-800 px-3 py-1">พื้นที่: {areaLabel}</span>
-            <span className="rounded-full border border-slate-800 px-3 py-1">ปี: {year}</span>
-            <span className="rounded-full border border-slate-800 px-3 py-1">แหล่งข้อมูล: {dataSource || "ยังไม่ระบุ"}</span>
-            {dataQuality && <span className="rounded-full border border-slate-800 px-3 py-1">คุณภาพข้อมูล: {dataQuality}</span>}
-          </div>
-        </section>
+              <div className="min-w-0">
+                <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${colors.text}`}>บทความอธิบายผลข้อมูล</p>
+                <h1 className="mt-1 text-xl font-black leading-snug text-slate-100">{config.title}</h1>
+                <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-slate-500">
+                  <span className="rounded-full border border-slate-800 px-3 py-1">พื้นที่: {areaLabel}</span>
+                  <span className="rounded-full border border-slate-800 px-3 py-1">ปี: {year}</span>
+                  <span className="rounded-full border border-slate-800 px-3 py-1">แหล่งข้อมูล: {dataSource || "ยังไม่ระบุ"}</span>
+                  {dataQuality && <span className="rounded-full border border-slate-800 px-3 py-1">คุณภาพข้อมูล: {dataQuality}</span>}
+                </div>
+              </div>
+            </div>
+          </header>
 
-        <div className="grid gap-5 lg:grid-cols-2">
-          <GuideSection icon={Database} title="ข้อมูลถูกสร้างขึ้นอย่างไร" items={methodItems} colors={colors} />
-          <GuideSection icon={ListChecks} title="อ่านผลอย่างไรให้ถูกต้อง" items={config.reading} colors={colors} />
-          <GuideSection icon={CheckCircle2} title="นำไปใช้ทำอะไรได้บ้าง" items={config.practicalUse} colors={colors} />
-          <GuideSection icon={AlertTriangle} title="ข้อจำกัดที่ต้องรู้" items={config.limitations} colors={colors} warning />
-        </div>
+          <div className="space-y-6 pt-6 text-sm leading-7 text-slate-300">
+            <section>
+              <p>{config.overview}</p>
+              <p className="mt-3 text-slate-400">{config.whyItMatters}</p>
+            </section>
+
+            <section className={`rounded-xl border ${colors.border} ${colors.soft} p-4`}>
+              <div className="flex items-center gap-2">
+                <Lightbulb className={`h-4 w-4 ${colors.text}`} />
+                <h2 className="text-sm font-black text-slate-100">ผลที่กำลังเห็นตอนนี้</h2>
+              </div>
+              <p className="mt-3 text-[13px] leading-7 text-slate-300">{primaryResult}</p>
+              {supportingResult && (
+                <p className="mt-2 text-[13px] leading-7 text-slate-400">{supportingResult}</p>
+              )}
+            </section>
+
+            <section>
+              <h2 className="text-base font-black text-slate-100">ข้อมูลนี้อ่านอย่างไร</h2>
+              <p className="mt-3">
+                การอ่านผลควรเริ่มจากภาพรวมของพื้นที่และช่วงเวลาที่เลือกก่อน แล้วจึงดูแผนที่ สถิติ และตารางประกอบกัน
+                เพื่อแยกว่าค่าที่เห็นเป็นแนวโน้มทั้งเขตหรือเป็นจุดเฉพาะภายในพื้นที่ {joinThaiList(config.reading)}
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-black text-slate-100">ข้อมูลถูกสร้างขึ้นอย่างไร</h2>
+              <p className="mt-3">
+                เบื้องหลังของผลลัพธ์นี้มาจากการนำข้อมูลต้นทางมาคัดกรอง ปรับให้อยู่ในหน่วยที่ใช้อ่านร่วมกันได้
+                แล้วสรุปเป็นค่าที่เหมาะกับการดูระดับเขตหรือพื้นที่ที่เลือก {joinThaiList(methodItems)}
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-black text-slate-100">ควรนำไปใช้แบบไหน</h2>
+              <p className="mt-3">
+                ผลวิเคราะห์นี้เหมาะสำหรับใช้ตั้งคำถาม จัดลำดับพื้นที่ตรวจสอบ และเตรียมข้อมูลก่อนคุยกับหน่วยงานหรือทีมภาคสนาม
+                ไม่ควรอ่านเป็นคำตอบสุดท้ายเพียงค่าเดียว {joinThaiList(config.practicalUse)}
+              </p>
+            </section>
+
+            <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <h2 className="text-base font-black text-amber-100">ข้อควรระวังก่อนสรุปผล</h2>
+              <p className="mt-3 text-[13px] leading-7 text-amber-50/80">
+                ข้อมูลเชิงพื้นที่ทุกชุดมีข้อจำกัดจากช่วงเวลา ความละเอียด วิธีคำนวณ และคุณภาพข้อมูลต้นทาง
+                จึงควรตรวจแหล่งข้อมูลและเงื่อนไขของหน้าจอก่อนนำไปอ้างอิง {joinThaiList(config.limitations)}
+              </p>
+            </section>
+          </div>
+        </article>
       </div>
     </div>
-  );
-}
-
-function GuideSection({
-  icon: Icon,
-  title,
-  items,
-  colors,
-  warning = false,
-}: {
-  icon: typeof Database;
-  title: string;
-  items: string[];
-  colors: { text: string; border: string; soft: string; dot: string };
-  warning?: boolean;
-}) {
-  return (
-    <section className={`rounded-2xl border p-5 ${warning ? "border-amber-500/20 bg-amber-500/5" : "border-slate-800 bg-slate-900/45"}`}>
-      <div className="flex items-center gap-2">
-        <Icon className={`h-4 w-4 ${warning ? "text-amber-300" : colors.text}`} />
-        <h2 className="text-sm font-black text-slate-100">{title}</h2>
-      </div>
-      <ul className="mt-4 space-y-3">
-        {items.map((item) => (
-          <li key={item} className="flex items-start gap-3 text-[12px] leading-6 text-slate-400">
-            <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${warning ? "bg-amber-400" : colors.dot}`} />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

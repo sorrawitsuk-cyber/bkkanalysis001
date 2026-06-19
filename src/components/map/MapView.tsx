@@ -225,7 +225,7 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
   }, [traffyFeatures, activeTag]);
 
   const dataBounds = useMemo(() => {
-    if (!traffyFeatures.length) return { bounds: null, key: '' };
+    if (!filteredFeatures.length) return { bounds: null, key: '' };
 
     let minLat = Infinity;
     let maxLat = -Infinity;
@@ -233,7 +233,7 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
     let maxLon = -Infinity;
     let validCount = 0;
 
-    for (const feature of traffyFeatures) {
+    for (const feature of filteredFeatures) {
       const coords = feature.geometry?.coordinates;
       const lon = coords?.[0];
       const lat = coords?.[1];
@@ -259,7 +259,9 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
         maxLon.toFixed(6)
       ].join(':')
     };
-  }, [traffyFeatures]);
+  }, [filteredFeatures]);
+
+  const hasActiveFilter = activeTag !== 'ทั้งหมด';
 
   const pointMarkers = useMemo(() => (
     filteredFeatures.map((feature: any, index: number) => (
@@ -285,6 +287,15 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
 
       {/* Auto fit bounds when data changes */}
       <MapBoundsFitter bounds={dataBounds.bounds} boundsKey={dataBounds.key} />
+
+      {hasActiveFilter && (
+        <div className="pointer-events-none absolute left-3 top-3 z-[1000] rounded-md border border-cyan-300/30 bg-slate-950/85 px-3 py-2 text-[11px] leading-tight text-slate-100 shadow-lg backdrop-blur-sm">
+          <div className="font-bold text-cyan-200">กรอง: {activeTag}</div>
+          <div className="mt-0.5 text-slate-300">
+            แสดง {filteredFeatures.length.toLocaleString('th-TH')} จาก {traffyFeatures.length.toLocaleString('th-TH')} รายการ
+          </div>
+        </div>
+      )}
 
       {/* District boundaries */}
       {districtGeoData && (
