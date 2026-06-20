@@ -10,6 +10,7 @@
     "lint": "next lint",
     "perf:baseline": "node scripts/perf-baseline.mjs",
     "smoke:interactive-panels": "node scripts/smoke-interactive-panels.mjs",
+    "smoke:interactive-panels:offline": "node scripts/smoke-interactive-panels.mjs --allow-data-unavailable",
     "accessibility:update": "node scripts/update-accessibility-data.mjs",
     "gee:air-pollution": "node scripts/gee/run-air-pollution.mjs",
     "cf:dev": "npx wrangler dev",

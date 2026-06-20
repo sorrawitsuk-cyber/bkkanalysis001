@@ -28,7 +28,9 @@ import {
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import type { DecisionMode } from "@/lib/decision-support";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 
 const DecisionSupportMap = dynamic(
   () => import("@/components/map/DecisionSupportMap"),
@@ -137,6 +139,26 @@ export default function DecisionSupportPage() {
     : data?.rows?.find((row: any) => row.district_name === activeDistrict);
   const chartRows = scoredRows.slice(0, 15);
   const summary = data?.summary;
+  const availableSources = (summary?.sourceStatus ?? []).filter((source: any) => source.status === "available");
+  const panelProvenance = buildProvenance({
+    source: availableSources.map((source: any) => source.label).join(" + ") || "ไม่มีแหล่งข้อมูลพร้อมใช้",
+    period: data?.period ?? `ปี ${year}`,
+    methodologyId: `decision-${mode}-v1`,
+    fallbackQuality: availableSources.length ? "observed" : "unavailable",
+    qualityFlags: [
+      `${availableSources.length}/${summary?.sourceStatus?.length ?? 0} แหล่งพร้อมใช้`,
+      ...(data?.limitations ?? []).slice(0, 1),
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== "ทั้งหมด",
+    title: activeDistrict,
+    metricLabel: "คะแนนคัดกรอง",
+    primaryValue: selected?.score,
+    averageValue: summary?.averageScore,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
   const distribution = [
     { label: "สูงมาก", count: scoredRows.filter((row: any) => row.score >= 80).length, color: "#b91c1c" },
     { label: "สูง", count: scoredRows.filter((row: any) => row.score >= 60 && row.score < 80).length, color: "#f97316" },
@@ -233,6 +255,24 @@ export default function DecisionSupportPage() {
                 <option key={row.district_name}>{row.district_name}</option>
               ))}
             </select>
+
+            <div className="mt-4">
+              <InteractiveDistrictPanel
+                accent={mode === "flood" ? "sky" : "orange"}
+                selected={activeDistrict !== "ทั้งหมด"}
+                title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
+                subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปคะแนนคัดกรองจากพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูองค์ประกอบคะแนน"}
+                onClear={() => setActiveDistrict("ทั้งหมด")}
+                metrics={[
+                  { label: "คะแนนคัดกรอง", value: selected?.score != null ? `${selected.score}/100` : "ไม่มีข้อมูล", rawValue: selected?.score, color: scoreColor(selected?.score ?? null) },
+                  { label: "Coverage", value: selected?.coverage != null ? `${selected.coverage}%` : "ไม่มีข้อมูล", rawValue: selected?.coverage, color: "#38bdf8" },
+                  { label: mode === "flood" ? "ฝนสะสม" : "LST median", value: formatValue(mode === "flood" ? selected?.rainfall : selected?.mean_lst), rawValue: mode === "flood" ? selected?.rainfall : selected?.mean_lst, color: mode === "flood" ? "#0ea5e9" : "#f97316" },
+                  { label: "องค์ประกอบพร้อมใช้", value: `${selected?.components?.filter((component: any) => component.value != null).length ?? 0}/${selected?.components?.length ?? 0}`, rawValue: selected?.components?.filter((component: any) => component.value != null).length ?? 0, color: "#22c55e" },
+                ]}
+                provenance={panelProvenance}
+                insight={panelInsight}
+              />
+            </div>
 
             {selected && (
               <div className="mt-4 space-y-3">

@@ -34,11 +34,13 @@ import {
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DataSourceBadge from "@/components/ui/DataSourceBadge";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import SidebarFooter from "@/components/gee/SidebarFooter";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   RAINFALL_WINDOWS,
   formatRainfall,
@@ -170,6 +172,25 @@ export default function RainfallPage() {
       ? null
       : data.rows.find((row) => row.district_name === activeDistrict) ?? null;
   }, [activeDistrict, data?.rows]);
+  const panelProvenance = buildProvenance({
+    summary: data?.summary,
+    source: data?.summary.source,
+    period: data?.period.label ?? `${days} วัน สิ้นสุด ${endDate}`,
+    methodologyId: "rainfall-gpm-district-v1",
+    qualityFlags: [
+      data?.summary.isPartial && `ข้อมูลยังไม่ครบ (${data.summary.completenessPct}%)`,
+      data?.summary.approximateResolutionKm != null && `ความละเอียดประมาณ ${data.summary.approximateResolutionKm} กม.`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== "ทั้งหมด",
+    title: activeDistrict,
+    metricLabel: "ฝนสะสม",
+    primaryValue: selected?.rainfall_mm,
+    averageValue: data?.summary.bangkokMeanMm,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   const displayMean = selected?.rainfall_mm ?? data?.summary.bangkokMeanMm ?? null;
   const displayPrevious = selected?.previous_mm ?? data?.summary.previousMeanMm ?? null;
@@ -509,6 +530,22 @@ export default function RainfallPage() {
                   {/* Right aside */}
                   <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
                     <div className="flex min-h-full flex-col gap-3">
+                      <InteractiveDistrictPanel
+                        accent="cyan"
+                        selected={activeDistrict !== "ทั้งหมด"}
+                        title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
+                        subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปฝนสะสมของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูปริมาณฝนสะสม"}
+                        onClear={() => setActiveDistrict("ทั้งหมด")}
+                        metrics={[
+                          { label: "ฝนสะสม", value: formatRainfall(selected?.rainfall_mm), rawValue: selected?.rainfall_mm, color: "#38bdf8" },
+                          { label: "เฉลี่ยต่อวัน", value: formatRainfall(selected?.daily_average_mm), rawValue: selected?.daily_average_mm, color: "#22d3ee" },
+                          { label: "ช่วงปีก่อน", value: formatRainfall(selected?.previous_mm), rawValue: selected?.previous_mm, color: "#818cf8" },
+                          { label: "เปลี่ยนแปลง", value: changeText(selected?.change_pct), rawValue: selected?.change_pct, color: "#f59e0b" },
+                        ]}
+                        provenance={panelProvenance}
+                        insight={panelInsight}
+                      />
+
                       <MapControlPanel
                         accent="cyan"
                         granularity="district"

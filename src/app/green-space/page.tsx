@@ -29,11 +29,13 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import TreeCoverSidebar from "@/components/gee/TreeCoverSidebar";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   TREE_COVER_MIN_YEAR,
   formatTreeChange,
@@ -104,6 +106,22 @@ export default function GreenSpacePage() {
   const activeRow = activeDistrict === ALL_DISTRICTS
     ? null
     : data?.rows.find((row) => row.district_name === activeDistrict) ?? null;
+  const panelProvenance = buildProvenance({
+    summary: data?.summary,
+    source: data?.summary.source,
+    period: data?.period.currentLabel ?? `ปี ${year}`,
+    methodologyId: "tree-cover-district-v1",
+    qualityFlags: [`Dynamic World trees class · confidence ≥ 45%`, `เทียบปีฐาน ${baselineYear}`],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== ALL_DISTRICTS,
+    title: activeDistrict,
+    metricLabel: "Tree Cover",
+    primaryValue: activeRow?.tree_cover_pct,
+    averageValue: data?.summary.treeCoverPct,
+    higherIsConcern: false,
+    provenance: panelProvenance,
+  });
   const displayedRows = activeRow ? [activeRow] : data?.rows ?? [];
   const rankingRows = useMemo(
     () => [...(data?.rows ?? [])].sort((a, b) => (b.tree_cover_pct ?? -1) - (a.tree_cover_pct ?? -1)).slice(0, 15),
@@ -316,6 +334,22 @@ export default function GreenSpacePage() {
 
                   <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
                     <div className="flex min-h-full flex-col gap-3">
+                      <InteractiveDistrictPanel
+                        accent="emerald"
+                        selected={activeDistrict !== ALL_DISTRICTS}
+                        title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
+                        subtitle={activeDistrict !== ALL_DISTRICTS ? "สรุปเรือนยอดไม้ของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูสถิติเรือนยอดไม้"}
+                        onClear={() => setActiveDistrict(ALL_DISTRICTS)}
+                        metrics={[
+                          { label: "Tree Cover", value: formatTreePercent(activeRow?.tree_cover_pct), rawValue: activeRow?.tree_cover_pct, color: "#22c55e" },
+                          { label: "พื้นที่เรือนยอด", value: formatTreeRai(activeRow?.tree_cover_rai), rawValue: activeRow?.tree_cover_rai, color: "#4ade80" },
+                          { label: "เปลี่ยนจากปีฐาน", value: formatTreeChange(activeRow?.tree_cover_change_pp), rawValue: activeRow?.tree_cover_change_pp, color: "#facc15" },
+                          { label: "Tree loss", value: formatTreePercent(activeRow?.tree_loss_pct), rawValue: activeRow?.tree_loss_pct, color: "#ef4444" },
+                        ]}
+                        provenance={panelProvenance}
+                        insight={panelInsight}
+                      />
+
                       <MapControlPanel
                         accent="emerald"
                         granularity="district"

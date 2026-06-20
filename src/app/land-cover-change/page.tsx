@@ -33,6 +33,7 @@ import {
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DataSourceBadge from "@/components/ui/DataSourceBadge";
@@ -40,6 +41,7 @@ import SidebarFooter from "@/components/gee/SidebarFooter";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   LAND_COVER_MIN_YEAR,
   conversionColor,
@@ -157,6 +159,25 @@ export default function LandCoverChangePage() {
       : data?.rows.find((row) => row.district_name === activeDistrict) ?? null,
     [activeDistrict, data?.rows]
   );
+  const panelProvenance = buildProvenance({
+    summary: data?.summary,
+    source: data?.summary.source,
+    period: `${baselineYear} → ${year}`,
+    methodologyId: "land-cover-transition-v1",
+    qualityFlags: [
+      `Dynamic World 10 ม.`,
+      data?.summary.processingNote,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== "ทั้งหมด",
+    title: activeDistrict,
+    metricLabel: "สีเขียวเปลี่ยนเป็นสิ่งปลูกสร้าง",
+    primaryValue: activeRow?.green_to_built_pct,
+    averageValue: data?.summary.greenToBuiltPct,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   const csvHeaders = [
     "เขต",
@@ -439,6 +460,22 @@ export default function LandCoverChangePage() {
                   {/* Right aside */}
                   <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
                     <div className="flex min-h-full flex-col gap-3">
+                      <InteractiveDistrictPanel
+                        accent="emerald"
+                        selected={activeDistrict !== "ทั้งหมด"}
+                        title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
+                        subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปการเปลี่ยนสิ่งปกคลุมดินของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูการเปลี่ยน class ของพื้นที่"}
+                        onClear={() => setActiveDistrict("ทั้งหมด")}
+                        metrics={[
+                          { label: "สีเขียว → built", value: formatPercent(activeRow?.green_to_built_pct), rawValue: activeRow?.green_to_built_pct, color: "#f97316" },
+                          { label: "สีเขียวเปลี่ยนสุทธิ", value: formatPercentagePoint(activeRow?.green_change_pp), rawValue: activeRow?.green_change_pp, color: "#22c55e" },
+                          { label: "Built เปลี่ยนสุทธิ", value: formatPercentagePoint(activeRow?.built_change_pp), rawValue: activeRow?.built_change_pp, color: "#ef4444" },
+                          { label: "ความเชื่อมั่น", value: formatPercent(activeRow?.confidence_pct), rawValue: activeRow?.confidence_pct, color: "#38bdf8" },
+                        ]}
+                        provenance={panelProvenance}
+                        insight={panelInsight}
+                      />
+
                       <MapControlPanel
                         accent="emerald"
                         granularity="district"

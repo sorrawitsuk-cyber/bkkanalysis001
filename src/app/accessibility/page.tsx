@@ -36,6 +36,8 @@ import {
 } from "recharts";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import MapSkeleton from "@/components/ui/MapSkeleton";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   ACCESSIBILITY_CATEGORIES,
   ACCESSIBILITY_LABELS,
@@ -333,6 +335,27 @@ export default function AccessibilityPage() {
     data?.services?.find(
       (service: AccessibilityService) => service.id === selectedServiceId,
     ) ?? null;
+  const selectedMetricValue = selected ? accessibilityValue(selected, metric, basis, scenario) : null;
+  const overviewMetricValue = overview ? accessibilityValue(overview, metric, basis, scenario) : null;
+  const panelProvenance = buildProvenance({
+    source: (data?.metadata?.sources ?? []).slice(0, 3).map((source: any) => source.dataset).filter(Boolean).join(" + ") || "Accessibility service registry",
+    period: data?.metadata?.generated_at ? new Date(data.metadata.generated_at).toLocaleDateString("th-TH") : null,
+    methodologyId: `accessibility-${basis}-${scenario}-v1`,
+    fallbackQuality: "estimated",
+    qualityFlags: [
+      `Proximity screening · ${SCENARIOS.find((item) => item.value === scenario)?.label}`,
+      basis === "population" ? "ถ่วงประชากรโดยประมาณ" : "ถ่วงพื้นที่",
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrictId !== null,
+    title: selected?.district_name ?? "กรุงเทพมหานคร",
+    metricLabel: METRICS.find((item) => item.value === metric)?.label ?? "การเข้าถึง",
+    primaryValue: selectedMetricValue,
+    averageValue: overviewMetricValue,
+    higherIsConcern: false,
+    provenance: panelProvenance,
+  });
   const serviceSubtypeOptions = useMemo(
     () =>
       Array.from(
@@ -533,6 +556,26 @@ export default function AccessibilityPage() {
               ตามวิธีเดินทางที่เลือก เกณฑ์ 15 นาที ผลนี้เป็น proximity screening
               ไม่ใช่เวลาเดินทางจากโครงข่ายจริง
             </p>
+          </div>
+          <div className="mt-3">
+            <InteractiveDistrictPanel
+              accent="emerald"
+              selected={activeDistrictId !== null}
+              title={activeDistrictId !== null ? `เขต${selected?.district_name ?? ""}` : "เลือกเขตบนแผนที่"}
+              subtitle={activeDistrictId !== null ? "สรุปการเข้าถึงบริการของพื้นที่ที่คลิก" : "คลิก polygon เขตหรือจุดบริการเพื่อดูรายละเอียด"}
+              onClear={() => {
+                setActiveDistrictId(null);
+                setSelectedServiceId(null);
+              }}
+              metrics={[
+                { label: "ค่าตามตัวชี้วัด", value: selectedMetricValue != null ? `${formatNumber(selectedMetricValue)}%` : "ไม่มีข้อมูล", rawValue: selectedMetricValue, color: "#34d399" },
+                { label: "ครบ 5 หมวด", value: selected?.complete_coverage_pct != null ? `${formatNumber(selected.complete_coverage_pct)}%` : "ไม่มีข้อมูล", rawValue: selected?.complete_coverage_pct, color: "#22c55e" },
+                { label: "จุดบริการ", value: selected?.service_count?.toLocaleString("th-TH") ?? "ไม่มีข้อมูล", rawValue: selected?.service_count, color: "#38bdf8" },
+                { label: "ประชากรยังไม่ครบ", value: selected?.underserved_population?.toLocaleString("th-TH") ?? "ไม่มีข้อมูล", rawValue: selected?.underserved_population, color: "#fb7185" },
+              ]}
+              provenance={panelProvenance}
+              insight={panelInsight}
+            />
           </div>
           {(category === "transit" || metric === "transit") && (
             <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[10px] leading-5 text-amber-100">

@@ -17,21 +17,15 @@ if (typeof window !== 'undefined') {
 
 interface MapViewProps {
   activeTag: string;
+  activeDistrict: string;
   traffyData: any;
   mapMode: 'points' | 'heatmap';
+  onDistrictSelect: (district: string) => void;
 }
 
 type BoundsTuple = [[number, number], [number, number]];
 
 const EMPTY_FEATURES: any[] = [];
-
-const DISTRICT_STYLE = {
-  fillColor: 'transparent',
-  weight: 0.8,
-  opacity: 0.6,
-  color: '#334155',
-  fillOpacity: 0
-};
 
 const getMarkerColor = (state: string) => {
   switch (state) {
@@ -198,9 +192,10 @@ const TraffyPointMarker = memo(function TraffyPointMarker({
   prevProps.index === nextProps.index
 ));
 
-export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps) {
+export default function MapView({ activeTag, activeDistrict, traffyData, mapMode, onDistrictSelect }: MapViewProps) {
   const [districtGeoData, setDistrictGeoData] = useState<any>(null);
   const canvasRenderer = useMemo(() => L.canvas(), []);
+  const districtRenderer = useMemo(() => L.svg(), []);
 
   useEffect(() => {
     fetch(`/api/districts?year=2024`)
@@ -210,6 +205,20 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
   }, []);
 
   const traffyFeatures = traffyData?.features ?? EMPTY_FEATURES;
+
+  const districtStyle = (feature: any) => {
+    const name = feature?.properties?.name_th ?? feature?.properties?.district_name;
+    const selected = activeDistrict !== 'ทั้งหมด' && name === activeDistrict;
+    const dimmed = activeDistrict !== 'ทั้งหมด' && !selected;
+    return {
+      renderer: districtRenderer,
+      fillColor: selected ? '#f97316' : '#0f172a',
+      weight: selected ? 2.5 : 0.8,
+      opacity: selected ? 1 : 0.7,
+      color: selected ? '#ffffff' : '#475569',
+      fillOpacity: selected ? 0.24 : dimmed ? 0.01 : 0.015,
+    };
+  };
 
   // Filter features based on sidebar selection
   const filteredFeatures = useMemo(() => {
@@ -299,7 +308,20 @@ export default function MapView({ activeTag, traffyData, mapMode }: MapViewProps
 
       {/* District boundaries */}
       {districtGeoData && (
-        <GeoJSON data={districtGeoData} style={DISTRICT_STYLE} interactive={false} />
+        <GeoJSON
+          data={districtGeoData}
+          style={districtStyle}
+          onEachFeature={(feature, layer) => {
+            const name = feature?.properties?.name_th ?? feature?.properties?.district_name;
+            if (!name) return;
+            layer.bindTooltip(`เขต${name} · คลิกเพื่อกรองเรื่องร้องเรียน`, { sticky: true });
+            layer.on({
+              click: () => onDistrictSelect(activeDistrict === name ? 'ทั้งหมด' : name),
+              mouseover: () => (layer as L.Path).setStyle({ weight: 2.5, color: '#ffffff', fillOpacity: 0.16 }),
+              mouseout: () => (layer as L.Path).setStyle(districtStyle(feature)),
+            });
+          }}
+        />
       )}
 
       {/* MODE: Heatmap */}

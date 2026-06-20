@@ -31,6 +31,8 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import Sidebar from "@/components/Sidebar";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 
 const MapView = dynamic(() => import("@/components/map/MapView"), {
   ssr: false,
@@ -161,6 +163,29 @@ export default function TraffyPage() {
     activeCategory !== ALL ? activeCategory : "ทุกประเภท",
     activeYear ? `${activeMonth ? `เดือน ${activeMonth} · ` : ""}ปี ${activeYear}` : "ทุกช่วงเวลา",
   ].join(" · ");
+  const activeDistrictRow = activeDistrict === ALL
+    ? null
+    : districtRows.find((row: any) => row.district_name === activeDistrict) ?? null;
+  const selectedDistrictCount = activeDistrict === ALL ? totalCount : activeDistrictRow?.count ?? null;
+  const panelProvenance = buildProvenance({
+    source: dataSource === "bigquery" ? "Traffy Fondue ผ่าน BigQuery" : dataSource || "Traffy Fondue",
+    period: filterSummary,
+    methodologyId: "traffy-complaints-v1",
+    fallbackQuality: loadError ? "unavailable" : "observed",
+    qualityFlags: [
+      `แสดงพิกัดสูงสุด ${Number(summary?.totalFetched ?? 0).toLocaleString("th-TH")} จุด`,
+      activeCategory !== ALL && `กรองประเภท ${activeCategory}`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== ALL,
+    title: activeDistrict,
+    metricLabel: "จำนวนเรื่องร้องเรียน",
+    primaryValue: selectedDistrictCount,
+    averageValue: activeDistrict === ALL ? null : totalCount,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   function handleYearSelect(year: string | null) {
     setActiveYear(year);
@@ -238,8 +263,52 @@ export default function TraffyPage() {
           {view === "map" && (
             <div className="relative h-full">
               <ErrorBoundary>
-                <MapView activeTag={activeTag} traffyData={traffyData} mapMode={mapMode} />
+                <MapView
+                  activeTag={activeTag}
+                  activeDistrict={activeDistrict}
+                  traffyData={traffyData}
+                  mapMode={mapMode}
+                  onDistrictSelect={setActiveDistrict}
+                />
               </ErrorBoundary>
+
+              <div className="absolute left-4 top-4 z-[1000] hidden w-80 xl:block">
+                <InteractiveDistrictPanel
+                  accent="orange"
+                  selected={activeDistrict !== ALL}
+                  title={activeDistrict !== ALL ? activeDistrict : "เลือกเขตบนแผนที่"}
+                  subtitle={activeDistrict !== ALL ? "สรุปเรื่องร้องเรียนของเขตที่คลิก" : "คลิก boundary เขตเพื่อกรองจุดและ heatmap"}
+                  onClear={() => setActiveDistrict(ALL)}
+                  metrics={[
+                    { label: "เรื่องร้องเรียน", value: selectedDistrictCount?.toLocaleString("th-TH") ?? "ไม่มีข้อมูลเขต", rawValue: selectedDistrictCount, color: "#f97316" },
+                    { label: "ปิดเรื่องแล้ว", value: `${resolutionRate.toFixed(1)}%`, rawValue: resolutionRate, color: "#22c55e" },
+                    { label: "จุดบนแผนที่", value: Number(summary?.totalFetched ?? 0).toLocaleString("th-TH"), rawValue: Number(summary?.totalFetched ?? 0), color: "#38bdf8" },
+                    { label: "ประเภทสูงสุด", value: categoryRows[0]?.count?.toLocaleString("th-TH") ?? "ไม่มีข้อมูล", rawValue: categoryRows[0]?.count, color: "#facc15" },
+                  ]}
+                  provenance={panelProvenance}
+                  insight={panelInsight}
+                />
+              </div>
+
+              {activeDistrict !== ALL && (
+                <div className="absolute inset-x-3 bottom-3 z-[1000] max-h-[48vh] overflow-y-auto md:left-4 md:right-auto md:w-80 xl:hidden">
+                  <InteractiveDistrictPanel
+                    accent="orange"
+                    selected
+                    title={activeDistrict}
+                    subtitle="สรุปเรื่องร้องเรียนของเขตที่คลิก"
+                    onClear={() => setActiveDistrict(ALL)}
+                    metrics={[
+                      { label: "เรื่องร้องเรียน", value: selectedDistrictCount?.toLocaleString("th-TH") ?? "ไม่มีข้อมูลเขต", rawValue: selectedDistrictCount, color: "#f97316" },
+                      { label: "ปิดเรื่องแล้ว", value: `${resolutionRate.toFixed(1)}%`, rawValue: resolutionRate, color: "#22c55e" },
+                      { label: "จุดบนแผนที่", value: Number(summary?.totalFetched ?? 0).toLocaleString("th-TH"), rawValue: Number(summary?.totalFetched ?? 0), color: "#38bdf8" },
+                      { label: "ประเภทสูงสุด", value: categoryRows[0]?.count?.toLocaleString("th-TH") ?? "ไม่มีข้อมูล", rawValue: categoryRows[0]?.count, color: "#facc15" },
+                    ]}
+                    provenance={panelProvenance}
+                    insight={panelInsight}
+                  />
+                </div>
+              )}
 
               <div className="absolute right-4 top-4 z-[1000] w-56 rounded-xl border border-slate-700 bg-slate-900/95 p-3">
                 <h2 className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">

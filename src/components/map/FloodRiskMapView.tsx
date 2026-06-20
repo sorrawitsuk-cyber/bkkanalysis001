@@ -18,6 +18,7 @@ interface FloodRiskMapViewProps {
   satelliteCacheBounds?: [[number, number], [number, number]];
   granularity?: "district" | "subdistrict";
   ndwiMetric?: "ndwi" | "mndwi";
+  onFeatureSelect?: (districtName: string, feature: any) => void;
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
@@ -69,6 +70,7 @@ export default function FloodRiskMapView({
   satelliteCacheBounds,
   granularity = "district",
   ndwiMetric = "ndwi",
+  onFeatureSelect,
 }: FloodRiskMapViewProps) {
   const mapRef            = useRef<L.Map | null>(null);
   const baseLayerRef      = useRef<L.TileLayer | null>(null);
@@ -185,13 +187,14 @@ export default function FloodRiskMapView({
         const isDimmed = activeDistrict !== ALL_DISTRICTS && !isSelected;
         const showFill = mapMode === "district" || activeDistrict !== ALL_DISTRICTS;
         const isRasterMode = mapMode === "idw" || mapMode === "satellite-cache";
+        const clickHitFill = onFeatureSelect && !showFill ? 0.01 : 0;
         return {
           fillColor: getFeatureColor(feature),
           weight: isRasterMode ? (isSelected ? 2 : 0) : (isSelected ? 2.5 : 1),
           opacity: isRasterMode ? (isSelected ? 0.9 : 0) : 1,
           color: isSelected ? "#ffffff" : "#1e293b",
           dashArray: isRasterMode ? undefined : "3",
-          fillOpacity: showFill ? (isDimmed ? 0.15 : 0.72) : 0,
+          fillOpacity: showFill ? (isDimmed ? 0.15 : 0.72) : clickHitFill,
         };
       },
       onEachFeature: (feature, layer) => {
@@ -206,6 +209,24 @@ export default function FloodRiskMapView({
         const riverCorrected: boolean = !!props.river_corrected;
         const year = summary?.selectedYear ?? "–";
         const cmpYear = summary?.compareYear ?? "–";
+        const districtName = props.district_name || props.name_th;
+
+        if (onFeatureSelect && districtName) {
+          layer.on({
+            click: (event: L.LeafletMouseEvent) => {
+              L.DomEvent.stopPropagation(event);
+              onFeatureSelect(districtName, feature);
+            },
+            mouseover: () => {
+              (layer as L.Path).setStyle({ weight: 3, color: "#ffffff" });
+              if (mapRef.current) mapRef.current.getContainer().style.cursor = "pointer";
+            },
+            mouseout: () => {
+              if (geojsonLayerRef.current) geojsonLayerRef.current.resetStyle(layer);
+              if (mapRef.current) mapRef.current.getContainer().style.cursor = "";
+            },
+          });
+        }
 
         const deltaLine = compareMode && delta !== null
           ? `<div class="text-[10px] text-slate-400 mt-1">ผลต่างดัชนี: <span class="${delta >= 0 ? "text-sky-300" : "text-amber-300"} font-mono font-bold">${delta >= 0 ? "+" : ""}${delta.toFixed(4)}</span> <span class="text-slate-500">(${cmpYear}→${year})</span></div>
@@ -240,7 +261,7 @@ export default function FloodRiskMapView({
     } else if (geojsonLayerRef.current) {
       mapRef.current.flyToBounds(geojsonLayerRef.current.getBounds(), { padding: [20, 20], duration: 1.2 });
     }
-  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, granularity, getFeatureColor]);
+  }, [geojsonData, activeDistrict, mapMode, compareMode, summary, granularity, onFeatureSelect, getFeatureColor]);
 
   return <div id="flood-risk-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
 }

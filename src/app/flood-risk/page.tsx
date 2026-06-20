@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import FloodRiskSidebar from "@/components/gee/FloodRiskSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
@@ -29,6 +30,7 @@ import UrbanImpactPanel from "@/components/analysis/UrbanImpactPanel";
 import type { PopulationResponse } from "@/lib/population";
 import type { RainfallResponse } from "@/lib/rainfall";
 import { buildUrbanImpactRows, type UrbanImpactRow } from "@/lib/urban-impact";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
   AreaChart, Area, ReferenceLine,
@@ -491,6 +493,34 @@ export default function FloodRiskPage() {
     : selectedYear === new Date().getFullYear()
       ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
       : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
+  const activeFeature = useMemo(() => {
+    if (activeDistrict === "ทั้งหมด") return null;
+    return (displayGeoJson?.features ?? []).find((feature: any) => {
+      const props = feature?.properties ?? {};
+      return props.name_th === activeDistrict || props.district_name === activeDistrict;
+    }) ?? null;
+  }, [activeDistrict, displayGeoJson]);
+  const activeProps = activeFeature?.properties ?? null;
+  const panelProvenance = buildProvenance({
+    summary,
+    source: mapMode === "idw" ? "Sentinel-2 ผ่าน GEE" : summary?.sourceLabel ?? summary?.dataSource,
+    period: periodLabel,
+    methodologyId: `water-${cacheLayer}-district-v1`,
+    qualityFlags: [
+      granularity === "subdistrict" && "ระดับแขวงสืบทอดค่าสถิติจากเขตแม่",
+      (summary?.imageCount ?? yearlyMeta?.image_count) != null && `${summary?.imageCount ?? yearlyMeta?.image_count} scenes`,
+      compareMode && `เทียบกับปีฐาน ${compareYear}`,
+    ],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== "ทั้งหมด",
+    title: activeDistrict,
+    metricLabel: WATER_LAYER_LABELS[cacheLayer],
+    primaryValue: activeProps?.display_value ?? activeProps?.seasonal_water_ratio ?? activeProps?.water_ratio,
+    averageValue: summary?.avgWaterRatio,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
 
   const csvFilename = `flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
   const csvHeaders = ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่ตรวจพบสัญญาณน้ำ (ไร่)", "Layer", "ช่วงเวลา"];
@@ -757,6 +787,7 @@ export default function FloodRiskPage() {
                     satelliteCacheBounds={yearlyMeta?.bounds}
                     granularity={granularity}
                     ndwiMetric={cacheLayer === "mndwi_mean" ? "mndwi" : "ndwi"}
+                    onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
                   />
                 </ErrorBoundary>
               </div>
@@ -862,6 +893,22 @@ export default function FloodRiskPage() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+
+                <InteractiveDistrictPanel
+                  accent="sky"
+                  selected={activeDistrict !== "ทั้งหมด"}
+                  title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
+                  subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปสัญญาณน้ำของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูดัชนีและสัดส่วนพื้นที่น้ำ"}
+                  onClear={() => setActiveDistrict("ทั้งหมด")}
+                  metrics={[
+                    { label: WATER_LAYER_LABELS[cacheLayer], value: activeProps?.display_value != null ? Number(activeProps.display_value).toFixed(3) : "ไม่มีข้อมูล", rawValue: activeProps?.display_value, color: "#38bdf8" },
+                    { label: "พิกเซลผ่านเกณฑ์", value: activeProps?.seasonal_water_ratio != null ? `${(Number(activeProps.seasonal_water_ratio) * 100).toFixed(2)}%` : "ไม่มีข้อมูล", rawValue: activeProps?.seasonal_water_ratio != null ? Number(activeProps.seasonal_water_ratio) * 100 : null, color: "#0ea5e9" },
+                    { label: "พื้นที่สัญญาณน้ำ", value: activeProps?.water_area_rai != null ? `${Number(activeProps.water_area_rai).toLocaleString("th-TH", { maximumFractionDigits: 0 })} ไร่` : "ไม่มีข้อมูล", rawValue: activeProps?.water_area_rai, color: "#22d3ee" },
+                    { label: "ส่วนต่าง", value: activeProps?.delta != null ? `${Number(activeProps.delta) > 0 ? "+" : ""}${Number(activeProps.delta).toFixed(3)}` : "ไม่มีข้อมูล", rawValue: activeProps?.delta, color: "#f59e0b" },
+                  ]}
+                  provenance={panelProvenance}
+                  insight={panelInsight}
+                />
 
                 <MapControlPanel
                   accent="sky"

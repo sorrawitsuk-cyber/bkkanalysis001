@@ -32,6 +32,8 @@ import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataT
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import PopulationSidebar from "@/components/population/PopulationSidebar";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   POPULATION_MAX_YEAR,
   POPULATION_MIN_YEAR,
@@ -151,6 +153,26 @@ export default function PopulationPage() {
       }
     : null;
   const selected = activeId === null ? null : rows.find((row) => row.id === activeId) ?? null;
+  const panelProvenance = buildProvenance({
+    source: data?.summary.source ?? "ทะเบียนราษฎรกรุงเทพมหานคร",
+    period: `ธันวาคม ${year + 543}`,
+    methodologyId: `population-${level}-v1`,
+    fallbackQuality: "observed",
+    qualityFlags: [level === "subdistrict" && "ระดับแขวง", data?.previousYear != null && `เทียบปี ${data.previousYear + 543}`],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: selected !== null,
+    title: selected?.name ?? "กรุงเทพมหานคร",
+    metricLabel: metric === "density" ? "ความหนาแน่น" : metric === "exposure_score" ? "แรงกดดันประชากร" : "ประชากร",
+    primaryValue: selected ? Number(selected[metric] ?? selected.population) : null,
+    averageValue: metric === "density"
+      ? data?.summary.density
+      : metric === "exposure_score"
+        ? rows.reduce((sum, row) => sum + row.exposure_score, 0) / Math.max(rows.length, 1)
+        : (data?.summary.population ?? 0) / Math.max(data?.rows.length ?? 1, 1),
+    higherIsConcern: metric === "density" || metric === "exposure_score",
+    provenance: panelProvenance,
+  });
   const filteredSummary = useMemo(() => {
     if (districtFilter === "ทั้งหมด" || rows.length === 0) return null;
     const totals = rows.reduce(
@@ -326,6 +348,23 @@ export default function PopulationPage() {
                 <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800">
                   <PopulationMap geojsonData={geojson} rows={rows} metric={metric} activeId={activeId} onSelect={selectRow} />
                 </div>
+                <aside className="ml-3 hidden w-80 shrink-0 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/65 p-4 xl:block">
+                  <InteractiveDistrictPanel
+                    accent="indigo"
+                    selected={selected !== null}
+                    title={selected?.name ?? "เลือกพื้นที่บนแผนที่"}
+                    subtitle={selected ? `${selected.level === "district" ? "เขต" : "แขวง"}${selected.name}` : "คลิก polygon เขต/แขวงเพื่อดูข้อมูลประชากร"}
+                    onClear={() => setActiveId(null)}
+                    metrics={[
+                      { label: "ประชากร", value: `${formatPopulation(selected?.population)} คน`, rawValue: selected?.population, color: "#818cf8" },
+                      { label: "ความหนาแน่น", value: `${formatPopulation(selected?.density)} คน/ตร.กม.`, rawValue: selected?.density, color: "#a78bfa" },
+                      { label: "เปลี่ยนจากปีก่อน", value: formatPopulationPercent(selected?.change_pct), rawValue: selected?.change_pct, color: "#22c55e" },
+                      { label: "แรงกดดัน", value: selected ? `${selected.exposure_score.toFixed(1)}/100` : "ไม่มีข้อมูล", rawValue: selected?.exposure_score, color: "#fb7185" },
+                    ]}
+                    provenance={panelProvenance}
+                    insight={panelInsight}
+                  />
+                </aside>
               </div>
             )}
 

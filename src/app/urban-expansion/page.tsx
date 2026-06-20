@@ -9,11 +9,13 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import UrbanExpansionSidebar from "@/components/gee/UrbanExpansionSidebar";
 import MapControlPanel from "@/components/map/MapControlPanel";
+import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import { downloadCSV, printReport, type PDFReportData } from "@/lib/export-utils";
+import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   URBAN_EXPANSION_MIN_YEAR,
   builtCoverColor,
@@ -81,6 +83,22 @@ export default function UrbanExpansionPage() {
   }, [baselineYear, year]);
 
   const activeRow = activeDistrict === ALL_DISTRICTS ? null : data?.rows.find((row) => row.district_name === activeDistrict) ?? null;
+  const panelProvenance = buildProvenance({
+    summary: data?.summary,
+    source: data?.summary.source,
+    period: data?.period.currentLabel ?? `ปี ${year}`,
+    methodologyId: "urban-expansion-district-v1",
+    qualityFlags: [`Dynamic World built class · confidence ≥ 45%`, `เทียบปีฐาน ${baselineYear}`],
+  });
+  const panelInsight = getPolicySafeInsight({
+    selected: activeDistrict !== ALL_DISTRICTS,
+    title: activeDistrict,
+    metricLabel: mode === "cover" ? "Built-up cover" : "Built-up gain",
+    primaryValue: mode === "cover" ? activeRow?.built_cover_pct : activeRow?.built_gain_pct,
+    averageValue: mode === "cover" ? data?.summary.builtCoverPct : data?.summary.builtGainPct,
+    higherIsConcern: true,
+    provenance: panelProvenance,
+  });
   const displayedRows = activeRow ? [activeRow] : data?.rows ?? [];
   const coverRanking = useMemo(() => [...(data?.rows ?? [])].sort((a, b) => (b.built_cover_pct ?? -1) - (a.built_cover_pct ?? -1)).slice(0, 15), [data?.rows]);
   const expansionRanking = useMemo(() => [...(data?.rows ?? [])].sort((a, b) => (b.built_gain_pct ?? -1) - (a.built_gain_pct ?? -1)).slice(0, 15), [data?.rows]);
@@ -240,6 +258,22 @@ export default function UrbanExpansionPage() {
 
                 <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
                   <div className="flex min-h-full flex-col gap-3">
+                    <InteractiveDistrictPanel
+                      accent="orange"
+                      selected={activeDistrict !== ALL_DISTRICTS}
+                      title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
+                      subtitle={activeDistrict !== ALL_DISTRICTS ? "สรุปสิ่งปลูกสร้างของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูสถิติการขยายตัวเมือง"}
+                      onClear={() => setActiveDistrict(ALL_DISTRICTS)}
+                      metrics={[
+                        { label: "Built-up cover", value: formatUrbanPercent(activeRow?.built_cover_pct), rawValue: activeRow?.built_cover_pct, color: "#f97316" },
+                        { label: "พื้นที่สิ่งปลูกสร้าง", value: formatUrbanRai(activeRow?.built_area_rai), rawValue: activeRow?.built_area_rai, color: "#fb923c" },
+                        { label: "Built-up gain", value: formatUrbanPercent(activeRow?.built_gain_pct), rawValue: activeRow?.built_gain_pct, color: "#ef4444" },
+                        { label: "สีเขียว → built", value: formatUrbanPercent(activeRow?.green_to_built_pct), rawValue: activeRow?.green_to_built_pct, color: "#facc15" },
+                      ]}
+                      provenance={panelProvenance}
+                      insight={panelInsight}
+                    />
+
                     <MapControlPanel
                       accent="orange"
                       granularity="district"
