@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
+import { useMobileDrawerFocus } from "@/components/map/useMobileDrawerFocus";
 
 interface ResponsiveMapAsideProps {
   open: boolean;
@@ -19,10 +20,12 @@ export default function ResponsiveMapAside({
   children,
 }: ResponsiveMapAsideProps) {
   const asideId = useId();
+  const { isMobile, panelRef, triggerRef } = useMobileDrawerFocus(open, onOpenChange);
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => onOpenChange(true)}
         aria-controls={asideId}
@@ -44,6 +47,7 @@ export default function ResponsiveMapAside({
       )}
 
       <aside
+        ref={panelRef}
         id={asideId}
         className={`${
           open
@@ -51,6 +55,9 @@ export default function ResponsiveMapAside({
             : "hidden"
         } shrink-0 overflow-y-auto border-l border-slate-800/70 bg-[#0f172a]/98 p-4 shadow-2xl lg:static lg:z-auto lg:block lg:w-80`}
         data-testid="responsive-map-aside"
+        role={open && isMobile ? "dialog" : "complementary"}
+        aria-modal={open && isMobile ? true : undefined}
+        aria-label="ตัวกรองและข้อมูลแผนที่"
       >
         <div className="mb-3 flex items-center justify-between border-b border-slate-800 pb-3 lg:hidden">
           <div className="min-w-0">
@@ -58,6 +65,7 @@ export default function ResponsiveMapAside({
             {subtitle && <p className="mt-0.5 truncate text-[9px] text-slate-500">{subtitle}</p>}
           </div>
           <button
+            data-drawer-close
             type="button"
             onClick={() => onOpenChange(false)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-400 hover:text-white"

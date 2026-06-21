@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { PanelLeftOpen, X } from "lucide-react";
+import { useMobileDrawerFocus } from "@/components/map/useMobileDrawerFocus";
 
 interface ResponsivePageSidebarProps {
   open: boolean;
@@ -11,10 +12,12 @@ interface ResponsivePageSidebarProps {
 
 export default function ResponsivePageSidebar({ open, onOpenChange, children }: ResponsivePageSidebarProps) {
   const sidebarId = useId();
+  const { isMobile, panelRef, triggerRef } = useMobileDrawerFocus(open, onOpenChange);
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => onOpenChange(true)}
         aria-controls={sidebarId}
@@ -36,6 +39,7 @@ export default function ResponsivePageSidebar({ open, onOpenChange, children }: 
       )}
 
       <aside
+        ref={panelRef}
         id={sidebarId}
         className={`${
           open
@@ -43,8 +47,12 @@ export default function ResponsivePageSidebar({ open, onOpenChange, children }: 
             : "hidden"
         } relative h-full shrink-0 flex-col overflow-hidden border-r border-slate-800/70 bg-[#0f172a]/98 text-slate-200 shadow-2xl lg:static lg:z-auto lg:flex lg:w-80`}
         data-testid="responsive-page-sidebar"
+        role={open && isMobile ? "dialog" : "complementary"}
+        aria-modal={open && isMobile ? true : undefined}
+        aria-label="ข้อมูลและอันดับพื้นที่"
       >
         <button
+          data-drawer-close
           type="button"
           onClick={() => onOpenChange(false)}
           className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:text-white lg:hidden"

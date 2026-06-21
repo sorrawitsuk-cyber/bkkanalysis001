@@ -225,9 +225,20 @@ async function runSmoke() {
         if (!drawerBox || drawerBox.x < 0 || drawerBox.x + drawerBox.width > 390) {
           throw new Error(`${path} responsive map drawer is outside the mobile viewport`);
         }
+        if (await drawer.getAttribute("role") !== "dialog" || await drawer.getAttribute("aria-modal") !== "true") {
+          throw new Error(`${path} responsive map drawer is missing mobile dialog semantics`);
+        }
         await drawer.locator('[data-testid="interactive-district-panel"][data-selected="true"]').waitFor({ state: "visible" });
         await drawer.locator('button[aria-label="ปิดแผงตัวกรอง"]').click();
-        await page.locator('[data-testid="mobile-map-controls-button"]:visible').waitFor({ state: "visible" });
+        const drawerTrigger = page.locator('[data-testid="mobile-map-controls-button"]:visible');
+        await drawerTrigger.waitFor({ state: "visible" });
+        await drawerTrigger.click();
+        await drawer.waitFor({ state: "visible" });
+        await page.keyboard.press("Escape");
+        await drawer.waitFor({ state: "hidden" });
+        if (!(await drawerTrigger.evaluate((element) => element === document.activeElement))) {
+          throw new Error(`${path} map drawer did not restore focus to its trigger after Escape`);
+        }
         mobileDrawer = true;
       }
       if (mobilePageSidebarPaths.has(path)) {
@@ -240,8 +251,19 @@ async function runSmoke() {
         if (!sidebarBox || sidebarBox.x < 0 || sidebarBox.x + sidebarBox.width > 390) {
           throw new Error(`${path} responsive page sidebar is outside the mobile viewport`);
         }
+        if (await pageSidebar.getAttribute("role") !== "dialog" || await pageSidebar.getAttribute("aria-modal") !== "true") {
+          throw new Error(`${path} responsive page sidebar is missing mobile dialog semantics`);
+        }
         await pageSidebar.locator('button[aria-label="ปิดข้อมูลและอันดับ"]').click();
-        await page.locator('[data-testid="mobile-page-sidebar-button"]:visible').waitFor({ state: "visible" });
+        const sidebarTrigger = page.locator('[data-testid="mobile-page-sidebar-button"]:visible');
+        await sidebarTrigger.waitFor({ state: "visible" });
+        await sidebarTrigger.click();
+        await pageSidebar.waitFor({ state: "visible" });
+        await page.keyboard.press("Escape");
+        await pageSidebar.waitFor({ state: "hidden" });
+        if (!(await sidebarTrigger.evaluate((element) => element === document.activeElement))) {
+          throw new Error(`${path} page sidebar did not restore focus to its trigger after Escape`);
+        }
         mobilePageSidebar = true;
       }
       if (mobileInsightPaths.has(path) || mobileDrawerPaths.has(path) || mobilePageSidebarPaths.has(path)) {
