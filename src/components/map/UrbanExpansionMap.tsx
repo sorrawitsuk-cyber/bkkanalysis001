@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { builtChangeColor, builtCoverColor, formatUrbanChange, formatUrbanPercent, formatUrbanRai } from "@/lib/urban-expansion";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 interface Props {
   geojsonData: any;
@@ -73,6 +74,7 @@ export default function UrbanExpansionMap(props: Props) {
       onEachFeature: (feature, layer) => {
         const p = feature.properties ?? {};
         const district = p.district_name ?? p.name_th;
+        bindLeafletKeyboardSelection(layer, `เลือกเขต${district}บนแผนที่`, () => props.onDistrictSelect(props.activeDistrict === district ? ALL_DISTRICTS : district));
         layer.bindTooltip(
           `<div class="min-w-[205px]"><div class="font-bold text-slate-900">เขต${district}</div>
           <div class="mt-1 text-xs">Built-up cover: <b>${formatUrbanPercent(p.built_cover_pct)}</b></div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, BarChart3, Database, MousePointer2, X } from "lucide-react";
 import { type DataProvenance, getQualityLabel } from "@/lib/data-provenance";
@@ -19,6 +20,7 @@ interface InteractiveDistrictPanelProps {
   selected?: boolean;
   provenance?: DataProvenance;
   insight?: string;
+  showChart?: boolean;
   onClear?: () => void;
 }
 
@@ -61,8 +63,11 @@ export default function InteractiveDistrictPanel({
   selected = false,
   provenance,
   insight,
+  showChart = true,
   onClear,
 }: InteractiveDistrictPanelProps) {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [chartReady, setChartReady] = useState(false);
   const chartRows = metrics
     .filter((metric) => typeof metric.rawValue === "number" && Number.isFinite(metric.rawValue))
     .slice(0, 5)
@@ -71,6 +76,23 @@ export default function InteractiveDistrictPanel({
       value: Math.abs(Number(metric.rawValue)),
       fill: metric.color ?? "#38bdf8",
     }));
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!showChart || chartRows.length === 0 || !container) {
+      setChartReady(false);
+      return;
+    }
+
+    const updateChartReady = () => {
+      const bounds = container.getBoundingClientRect();
+      setChartReady(bounds.width > 0 && bounds.height > 0);
+    };
+    updateChartReady();
+    const observer = new ResizeObserver(updateChartReady);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [chartRows.length, showChart]);
 
   return (
     <section
@@ -93,6 +115,7 @@ export default function InteractiveDistrictPanel({
             onClick={onClear}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-700 bg-slate-800/70 text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-100"
             title="ล้างพื้นที่ที่เลือก"
+            aria-label="ล้างพื้นที่ที่เลือก"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -110,19 +133,21 @@ export default function InteractiveDistrictPanel({
         ))}
       </div>
 
-      {chartRows.length > 0 && (
-        <div className="mt-4 h-36 rounded-lg border border-slate-800 bg-slate-950/35 p-2">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart data={chartRows} layout="vertical" margin={{ left: 6, right: 8, top: 4, bottom: 4 }}>
-              <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={72} tick={{ fill: "#94a3b8", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                formatter={(value) => [Number(value).toLocaleString("th-TH", { maximumFractionDigits: 3 }), "ค่า"]}
-                contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11, color: "#e2e8f0" }}
-              />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {showChart && chartRows.length > 0 && (
+        <div ref={chartContainerRef} className="mt-4 h-36 rounded-lg border border-slate-800 bg-slate-950/35 p-2">
+          {chartReady && (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <BarChart data={chartRows} layout="vertical" margin={{ left: 6, right: 8, top: 4, bottom: 4 }}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" width={72} tick={{ fill: "#94a3b8", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  formatter={(value) => [Number(value).toLocaleString("th-TH", { maximumFractionDigits: 3 }), "ค่า"]}
+                  contentStyle={{ background: "#0f172a", border: "1px solid #334155", fontSize: 11, color: "#e2e8f0" }}
+                />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       )}
 

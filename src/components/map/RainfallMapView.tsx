@@ -6,6 +6,7 @@ import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatRainfall, rainfallColor } from "@/lib/rainfall";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 function FitBounds({ data, activeDistrict }: { data: any; activeDistrict: string }) {
   const map = useMap();
@@ -73,6 +74,7 @@ export default function RainfallMapView({
             }}
             onEachFeature={(feature, layer) => {
               const properties = feature.properties ?? {};
+              bindLeafletKeyboardSelection(layer, `เลือกเขต${properties.district_name}บนแผนที่`, () => onDistrictSelect(properties.district_name));
               const change = properties.change_mm;
               const changeLabel = typeof change === "number"
                 ? `${change >= 0 ? "+" : ""}${change.toFixed(1)} มม.`

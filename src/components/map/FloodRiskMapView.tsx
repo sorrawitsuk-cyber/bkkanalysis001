@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 interface FloodRiskMapViewProps {
   geojsonData: any;
@@ -212,6 +213,7 @@ export default function FloodRiskMapView({
         const districtName = props.district_name || props.name_th;
 
         if (onFeatureSelect && districtName) {
+          bindLeafletKeyboardSelection(layer, `เลือกเขต${districtName}บนแผนที่`, () => onFeatureSelect(districtName, feature));
           layer.on({
             click: (event: L.LeafletMouseEvent) => {
               L.DomEvent.stopPropagation(event);

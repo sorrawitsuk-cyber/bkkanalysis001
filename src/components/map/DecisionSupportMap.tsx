@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 function FitBounds({ data }: { data: any }) {
   const map = useMap();
@@ -57,6 +58,7 @@ export default function DecisionSupportMap({
             }}
             onEachFeature={(feature, layer) => {
               const properties = feature.properties ?? {};
+              bindLeafletKeyboardSelection(layer, `เลือกเขต${properties.district_name}บนแผนที่`, () => onDistrictSelect(properties.district_name));
               layer.bindTooltip(
                 `<div class="min-w-[180px]">
                   <strong>${properties.district_name}</strong><br/>

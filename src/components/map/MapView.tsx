@@ -4,6 +4,7 @@ import { memo, useEffect, useState, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 // Fix Leaflet icons in Next.js
 if (typeof window !== 'undefined') {
@@ -314,6 +315,7 @@ export default function MapView({ activeTag, activeDistrict, traffyData, mapMode
           onEachFeature={(feature, layer) => {
             const name = feature?.properties?.name_th ?? feature?.properties?.district_name;
             if (!name) return;
+            bindLeafletKeyboardSelection(layer, `เลือกเขต${name}บนแผนที่`, () => onDistrictSelect(activeDistrict === name ? 'ทั้งหมด' : name));
             layer.bindTooltip(`เขต${name} · คลิกเพื่อกรองเรื่องร้องเรียน`, { sticky: true });
             layer.on({
               click: () => onDistrictSelect(activeDistrict === name ? 'ทั้งหมด' : name),

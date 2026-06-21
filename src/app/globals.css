@@ -20,6 +20,12 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.map-keyboard-target:focus-visible {
+  outline: 3px solid #f8fafc;
+  outline-offset: 2px;
+  filter: drop-shadow(0 0 3px rgba(15, 23, 42, 0.9));
+}
+
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 8px;

@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatTreeChange, formatTreePercent, formatTreeRai, treeChangeColor, treeCoverColor } from "@/lib/tree-cover";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 interface TreeCoverMapProps {
   geojsonData: any;
@@ -100,6 +101,7 @@ export default function TreeCoverMap({
       onEachFeature: (feature, layer) => {
         const props = feature.properties ?? {};
         const district = props.district_name ?? props.name_th;
+        bindLeafletKeyboardSelection(layer, `เลือกเขต${district}บนแผนที่`, () => onDistrictSelect(activeDistrict === district ? ALL_DISTRICTS : district));
         layer.bindTooltip(
           `<div class="min-w-[190px]">
             <div class="font-bold text-slate-900">เขต${district}</div>

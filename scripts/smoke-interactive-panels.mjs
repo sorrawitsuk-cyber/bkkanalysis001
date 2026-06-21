@@ -8,7 +8,7 @@ const port = Number(process.env.SMOKE_PORT || 4173);
 const baseUrl = process.env.SMOKE_BASE_URL || `http://127.0.0.1:${port}`;
 const shouldStartServer = !process.env.SMOKE_BASE_URL;
 const allowDataUnavailable = process.argv.includes("--allow-data-unavailable");
-const canvasClickPaths = new Set(["/accessibility"]);
+const mobileInsightPaths = new Set(["/population", "/traffy"]);
 
 const moduleFiles = {
   "/heat-island": "src/app/heat-island/page.tsx",
@@ -25,6 +25,19 @@ const moduleFiles = {
   "/flood-risk": "src/app/flood-risk/page.tsx",
   "/traffy": "src/app/traffy/page.tsx",
 };
+
+const keyboardMapFiles = [
+  "src/components/gee/DistrictMetricsMapView.tsx",
+  "src/components/map/AccessibilityMap.tsx",
+  "src/components/map/DecisionSupportMap.tsx",
+  "src/components/map/FloodRiskMapView.tsx",
+  "src/components/map/LandCoverChangeMap.tsx",
+  "src/components/map/MapView.tsx",
+  "src/components/map/PopulationMap.tsx",
+  "src/components/map/RainfallMapView.tsx",
+  "src/components/map/TreeCoverMap.tsx",
+  "src/components/map/UrbanExpansionMap.tsx",
+];
 
 async function waitForServer(url, timeoutMs = 60000) {
   const started = Date.now();
@@ -80,6 +93,13 @@ async function runSmoke() {
       throw new Error(`${path} is missing InteractiveDistrictPanel integration in ${file}`);
     }
   }
+  for (const file of keyboardMapFiles) {
+    const source = await readFile(file, "utf8");
+    const binderReferences = source.match(/bindLeafletKeyboardSelection/g)?.length ?? 0;
+    if (binderReferences < 2) {
+      throw new Error(`${file} is missing a keyboard district binding`);
+    }
+  }
 
   let server;
   if (shouldStartServer) {
@@ -126,40 +146,46 @@ async function runSmoke() {
       const panel = page.locator('[data-testid="interactive-district-panel"]:visible').first();
       const map = page.locator(".leaflet-container");
       await map.waitFor({ state: "visible", timeout: 30000 });
-      let hasClickableGeometry = true;
-      let interactivePath = null;
-      if (canvasClickPaths.has(path)) {
-        await page.waitForTimeout(2500);
-      } else {
-        try {
-          interactivePath = page.locator(".leaflet-overlay-pane path.leaflet-interactive").first();
-          await interactivePath.waitFor({ state: "visible", timeout: 20000 });
-        } catch {
-          hasClickableGeometry = false;
-        }
+      const keyboardTarget = page.locator('[data-map-keyboard-selectable="true"]').first();
+      let hasKeyboardGeometry = true;
+      try {
+        await keyboardTarget.waitFor({ state: "visible", timeout: 20000 });
+      } catch {
+        hasKeyboardGeometry = false;
       }
-      if (!hasClickableGeometry) {
-        results.push({ path, panelCount, provenanceCount, insightCount, clickSelected: "skipped-no-polygons" });
+      if (!hasKeyboardGeometry) {
+        const renderedGeometryCount = await page.locator(".leaflet-overlay-pane path.leaflet-interactive").count();
+        if (renderedGeometryCount > 0) {
+          throw new Error(`${path} rendered map geometry without a keyboard-selectable district target`);
+        }
+        results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: "skipped-no-polygons" });
         continue;
       }
-      const box = await map.boundingBox();
-      if (!box) throw new Error(`${path} map has no bounding box`);
-      let selected = await panel.getAttribute("data-selected") === "true";
-      if (canvasClickPaths.has(path)) {
-        const clickRatios = [[0.5, 0.5], [0.58, 0.45], [0.45, 0.55], [0.62, 0.58], [0.4, 0.42]];
-        for (const [xRatio, yRatio] of clickRatios) {
-          await page.mouse.click(box.x + box.width * xRatio, box.y + box.height * yRatio);
-          await page.waitForTimeout(900);
-          selected = await panel.getAttribute("data-selected") === "true";
-          if (selected) break;
-        }
-      } else if (interactivePath) {
-        await interactivePath.click({ force: true });
-        await page.waitForTimeout(900);
-        selected = await panel.getAttribute("data-selected") === "true";
+      const role = await keyboardTarget.getAttribute("role");
+      const ariaLabel = await keyboardTarget.getAttribute("aria-label");
+      if (role !== "button" || !ariaLabel) {
+        throw new Error(`${path} keyboard district target is missing role or aria-label`);
       }
-      if (!selected) throw new Error(`${path} panel did not select after map polygon click`);
-      results.push({ path, panelCount, provenanceCount, insightCount, clickSelected: true });
+      await keyboardTarget.focus();
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(900);
+      const selected = await panel.getAttribute("data-selected") === "true";
+      if (!selected) throw new Error(`${path} panel did not select after keyboard district activation`);
+      let mobileFeedback = null;
+      if (mobileInsightPaths.has(path)) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.waitForTimeout(350);
+        const mobilePanel = page.locator('[data-testid="interactive-district-panel"][data-selected="true"]:visible').first();
+        await mobilePanel.waitFor({ state: "visible", timeout: 5000 });
+        const mobileBox = await mobilePanel.boundingBox();
+        if (!mobileBox || mobileBox.x >= 390 || mobileBox.y >= 844 || mobileBox.x + mobileBox.width <= 0 || mobileBox.y + mobileBox.height <= 0) {
+          throw new Error(`${path} selected district feedback is outside the mobile viewport`);
+        }
+        await mobilePanel.locator('button[aria-label="ล้างพื้นที่ที่เลือก"]').waitFor({ state: "visible" });
+        mobileFeedback = true;
+        await page.setViewportSize({ width: 1440, height: 900 });
+      }
+      results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: true, mobileFeedback });
     }
   } finally {
     await browser.close();

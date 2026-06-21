@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import { formatLST, getLSTClassThai, getLSTColor } from "@/lib/lst";
 import { getNdviClassThai } from "@/lib/ndvi";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 interface DistrictMetricsMapViewProps {
   geojsonData: any;
@@ -444,6 +445,7 @@ export default function DistrictMetricsMapView({
         const props = feature.properties || {};
         const districtName = props.district_name || props.name_th;
         if (onFeatureSelect && districtName) {
+          bindLeafletKeyboardSelection(layer, `เลือกเขต${districtName}บนแผนที่`, () => onFeatureSelect(districtName, feature));
           layer.on({
             click: (event: L.LeafletMouseEvent) => {
               L.DomEvent.stopPropagation(event);

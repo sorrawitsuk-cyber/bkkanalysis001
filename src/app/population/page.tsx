@@ -344,28 +344,50 @@ export default function PopulationPage() {
             </div>
 
             {view === "map" && (
-              <div className="flex min-h-[420px] flex-1">
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800">
-                  <PopulationMap geojsonData={geojson} rows={rows} metric={metric} activeId={activeId} onSelect={selectRow} />
+              <>
+                <div className="flex min-h-[420px] flex-1">
+                  <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-800">
+                    <PopulationMap geojsonData={geojson} rows={rows} metric={metric} activeId={activeId} onSelect={selectRow} />
+                    {selected && (
+                      <div className="absolute inset-x-3 bottom-3 z-[1000] max-h-[48vh] overflow-y-auto md:left-4 md:right-auto md:w-80 xl:hidden">
+                        <InteractiveDistrictPanel
+                          accent="indigo"
+                          selected
+                          title={selected.name}
+                          subtitle={`${selected.level === "district" ? "เขต" : "แขวง"}${selected.name}`}
+                          onClear={() => setActiveId(null)}
+                          showChart={false}
+                          metrics={[
+                            { label: "ประชากร", value: `${formatPopulation(selected.population)} คน`, rawValue: selected.population, color: "#818cf8" },
+                            { label: "ความหนาแน่น", value: `${formatPopulation(selected.density)} คน/ตร.กม.`, rawValue: selected.density, color: "#a78bfa" },
+                            { label: "เปลี่ยนจากปีก่อน", value: formatPopulationPercent(selected.change_pct), rawValue: selected.change_pct, color: "#22c55e" },
+                            { label: "แรงกดดัน", value: `${selected.exposure_score.toFixed(1)}/100`, rawValue: selected.exposure_score, color: "#fb7185" },
+                          ]}
+                          provenance={panelProvenance}
+                          insight={panelInsight}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <aside className="ml-3 hidden w-80 shrink-0 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/65 p-4 xl:block">
+                    <InteractiveDistrictPanel
+                      accent="indigo"
+                      selected={selected !== null}
+                      title={selected?.name ?? "เลือกพื้นที่บนแผนที่"}
+                      subtitle={selected ? `${selected.level === "district" ? "เขต" : "แขวง"}${selected.name}` : "คลิก polygon เขต/แขวงเพื่อดูข้อมูลประชากร"}
+                      onClear={() => setActiveId(null)}
+                      metrics={[
+                        { label: "ประชากร", value: `${formatPopulation(selected?.population)} คน`, rawValue: selected?.population, color: "#818cf8" },
+                        { label: "ความหนาแน่น", value: `${formatPopulation(selected?.density)} คน/ตร.กม.`, rawValue: selected?.density, color: "#a78bfa" },
+                        { label: "เปลี่ยนจากปีก่อน", value: formatPopulationPercent(selected?.change_pct), rawValue: selected?.change_pct, color: "#22c55e" },
+                        { label: "แรงกดดัน", value: selected ? `${selected.exposure_score.toFixed(1)}/100` : "ไม่มีข้อมูล", rawValue: selected?.exposure_score, color: "#fb7185" },
+                      ]}
+                      provenance={panelProvenance}
+                      insight={panelInsight}
+                    />
+                  </aside>
                 </div>
-                <aside className="ml-3 hidden w-80 shrink-0 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/65 p-4 xl:block">
-                  <InteractiveDistrictPanel
-                    accent="indigo"
-                    selected={selected !== null}
-                    title={selected?.name ?? "เลือกพื้นที่บนแผนที่"}
-                    subtitle={selected ? `${selected.level === "district" ? "เขต" : "แขวง"}${selected.name}` : "คลิก polygon เขต/แขวงเพื่อดูข้อมูลประชากร"}
-                    onClear={() => setActiveId(null)}
-                    metrics={[
-                      { label: "ประชากร", value: `${formatPopulation(selected?.population)} คน`, rawValue: selected?.population, color: "#818cf8" },
-                      { label: "ความหนาแน่น", value: `${formatPopulation(selected?.density)} คน/ตร.กม.`, rawValue: selected?.density, color: "#a78bfa" },
-                      { label: "เปลี่ยนจากปีก่อน", value: formatPopulationPercent(selected?.change_pct), rawValue: selected?.change_pct, color: "#22c55e" },
-                      { label: "แรงกดดัน", value: selected ? `${selected.exposure_score.toFixed(1)}/100` : "ไม่มีข้อมูล", rawValue: selected?.exposure_score, color: "#fb7185" },
-                    ]}
-                    provenance={panelProvenance}
-                    insight={panelInsight}
-                  />
-                </aside>
-              </div>
+              </>
             )}
 
             {view === "stats" && (

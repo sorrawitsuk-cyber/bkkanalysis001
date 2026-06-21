@@ -13,6 +13,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 import {
   ACCESSIBILITY_LABELS,
   ACCESSIBILITY_SUBTYPE_LABELS,
@@ -120,6 +121,7 @@ export default function AccessibilityMap({
 }: AccessibilityMapProps) {
   const [basemap, setBasemap] = useState<BasemapKey>("dark");
   const [resetToken, setResetToken] = useState(0);
+  const districtRenderer = useMemo(() => L.svg(), []);
   const rowById = useMemo(
     () => new Map(districts.map((district) => [district.district_id, district])),
     [districts],
@@ -183,6 +185,7 @@ export default function AccessibilityMap({
             : 0;
           const active = !activeDistrictId || activeDistrictId === district?.district_id;
           return {
+            renderer: districtRenderer,
             color: activeDistrictId === district?.district_id ? "#ffffff" : "#64748b",
             weight: activeDistrictId === district?.district_id ? 2.5 : 0.8,
             fillColor: accessibilityColor(value),
@@ -192,6 +195,7 @@ export default function AccessibilityMap({
         onEachFeature={(feature, layer) => {
           const district = rowById.get(Number(feature.properties?.id));
           if (!district) return;
+          bindLeafletKeyboardSelection(layer, `เลือกเขต${district.district_name}บนแผนที่`, () => onSelectDistrict(district));
           const value = accessibilityValue(district, metric, basis, scenario);
           const rank = rankById.get(district.district_id);
           layer.bindTooltip(

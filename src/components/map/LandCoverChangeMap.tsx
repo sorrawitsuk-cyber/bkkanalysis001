@@ -6,6 +6,7 @@ import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { conversionColor, formatPercent, formatPercentagePoint, type LandCoverLayer } from "@/lib/land-cover";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 
 function FitBounds({ data, activeDistrict }: { data: any; activeDistrict: string }) {
   const map = useMap();
@@ -72,6 +73,7 @@ export default function LandCoverChangeMap({
             }}
             onEachFeature={(feature, leafletLayer) => {
               const p = feature.properties ?? {};
+              bindLeafletKeyboardSelection(leafletLayer, `เลือกเขต${p.district_name}บนแผนที่`, () => onDistrictSelect(p.district_name));
               leafletLayer.bindTooltip(`
                 <div class="min-w-[220px]">
                   <strong>เขต${p.district_name}</strong><br/>

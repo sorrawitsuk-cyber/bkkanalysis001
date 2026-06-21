@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { bindLeafletKeyboardSelection } from "@/lib/leaflet-keyboard";
 import {
   formatPopulation,
   formatPopulationPercent,
@@ -103,6 +104,7 @@ export default function PopulationMap({
             onEachFeature={(feature, layer) => {
               const row = rowById.get(Number(feature.properties?.id));
               if (!row) return;
+              bindLeafletKeyboardSelection(layer, `เลือก${row.level === "district" ? "เขต" : "แขวง"}${row.name}บนแผนที่`, () => onSelect(row));
               layer.bindTooltip(`
                 <div class="min-w-[220px]">
                   <strong>${row.level === "district" ? "เขต" : ""}${row.name}</strong>
