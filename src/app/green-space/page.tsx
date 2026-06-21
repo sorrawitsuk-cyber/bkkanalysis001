@@ -30,6 +30,7 @@ import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import TreeCoverSidebar from "@/components/gee/TreeCoverSidebar";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
@@ -77,6 +78,7 @@ export default function GreenSpacePage() {
   const [rasterVisible, setRasterVisible] = useState(true);
   const [opacity, setOpacity] = useState(0.72);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -284,7 +286,10 @@ export default function GreenSpacePage() {
                       activeDistrict={activeDistrict}
                       opacity={opacity}
                       baseMap={baseMap}
-                      onDistrictSelect={setActiveDistrict}
+                      onDistrictSelect={(districtName) => {
+                        setActiveDistrict(districtName);
+                        setMobileControlsOpen(true);
+                      }}
                     />
                     
                     {/* Floating KPI cards */}
@@ -332,7 +337,7 @@ export default function GreenSpacePage() {
                     </div>
                   </div>
 
-                  <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
+                  <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองพื้นที่สีเขียว" subtitle={`${baselineYear} → ${year}`}>
                     <div className="flex min-h-full flex-col gap-3">
                       <InteractiveDistrictPanel
                         accent="emerald"
@@ -415,7 +420,7 @@ export default function GreenSpacePage() {
                         reportData={reportData}
                       />
                     </div>
-                  </aside>
+                  </ResponsiveMapAside>
                 </div>
               )}
 

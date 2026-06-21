@@ -9,6 +9,8 @@ const baseUrl = process.env.SMOKE_BASE_URL || `http://127.0.0.1:${port}`;
 const shouldStartServer = !process.env.SMOKE_BASE_URL;
 const allowDataUnavailable = process.argv.includes("--allow-data-unavailable");
 const mobileInsightPaths = new Set(["/population", "/traffy"]);
+const mobileDrawerPaths = new Set(["/heat-island", "/air-quality", "/nighttime-lights", "/green-space", "/urban-expansion", "/rainfall", "/land-cover-change"]);
+const mobilePageSidebarPaths = new Set(["/rainfall", "/land-cover-change", "/decision-support"]);
 
 const moduleFiles = {
   "/heat-island": "src/app/heat-island/page.tsx",
@@ -37,6 +39,22 @@ const keyboardMapFiles = [
   "src/components/map/RainfallMapView.tsx",
   "src/components/map/TreeCoverMap.tsx",
   "src/components/map/UrbanExpansionMap.tsx",
+];
+
+const responsiveDrawerFiles = [
+  "src/app/heat-island/page.tsx",
+  "src/app/air-quality/page.tsx",
+  "src/app/nighttime-lights/page.tsx",
+  "src/app/green-space/page.tsx",
+  "src/app/urban-expansion/page.tsx",
+  "src/app/rainfall/page.tsx",
+  "src/app/land-cover-change/page.tsx",
+];
+
+const responsivePageSidebarFiles = [
+  "src/app/rainfall/page.tsx",
+  "src/app/land-cover-change/page.tsx",
+  "src/app/decision-support/page.tsx",
 ];
 
 async function waitForServer(url, timeoutMs = 60000) {
@@ -98,6 +116,18 @@ async function runSmoke() {
     const binderReferences = source.match(/bindLeafletKeyboardSelection/g)?.length ?? 0;
     if (binderReferences < 2) {
       throw new Error(`${file} is missing a keyboard district binding`);
+    }
+  }
+  for (const file of responsiveDrawerFiles) {
+    const source = await readFile(file, "utf8");
+    if (!source.includes("ResponsiveMapAside") || !source.includes("setMobileControlsOpen(true)")) {
+      throw new Error(`${file} is missing responsive map drawer integration`);
+    }
+  }
+  for (const file of responsivePageSidebarFiles) {
+    const source = await readFile(file, "utf8");
+    if (!source.includes("ResponsivePageSidebar") || !source.includes("setMobileSidebarOpen")) {
+      throw new Error(`${file} is missing responsive page sidebar integration`);
     }
   }
 
@@ -172,9 +202,13 @@ async function runSmoke() {
       const selected = await panel.getAttribute("data-selected") === "true";
       if (!selected) throw new Error(`${path} panel did not select after keyboard district activation`);
       let mobileFeedback = null;
-      if (mobileInsightPaths.has(path)) {
+      let mobileDrawer = null;
+      let mobilePageSidebar = null;
+      if (mobileInsightPaths.has(path) || mobileDrawerPaths.has(path) || mobilePageSidebarPaths.has(path)) {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.waitForTimeout(350);
+      }
+      if (mobileInsightPaths.has(path)) {
         const mobilePanel = page.locator('[data-testid="interactive-district-panel"][data-selected="true"]:visible').first();
         await mobilePanel.waitFor({ state: "visible", timeout: 5000 });
         const mobileBox = await mobilePanel.boundingBox();
@@ -183,9 +217,37 @@ async function runSmoke() {
         }
         await mobilePanel.locator('button[aria-label="ล้างพื้นที่ที่เลือก"]').waitFor({ state: "visible" });
         mobileFeedback = true;
+      }
+      if (mobileDrawerPaths.has(path)) {
+        const drawer = page.locator('[data-testid="responsive-map-aside"]:visible');
+        await drawer.waitFor({ state: "visible", timeout: 5000 });
+        const drawerBox = await drawer.boundingBox();
+        if (!drawerBox || drawerBox.x < 0 || drawerBox.x + drawerBox.width > 390) {
+          throw new Error(`${path} responsive map drawer is outside the mobile viewport`);
+        }
+        await drawer.locator('[data-testid="interactive-district-panel"][data-selected="true"]').waitFor({ state: "visible" });
+        await drawer.locator('button[aria-label="ปิดแผงตัวกรอง"]').click();
+        await page.locator('[data-testid="mobile-map-controls-button"]:visible').waitFor({ state: "visible" });
+        mobileDrawer = true;
+      }
+      if (mobilePageSidebarPaths.has(path)) {
+        const pageSidebar = page.locator('[data-testid="responsive-page-sidebar"]:visible');
+        if (!(await pageSidebar.isVisible())) {
+          await page.locator('[data-testid="mobile-page-sidebar-button"]:visible').click();
+        }
+        await pageSidebar.waitFor({ state: "visible", timeout: 5000 });
+        const sidebarBox = await pageSidebar.boundingBox();
+        if (!sidebarBox || sidebarBox.x < 0 || sidebarBox.x + sidebarBox.width > 390) {
+          throw new Error(`${path} responsive page sidebar is outside the mobile viewport`);
+        }
+        await pageSidebar.locator('button[aria-label="ปิดข้อมูลและอันดับ"]').click();
+        await page.locator('[data-testid="mobile-page-sidebar-button"]:visible').waitFor({ state: "visible" });
+        mobilePageSidebar = true;
+      }
+      if (mobileInsightPaths.has(path) || mobileDrawerPaths.has(path) || mobilePageSidebarPaths.has(path)) {
         await page.setViewportSize({ width: 1440, height: 900 });
       }
-      results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: true, mobileFeedback });
+      results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: true, mobileFeedback, mobileDrawer, mobilePageSidebar });
     }
   } finally {
     await browser.close();

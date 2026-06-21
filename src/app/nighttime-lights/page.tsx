@@ -7,6 +7,7 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
 import NightLightsSidebar from "@/components/gee/NightLightsSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
@@ -194,6 +195,7 @@ export default function NighttimeLightsPage() {
   const [cacheMeta, setCacheMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [compareMeta, setCompareMeta] = useState<SatelliteCacheMetadata | null>(null);
   const [invertedMask, setInvertedMask] = useState<any>(null);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   useEffect(() => {
     fetchCacheIndex("nightlights").then((index) => {
@@ -532,7 +534,10 @@ export default function NighttimeLightsPage() {
                     satelliteCachePreviewUrl={cachePreviewUrl}
                     satelliteCacheBounds={cacheMeta?.bounds}
                     granularity={granularity}
-                    onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
+                    onFeatureSelect={(districtName) => {
+                      setActiveDistrict(districtName);
+                      setMobileControlsOpen(true);
+                    }}
                   />
                 </ErrorBoundary>
               </div>
@@ -571,7 +576,7 @@ export default function NighttimeLightsPage() {
             </div>
 
             {/* Right control panel */}
-            <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+            <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองแสงไฟกลางคืน" subtitle={periodLabel}>
               <div className="flex min-h-full flex-col gap-3">
                 <InteractiveDistrictPanel
                   accent="yellow"
@@ -720,7 +725,7 @@ export default function NighttimeLightsPage() {
                 </div>
 
               </div>
-            </aside>
+            </ResponsiveMapAside>
           </div>
         )}
 

@@ -10,6 +10,7 @@ import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import UrbanExpansionSidebar from "@/components/gee/UrbanExpansionSidebar";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
@@ -59,6 +60,7 @@ export default function UrbanExpansionPage() {
   const [rasterVisible, setRasterVisible] = useState(true);
   const [opacity, setOpacity] = useState(0.72);
   const [baseMap, setBaseMap] = useState<"dark" | "light" | "satellite" | "streets" | "none">("dark");
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -209,7 +211,10 @@ export default function UrbanExpansionPage() {
             {viewMode === "map" && (
               <div className="flex h-full">
                 <div className="relative min-w-0 flex-1">
-                  <UrbanExpansionMap geojsonData={data.geojson} rasterUrl={mode === "cover" ? data.rasters.current.urlFormat : data.rasters.change.urlFormat} rasterVisible={rasterVisible} mode={mode} activeDistrict={activeDistrict} opacity={opacity} baseMap={baseMap} onDistrictSelect={setActiveDistrict} />
+                  <UrbanExpansionMap geojsonData={data.geojson} rasterUrl={mode === "cover" ? data.rasters.current.urlFormat : data.rasters.change.urlFormat} rasterVisible={rasterVisible} mode={mode} activeDistrict={activeDistrict} opacity={opacity} baseMap={baseMap} onDistrictSelect={(districtName) => {
+                    setActiveDistrict(districtName);
+                    setMobileControlsOpen(true);
+                  }} />
                   
                   {/* Floating KPI cards */}
                   <div className="absolute top-4 left-4 right-4 z-[1000] hidden lg:grid grid-cols-4 gap-2 max-w-4xl mx-auto">
@@ -256,7 +261,7 @@ export default function UrbanExpansionPage() {
                   </div>
                 </div>
 
-                <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
+                <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองการขยายตัวเมือง" subtitle={`${baselineYear} → ${year}`}>
                   <div className="flex min-h-full flex-col gap-3">
                     <InteractiveDistrictPanel
                       accent="orange"
@@ -339,7 +344,7 @@ export default function UrbanExpansionPage() {
                       reportData={reportData}
                     />
                   </div>
-                </aside>
+                </ResponsiveMapAside>
               </div>
             )}
 

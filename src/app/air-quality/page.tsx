@@ -7,6 +7,7 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
 import AirQualitySidebar from "@/components/gee/AirQualitySidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
@@ -61,6 +62,7 @@ export default function AirQualityPage() {
   const [summary, setSummary]                 = useState<any>(null);
   const [loading, setLoading]                 = useState(true);
   const [granularity, setGranularity]         = useState<"district" | "subdistrict">("district");
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const subdistrictFeatures = useSubdistrictFeatures(granularity === "subdistrict");
 
   useEffect(() => {
@@ -338,7 +340,10 @@ export default function AirQualityPage() {
                     airPollutionLayer={airLayer}
                     dataPeriodLabel={latestLabel}
                     granularity={granularity}
-                    onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
+                    onFeatureSelect={(districtName) => {
+                      setActiveDistrict(districtName);
+                      setMobileControlsOpen(true);
+                    }}
                   />
                 </ErrorBoundary>
                 <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] max-w-xs rounded-xl border border-slate-700/70 bg-slate-950/90 p-3 text-[10px] leading-5 text-slate-400 shadow-xl backdrop-blur">
@@ -367,7 +372,7 @@ export default function AirQualityPage() {
               </div>
 
               {/* Right aside */}
-              <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+              <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองคุณภาพอากาศ" subtitle={latestLabel}>
                 <div className="flex min-h-full flex-col gap-3">
                   <InteractiveDistrictPanel
                     accent="cyan"
@@ -428,7 +433,7 @@ export default function AirQualityPage() {
                     reportData={reportData}
                   />
                 </div>
-              </aside>
+              </ResponsiveMapAside>
             </>
           )}
 

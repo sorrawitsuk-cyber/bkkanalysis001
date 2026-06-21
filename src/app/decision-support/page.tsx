@@ -29,6 +29,7 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsivePageSidebar from "@/components/map/ResponsivePageSidebar";
 import type { DecisionMode } from "@/lib/decision-support";
 import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 
@@ -93,6 +94,7 @@ export default function DecisionSupportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sortKey, setSortKey] = useState("score");
   const [sortDescending, setSortDescending] = useState(true);
 
@@ -234,7 +236,8 @@ export default function DecisionSupportPage() {
         <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-red-300">{error}</div>
       ) : (
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-80 shrink-0 overflow-y-auto border-r border-slate-800 bg-slate-900/60 p-4 md:block">
+          <ResponsivePageSidebar open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+            <div className="h-full overflow-y-auto p-4">
             <div className={`rounded-xl border p-4 ${mode === "flood" ? "border-sky-500/20 bg-sky-500/5" : "border-orange-500/20 bg-orange-500/5"}`}>
               <div className="flex items-center gap-2">
                 {mode === "flood" ? <Droplets className="h-5 w-5 text-sky-400" /> : <Flame className="h-5 w-5 text-orange-400" />}
@@ -330,12 +333,16 @@ export default function DecisionSupportPage() {
                 {(data?.limitations ?? []).map((item: string) => <li key={item}>• {item}</li>)}
               </ul>
             </div>
-          </aside>
+            </div>
+          </ResponsivePageSidebar>
 
           <main className="min-w-0 flex-1 overflow-auto">
             {viewMode === "map" && (
               <div className="relative h-full min-h-[520px]">
-                <DecisionSupportMap data={data?.geojson} activeDistrict={activeDistrict} onDistrictSelect={setActiveDistrict} />
+                <DecisionSupportMap data={data?.geojson} activeDistrict={activeDistrict} onDistrictSelect={(districtName) => {
+                  setActiveDistrict(districtName);
+                  setMobileSidebarOpen(true);
+                }} />
                 <div className="absolute bottom-4 right-4 z-[1000] rounded-xl border border-slate-700 bg-slate-900/95 p-3 text-[9px] shadow-xl">
                   {[
                     ["#b91c1c", "80-100 สูงมาก"],

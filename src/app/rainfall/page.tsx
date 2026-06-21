@@ -35,6 +35,8 @@ import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DataSourceBadge from "@/components/ui/DataSourceBadge";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
+import ResponsivePageSidebar from "@/components/map/ResponsivePageSidebar";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import SidebarFooter from "@/components/gee/SidebarFooter";
@@ -102,6 +104,8 @@ export default function RainfallPage() {
   const [error, setError] = useState<string | null>(null);
   const [impactRows, setImpactRows] = useState<UrbanImpactRow[]>([]);
   const [impactLoading, setImpactLoading] = useState(false);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const loadRainfall = useCallback(async () => {
     setLoading(true);
@@ -285,7 +289,7 @@ export default function RainfallPage() {
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       {/* Left Sidebar */}
-      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-r border-slate-800/70 shadow-2xl flex flex-col h-full overflow-hidden text-slate-200">
+      <ResponsivePageSidebar open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
         {/* Sidebar Header with Page Title */}
         <div className="p-4 border-b border-slate-800/70 bg-slate-900/40">
           <div className="flex items-center gap-2">
@@ -405,7 +409,7 @@ export default function RainfallPage() {
         <div className="p-3 border-t border-slate-800/70 bg-slate-900/20 shrink-0">
           <SidebarFooter exclude={["rainfall"]} />
         </div>
-      </aside>
+      </ResponsivePageSidebar>
 
       {/* Main content area */}
       <main className="flex-1 min-w-0 flex flex-col">
@@ -481,7 +485,10 @@ export default function RainfallPage() {
                         rasterUrl={data.raster.urlFormat}
                         rasterVisible={rasterVisible}
                         activeDistrict={activeDistrict}
-                        onDistrictSelect={setActiveDistrict}
+                        onDistrictSelect={(districtName) => {
+                          setActiveDistrict(districtName);
+                          setMobileControlsOpen(true);
+                        }}
                         maxValue={maxDistrictValue}
                       />
                     </div>
@@ -528,7 +535,7 @@ export default function RainfallPage() {
                   </div>
 
                   {/* Right aside */}
-                  <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
+                  <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองปริมาณฝน" subtitle={`${days} วัน · ${endDate}`}>
                     <div className="flex min-h-full flex-col gap-3">
                       <InteractiveDistrictPanel
                         accent="cyan"
@@ -616,7 +623,7 @@ export default function RainfallPage() {
                         reportData={reportData}
                       />
                     </div>
-                  </aside>
+                  </ResponsiveMapAside>
                 </>
               )}
 

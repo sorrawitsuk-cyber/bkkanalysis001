@@ -34,6 +34,8 @@ import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
+import ResponsivePageSidebar from "@/components/map/ResponsivePageSidebar";
 import MonthYearPicker from "@/components/ui/MonthYearPicker";
 import ExportPanel from "@/components/ui/ExportPanel";
 import DataSourceBadge from "@/components/ui/DataSourceBadge";
@@ -90,6 +92,8 @@ export default function LandCoverChangePage() {
   const [data, setData] = useState<LandCoverResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -228,7 +232,7 @@ export default function LandCoverChangePage() {
   return (
     <div className="flex h-screen w-full bg-slate-950 overflow-hidden text-slate-50 font-sans">
       {/* Left Sidebar */}
-      <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-r border-slate-800/70 shadow-2xl flex flex-col h-full overflow-hidden text-slate-200">
+      <ResponsivePageSidebar open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
         {/* Sidebar Header with Page Title */}
         <div className="p-4 border-b border-slate-800/70 bg-slate-900/40">
           <div className="flex items-center gap-2.5">
@@ -328,7 +332,7 @@ export default function LandCoverChangePage() {
         <div className="p-3 border-t border-slate-800/70 bg-slate-900/20 shrink-0">
           <SidebarFooter exclude={["land-cover-change"]} />
         </div>
-      </aside>
+      </ResponsivePageSidebar>
 
       {/* Main content area */}
       <main className="flex-1 min-w-0 flex flex-col">
@@ -405,7 +409,10 @@ export default function LandCoverChangePage() {
                         rasterVisible={rasterVisible}
                         layer={layer}
                         activeDistrict={activeDistrict}
-                        onDistrictSelect={setActiveDistrict}
+                        onDistrictSelect={(districtName) => {
+                          setActiveDistrict(districtName);
+                          setMobileControlsOpen(true);
+                        }}
                         maxConversion={maxConversion}
                       />
                     </div>
@@ -458,7 +465,7 @@ export default function LandCoverChangePage() {
                   </div>
 
                   {/* Right aside */}
-                  <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4 animate-in slide-in-from-right duration-200">
+                  <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองการเปลี่ยนสิ่งปกคลุมดิน" subtitle={`${baselineYear} → ${year}`}>
                     <div className="flex min-h-full flex-col gap-3">
                       <InteractiveDistrictPanel
                         accent="emerald"
@@ -536,7 +543,7 @@ export default function LandCoverChangePage() {
                         reportData={reportData}
                       />
                     </div>
-                  </aside>
+                  </ResponsiveMapAside>
                 </>
               )}
 

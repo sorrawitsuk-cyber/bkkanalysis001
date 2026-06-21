@@ -7,6 +7,7 @@ import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import MapControlPanel from "@/components/map/MapControlPanel";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import ResponsiveMapAside from "@/components/map/ResponsiveMapAside";
 import LSTSidebar from "@/components/gee/LSTSidebar";
 import { buildSubdistrictGeoJson } from "@/lib/subdistrict-view";
 import { useSubdistrictFeatures } from "@/lib/use-subdistrict-features";
@@ -38,6 +39,7 @@ export default function HeatIslandPage() {
   const [opacity, setOpacity] = useState(0.8);
   const [baseMap, setBaseMap] = useState<'dark' | 'light' | 'satellite' | 'streets' | 'none'>('dark');
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const subdistrictFeatures = useSubdistrictFeatures(granularity === "subdistrict");
 
   useEffect(() => {
@@ -299,7 +301,10 @@ export default function HeatIslandPage() {
                       baseMap={baseMap}
                       dataPeriodLabel={periodLabel}
                       granularity={granularity}
-                      onFeatureSelect={(districtName) => setActiveDistrict(districtName)}
+                      onFeatureSelect={(districtName) => {
+                        setActiveDistrict(districtName);
+                        setMobileControlsOpen(true);
+                      }}
                     />
                   </ErrorBoundary>
                 </div>
@@ -351,7 +356,7 @@ export default function HeatIslandPage() {
               </div>
 
               {/* Right aside (controls) — map mode only */}
-              <aside className="w-80 shrink-0 bg-[#0f172a]/95 border-l border-slate-800/70 shadow-2xl overflow-y-auto custom-scrollbar p-4">
+              <ResponsiveMapAside open={mobileControlsOpen} onOpenChange={setMobileControlsOpen} title="ตัวกรองเกาะความร้อน" subtitle={periodLabel}>
                 <div className="flex min-h-full flex-col gap-3">
                   <InteractiveDistrictPanel
                     accent="orange"
@@ -408,7 +413,7 @@ export default function HeatIslandPage() {
                     reportData={reportData}
                   />
                 </div>
-              </aside>
+              </ResponsiveMapAside>
             </>
           )}
 
