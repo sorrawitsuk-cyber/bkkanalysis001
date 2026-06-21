@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -245,7 +246,7 @@ const FLOOD_METRIC_GUIDE = [
 
 export default function FloodRiskPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState();
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [compareMode, setCompareMode] = useState(false);

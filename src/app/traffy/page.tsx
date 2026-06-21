@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -75,7 +76,7 @@ function SummaryCard({
 export default function TraffyPage() {
   const [view, setView] = useState<ViewMode>("map");
   const [activeTag, setActiveTag] = useState(ALL);
-  const [activeDistrict, setActiveDistrict] = useState(ALL);
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState(ALL);
   const [activeCategory, setActiveCategory] = useState(ALL);
   const [activeDistrictGroup, setActiveDistrictGroup] = useState(ALL);
   const [activeYear, setActiveYear] = useState<string | null>(null);

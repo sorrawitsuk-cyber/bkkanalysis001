@@ -4,6 +4,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useNullableNumberUrlState } from "@/lib/url-selection-state";
 import {
   ArrowLeft,
   Bike,
@@ -128,7 +129,7 @@ export default function AccessibilityPage() {
   const [scenario, setScenario] = useState<AccessibilityScenario>("standard");
   const [category, setCategory] = useState<AccessibilityCategory | "all">("all");
   const [serviceSubtype, setServiceSubtype] = useState("all");
-  const [activeDistrictId, setActiveDistrictId] = useState<number | null>(null);
+  const [activeDistrictId, setActiveDistrictId] = useNullableNumberUrlState("districtId");
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);

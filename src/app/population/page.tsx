@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNullableNumberUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -105,7 +106,7 @@ export default function PopulationPage() {
   const [level, setLevel] = useState<PopulationLevel>("district");
   const [metric, setMetric] = useState<PopulationMetric>("population");
   const [districtFilter, setDistrictFilter] = useState("ทั้งหมด");
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useNullableNumberUrlState("areaId");
   const [data, setData] = useState<PopulationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +119,6 @@ export default function PopulationPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "ไม่สามารถโหลดข้อมูลประชากรได้");
       setData(payload);
-      setActiveId(null);
     } catch (loadError: any) {
       setError(loadError?.message ?? "ไม่สามารถโหลดข้อมูลประชากรได้");
       setData(null);

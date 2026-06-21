@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -87,7 +88,7 @@ export default function LandCoverChangePage() {
   const [year, setYear] = useState(currentYear);
   const [baselineYear, setBaselineYear] = useState(2020);
   const [layer, setLayer] = useState<LandCoverLayer>("change");
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState();
   const [rasterVisible, setRasterVisible] = useState(true);
   const [data, setData] = useState<LandCoverResponse | null>(null);
   const [loading, setLoading] = useState(true);

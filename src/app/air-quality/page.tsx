@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -48,7 +49,7 @@ function formatMetric(value: number | null | undefined, layer: AirLayer): string
 
 export default function AirQualityPage() {
   const [viewMode, setViewMode]               = useState<ViewMode>("map");
-  const [activeDistrict, setActiveDistrict]   = useState(ALL_DISTRICTS);
+  const [activeDistrict, setActiveDistrict]   = useDistrictUrlState(ALL_DISTRICTS);
   const [selectedYear, setSelectedYear]       = useState(LATEST_YEAR);
   const [selectedMonth, setSelectedMonth]     = useState<number | null>(null);
   const [compareMode, setCompareMode]         = useState(false);

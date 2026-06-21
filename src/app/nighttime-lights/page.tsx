@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -160,7 +161,7 @@ const BAR_HIGH: [number, number, number] = [180, 83, 9];
 
 export default function NighttimeLightsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState();
   const [dataProduct, setDataProduct] = useState<DataProduct>("annual");
   const [selectedYear, setSelectedYear] = useState(2024);
   const [selectedMonth, setSelectedMonth] = useState(3);

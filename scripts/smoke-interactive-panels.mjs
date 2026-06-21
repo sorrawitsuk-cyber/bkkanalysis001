@@ -11,6 +11,7 @@ const allowDataUnavailable = process.argv.includes("--allow-data-unavailable");
 const mobileInsightPaths = new Set(["/population", "/traffy"]);
 const mobileDrawerPaths = new Set(["/heat-island", "/air-quality", "/nighttime-lights", "/green-space", "/urban-expansion", "/rainfall", "/land-cover-change"]);
 const mobilePageSidebarPaths = new Set(["/rainfall", "/land-cover-change", "/decision-support"]);
+const urlPersistencePaths = new Set(["/decision-support", "/population", "/accessibility"]);
 
 const moduleFiles = {
   "/heat-island": "src/app/heat-island/page.tsx",
@@ -110,6 +111,12 @@ async function runSmoke() {
     if (!hasImport || !hasRenderedPanel) {
       throw new Error(`${path} is missing InteractiveDistrictPanel integration in ${file}`);
     }
+    const expectedUrlHook = path === "/population" || path === "/accessibility"
+      ? "useNullableNumberUrlState"
+      : "useDistrictUrlState";
+    if (!source.includes(expectedUrlHook)) {
+      throw new Error(`${path} is missing ${expectedUrlHook} integration in ${file}`);
+    }
   }
   for (const file of keyboardMapFiles) {
     const source = await readFile(file, "utf8");
@@ -201,6 +208,11 @@ async function runSmoke() {
       await page.waitForTimeout(900);
       const selected = await panel.getAttribute("data-selected") === "true";
       if (!selected) throw new Error(`${path} panel did not select after keyboard district activation`);
+      const selectionParam = path === "/population" ? "areaId" : path === "/accessibility" ? "districtId" : "district";
+      const selectedParamValue = new URL(page.url()).searchParams.get(selectionParam);
+      if (!selectedParamValue) {
+        throw new Error(`${path} did not write ${selectionParam} to the URL after district selection`);
+      }
       let mobileFeedback = null;
       let mobileDrawer = null;
       let mobilePageSidebar = null;
@@ -269,7 +281,21 @@ async function runSmoke() {
       if (mobileInsightPaths.has(path) || mobileDrawerPaths.has(path) || mobilePageSidebarPaths.has(path)) {
         await page.setViewportSize({ width: 1440, height: 900 });
       }
-      results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: true, mobileFeedback, mobileDrawer, mobilePageSidebar });
+      let urlPersistence = null;
+      if (urlPersistencePaths.has(path)) {
+        await page.reload({ waitUntil: "domcontentloaded" });
+        const reloadedPanel = page.locator('[data-testid="interactive-district-panel"]:visible').first();
+        await reloadedPanel.waitFor({ state: "visible", timeout: 30000 });
+        await page.waitForFunction(() => document.querySelector('[data-testid="interactive-district-panel"]:not([data-selected="false"])'));
+        if (new URL(page.url()).searchParams.get(selectionParam) !== selectedParamValue) {
+          throw new Error(`${path} did not preserve ${selectionParam} after reload`);
+        }
+        await page.goBack();
+        await page.waitForFunction((param) => !new URL(window.location.href).searchParams.has(param), selectionParam);
+        await page.locator('[data-testid="interactive-district-panel"][data-selected="false"]:visible').waitFor({ state: "visible", timeout: 30000 });
+        urlPersistence = true;
+      }
+      results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: true, mobileFeedback, mobileDrawer, mobilePageSidebar, urlPersistence });
     }
   } finally {
     await browser.close();

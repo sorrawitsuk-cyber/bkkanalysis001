@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -97,7 +98,7 @@ export default function RainfallPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [days, setDays] = useState<RainfallWindow>(7);
   const [endDate, setEndDate] = useState(defaultRainfallEndDate);
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState();
   const [rasterVisible, setRasterVisible] = useState(true);
   const [data, setData] = useState<RainfallResponse | null>(null);
   const [loading, setLoading] = useState(true);

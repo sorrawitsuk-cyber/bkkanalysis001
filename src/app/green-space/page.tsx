@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import {
   AlertTriangle,
@@ -70,7 +71,7 @@ export default function GreenSpacePage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [year, setYear] = useState(CURRENT_YEAR);
   const [baselineYear, setBaselineYear] = useState(2020);
-  const [activeDistrict, setActiveDistrict] = useState(ALL_DISTRICTS);
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState(ALL_DISTRICTS);
   const [mode, setMode] = useState<"cover" | "change">("cover");
   const [data, setData] = useState<TreeCoverResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,6 @@ export default function GreenSpacePage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "ไม่สามารถโหลดข้อมูล Tree Cover ได้");
       setData(payload);
-      setActiveDistrict(ALL_DISTRICTS);
     } catch (loadError: any) {
       setError(loadError?.message ?? "ไม่สามารถโหลดข้อมูล Tree Cover ได้");
       setData(null);

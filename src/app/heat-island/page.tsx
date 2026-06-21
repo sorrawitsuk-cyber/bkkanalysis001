@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
@@ -26,7 +27,7 @@ const DistrictMetricsMapView = dynamic(() => import("@/components/gee/DistrictMe
 
 export default function HeatIslandPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("map");
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState();
   const [selectedYear, setSelectedYear] = useState(2026);
   const [compareMode, setCompareMode] = useState(false);
   const [compareYear, setCompareYear] = useState(2018);

@@ -4,6 +4,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -93,7 +94,7 @@ export default function DecisionSupportPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeDistrict, setActiveDistrict] = useState("ทั้งหมด");
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sortKey, setSortKey] = useState("score");
   const [sortDescending, setSortDescending] = useState(true);
@@ -102,7 +103,6 @@ export default function DecisionSupportPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    setActiveDistrict("ทั้งหมด");
     fetch(`/api/decision-support?mode=${mode}&year=${year}`, { signal: controller.signal })
       .then(async (response) => {
         const body = await response.json();

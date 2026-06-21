@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 import dynamic from "next/dynamic";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Download, FileText, SlidersHorizontal, X, MapPin } from "lucide-react";
@@ -43,7 +44,7 @@ export default function NdviPage() {
   const [year, setYear] = useState(DEFAULT_YEAR);
   const [compareYear, setCompareYear] = useState(Math.max(MIN_YEAR, DEFAULT_YEAR - 1));
   const [compareMode, setCompareMode] = useState(false);
-  const [activeDistrict, setActiveDistrict] = useState(ALL_DISTRICTS);
+  const [activeDistrict, setActiveDistrict] = useDistrictUrlState(ALL_DISTRICTS);
   const [mapMode, setMapMode] = useState<MapMode>("idw");
   const [baseMap, setBaseMap] = useState<BaseMap>("dark");
   const [opacity, setOpacity] = useState(0.78);
