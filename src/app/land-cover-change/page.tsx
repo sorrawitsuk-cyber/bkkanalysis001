@@ -471,6 +471,7 @@ export default function LandCoverChangePage() {
                       <InteractiveDistrictPanel
                         accent="emerald"
                         selected={activeDistrict !== "ทั้งหมด"}
+                        districtName={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
                         title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
                         subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปการเปลี่ยนสิ่งปกคลุมดินของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูการเปลี่ยน class ของพื้นที่"}
                         onClear={() => setActiveDistrict("ทั้งหมด")}

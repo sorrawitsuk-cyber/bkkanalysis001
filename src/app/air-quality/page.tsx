@@ -378,6 +378,7 @@ export default function AirQualityPage() {
                   <InteractiveDistrictPanel
                     accent="cyan"
                     selected={activeDistrict !== ALL_DISTRICTS}
+                    districtName={activeDistrict !== ALL_DISTRICTS ? activeDistrict : undefined}
                     title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
                     subtitle={activeDistrict !== ALL_DISTRICTS ? "สรุปมลพิษจากพื้นที่ที่คลิก" : "คลิกพื้นที่เขตบนแผนที่เพื่อดูค่ามลพิษและกราฟย่อ"}
                     onClear={() => setActiveDistrict(ALL_DISTRICTS)}

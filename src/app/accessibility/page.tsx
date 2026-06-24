@@ -562,6 +562,7 @@ export default function AccessibilityPage() {
             <InteractiveDistrictPanel
               accent="emerald"
               selected={activeDistrictId !== null}
+              districtName={selected?.district_name}
               title={activeDistrictId !== null ? `เขต${selected?.district_name ?? ""}` : "เลือกเขตบนแผนที่"}
               subtitle={activeDistrictId !== null ? "สรุปการเข้าถึงบริการของพื้นที่ที่คลิก" : "คลิก polygon เขตหรือจุดบริการเพื่อดูรายละเอียด"}
               onClear={() => {

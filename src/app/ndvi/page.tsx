@@ -463,6 +463,7 @@ export default function NdviPage() {
                   <InteractiveDistrictPanel
                     accent="emerald"
                     selected={activeDistrict !== ALL_DISTRICTS}
+                    districtName={activeDistrict !== ALL_DISTRICTS ? activeDistrict : undefined}
                     title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
                     subtitle={activeDistrict !== ALL_DISTRICTS ? "สถิติ NDVI ของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อเปิดค่าสถิติและกราฟย่อด้านนี้"}
                     onClear={() => setActiveDistrict(ALL_DISTRICTS)}

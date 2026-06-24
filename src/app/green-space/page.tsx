@@ -342,6 +342,7 @@ export default function GreenSpacePage() {
                       <InteractiveDistrictPanel
                         accent="emerald"
                         selected={activeDistrict !== ALL_DISTRICTS}
+                        districtName={activeDistrict !== ALL_DISTRICTS ? activeDistrict : undefined}
                         title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
                         subtitle={activeDistrict !== ALL_DISTRICTS ? "สรุปเรือนยอดไม้ของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูสถิติเรือนยอดไม้"}
                         onClear={() => setActiveDistrict(ALL_DISTRICTS)}

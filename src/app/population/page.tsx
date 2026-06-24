@@ -353,6 +353,7 @@ export default function PopulationPage() {
                         <InteractiveDistrictPanel
                           accent="indigo"
                           selected
+                          districtName={selected.district_name}
                           title={selected.name}
                           subtitle={`${selected.level === "district" ? "เขต" : "แขวง"}${selected.name}`}
                           onClear={() => setActiveId(null)}
@@ -373,6 +374,7 @@ export default function PopulationPage() {
                     <InteractiveDistrictPanel
                       accent="indigo"
                       selected={selected !== null}
+                      districtName={selected?.district_name}
                       title={selected?.name ?? "เลือกพื้นที่บนแผนที่"}
                       subtitle={selected ? `${selected.level === "district" ? "เขต" : "แขวง"}${selected.name}` : "คลิก polygon เขต/แขวงเพื่อดูข้อมูลประชากร"}
                       onClear={() => setActiveId(null)}

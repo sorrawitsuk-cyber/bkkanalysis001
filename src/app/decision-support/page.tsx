@@ -263,6 +263,7 @@ export default function DecisionSupportPage() {
               <InteractiveDistrictPanel
                 accent={mode === "flood" ? "sky" : "orange"}
                 selected={activeDistrict !== "ทั้งหมด"}
+                districtName={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
                 title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
                 subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปคะแนนคัดกรองจากพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูองค์ประกอบคะแนน"}
                 onClear={() => setActiveDistrict("ทั้งหมด")}

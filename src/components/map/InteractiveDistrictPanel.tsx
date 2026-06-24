@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, BarChart3, Database, MousePointer2, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, BarChart3, Database, MousePointer2, X } from "lucide-react";
 import { type DataProvenance, getQualityLabel } from "@/lib/data-provenance";
 
 type Metric = {
@@ -14,6 +15,7 @@ type Metric = {
 
 interface InteractiveDistrictPanelProps {
   title: string;
+  districtName?: string;
   subtitle?: string;
   metrics: Metric[];
   accent?: "orange" | "emerald" | "cyan" | "yellow" | "sky" | "indigo" | "rose" | "violet";
@@ -57,6 +59,7 @@ const qualityClasses = {
 
 export default function InteractiveDistrictPanel({
   title,
+  districtName,
   subtitle,
   metrics,
   accent = "cyan",
@@ -155,6 +158,17 @@ export default function InteractiveDistrictPanel({
         <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 p-3 text-[10px] leading-5 text-slate-300" data-testid="district-insight-text">
           {insight}
         </div>
+      )}
+
+      {selected && districtName && (
+        <Link
+          href={`/district-analysis?district=${encodeURIComponent(districtName)}`}
+          className="mt-3 flex min-h-10 items-center justify-between gap-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-100 transition-colors hover:border-cyan-400/60 hover:bg-cyan-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          data-testid="district-analysis-link"
+        >
+          <span>วิเคราะห์เขตนี้ทุกมิติ</span>
+          <ArrowUpRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+        </Link>
       )}
 
       {provenance && (

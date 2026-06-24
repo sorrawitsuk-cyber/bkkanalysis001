@@ -14,6 +14,7 @@ import {
   Tooltip, Legend, BarChart, Bar, Cell, ComposedChart, Area, ReferenceLine,
 } from "recharts";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import { useDistrictUrlState } from "@/lib/url-selection-state";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -286,7 +287,7 @@ function mapFeatureToRow(f: any): DistrictRow {
 export default function DistrictAnalysisPage() {
   // ── District & profile states ──────────────────────────────────────────────
   const [districtList, setDistrictList] = useState<string[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useDistrictUrlState("");
   const [districtSearch, setDistrictSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -318,10 +319,13 @@ export default function DistrictAnalysisPage() {
   // ── Load profile when district selected ────────────────────────────────────
   useEffect(() => {
     if (!selectedDistrict) { setProfileData(null); return; }
+    const controller = new AbortController();
     setProfileLoading(true); setProfileError(null);
-    fetch(`/api/district-profile?district=${encodeURIComponent(selectedDistrict)}`)
+    fetch(`/api/district-profile?district=${encodeURIComponent(selectedDistrict)}`, { signal: controller.signal })
       .then(r => r.json()).then(d => { if (d.error) setProfileError(d.error); else setProfileData(d); })
-      .catch(e => setProfileError(e.message)).finally(() => setProfileLoading(false));
+      .catch(e => { if (e.name !== "AbortError") setProfileError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setProfileLoading(false); });
+    return () => controller.abort();
   }, [selectedDistrict]);
 
   // ── Load overview data (selected year) ────────────────────────────────────
@@ -648,7 +652,7 @@ export default function DistrictAnalysisPage() {
           <button onClick={() => setShowDropdown(v => !v)}
             className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-[12px] font-bold text-slate-200 hover:border-slate-500 transition-colors min-w-[160px]">
             <Search className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span className="flex-1 text-left truncate">{selectedDistrict || "เลือกเขต…"}</span>
+            <span className="flex-1 text-left truncate" data-testid="district-analysis-selection">{selectedDistrict || "เลือกเขต…"}</span>
             {selectedDistrict
               ? <X className="h-3.5 w-3.5 text-slate-500 hover:text-slate-300 shrink-0" onClick={e => { e.stopPropagation(); setSelectedDistrict(""); setShowDropdown(false); }} />
               : <ChevronDown className="h-3.5 w-3.5 text-slate-500 shrink-0" />}

@@ -277,6 +277,7 @@ export default function TraffyPage() {
                 <InteractiveDistrictPanel
                   accent="orange"
                   selected={activeDistrict !== ALL}
+                  districtName={activeDistrict !== ALL ? activeDistrict : undefined}
                   title={activeDistrict !== ALL ? activeDistrict : "เลือกเขตบนแผนที่"}
                   subtitle={activeDistrict !== ALL ? "สรุปเรื่องร้องเรียนของเขตที่คลิก" : "คลิก boundary เขตเพื่อกรองจุดและ heatmap"}
                   onClear={() => setActiveDistrict(ALL)}
@@ -296,6 +297,7 @@ export default function TraffyPage() {
                   <InteractiveDistrictPanel
                     accent="orange"
                     selected
+                    districtName={activeDistrict}
                     title={activeDistrict}
                     subtitle="สรุปเรื่องร้องเรียนของเขตที่คลิก"
                     onClear={() => setActiveDistrict(ALL)}

@@ -582,6 +582,7 @@ export default function NighttimeLightsPage() {
                 <InteractiveDistrictPanel
                   accent="yellow"
                   selected={activeDistrict !== "ทั้งหมด"}
+                  districtName={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
                   title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
                   subtitle={activeDistrict !== "ทั้งหมด" ? "ค่าแสงกลางคืนของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อเปิดข้อมูลแสงและกราฟย่อ"}
                   onClear={() => setActiveDistrict("ทั้งหมด")}

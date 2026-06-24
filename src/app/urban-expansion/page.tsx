@@ -266,6 +266,7 @@ export default function UrbanExpansionPage() {
                     <InteractiveDistrictPanel
                       accent="orange"
                       selected={activeDistrict !== ALL_DISTRICTS}
+                      districtName={activeDistrict !== ALL_DISTRICTS ? activeDistrict : undefined}
                       title={activeDistrict !== ALL_DISTRICTS ? activeDistrict : "เลือกเขตบนแผนที่"}
                       subtitle={activeDistrict !== ALL_DISTRICTS ? "สรุปสิ่งปลูกสร้างของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูสถิติการขยายตัวเมือง"}
                       onClear={() => setActiveDistrict(ALL_DISTRICTS)}

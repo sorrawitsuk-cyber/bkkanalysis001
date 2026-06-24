@@ -541,6 +541,7 @@ export default function RainfallPage() {
                       <InteractiveDistrictPanel
                         accent="cyan"
                         selected={activeDistrict !== "ทั้งหมด"}
+                        districtName={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
                         title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
                         subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปฝนสะสมของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูปริมาณฝนสะสม"}
                         onClear={() => setActiveDistrict("ทั้งหมด")}

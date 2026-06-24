@@ -362,6 +362,7 @@ export default function HeatIslandPage() {
                   <InteractiveDistrictPanel
                     accent="orange"
                     selected={activeDistrict !== "ทั้งหมด"}
+                    districtName={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
                     title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
                     subtitle={activeDistrict !== "ทั้งหมด" ? "สถิติด้านล่างอัปเดตจาก polygon ที่คลิก" : "คลิกพื้นที่เขตบนแผนที่เพื่อดูสถิติและกราฟย่อของพื้นที่นั้น"}
                     onClear={() => setActiveDistrict("ทั้งหมด")}

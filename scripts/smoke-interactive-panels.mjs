@@ -117,6 +117,13 @@ async function runSmoke() {
     if (!source.includes(expectedUrlHook)) {
       throw new Error(`${path} is missing ${expectedUrlHook} integration in ${file}`);
     }
+    if (!source.includes("districtName=")) {
+      throw new Error(`${path} is missing an explicit canonical district name for cross-module analysis`);
+    }
+  }
+  const districtAnalysisSource = await readFile("src/app/district-analysis/page.tsx", "utf8");
+  if (!districtAnalysisSource.includes("useDistrictUrlState")) {
+    throw new Error("/district-analysis is missing district URL state integration");
   }
   for (const file of keyboardMapFiles) {
     const source = await readFile(file, "utf8");
@@ -168,6 +175,17 @@ async function runSmoke() {
   const results = [];
 
   try {
+    let canonicalDistricts = null;
+    try {
+      const districtResponse = await page.request.get(`${baseUrl}/api/district-profile`);
+      if (!districtResponse.ok()) throw new Error(`district list returned ${districtResponse.status()}`);
+      const districtPayload = await districtResponse.json();
+      canonicalDistricts = new Set(districtPayload.districts ?? []);
+      if (canonicalDistricts.size === 0) throw new Error("district list is empty");
+    } catch (error) {
+      if (!allowDataUnavailable) throw error;
+    }
+
     for (const path of paths) {
       const panelReady = await gotoWithPanel(page, `${baseUrl}${path}`);
       if (panelReady === false) {
@@ -208,6 +226,15 @@ async function runSmoke() {
       await page.waitForTimeout(900);
       const selected = await panel.getAttribute("data-selected") === "true";
       if (!selected) throw new Error(`${path} panel did not select after keyboard district activation`);
+      const analysisHref = await panel.locator('[data-testid="district-analysis-link"]').getAttribute("href");
+      const analysisUrl = analysisHref ? new URL(analysisHref, baseUrl) : null;
+      const analysisDistrict = analysisUrl?.searchParams.get("district");
+      if (analysisUrl?.pathname !== "/district-analysis" || !analysisDistrict || analysisDistrict.startsWith("เขต")) {
+        throw new Error(`${path} has an invalid cross-module district analysis link: ${analysisHref}`);
+      }
+      if (canonicalDistricts && !canonicalDistricts.has(analysisDistrict)) {
+        throw new Error(`${path} linked a non-canonical district to cross-module analysis: ${analysisDistrict}`);
+      }
       const selectionParam = path === "/population" ? "areaId" : path === "/accessibility" ? "districtId" : "district";
       const selectedParamValue = new URL(page.url()).searchParams.get(selectionParam);
       if (!selectedParamValue) {
@@ -297,6 +324,17 @@ async function runSmoke() {
       }
       results.push({ path, panelCount, provenanceCount, insightCount, keyboardSelected: true, mobileFeedback, mobileDrawer, mobilePageSidebar, urlPersistence });
     }
+
+    await page.goto(`${baseUrl}/district-analysis?district=${encodeURIComponent("พระนคร")}`, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const districtSelection = page.locator('[data-testid="district-analysis-selection"]');
+    await districtSelection.waitFor({ state: "visible", timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector('[data-testid="district-analysis-selection"]')?.textContent?.trim() === "พระนคร");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => document.querySelector('[data-testid="district-analysis-selection"]')?.textContent?.trim() === "พระนคร");
+    if (new URL(page.url()).searchParams.get("district") !== "พระนคร") {
+      throw new Error("/district-analysis did not preserve the selected district after reload");
+    }
+    results.push({ path: "/district-analysis", urlSelection: true });
   } finally {
     await browser.close();
     await terminateServer(server);

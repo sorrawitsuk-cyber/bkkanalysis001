@@ -898,6 +898,7 @@ export default function FloodRiskPage() {
                 <InteractiveDistrictPanel
                   accent="sky"
                   selected={activeDistrict !== "ทั้งหมด"}
+                  districtName={activeDistrict !== "ทั้งหมด" ? activeDistrict : undefined}
                   title={activeDistrict !== "ทั้งหมด" ? activeDistrict : "เลือกเขตบนแผนที่"}
                   subtitle={activeDistrict !== "ทั้งหมด" ? "สรุปสัญญาณน้ำของพื้นที่ที่คลิก" : "คลิก polygon เขตเพื่อดูดัชนีและสัดส่วนพื้นที่น้ำ"}
                   onClear={() => setActiveDistrict("ทั้งหมด")}
