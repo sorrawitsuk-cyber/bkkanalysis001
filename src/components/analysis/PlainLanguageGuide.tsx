@@ -1,8 +1,13 @@
 "use client";
 
 import {
+  AlertTriangle,
   BookOpen,
+  ClipboardCheck,
+  Database,
   Lightbulb,
+  Microscope,
+  Scale,
 } from "lucide-react";
 
 export type GuideModule =
@@ -39,6 +44,13 @@ type GuideConfig = {
 
 type GuideRecord = object & {
   properties?: Record<string, unknown>;
+};
+
+type EvidenceFrame = {
+  analysisStatus: string;
+  evidenceUse: string;
+  cannotConfirm: string;
+  checkWith: string;
 };
 
 const GUIDES: Record<GuideModule, GuideConfig> = {
@@ -491,6 +503,93 @@ const ACCENTS: Record<string, { text: string; border: string; soft: string; dot:
   yellow: { text: "text-yellow-300", border: "border-yellow-500/25", soft: "bg-yellow-500/5", dot: "bg-yellow-400" },
 };
 
+const EVIDENCE_FRAMES: Record<GuideModule, EvidenceFrame> = {
+  heat: {
+    analysisStatus: "ตัวชี้วัดจากดาวเทียม ใช้บ่งชี้พื้นผิวที่สะสมความร้อน ไม่ใช่การวัดอุณหภูมิอากาศหรือ Heat Index",
+    evidenceUse: "เหมาะสำหรับจัดลำดับพื้นที่สำรวจร่มเงา วัสดุผิวเมือง และมาตรการลดความร้อนระดับย่าน",
+    cannotConfirm: "ไม่ยืนยันความเสี่ยงสุขภาพรายบุคคล และไม่ใช่ค่า SUHI อย่างเป็นทางการหากไม่ได้ควบคุมชนบทอ้างอิง",
+    checkWith: "ควรตรวจร่วมกับข้อมูลประชากรเปราะบาง จุดบริการสาธารณสุข พื้นที่สีเขียว ผังอาคาร และการสำรวจภาคสนาม",
+  },
+  green: {
+    analysisStatus: "สัญญาณพืชพรรณจาก NDVI ใช้บ่งชี้ความเขียวและสภาพพืช ไม่ใช่ทะเบียนสวนหรือ Tree Cover โดยตรง",
+    evidenceUse: "เหมาะสำหรับคัดกรองพื้นที่ที่ควรตรวจความขาดแคลนร่มเงาและพื้นที่เปิดสีเขียว",
+    cannotConfirm: "ไม่ยืนยันการเข้าถึงพื้นที่สีเขียวของประชาชน และไม่แยกพื้นที่รัฐ เอกชน หรือพื้นที่เกษตรได้ครบถ้วน",
+    checkWith: "ควรตรวจร่วมกับ Tree Cover, สวนสาธารณะจริง, ภาพถ่ายล่าสุด, ขอบเขตที่ดิน และข้อมูลชุมชน",
+  },
+  ndvi: {
+    analysisStatus: "ดัชนีพืชพรรณจากการสะท้อนแสง ใช้บ่งชี้ความเขียวเชิงสเปกตรัม ไม่ใช่จำนวนต้นไม้หรือพื้นที่เรือนยอด",
+    evidenceUse: "เหมาะสำหรับติดตามสัญญาณเพิ่มหรือลดของพืชพรรณในช่วงเวลาเดียวกันของแต่ละปี",
+    cannotConfirm: "ไม่ยืนยันชนิดพืช ความสูงของต้นไม้ หรือคุณภาพพื้นที่สีเขียวสำหรับการใช้งานของประชาชน",
+    checkWith: "ควรตรวจร่วมกับ Tree Cover, ภาพถ่าย Sentinel-2, ฤดูกาลฝน, ข้อมูลสวน และการสำรวจพื้นที่",
+  },
+  treecover: {
+    analysisStatus: "ผลจำแนกคลาส trees จาก Dynamic World ใช้บ่งชี้เรือนยอดไม้หรือพื้นที่ต้นไม้ ไม่ใช่จำนวนต้นไม้รายต้น",
+    evidenceUse: "เหมาะสำหรับติดตามการสูญเสียหรือเพิ่มขึ้นของพื้นที่ต้นไม้ในระดับเขตและจุดเปลี่ยนแปลงขนาดใหญ่",
+    cannotConfirm: "ไม่ยืนยันสุขภาพต้นไม้ กรรมสิทธิ์ที่ดิน หรือไม้พุ่มขนาดเล็กทุกกรณี",
+    checkWith: "ควรตรวจร่วมกับ NDVI, ภาพถ่ายความละเอียดสูง, ทะเบียนต้นไม้, ข้อมูลสวน และการสำรวจภาคสนาม",
+  },
+  builtup: {
+    analysisStatus: "ผลจำแนกสิ่งปกคลุมดินจากภาพดาวเทียม ใช้บ่งชี้พื้นผิวสิ่งปลูกสร้าง ไม่ใช่ทะเบียนอาคารหรือใบอนุญาตก่อสร้าง",
+    evidenceUse: "เหมาะสำหรับดูทิศทางการขยายตัวของเมืองและพื้นที่ที่ควรตรวจผลกระทบต่อความร้อน น้ำ และพื้นที่เปิดโล่ง",
+    cannotConfirm: "ไม่ยืนยันอายุอาคาร ความสูงอาคาร การใช้ประโยชน์อาคาร หรือสถานะทางกฎหมายของสิ่งปลูกสร้าง",
+    checkWith: "ควรตรวจร่วมกับผังเมือง ใบอนุญาตก่อสร้าง ภาพถ่ายล่าสุด ข้อมูลน้ำท่วม และพื้นที่สีเขียว",
+  },
+  landcover: {
+    analysisStatus: "การเปรียบเทียบคลาสสิ่งปกคลุมดิน ใช้บ่งชี้สัญญาณการเปลี่ยนประเภทพื้นผิว ไม่ใช่การรังวัดที่ดิน",
+    evidenceUse: "เหมาะสำหรับหาเขตที่ควรตรวจการเปลี่ยนจากสีเขียวเป็นสิ่งปลูกสร้างหรือพื้นที่เปิดโล่ง",
+    cannotConfirm: "ไม่ยืนยันสาเหตุการเปลี่ยนแปลง เช่น โครงการก่อสร้าง ฤดูกาล น้ำท่วม หรือความคลาดเคลื่อนของแบบจำลอง",
+    checkWith: "ควรตรวจร่วมกับภาพถ่ายรายปี ข้อมูลโครงการ ผังเมือง ภาคสนาม และประวัติฝนหรือน้ำท่วมในปีนั้น",
+  },
+  population: {
+    analysisStatus: "ข้อมูลทะเบียนราษฎร ใช้บ่งชี้ประชากรที่มีทะเบียนในพื้นที่ ไม่ใช่ประชากรกลางวันหรือผู้พักอาศัยจริงทั้งหมด",
+    evidenceUse: "เหมาะสำหรับวางแผนบริการพื้นฐานและเทียบภาระงานเชิงพื้นที่ในระดับเขตหรือแขวง",
+    cannotConfirm: "ไม่ยืนยันจำนวนแรงงานแฝง นักท่องเที่ยว ผู้เดินทางเข้าเมือง หรือประชากรที่ไม่ได้ย้ายทะเบียน",
+    checkWith: "ควรตรวจร่วมกับสำมะโน ข้อมูลการเดินทาง โรงเรียน โรงพยาบาล ที่อยู่อาศัย และข้อมูลภาคสนามของเขต",
+  },
+  air: {
+    analysisStatus: "ข้อมูลคอลัมน์บรรยากาศจาก Sentinel-5P ใช้บ่งชี้ proxy มลพิษเชิงพื้นที่ ไม่ใช่ AQI จากสถานีภาคพื้น",
+    evidenceUse: "เหมาะสำหรับเปรียบเทียบภาพรวมรายเขตและหาพื้นที่ที่ควรตรวจร่วมกับสถานีวัดหรือแหล่งกำเนิดมลพิษ",
+    cannotConfirm: "ไม่ยืนยันระดับสัมผัสของประชาชนรายถนน รายชั่วโมง หรือค่ามาตรฐาน AQI ที่ใช้ประกาศสุขภาพ",
+    checkWith: "ควรตรวจร่วมกับสถานีตรวจวัดภาคพื้น ลม ฝน แหล่งจราจร โรงงาน ไฟไหม้ และข้อมูลสุขภาพ",
+  },
+  flood: {
+    analysisStatus: "ดัชนีน้ำและความชื้นจากภาพดาวเทียม ใช้บ่งชี้สัญญาณน้ำผิวดินหรือความชื้น ไม่ใช่พยากรณ์น้ำท่วม",
+    evidenceUse: "เหมาะสำหรับคัดกรองพื้นที่ที่ควรตรวจระบายน้ำ จุดร้องเรียน และผลกระทบหลังฝนตก",
+    cannotConfirm: "ไม่ยืนยันระดับน้ำ ความลึก ระยะเวลาท่วม หรือขอบเขตน้ำท่วมอย่างเป็นทางการ",
+    checkWith: "ควรตรวจร่วมกับฝนสะสม ระดับคลอง จุดสูบน้ำ Traffy ภาพถ่ายพื้นที่ และรายงานภาคสนาม",
+  },
+  nightlights: {
+    analysisStatus: "แสงกลางคืนจาก VIIRS ใช้บ่งชี้ความเข้มกิจกรรมยามค่ำ ไม่ใช่จำนวนประชากรหรือมูลค่าเศรษฐกิจโดยตรง",
+    evidenceUse: "เหมาะสำหรับดูการเปลี่ยนแปลงกิจกรรมเมือง พื้นที่พาณิชยกรรม และโครงสร้างพื้นฐานขนาดใหญ่",
+    cannotConfirm: "ไม่ยืนยันจำนวนคน รายได้ หรือการใช้ไฟฟ้าจริง เพราะแสงสะท้อน ถนน ท่าเรือ และงานก่อสร้างมีผลต่อค่า",
+    checkWith: "ควรตรวจร่วมกับประชากร การใช้ที่ดิน ข้อมูลเศรษฐกิจ จุดคมนาคม และภาพถ่ายกลางคืน",
+  },
+  traffy: {
+    analysisStatus: "ข้อมูลร้องเรียนจากประชาชน ใช้บ่งชี้ประเด็นที่ถูกแจ้งผ่านระบบ ไม่ใช่จำนวนปัญหาทั้งหมดที่เกิดขึ้นจริง",
+    evidenceUse: "เหมาะสำหรับติดตามงานบริการเมือง จุดร้องเรียนซ้ำ และพื้นที่ที่ต้องประสานหน่วยปฏิบัติ",
+    cannotConfirm: "ไม่ยืนยันความรุนแรงจริงของปัญหาในทุกพื้นที่ เพราะขึ้นกับพฤติกรรมการแจ้งและการเข้าถึงระบบ",
+    checkWith: "ควรตรวจร่วมกับบันทึกหน่วยงาน ภาพถ่ายหน้างาน ประวัติซ่อมบำรุง ประชากร และโครงสร้างพื้นฐาน",
+  },
+  district: {
+    analysisStatus: "การรวมหลายตัวชี้วัด ใช้บ่งชี้ภาพรวมเชิงเปรียบเทียบของเขต ไม่ใช่หลักฐานเชิงสาเหตุระหว่างตัวแปร",
+    evidenceUse: "เหมาะสำหรับตั้งโจทย์สำรวจต่อและเลือก module เฉพาะด้านที่ควรเปิดดูละเอียด",
+    cannotConfirm: "ไม่ยืนยันว่าตัวแปรหนึ่งเป็นสาเหตุของอีกตัวแปรหนึ่ง และไม่ควรสรุปนโยบายจากคะแนนเดียว",
+    checkWith: "ควรตรวจร่วมกับหน้าราย module, ข้อมูลภาคสนาม, แผนงานเขต, งบประมาณ และข้อร้องเรียนประชาชน",
+  },
+  "decision-flood": {
+    analysisStatus: "คะแนนคัดกรองเพื่อสนับสนุนการตัดสินใจ ใช้บ่งชี้ลำดับพื้นที่ตรวจสอบ ไม่ใช่ประกาศเตือนภัยหรือพยากรณ์น้ำท่วม",
+    evidenceUse: "เหมาะสำหรับจัดคิวสำรวจ จุดเตรียมเครื่องสูบน้ำ และพื้นที่ที่ต้องตรวจร่วมหลายแหล่งข้อมูล",
+    cannotConfirm: "ไม่ยืนยันเหตุการณ์น้ำท่วมที่จะเกิดขึ้น ระดับน้ำ หรือความเสียหายจริง",
+    checkWith: "ควรตรวจร่วมกับฝนสะสม เรดาร์น้ำฝน ระดับคลอง จุดสูบน้ำ Traffy และหน่วยปฏิบัติพื้นที่",
+  },
+  "decision-heat": {
+    analysisStatus: "คะแนนคัดกรองเพื่อสนับสนุนการตัดสินใจ ใช้บ่งชี้พื้นที่ที่ควรพิจารณามาตรการลดความร้อน ไม่ใช่การพยากรณ์อากาศ",
+    evidenceUse: "เหมาะสำหรับจัดลำดับพื้นที่สำรวจร่มเงา จุดพักร้อน และกลุ่มเปราะบาง",
+    cannotConfirm: "ไม่ยืนยันความเสี่ยงสุขภาพรายบุคคลหรืออุณหภูมิที่ประชาชนสัมผัสจริง",
+    checkWith: "ควรตรวจร่วมกับ LST พื้นที่สีเขียว ประชากรเปราะบาง สถานพยาบาล โรงเรียน และการสำรวจพื้นที่",
+  },
+};
+
 interface PlainLanguageGuideProps {
   module: GuideModule;
   accent?: keyof typeof ACCENTS;
@@ -521,6 +620,17 @@ function nameFromRecord(record: GuideRecord, nameKey?: string) {
   const source = record.properties ?? (record as Record<string, unknown>);
   const value = source[nameKey ?? "name_th"] ?? source.district_name ?? source.name;
   return typeof value === "string" && value.trim() ? value : "ไม่ระบุพื้นที่";
+}
+
+function dataQualityLabel(dataQuality?: string) {
+  if (!dataQuality) return "ยังไม่ระบุสถานะคุณภาพข้อมูล";
+  const normalized = dataQuality.toLowerCase();
+  if (normalized === "observed") return "ข้อมูลจากการสังเกตหรือแหล่งข้อมูลจริง";
+  if (normalized === "modeled") return "ข้อมูลแบบจำลอง ควรใช้เป็นสัญญาณเชิงเปรียบเทียบ";
+  if (normalized === "estimated") return "ข้อมูลประมาณการ ควรตรวจร่วมกับแหล่งอ้างอิงอื่น";
+  if (normalized === "fallback") return "ข้อมูลสำรองหรือ fallback ใช้เพื่อดูแนวโน้มเบื้องต้น";
+  if (normalized === "unavailable") return "ยังไม่มีข้อมูลเพียงพอสำหรับตัวชี้วัดนี้";
+  return dataQuality;
 }
 
 export default function PlainLanguageGuide({
@@ -594,6 +704,34 @@ export default function PlainLanguageGuide({
   const joinThaiList = (items: string[]) => items.join(" ");
   const primaryResult = resultSummary[0];
   const supportingResult = resultSummary.slice(1).join(" ");
+  const evidenceFrame = EVIDENCE_FRAMES[module];
+  const coverageText = measured.length === 50
+    ? "ครอบคลุมครบ 50 เขตในชุดข้อมูลที่แสดง"
+    : measured.length > 0
+      ? `มีข้อมูลที่อ่านค่าได้ ${measured.length} พื้นที่ จึงควรดู coverage ก่อนเปรียบเทียบข้ามพื้นที่`
+      : "ยังไม่มีข้อมูลที่อ่านค่าได้ในตัวกรองนี้";
+  const evidenceRows = [
+    {
+      icon: Database,
+      label: "สถานะแหล่งข้อมูล",
+      value: `${dataQualityLabel(dataQuality)}${dataSource ? ` (${dataSource})` : ""}`,
+    },
+    {
+      icon: Microscope,
+      label: "สถานะการวิเคราะห์",
+      value: evidenceFrame.analysisStatus,
+    },
+    {
+      icon: Scale,
+      label: "ขอบเขตการตีความ",
+      value: evidenceFrame.evidenceUse,
+    },
+    {
+      icon: ClipboardCheck,
+      label: "ควรตรวจร่วมกับ",
+      value: evidenceFrame.checkWith,
+    },
+  ];
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-950">
@@ -632,6 +770,37 @@ export default function PlainLanguageGuide({
               {supportingResult && (
                 <p className="mt-2 text-[13px] leading-7 text-slate-400">{supportingResult}</p>
               )}
+            </section>
+
+            <section className={`border-y ${colors.border} py-5`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-black text-slate-100">กรอบหลักฐานก่อนนำไปอ้างอิง</h2>
+                  <p className="mt-1 text-[12px] leading-6 text-slate-500">
+                    ใช้ส่วนนี้เพื่อตรวจว่าเลขบนหน้าจอบ่งชี้อะไร ยืนยันอะไรไม่ได้ และควรตรวจร่วมกับข้อมูลใดก่อนสรุปเชิงนโยบาย
+                  </p>
+                </div>
+                <span className={`rounded-full border ${colors.border} px-3 py-1 text-[10px] font-bold ${colors.text}`}>
+                  {coverageText}
+                </span>
+              </div>
+
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                {evidenceRows.map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="min-w-0 border-t border-slate-800 pt-3">
+                    <dt className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
+                      <Icon className={`h-3.5 w-3.5 ${colors.text}`} />
+                      {label}
+                    </dt>
+                    <dd className="mt-1 text-[12px] leading-6 text-slate-300">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="mt-4 flex gap-2 border-t border-amber-500/20 pt-3 text-[12px] leading-6 text-amber-100/85">
+                <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-300" />
+                <p>{evidenceFrame.cannotConfirm}</p>
+              </div>
             </section>
 
             <section>
