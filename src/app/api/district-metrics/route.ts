@@ -18,8 +18,6 @@ import type { DistrictStatistic } from "@/types/district";
 // Remove force-dynamic so Next.js can use route-level caching; rely on Cache-Control headers for CDN.
 export const maxDuration = 60;
 
-const ALL_DISTRICTS = "ทั้งหมด";
-
 // --- Module-level caches (never change between requests) ---
 
 const districtAreaRaiMap = new Map<number, number>(
@@ -188,35 +186,6 @@ async function loadAllDbRows(): Promise<DistrictStatistic[]> {
     .order("year", { ascending: true });
   if (error || !data || data.length === 0) return [];
   return (data as any[]).map(remapRow);
-}
-
-// Efficient single-district multi-year query via RPC — replaces 450-row full scan
-// when a district filter is active. Returns ~9 rows instead of 450.
-async function loadTrendRowsForDistrict(districtId: number): Promise<DistrictStatistic[]> {
-  const { data: directData, error: directError } = await supabase
-    .from("district_statistics")
-    .select(TREND_COLUMNS)
-    .eq("district_id", districtId)
-    .order("year", { ascending: true });
-  if (!directError && directData && directData.length > 0) {
-    return (directData as any[]).map(remapRow);
-  }
-
-  const { data, error } = await supabase
-    .rpc("get_district_trend", { p_district_id: districtId });
-  if (error || !data || data.length === 0) {
-    if (error) console.warn("get_district_trend RPC failed:", error.message);
-    return [];
-  }
-  // RPC returns district_name directly — shape it into DistrictStatistic
-  return (data as any[]).map((r: any) => ({
-    ...r,
-    district_name: r.district_name ?? null,
-    green_area_rai: r.green_area_rai != null ? Math.round(r.green_area_rai) : null,
-    water_area_rai: r.water_area_rai != null ? Math.round(r.water_area_rai) : null,
-    ntl_mean: r.year > 2024 ? null : r.ntl_mean,
-    ntl_max: r.year > 2024 ? null : r.ntl_max,
-  }));
 }
 
 function hasLstData(rows: DistrictStatistic[]): boolean {
@@ -414,7 +383,6 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const year = parseInt(searchParams.get("year") || "2024", 10);
-    const districtFilter = searchParams.get("district");
     const metricParam = searchParams.get("metric");
     const metric = metricParam === "vegetation"
       ? "vegetation"
@@ -427,29 +395,19 @@ export async function GET(request: Request) {
     const compareYear = compareYearStr ? parseInt(compareYearStr, 10) : null;
 
     const invertedMask = getInvertedMask();
-    const geoJsonIdBySupabaseId = await getGeoJsonIdBySupabaseId();
-
-    // Resolve district filter to a numeric GeoJSON ID (used for efficient DB query)
-    const filteredDistrictId =
-      districtFilter && districtFilter !== ALL_DISTRICTS
-        ? (geoJsonIdByName.get(districtFilter) ?? geoJsonIdByName.get(districtFilter.replace(/^เขต/, "")) ?? null)
-        : null;
-    const filteredSupabaseId = filteredDistrictId === null
-      ? null
-      : [...geoJsonIdBySupabaseId.entries()].find(([, geoJsonId]) => geoJsonId === filteredDistrictId)?.[0] ?? filteredDistrictId;
+    await getGeoJsonIdBySupabaseId();
 
     const [dbYearRows, dbCompareRows] = await Promise.all([
       loadDbRows(year),
       compareYear ? loadDbRows(compareYear) : Promise.resolve([]),
     ]);
 
-    // When a district filter is active: use single-district RPC (~9 rows) instead
-    // of loadAllDbRows() which scans all 450 rows and then filters in JS.
+    // Keep this endpoint citywide even when a district is selected in the UI.
+    // District-specific trends come from /api/district-profile; this response
+    // powers the 50-district map, rankings, exports, and stats charts.
     const dbAllRows =
       dbYearRows.length > 0
-        ? filteredDistrictId
-          ? await loadTrendRowsForDistrict(filteredSupabaseId ?? filteredDistrictId)
-          : await loadAllDbRows()
+        ? await loadAllDbRows()
         : [];
 
     const localYearRows = lstData.filter((row: any) => row.year === year);
@@ -599,21 +557,13 @@ export async function GET(request: Request) {
     const hasAnyDbLst = effectiveAllRows.some((r) => typeof r.mean_lst === "number");
     const hasAnyDbNdbi = effectiveAllRows.some((r) => typeof r.ndbi_mean === "number");
     const hasAnyDbAir = hasAirPollutionData(effectiveAllRows);
-    let summaryData: any[] = metric === "vegetation"
+    const summaryData: any[] = metric === "vegetation"
       ? (useDbAll ? effectiveAllRows.map(enrichVegetationRow) : lstData.map((r: any) => toVegetationFallbackRow(r)))
       : metric === "builtup"
         ? (hasAnyDbNdbi ? effectiveAllRows : [])
         : metric === "air_pollution"
           ? (hasAnyDbAir ? effectiveAllRows : [])
           : (hasAnyDbLst ? effectiveAllRows : lstData);
-    if (districtFilter && districtFilter !== ALL_DISTRICTS) {
-      summaryData = summaryData.filter((row: any) =>
-        (filteredDistrictId !== null && row.district_id === filteredDistrictId) ||
-        row.district_name === districtFilter ||
-        `เขต${row.district_name}` === districtFilter
-      );
-    }
-
     const trendData = summaryData.reduce((acc: any, row: any) => {
       const trendValue = valueFor(row, metric);
       if (trendValue === null) return acc;

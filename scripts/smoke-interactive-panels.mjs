@@ -186,6 +186,24 @@ async function runSmoke() {
       if (!allowDataUnavailable) throw error;
     }
 
+    if (canonicalDistricts?.size) {
+      const sampleDistrict = [...canonicalDistricts][0];
+      const filteredMetricsResponse = await page.request.get(
+        `${baseUrl}/api/district-metrics?year=2024&district=${encodeURIComponent(sampleDistrict)}`,
+      );
+      if (!filteredMetricsResponse.ok()) {
+        throw new Error(`district-metrics filtered request returned ${filteredMetricsResponse.status()}`);
+      }
+      const filteredMetricsPayload = await filteredMetricsResponse.json();
+      const featureCount = filteredMetricsPayload.geojson?.features?.length ?? 0;
+      const rankingCount = filteredMetricsPayload.summary?.ranking?.length ?? 0;
+      if (featureCount !== 50 || rankingCount !== 50) {
+        throw new Error(
+          `district-metrics must keep 50-district stats when district is selected: ${JSON.stringify({ featureCount, rankingCount })}`,
+        );
+      }
+    }
+
     for (const path of paths) {
       const panelReady = await gotoWithPanel(page, `${baseUrl}${path}`);
       if (panelReady === false) {
