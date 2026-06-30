@@ -38,6 +38,7 @@ import {
 import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
+import PopulationAccessBridge from "@/components/analysis/PopulationAccessBridge";
 import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
 import {
   ACCESSIBILITY_CATEGORIES,
@@ -338,6 +339,9 @@ export default function AccessibilityPage() {
     ) ?? null;
   const selectedMetricValue = selected ? accessibilityValue(selected, metric, basis, scenario) : null;
   const overviewMetricValue = overview ? accessibilityValue(overview, metric, basis, scenario) : null;
+  const populationHref = activeDistrictId !== null
+    ? `/population?areaId=${activeDistrictId}&view=stats`
+    : "/population?view=stats";
   const panelProvenance = buildProvenance({
     source: (data?.metadata?.sources ?? []).slice(0, 3).map((source: any) => source.dataset).filter(Boolean).join(" + ") || "Accessibility service registry",
     period: data?.metadata?.generated_at ? new Date(data.metadata.generated_at).toLocaleDateString("th-TH") : null,
@@ -577,6 +581,17 @@ export default function AccessibilityPage() {
               ]}
               provenance={panelProvenance}
               insight={panelInsight}
+            />
+            <PopulationAccessBridge
+              mode="accessibility-to-population"
+              href={populationHref}
+              districtName={activeDistrictId !== null ? selected?.district_name ?? null : null}
+              population={selected?.population}
+              accessibilityScore={selected ? accessibilityValue(selected, "accessibility_score", basis, scenario) : null}
+              completeCoveragePct={selected ? accessibilityValue(selected, "complete_coverage_pct", basis, scenario) : null}
+              underservedPopulation={selected?.underserved_population}
+              servicesPer10000={selected?.services_per_10000}
+              className="mt-3"
             />
           </div>
           {(category === "transit" || metric === "transit") && (
@@ -841,6 +856,29 @@ export default function AccessibilityPage() {
 
           {view === "stats" && (
             <div className="space-y-5 p-4 md:p-6">
+              <section className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 xl:grid-cols-[1.1fr_0.9fr]">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-400/10 text-emerald-200">
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-black text-slate-100">การเข้าถึงคือด้านบริการของประชากร</h2>
+                    <p className="mt-1 text-[10px] leading-5 text-slate-400">
+                      คะแนนสูงไม่ได้แปลว่าความต้องการบริการต่ำเสมอไป ควรอ่านคู่กับจำนวนประชากร ความหนาแน่น และแรงกดดันประชากร เพื่อแยกพื้นที่ที่บริการยังไกลจากพื้นที่ที่บริการใกล้แต่กำลังรองรับอาจตึงตัว
+                    </p>
+                  </div>
+                </div>
+                <PopulationAccessBridge
+                  mode="accessibility-to-population"
+                  href={populationHref}
+                  districtName={activeDistrictId !== null ? selected?.district_name ?? null : null}
+                  population={selected?.population}
+                  accessibilityScore={selected ? accessibilityValue(selected, "accessibility_score", basis, scenario) : null}
+                  completeCoveragePct={selected ? accessibilityValue(selected, "complete_coverage_pct", basis, scenario) : null}
+                  underservedPopulation={selected?.underserved_population}
+                  servicesPer10000={selected?.services_per_10000}
+                />
+              </section>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                   label="จุดบริการ"

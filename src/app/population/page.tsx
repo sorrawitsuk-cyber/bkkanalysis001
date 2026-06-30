@@ -10,6 +10,7 @@ import {
   Building,
   MapPin,
   RefreshCw,
+  Route,
   TrendingDown,
   TrendingUp,
   UserRound,
@@ -32,6 +33,7 @@ import ViewTabs, { type ViewMode } from "@/components/ui/ViewTabs";
 import DistrictDataTable, { type ColDef } from "@/components/stats/DistrictDataTable";
 import MapSkeleton from "@/components/ui/MapSkeleton";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
+import PopulationAccessBridge from "@/components/analysis/PopulationAccessBridge";
 import PopulationSidebar from "@/components/population/PopulationSidebar";
 import InteractiveDistrictPanel from "@/components/map/InteractiveDistrictPanel";
 import { buildProvenance, getPolicySafeInsight } from "@/lib/data-provenance";
@@ -212,6 +214,9 @@ export default function PopulationPage() {
       ? rows.reduce((sum, row) => sum + row.exposure_score, 0) / rows.length
       : 0);
   const displayAreaName = selected?.name ?? (filteredSummary ? `เขต${districtFilter}` : `กรุงเทพมหานคร ปี ${year + 543}`);
+  const accessibilityHref = selected
+    ? `/accessibility?districtId=${selected.district_id}&view=stats`
+    : "/accessibility?view=stats";
   const ranked = [...rows].sort((a, b) => {
     const av = a[metric] ?? -Infinity;
     const bv = b[metric] ?? -Infinity;
@@ -367,6 +372,15 @@ export default function PopulationPage() {
                           provenance={panelProvenance}
                           insight={panelInsight}
                         />
+                        <PopulationAccessBridge
+                          mode="population-to-accessibility"
+                          href={accessibilityHref}
+                          districtName={selected.district_name}
+                          population={selected.population}
+                          density={selected.density}
+                          exposureScore={selected.exposure_score}
+                          className="mt-3"
+                        />
                       </div>
                     )}
                   </div>
@@ -387,6 +401,15 @@ export default function PopulationPage() {
                       provenance={panelProvenance}
                       insight={panelInsight}
                     />
+                    <PopulationAccessBridge
+                      mode="population-to-accessibility"
+                      href={accessibilityHref}
+                      districtName={selected?.district_name ?? null}
+                      population={displayPopulation}
+                      density={displayDensity}
+                      exposureScore={displayExposure}
+                      className="mt-3"
+                    />
                   </aside>
                 </div>
               </>
@@ -394,6 +417,27 @@ export default function PopulationPage() {
 
             {view === "stats" && (
               <div className="space-y-3">
+                <section className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-400/25 bg-indigo-400/10 text-indigo-200">
+                      <Route className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-xs font-black text-slate-100">ประชากรคือด้านความต้องการบริการ</h2>
+                      <p className="mt-1 text-[10px] leading-5 text-slate-400">
+                        ใช้กราฟประชากรเพื่อดูว่าคนกระจุกตัวหรือเปลี่ยนเร็วตรงไหน แล้วเปิดหน้าการเข้าถึงเพื่อดูว่าบริการพื้นฐานอยู่ใกล้ประชากรกลุ่มนั้นเพียงพอหรือไม่
+                      </p>
+                    </div>
+                  </div>
+                  <PopulationAccessBridge
+                    mode="population-to-accessibility"
+                    href={accessibilityHref}
+                    districtName={selected?.district_name ?? null}
+                    population={displayPopulation}
+                    density={displayDensity}
+                    exposureScore={displayExposure}
+                  />
+                </section>
                 <div className="grid gap-3 lg:grid-cols-2">
                   <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <h2 className="text-xs font-bold">แนวโน้มประชากรกรุงเทพมหานคร</h2>
