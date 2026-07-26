@@ -14,8 +14,11 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Bangkok District Analytics Dashboard",
-  description: "ศูนย์วิเคราะห์ปัญหาเมือง เกาะความร้อน และพื้นที่สีเขียวของกรุงเทพมหานคร",
+  title: {
+    default: "Bangkok Urban Earth Observatory",
+    template: "%s · Bangkok Urban Earth Observatory",
+  },
+  description: "ระบบสังเกตการณ์กรุงเทพมหานครจากข้อมูลดาวเทียมและบริบทเมืองที่ตรวจสอบแหล่งข้อมูลได้",
 };
 
 export default function RootLayout({

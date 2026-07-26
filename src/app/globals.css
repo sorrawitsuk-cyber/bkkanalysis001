@@ -3,47 +3,118 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --oe-bg: oklch(0.975 0 0);
+  --oe-surface: oklch(1 0 0);
+  --oe-surface-strong: oklch(1 0 0 / 0.97);
+  --oe-surface-muted: oklch(0.958 0.006 294);
+  --oe-ink: oklch(0.20 0.025 285);
+  --oe-muted: oklch(0.46 0.025 285);
+  --oe-line: oklch(0.84 0.015 288);
+  --oe-line-soft: oklch(0.91 0.01 288);
+  --oe-line-strong: oklch(0.72 0.022 288);
+
+  --oe-primary: oklch(0.43 0.13 294);
+  --oe-primary-hover: oklch(0.36 0.12 294);
+  --oe-primary-ink: oklch(0.35 0.12 294);
+  --oe-primary-soft: oklch(0.93 0.035 294);
+
+  --oe-info: oklch(0.58 0.12 230);
+  --oe-info-ink: oklch(0.34 0.09 235);
+  --oe-info-soft: oklch(0.93 0.035 230);
+  --oe-success: oklch(0.55 0.12 150);
+  --oe-success-ink: oklch(0.32 0.09 150);
+  --oe-success-soft: oklch(0.93 0.035 150);
+  --oe-warning: oklch(0.62 0.13 70);
+  --oe-warning-ink: oklch(0.35 0.08 62);
+  --oe-warning-soft: oklch(0.94 0.04 75);
+  --oe-warning-line: oklch(0.78 0.08 72);
+
+  --oe-map-canvas: oklch(0.955 0.015 230);
+  --oe-map-fill-a: oklch(0.80 0.045 282);
+  --oe-map-fill-b: oklch(0.86 0.035 254);
+  --oe-map-fill-c: oklch(0.89 0.025 220);
+  --oe-map-stroke: oklch(0.54 0.05 278);
+
+  --radius-control: 8px;
+  --radius-panel: 10px;
+
+  --z-dropdown: 20;
+  --z-sticky: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--oe-bg);
 }
 
 body {
-  color: #f8fafc; /* slate-50 */
-  background: #020617; /* slate-950 */
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  color: var(--oe-ink);
+  background: var(--oe-bg);
+  font-family: var(--font-geist-sans), "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  color: white;
+  background: var(--oe-primary);
 }
 
 .map-keyboard-target:focus-visible {
-  outline: 3px solid #f8fafc;
-  outline-offset: 2px;
-  filter: drop-shadow(0 0 3px rgba(15, 23, 42, 0.9));
+  outline: 3px solid var(--oe-primary);
+  outline-offset: -3px;
 }
 
-/* Custom scrollbar for dark theme */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0f172a; 
-}
-::-webkit-scrollbar-thumb {
-  background: #334155; 
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569; 
+.oe-map-tooltip {
+  border: 1px solid var(--oe-line) !important;
+  border-radius: var(--radius-control) !important;
+  color: var(--oe-ink) !important;
+  background: var(--oe-surface) !important;
+  box-shadow: 0 2px 6px oklch(0.2 0.02 285 / 0.14) !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+.leaflet-control-zoom a {
+  color: var(--oe-ink) !important;
+}
+
+.leaflet-control-attribution {
+  color: var(--oe-muted) !important;
+  background: oklch(1 0 0 / 0.88) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

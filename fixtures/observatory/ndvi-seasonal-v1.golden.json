@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "observatory-golden-fixture/v1",
+  "fixtureId": "ndvi-seasonal-algorithm-v1",
+  "description": "Synthetic reflectance samples for deterministic algorithm testing only. These values are never published as Bangkok observations.",
+  "scenarios": [
+    {
+      "id": "passes-publish-gate",
+      "pixels": [
+        {
+          "id": "p1",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.8,
+              "red": 0.2,
+              "scl": 4
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.7,
+              "red": 0.3,
+              "scl": 5
+            },
+            {
+              "sceneId": "S3",
+              "nir": 0.75,
+              "red": 0.25,
+              "scl": 9
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.6,
+              "red": 0.2,
+              "scl": 4
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.5,
+              "red": 0.1,
+              "scl": 4
+            },
+            {
+              "sceneId": "S3",
+              "nir": 0.55,
+              "red": 0.15,
+              "scl": 7
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.4,
+              "red": 0.3,
+              "scl": 6
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.5,
+              "red": 0.3,
+              "scl": 6
+            },
+            {
+              "sceneId": "S3",
+              "nir": 0.45,
+              "red": 0.25,
+              "scl": 6
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.7,
+              "red": 0.2,
+              "scl": 8
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.7,
+              "red": 0.2,
+              "scl": 9
+            },
+            {
+              "sceneId": "S3",
+              "nir": 0.7,
+              "red": 0.2,
+              "scl": 10
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "qualityStatus": "accepted",
+        "publishable": true,
+        "validCoverage": 0.75,
+        "sceneCount": 3,
+        "validObservationCount": 8,
+        "statistics": {
+          "median": 0.5,
+          "p10": 0.25,
+          "p90": 0.571429,
+          "interquartileRange": 0.321429
+        },
+        "blockers": []
+      }
+    },
+    {
+      "id": "rejects-low-coverage",
+      "pixels": [
+        {
+          "id": "p1",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.8,
+              "red": 0.2,
+              "scl": 4
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.7,
+              "red": 0.3,
+              "scl": 4
+            },
+            {
+              "sceneId": "S3",
+              "nir": 0.75,
+              "red": 0.25,
+              "scl": 4
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.6,
+              "red": 0.2,
+              "scl": 5
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.5,
+              "red": 0.1,
+              "scl": 5
+            },
+            {
+              "sceneId": "S3",
+              "nir": 0.55,
+              "red": 0.15,
+              "scl": 5
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.4,
+              "red": 0.3,
+              "scl": 9
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S2",
+              "nir": 0.5,
+              "red": 0.3,
+              "scl": 10
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "qualityStatus": "rejected",
+        "publishable": false,
+        "validCoverage": 0.5,
+        "sceneCount": 3,
+        "validObservationCount": 6,
+        "statistics": null,
+        "blockers": [
+          "valid coverage 0.5 is below 0.75"
+        ]
+      }
+    },
+    {
+      "id": "rejects-low-scene-count",
+      "pixels": [
+        {
+          "id": "p1",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.8,
+              "red": 0.2,
+              "scl": 4
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.7,
+              "red": 0.3,
+              "scl": 4
+            }
+          ]
+        },
+        {
+          "id": "p2",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.6,
+              "red": 0.2,
+              "scl": 5
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.5,
+              "red": 0.1,
+              "scl": 5
+            }
+          ]
+        },
+        {
+          "id": "p3",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.4,
+              "red": 0.3,
+              "scl": 6
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.5,
+              "red": 0.3,
+              "scl": 6
+            }
+          ]
+        },
+        {
+          "id": "p4",
+          "area": 100,
+          "observations": [
+            {
+              "sceneId": "S1",
+              "nir": 0.3,
+              "red": 0.2,
+              "scl": 7
+            },
+            {
+              "sceneId": "S2",
+              "nir": 0.35,
+              "red": 0.2,
+              "scl": 7
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "qualityStatus": "rejected",
+        "publishable": false,
+        "validCoverage": 1,
+        "sceneCount": 2,
+        "validObservationCount": 8,
+        "statistics": null,
+        "blockers": [
+          "scene count 2 is below 3"
+        ]
+      }
+    }
+  ]
+}

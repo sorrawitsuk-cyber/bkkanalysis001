@@ -1,0 +1,105 @@
+{
+  "reportSchemaVersion": "observatory-recipe-qa/v1",
+  "recipe": {
+    "productId": "vegetation",
+    "methodVersion": "ndvi-seasonal-v1.0.0",
+    "checksumSha256": "38ef3722ef3473d2bfbadced637c5a495e3d4df4686696d62fb1d2e3e1ca1c92"
+  },
+  "fixture": {
+    "fixtureId": "ndvi-seasonal-algorithm-v1",
+    "checksumSha256": "679823b91475430c753703582b4e98ce47ba2aced4e8bc6fc3191b6ecead8f00"
+  },
+  "summary": {
+    "scenarioCount": 3,
+    "passed": 3,
+    "failed": 0,
+    "publishableScenarioCount": 1
+  },
+  "results": [
+    {
+      "scenarioId": "passes-publish-gate",
+      "status": "passed",
+      "actual": {
+        "qualityStatus": "accepted",
+        "publishable": true,
+        "validCoverage": 0.75,
+        "sceneCount": 3,
+        "validObservationCount": 8,
+        "statistics": {
+          "median": 0.5,
+          "p10": 0.25,
+          "p90": 0.571429,
+          "interquartileRange": 0.321429
+        },
+        "blockers": [],
+        "diagnostics": {
+          "validPixelCount": 3,
+          "totalPixelCount": 4,
+          "maskedObservationCount": 4,
+          "invalidReflectanceCount": 0,
+          "internalStatistics": {
+            "median": 0.5,
+            "p10": 0.25,
+            "p90": 0.571429,
+            "interquartileRange": 0.321429
+          }
+        }
+      }
+    },
+    {
+      "scenarioId": "rejects-low-coverage",
+      "status": "passed",
+      "actual": {
+        "qualityStatus": "rejected",
+        "publishable": false,
+        "validCoverage": 0.5,
+        "sceneCount": 3,
+        "validObservationCount": 6,
+        "statistics": null,
+        "blockers": [
+          "valid coverage 0.5 is below 0.75"
+        ],
+        "diagnostics": {
+          "validPixelCount": 2,
+          "totalPixelCount": 4,
+          "maskedObservationCount": 2,
+          "invalidReflectanceCount": 0,
+          "internalStatistics": {
+            "median": 0.5,
+            "p10": 0.5,
+            "p90": 0.571429,
+            "interquartileRange": 0.071429
+          }
+        }
+      }
+    },
+    {
+      "scenarioId": "rejects-low-scene-count",
+      "status": "passed",
+      "actual": {
+        "qualityStatus": "rejected",
+        "publishable": false,
+        "validCoverage": 1,
+        "sceneCount": 2,
+        "validObservationCount": 8,
+        "statistics": null,
+        "blockers": [
+          "scene count 2 is below 3"
+        ],
+        "diagnostics": {
+          "validPixelCount": 4,
+          "totalPixelCount": 4,
+          "maskedObservationCount": 0,
+          "invalidReflectanceCount": 0,
+          "internalStatistics": {
+            "median": 0.236364,
+            "p10": 0.196429,
+            "p90": 0.583333,
+            "interquartileRange": 0.303571
+          }
+        }
+      }
+    }
+  ],
+  "publicationStatus": "algorithm-fixture-passed-source-validation-pending"
+}

@@ -1,0 +1,624 @@
+{
+  "schemaVersion": "observatory-registry/v1",
+  "registryVersion": "2026.07.26-2",
+  "lastReviewedAt": "2026-07-26",
+  "scope": {
+    "city": "Bangkok",
+    "country": "Thailand",
+    "description": "Remote-sensing and open-data evidence registry for the Bangkok Urban Earth Observatory.",
+    "excludedSources": [
+      "Traffy Fondue"
+    ]
+  },
+  "publicationPolicy": {
+    "publicDatasetStatuses": [
+      "validated"
+    ],
+    "publicProductStatuses": [
+      "validated"
+    ],
+    "forbiddenSourceLabels": [
+      "mock",
+      "demo",
+      "fallback",
+      "seeded",
+      "synthetic"
+    ],
+    "requireChecksum": true,
+    "requireLicenseReview": true,
+    "requireMethodVersion": true,
+    "failureMode": "unavailable"
+  },
+  "runtimeArtifacts": [
+    {
+      "id": "district-boundary-runtime",
+      "path": "src/data/observatory/bkk-districts.provisional.json",
+      "datasetId": "legacy-thailand-amphoe-geometry",
+      "checksumSha256": "1e6db5b7388ebf61c2959ca2f12fd57687f3f8c4feb4ea9ba8174e7624fb2096",
+      "featureCount": 50,
+      "status": "provisional",
+      "allowedProperties": [
+        "areaCode",
+        "legacyId",
+        "nameTh",
+        "nameEn",
+        "level"
+      ],
+      "forbiddenProperties": [
+        "population",
+        "growth_rate",
+        "density",
+        "accessibility_index",
+        "blind_spots"
+      ]
+    }
+  ],
+  "datasets": [
+    {
+      "id": "legacy-thailand-amphoe-geometry",
+      "name": "Legacy Thailand amphoe geometry",
+      "owner": "Community-maintained GitHub dataset",
+      "sourceUrl": "https://github.com/apisit/thailand.json",
+      "roleTh": "ขอบเขต 50 เขตที่ใช้แสดงผลชั่วคราวระหว่างตรวจรับข้อมูลทางการ",
+      "measurementType": "administrative",
+      "sourceClass": "third-party-derived",
+      "spatialResolution": "polygon ระดับเขต",
+      "temporalCadence": "ไม่ระบุ",
+      "license": {
+        "status": "unverified",
+        "name": "ยังไม่ยืนยัน",
+        "url": "https://github.com/apisit/thailand.json",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "provisional",
+        "checkedAt": null,
+        "blockers": [
+          "ยังไม่ใช่ไฟล์ที่เผยแพร่โดยกรุงเทพมหานคร",
+          "ต้องตรวจ license และ checksum ของ source snapshot",
+          "ต้องเทียบชื่อ รหัส และ topology กับขอบเขตทางการ"
+        ]
+      }
+    },
+    {
+      "id": "bma-district-boundaries",
+      "name": "พื้นที่เขตปกครอง 50 เขตของกรุงเทพมหานคร",
+      "owner": "กรุงเทพมหานคร",
+      "sourceUrl": "https://data.bangkok.go.th/dataset/50/resource/0f40f9b4-617b-46a9-8806-f590da610954",
+      "roleTh": "candidate ขอบเขตอ้างอิงทางการสำหรับแทนที่ geometry ชั่วคราว",
+      "measurementType": "administrative",
+      "sourceClass": "official-open-data",
+      "spatialResolution": "polygon ระดับเขต",
+      "temporalCadence": "ไม่ระบุใน resource",
+      "resources": [
+        {
+          "id": "bma-district-kml",
+          "format": "KML",
+          "url": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/0f40f9b4-617b-46a9-8806-f590da610954/download/district.kml"
+        }
+      ],
+      "license": {
+        "status": "unverified",
+        "name": "License not specified",
+        "url": "https://data.bangkok.go.th/dataset/50/resource/0f40f9b4-617b-46a9-8806-f590da610954",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องขอหรือยืนยันเงื่อนไขการนำกลับมาเผยแพร่",
+          "KML ที่ดาวน์โหลดเป็น NetworkLink ไปยัง WMS ไม่ได้ฝัง geometry 50 เขต",
+          "NetworkLink อ้าง endpoint แบบ HTTP จึงยังไม่ใช่ immutable source snapshot",
+          "ต้องหา export ที่บันทึก checksum และตรวจ CRS, topology, feature count และรหัสเขตได้"
+        ]
+      }
+    },
+    {
+      "id": "sentinel-2-l2a",
+      "name": "Sentinel-2 Level-2A",
+      "owner": "Copernicus / ESA",
+      "sourceUrl": "https://documentation.dataspace.copernicus.eu/Data/SentinelMissions/Sentinel2.html",
+      "roleTh": "พืชพรรณ ความชื้น น้ำ และสัญญาณผิวเมือง",
+      "measurementType": "observed",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "10 / 20 / 60 เมตรตาม band",
+      "temporalCadence": "nominal 5 วันก่อน QA",
+      "license": {
+        "status": "unverified",
+        "name": "Copernicus data terms",
+        "url": "https://dataspace.copernicus.eu/terms-and-conditions",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องล็อก collection identifier และ processing baseline",
+          "ต้องทดสอบ cloud, shadow, aerosol QA และ valid coverage",
+          "ต้องตรวจเงื่อนไข attribution สำหรับ derived asset"
+        ]
+      }
+    },
+    {
+      "id": "sentinel-1-grd",
+      "name": "Sentinel-1 GRD",
+      "owner": "Copernicus / ESA",
+      "sourceUrl": "https://documentation.dataspace.copernicus.eu/Data/SentinelMissions/Sentinel1.html",
+      "roleTh": "สัญญาณน้ำ ความเปียก และการเปลี่ยนแปลงก่อน/หลังเหตุการณ์",
+      "measurementType": "observed",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "pixel spacing โดยทั่วไป 10 เมตร",
+      "temporalCadence": "ขึ้นกับ orbit และจำนวนดาวเทียมที่ให้บริการ",
+      "license": {
+        "status": "unverified",
+        "name": "Copernicus data terms",
+        "url": "https://dataspace.copernicus.eu/terms-and-conditions",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องล็อก orbit direction และ relative orbit",
+          "ต้องทดสอบ speckle, border noise และ baseline stability",
+          "ต้องกำหนด event QA ร่วมกับข้อมูลภาคพื้น"
+        ]
+      }
+    },
+    {
+      "id": "landsat-c2-l2",
+      "name": "Landsat 8/9 Collection 2 Level-2",
+      "owner": "USGS / NASA",
+      "sourceUrl": "https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products",
+      "roleTh": "อุณหภูมิผิวดินและแนวโน้มระยะยาว",
+      "measurementType": "observed",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "thermal 100 เมตร เผยแพร่บนกริด 30 เมตร",
+      "temporalCadence": "ประมาณ 8 วันเมื่อรวม Landsat 8/9 ก่อน QA",
+      "license": {
+        "status": "unverified",
+        "name": "USGS public-domain data terms",
+        "url": "https://www.usgs.gov/landsat-missions/landsat-data-access",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องล็อก collection และ product identifier",
+          "ต้องตรวจ scale/offset และ pixel QA",
+          "ต้องกำหนด clear-sky coverage ขั้นต่ำตามฤดูกาล"
+        ]
+      }
+    },
+    {
+      "id": "gpm-imerg",
+      "name": "GPM IMERG",
+      "owner": "NASA / JAXA",
+      "sourceUrl": "https://gpm.nasa.gov/data/imerg",
+      "roleTh": "บริบทฝนระดับเมืองและเหตุการณ์",
+      "measurementType": "model-derived",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "0.1 องศา หรือประมาณ 10 กิโลเมตร",
+      "temporalCadence": "ทุก 30 นาทีตาม product",
+      "license": {
+        "status": "unverified",
+        "name": "NASA Earthdata terms",
+        "url": "https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องเลือก Early, Late หรือ Final run ให้ตรง use case",
+          "ต้องบันทึก product version และ latency",
+          "ห้ามตีความเป็นความละเอียดระดับถนนหรือสถานี"
+        ]
+      }
+    },
+    {
+      "id": "bma-open-data",
+      "name": "Bangkok Open Data",
+      "owner": "กรุงเทพมหานคร",
+      "sourceUrl": "https://data.bangkok.go.th/",
+      "roleTh": "บริบทด้านระบายน้ำ ถนน สวน การศึกษา สุขภาพ และบริการเมือง",
+      "measurementType": "administrative",
+      "sourceClass": "official-open-data",
+      "spatialResolution": "แตกต่างตาม resource",
+      "temporalCadence": "แตกต่างตาม resource",
+      "license": {
+        "status": "unverified",
+        "name": "ตรวจระดับ resource",
+        "url": "https://data.bangkok.go.th/",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องตรวจ license, owner และ update cadence ทีละ resource",
+          "ต้องทำ code-list mapping เขต/แขวง",
+          "ต้อง snapshot payload ก่อนแปลง schema"
+        ]
+      }
+    },
+    {
+      "id": "dopa-population",
+      "name": "DOPA Population Registry",
+      "owner": "กรมการปกครอง",
+      "sourceUrl": "https://stat.bora.dopa.go.th/stat/statnew/statMONTH/statmonth/",
+      "roleTh": "ประชากรตามทะเบียนและจำนวนบ้าน",
+      "measurementType": "administrative",
+      "sourceClass": "official-public-data",
+      "spatialResolution": "เขต/แขวงตามตารางเผยแพร่",
+      "temporalCadence": "รายเดือน",
+      "license": {
+        "status": "unverified",
+        "name": "ยังไม่ยืนยันการนำกลับมาเผยแพร่",
+        "url": "https://stat.bora.dopa.go.th/stat/statnew/statMONTH/statmonth/",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "acceptance",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องยืนยันเงื่อนไขการใช้ซ้ำ",
+          "ต้องล็อก schema และ mapping รหัสพื้นที่",
+          "ต้องแยกประชากรตามทะเบียนออกจากประชากรที่อยู่จริง"
+        ]
+      }
+    },
+    {
+      "id": "worldpop",
+      "name": "WorldPop",
+      "owner": "WorldPop",
+      "sourceUrl": "https://www.worldpop.org/",
+      "roleTh": "แบบจำลองการกระจายประชากรสำหรับวิเคราะห์ exposure",
+      "measurementType": "model-derived",
+      "sourceClass": "research-public",
+      "spatialResolution": "ประมาณ 100 เมตรตาม product",
+      "temporalCadence": "รายปีตาม product",
+      "license": {
+        "status": "unverified",
+        "name": "ตรวจตาม product",
+        "url": "https://www.worldpop.org/terms_and_conditions",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "research",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องเลือก constrained/unconstrained product ให้ชัดเจน",
+          "ต้องตรวจ model vintage และ input covariates",
+          "ห้ามตีความเป็นการนับคนจริงระดับ pixel"
+        ]
+      }
+    },
+    {
+      "id": "sentinel-5p",
+      "name": "Sentinel-5P TROPOMI",
+      "owner": "Copernicus / ESA",
+      "sourceUrl": "https://documentation.dataspace.copernicus.eu/Data/SentinelMissions/Sentinel5P.html",
+      "roleTh": "ตัวชี้วัดมลพิษในคอลัมน์บรรยากาศ",
+      "measurementType": "proxy",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "หลายกิโลเมตรตาม product",
+      "temporalCadence": "รายวันก่อน QA",
+      "license": {
+        "status": "unverified",
+        "name": "Copernicus data terms",
+        "url": "https://dataspace.copernicus.eu/terms-and-conditions",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "research",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องเลือก gas product และ qa_value threshold",
+          "ต้อง cross-validate กับสถานีและอุตุนิยมวิทยา",
+          "ห้ามนำเสนอเป็น AQI หรือ PM2.5 ระดับถนน"
+        ]
+      }
+    },
+    {
+      "id": "viirs-black-marble",
+      "name": "VIIRS Black Marble",
+      "owner": "NASA",
+      "sourceUrl": "https://blackmarble.gsfc.nasa.gov/",
+      "roleTh": "สัญญาณแสงกลางคืนและกิจกรรมเมือง",
+      "measurementType": "proxy",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "ประมาณ 500 เมตรตาม product",
+      "temporalCadence": "รายวัน/รายเดือน/รายปีตาม product",
+      "license": {
+        "status": "unverified",
+        "name": "NASA Earthdata terms",
+        "url": "https://www.earthdata.nasa.gov/engage/open-data-services-and-software/data-and-information-policy",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "research",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องเลือก product และ QA สำหรับ cloud, stray light และ lunar illumination",
+          "ต้องควบคุม outlier และแหล่งกำเนิดแสงชั่วคราว",
+          "ห้ามใช้แทน GDP รายได้ หรือจำนวนประชากร"
+        ]
+      }
+    }
+  ],
+  "products": [
+    {
+      "id": "heat",
+      "nameTh": "อุณหภูมิผิวดิน",
+      "nameEn": "Land surface temperature",
+      "phase": "mvp",
+      "measurementType": "satellite-observation",
+      "sourceDatasetIds": [
+        "landsat-c2-l2"
+      ],
+      "unit": "°C",
+      "statistics": [
+        "median",
+        "p90",
+        "interquartile-range"
+      ],
+      "recipe": {
+        "methodVersion": "lst-seasonal-v1.0.0",
+        "temporalComposite": "same-season clear-sky composite",
+        "nativeScaleMeters": 100,
+        "aggregation": "pixel-area weighted district statistics",
+        "qaRules": [
+          "apply Collection 2 scale and offset",
+          "mask cloud, cloud shadow and invalid surface-temperature pixels",
+          "report clear-sky coverage and observation count"
+        ]
+      },
+      "publishGate": {
+        "status": "acceptance",
+        "minValidCoverage": 0.7,
+        "minSceneCount": 3,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "เป็นอุณหภูมิผิวดินช่วงดาวเทียมผ่าน ไม่ใช่อุณหภูมิอากาศหรือ heat index",
+        "เมฆและเวลาที่ดาวเทียมผ่านอาจทำให้ coverage ไม่เท่ากัน"
+      ]
+    },
+    {
+      "id": "vegetation",
+      "nameTh": "สภาพพืชพรรณ",
+      "nameEn": "Vegetation condition",
+      "phase": "mvp",
+      "measurementType": "derived-indicator",
+      "sourceDatasetIds": [
+        "sentinel-2-l2a"
+      ],
+      "unit": "NDVI",
+      "statistics": [
+        "median",
+        "p10",
+        "p90",
+        "interquartile-range"
+      ],
+      "recipe": {
+        "methodVersion": "ndvi-seasonal-v1.0.0",
+        "temporalComposite": "same-season surface-reflectance composite",
+        "nativeScaleMeters": 10,
+        "aggregation": "pixel-area weighted district statistics",
+        "qaRules": [
+          "mask cloud, cloud shadow and invalid reflectance",
+          "preserve NDVI range from -1 to 1",
+          "report valid coverage and observation count"
+        ]
+      },
+      "evidence": {
+        "recipeManifestPath": "config/observatory/recipes/ndvi-seasonal-v1.0.0.json",
+        "recipeManifestChecksumSha256": "38ef3722ef3473d2bfbadced637c5a495e3d4df4686696d62fb1d2e3e1ca1c92",
+        "goldenFixturePath": "fixtures/observatory/ndvi-seasonal-v1.golden.json",
+        "goldenQaReportPath": "reports/observatory/ndvi-seasonal-golden-qa.json",
+        "algorithmFixtureStatus": "passed"
+      },
+      "publishGate": {
+        "status": "acceptance",
+        "minValidCoverage": 0.75,
+        "minSceneCount": 3,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "NDVI บ่งชี้ความเขียวและสภาพพืชพรรณ ไม่ใช่พื้นที่เรือนยอดไม้",
+        "ควรตรวจร่วมกับ land-cover class และข้อมูลสวน/ต้นไม้"
+      ]
+    },
+    {
+      "id": "urban",
+      "nameTh": "สัญญาณผิวสิ่งปลูกสร้าง",
+      "nameEn": "Built-up surface signal",
+      "phase": "mvp",
+      "measurementType": "derived-indicator",
+      "sourceDatasetIds": [
+        "sentinel-2-l2a"
+      ],
+      "unit": "NDBI",
+      "statistics": [
+        "median",
+        "p90",
+        "persistent-change-area"
+      ],
+      "recipe": {
+        "methodVersion": "builtup-change-v1.0.0",
+        "temporalComposite": "same-season multi-acquisition composite",
+        "nativeScaleMeters": 20,
+        "aggregation": "district summary plus persistent change candidates",
+        "qaRules": [
+          "require repeated change across multiple acquisitions",
+          "mask cloud, shadow and invalid reflectance",
+          "separate spectral signal from legal land-use classification"
+        ]
+      },
+      "publishGate": {
+        "status": "acceptance",
+        "minValidCoverage": 0.8,
+        "minSceneCount": 4,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "NDBI ไม่ใช่แผนที่อาคารหรือขอบเขตแปลง",
+        "change candidate ต้องตรวจร่วมกับภาพละเอียดสูงและข้อมูลภาคพื้น"
+      ]
+    },
+    {
+      "id": "water",
+      "nameTh": "ฝนและสัญญาณน้ำบนผิว",
+      "nameEn": "Rainfall and surface-water signal",
+      "phase": "mvp",
+      "measurementType": "screening-indicator",
+      "sourceDatasetIds": [
+        "gpm-imerg",
+        "sentinel-1-grd",
+        "bma-open-data"
+      ],
+      "unit": "mm / signal",
+      "statistics": [
+        "event-accumulation",
+        "antecedent-rainfall",
+        "persistent-water-change"
+      ],
+      "recipe": {
+        "methodVersion": "water-event-v1.0.0",
+        "temporalComposite": "event window with 1, 3 and 7 day antecedent context",
+        "nativeScaleMeters": 10000,
+        "aggregation": "event summary with pre/post SAR signal",
+        "qaRules": [
+          "preserve IMERG product latency and version",
+          "match Sentinel-1 orbit before pre/post comparison",
+          "label surface-water signal as screening evidence"
+        ]
+      },
+      "publishGate": {
+        "status": "acceptance",
+        "minValidCoverage": 0.8,
+        "minSceneCount": 2,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "เป็นสัญญาณคัดกรอง ไม่ใช่ความลึกน้ำหรือขอบเขตน้ำท่วมทางการ",
+        "IMERG มีความละเอียดระดับหลายกิโลเมตรและควรตรวจร่วมกับสถานี"
+      ]
+    },
+    {
+      "id": "people",
+      "nameTh": "ประชากรและบริการเมือง",
+      "nameEn": "Population and city-service context",
+      "phase": "mvp",
+      "measurementType": "administrative-context",
+      "sourceDatasetIds": [
+        "dopa-population",
+        "worldpop",
+        "bma-open-data"
+      ],
+      "unit": "people / places",
+      "statistics": [
+        "registered-population",
+        "modeled-population",
+        "service-count"
+      ],
+      "recipe": {
+        "methodVersion": "exposure-context-v1.0.0",
+        "temporalComposite": "latest compatible vintage with explicit reference date",
+        "nativeScaleMeters": 100,
+        "aggregation": "separate summaries by measurement type",
+        "qaRules": [
+          "never merge registered and modeled population into one value",
+          "retain source vintage for every field",
+          "validate district and subdistrict code mappings"
+        ]
+      },
+      "publishGate": {
+        "status": "acceptance",
+        "minValidCoverage": 0.95,
+        "minSceneCount": 0,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "ประชากรตามทะเบียนไม่เท่ากับประชากรที่อยู่จริง",
+        "ผล exposure เป็นบริบทสำหรับตรวจต่อ ไม่ยืนยันจำนวนผู้ได้รับผลกระทบ"
+      ]
+    },
+    {
+      "id": "air",
+      "nameTh": "ตัวชี้วัดมลพิษจากดาวเทียม",
+      "nameEn": "Satellite air-pollution proxy",
+      "phase": "phase-2",
+      "measurementType": "proxy",
+      "sourceDatasetIds": [
+        "sentinel-5p"
+      ],
+      "unit": "product-specific",
+      "statistics": [
+        "median",
+        "p90",
+        "station-comparison"
+      ],
+      "recipe": {
+        "methodVersion": "air-proxy-research-v0.1.0",
+        "temporalComposite": "daily QA then monthly aggregation",
+        "nativeScaleMeters": 5500,
+        "aggregation": "district proxy with station cross-validation",
+        "qaRules": [
+          "apply product-specific qa_value",
+          "retain meteorological context",
+          "do not convert to ground-level AQI without a validated model"
+        ]
+      },
+      "publishGate": {
+        "status": "research",
+        "minValidCoverage": 0.7,
+        "minSceneCount": 10,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "ค่าคอลัมน์บรรยากาศไม่ใช่ AQI หรือ PM2.5 ระดับถนน",
+        "ต้อง cross-validate กับสถานีที่ผ่าน QA ก่อนใช้งานเชิงปฏิบัติการ"
+      ]
+    },
+    {
+      "id": "activity",
+      "nameTh": "สัญญาณแสงกลางคืน",
+      "nameEn": "Nighttime-light activity signal",
+      "phase": "phase-2",
+      "measurementType": "proxy",
+      "sourceDatasetIds": [
+        "viirs-black-marble"
+      ],
+      "unit": "nW/sr/cm²",
+      "statistics": [
+        "median-radiance",
+        "persistent-change"
+      ],
+      "recipe": {
+        "methodVersion": "nightlights-research-v0.1.0",
+        "temporalComposite": "monthly or annual quality-controlled composite",
+        "nativeScaleMeters": 500,
+        "aggregation": "district radiance distribution and persistent change",
+        "qaRules": [
+          "mask cloud and stray-light contamination",
+          "control lunar illumination and temporary light sources",
+          "report saturation and background thresholds"
+        ]
+      },
+      "publishGate": {
+        "status": "research",
+        "minValidCoverage": 0.8,
+        "minSceneCount": 10,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "เป็นสัญญาณแสงและกิจกรรม ไม่ใช่ GDP รายได้ หรือจำนวนประชากร",
+        "การเปลี่ยนแปลงของแสงอาจมาจากแหล่งกำเนิดชั่วคราวหรือ sensor artifact"
+      ]
+    }
+  ]
+}

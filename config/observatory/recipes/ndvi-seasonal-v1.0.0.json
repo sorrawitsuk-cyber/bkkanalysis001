@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "observatory-product-recipe/v1",
+  "productId": "vegetation",
+  "methodVersion": "ndvi-seasonal-v1.0.0",
+  "executionClass": "offline-batch",
+  "source": {
+    "datasetId": "sentinel-2-l2a",
+    "collectionId": "COPERNICUS/S2_SR_HARMONIZED",
+    "bands": {
+      "nir": "B8",
+      "red": "B4",
+      "quality": "SCL"
+    },
+    "reflectanceScaleFactor": 0.0001
+  },
+  "temporal": {
+    "comparisonRule": "same-season-only",
+    "composite": "per-pixel median of valid observations",
+    "seasons": {
+      "hot": {
+        "startMonthDay": "03-01",
+        "endMonthDay": "05-31"
+      },
+      "wet": {
+        "startMonthDay": "06-01",
+        "endMonthDay": "10-31"
+      },
+      "cool": {
+        "startMonthDay": "11-01",
+        "endMonthDay": "02-28",
+        "crossesCalendarYear": true
+      }
+    }
+  },
+  "quality": {
+    "clearSclClasses": [
+      2,
+      4,
+      5,
+      6,
+      7
+    ],
+    "maskedSclClasses": [
+      0,
+      1,
+      3,
+      8,
+      9,
+      10,
+      11
+    ],
+    "reflectanceValidRange": [
+      -0.1,
+      1.6
+    ],
+    "minValidCoverage": 0.75,
+    "minSceneCount": 3,
+    "missingValuePolicy": "null",
+    "failureMode": "unavailable"
+  },
+  "processing": {
+    "nativeScaleMeters": 10,
+    "qualityBandNativeScaleMeters": 20,
+    "analysisCrs": "EPSG:32647",
+    "indexFormula": "(nir - red) / (nir + red)",
+    "spatialAggregation": "pixel-area weighted",
+    "percentileMethod": "nearest cumulative area threshold",
+    "roundingDecimals": 6
+  },
+  "outputs": {
+    "statistics": [
+      "median",
+      "p10",
+      "p90",
+      "interquartile-range"
+    ],
+    "requiredEvidence": [
+      "validCoverage",
+      "sceneCount",
+      "validObservationCount",
+      "datasetVersionId",
+      "processingRunId",
+      "boundaryVersion"
+    ],
+    "rasterAssets": [
+      "cog",
+      "pmtiles",
+      "thumbnail",
+      "stac-item"
+    ]
+  },
+  "publication": {
+    "requiresValidatedDatasetVersion": true,
+    "requiresSucceededProcessingRun": true,
+    "requiresAcceptedQualityStatus": true,
+    "allowsPublicRequestProcessing": false
+  }
+}
