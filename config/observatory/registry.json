@@ -1,6 +1,6 @@
 {
   "schemaVersion": "observatory-registry/v1",
-  "registryVersion": "2026.07.28-1",
+  "registryVersion": "2026.07.28-2",
   "lastReviewedAt": "2026-07-28",
   "scope": {
     "city": "Bangkok",
@@ -127,26 +127,40 @@
       "id": "sentinel-2-l2a",
       "name": "Sentinel-2 Level-2A",
       "owner": "Copernicus / ESA",
-      "sourceUrl": "https://documentation.dataspace.copernicus.eu/Data/SentinelMissions/Sentinel2.html",
+      "sourceUrl": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
       "roleTh": "พืชพรรณ ความชื้น น้ำ และสัญญาณผิวเมือง",
       "measurementType": "observed",
       "sourceClass": "authoritative-public",
       "spatialResolution": "10 / 20 / 60 เมตรตาม band",
       "temporalCadence": "nominal 5 วันก่อน QA",
+      "resources": [
+        {
+          "id": "gee-harmonized-collection",
+          "format": "Earth Engine ImageCollection",
+          "url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED"
+        },
+        {
+          "id": "copernicus-data-terms",
+          "format": "Terms and conditions",
+          "url": "https://dataspace.copernicus.eu/terms-and-conditions"
+        },
+        {
+          "id": "copernicus-legal-notice",
+          "format": "Legal notice",
+          "url": "https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice"
+        }
+      ],
       "license": {
-        "status": "unverified",
-        "name": "Copernicus data terms",
+        "status": "verified",
+        "name": "Copernicus Sentinel Data Legal Notice",
         "url": "https://dataspace.copernicus.eu/terms-and-conditions",
-        "redistribution": "pending"
+        "redistribution": "allowed",
+        "attributionTemplate": "Contains modified Copernicus Sentinel data 2025–2026"
       },
       "acceptance": {
-        "status": "acceptance",
-        "checkedAt": null,
-        "blockers": [
-          "ต้องล็อก collection identifier และ processing baseline",
-          "ต้องทดสอบ cloud, shadow, aerosol QA และ valid coverage",
-          "ต้องตรวจเงื่อนไข attribution สำหรับ derived asset"
-        ]
+        "status": "validated",
+        "checkedAt": "2026-07-28",
+        "blockers": []
       }
     },
     {
@@ -403,7 +417,8 @@
       "phase": "mvp",
       "measurementType": "derived-indicator",
       "sourceDatasetIds": [
-        "sentinel-2-l2a"
+        "sentinel-2-l2a",
+        "bma-district-boundaries"
       ],
       "unit": "NDVI",
       "statistics": [

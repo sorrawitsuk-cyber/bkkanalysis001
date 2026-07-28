@@ -4,6 +4,7 @@ export type ObservatoryDatabaseStatus =
   | {
       status: "connected";
       publicDatasetCount: number;
+      publicDatasetVersionCount: number;
       publicProductCount: number;
       checkedAt: string;
     }
@@ -11,6 +12,7 @@ export type ObservatoryDatabaseStatus =
       status: "unavailable";
       reason: "authorization" | "configuration" | "connectivity" | "schema";
       publicDatasetCount: null;
+      publicDatasetVersionCount: null;
       publicProductCount: null;
       checkedAt: string;
     };
@@ -24,6 +26,7 @@ function getUnavailableStatus(
     status: "unavailable",
     reason,
     publicDatasetCount: null,
+    publicDatasetVersionCount: null,
     publicProductCount: null,
     checkedAt: new Date().toISOString(),
   };
@@ -63,16 +66,19 @@ export async function getObservatoryDatabaseStatus(): Promise<ObservatoryDatabas
   });
 
   try {
-    const [datasets, products] = await Promise.all([
+    const [datasets, datasetVersions, products] = await Promise.all([
       supabase
         .from("observatory_datasets")
         .select("dataset_id", { count: "exact", head: true }),
+      supabase
+        .from("observatory_dataset_versions")
+        .select("dataset_version_id", { count: "exact", head: true }),
       supabase
         .from("observatory_products")
         .select("product_id", { count: "exact", head: true }),
     ]);
 
-    const error = datasets.error ?? products.error;
+    const error = datasets.error ?? datasetVersions.error ?? products.error;
     if (error) {
       const schemaUnavailable =
         error.code === "42P01" ||
@@ -94,6 +100,7 @@ export async function getObservatoryDatabaseStatus(): Promise<ObservatoryDatabas
     return {
       status: "connected",
       publicDatasetCount: datasets.count ?? 0,
+      publicDatasetVersionCount: datasetVersions.count ?? 0,
       publicProductCount: products.count ?? 0,
       checkedAt: new Date().toISOString(),
     };

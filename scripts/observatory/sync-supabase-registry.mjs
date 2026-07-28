@@ -32,6 +32,7 @@ export function mapRegistryDataset(dataset, registryMetadata) {
     metadata: {
       roleTh: dataset.roleTh,
       resources: dataset.resources ?? [],
+      attributionTemplate: dataset.license.attributionTemplate ?? null,
       registryVersion: registryMetadata.registryVersion,
       registryReviewedAt: registryMetadata.lastReviewedAt,
     },
@@ -83,8 +84,14 @@ const plan = {
   datasetUpserts: datasets.length,
   productUpserts: products.length,
   productDatasetUpserts: productDatasets.length,
+  validatedDatasetUpserts: datasets.filter(
+    (dataset) => dataset.acceptance_status === "validated",
+  ).length,
+  validatedProductUpserts: products.filter(
+    (product) => product.acceptance_status === "validated",
+  ).length,
   deletions: 0,
-  publicationChanges: 0,
+  automaticStatusPromotions: 0,
 };
 
 if (!APPLY) {
@@ -176,7 +183,8 @@ console.log(
         areas: verificationQueries[4].count,
       },
       result: "registry-synced",
-      note: "No status was promoted and no row was deleted.",
+      note:
+        "Registry-declared statuses were applied. No status was promoted automatically and no row was deleted.",
     },
     null,
     2,

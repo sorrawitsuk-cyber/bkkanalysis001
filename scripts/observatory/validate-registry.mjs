@@ -142,6 +142,15 @@ for (const [index, dataset] of (registry.datasets ?? []).entries()) {
   if (!VALID_REDISTRIBUTION.has(dataset.license?.redistribution)) {
     fail(`${path}.license.redistribution`, "invalid redistribution status");
   }
+  if (
+    dataset.license?.status === "verified"
+    && dataset.license?.redistribution === "allowed"
+  ) {
+    requireText(
+      dataset.license?.attributionTemplate,
+      `${path}.license.attributionTemplate`,
+    );
+  }
   if (!VALID_STATUSES.has(dataset.acceptance?.status)) {
     fail(`${path}.acceptance.status`, "invalid acceptance status");
   }
@@ -279,9 +288,13 @@ for (const [index, product] of (registry.products ?? []).entries()) {
     }
     if (
       qaReport.publicationStatus
-      !== "algorithm-fixture-passed-source-validation-pending"
+      !==
+        "algorithm-fixture-passed-source-validated-boundary-and-field-qa-pending"
     ) {
-      fail(`${path}.evidence.goldenQaReportPath`, "QA report must keep source validation pending");
+      fail(
+        `${path}.evidence.goldenQaReportPath`,
+        "QA report must keep boundary and field QA pending",
+      );
     }
     if (evidence.algorithmFixtureStatus !== "passed") {
       fail(`${path}.evidence.algorithmFixtureStatus`, "only passed evidence may be registered");

@@ -254,3 +254,30 @@ Schema เป้าหมาย:
 4. สร้าง canonical geometry แล้ว seed city/district/subdistrict areas
 5. สร้าง offline Landsat/Sentinel recipes พร้อม golden fixtures และ QA report
 6. publish COG/PMTiles และ long-form observations เฉพาะ processing run ที่ผ่าน gate
+
+## 10. Sentinel-2 source acceptance
+
+วันที่ 28 กรกฎาคม 2026 ได้ตรวจ collection
+`COPERNICUS/S2_SR_HARMONIZED` ผ่าน Google Earth Engine โดยตรง และยืนยัน
+สัญญา source สำหรับ NDVI ได้แก่ B4, B8, SCL, processing baseline, MGRS tile,
+spacecraft และ metadata เมฆ
+
+scene manifest สำหรับปีวิเคราะห์ 2025 ใช้เฉพาะกรอบวิจัยกรุงเทพฯ
+`[100.25, 13.35, 101.0, 14.15]` ไม่ใช่ขอบเขตเขต และครอบคลุม:
+
+- ฤดูร้อน 92 scenes
+- ฤดูฝน 153 scenes
+- ฤดูหนาวแบบข้ามปี 114 scenes
+- รวม 359 scenes
+
+manifest ถูกล็อกด้วย SHA-256
+`a17b5d5c2a0b1950b9173032dfc3a10346c1e5c9e596d5ba88143cd068125c40`
+และใช้ version label `bangkok-seasonal-2025-a17b5d5c2a0b`
+
+Copernicus Sentinel Data Legal Notice อนุญาตให้ทำซ้ำ แจกจ่าย และดัดแปลง
+โดยผลที่ดัดแปลงต้องระบุ `Contains modified Copernicus Sentinel data
+2025–2026` จึงปรับสถานะ source เป็น `validated`
+
+สถานะนี้ยังไม่ใช่การเผยแพร่ NDVI รายเขต ผลิตภัณฑ์ vegetation ยังคงอยู่ที่
+`acceptance` จนกว่า canonical boundary, field coverage QA, processing run และ
+derived-asset checksum จะผ่านครบ

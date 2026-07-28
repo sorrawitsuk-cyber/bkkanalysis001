@@ -28,10 +28,13 @@ const supabase = createClient(supabaseUrl, anonKey, {
   },
 });
 
-const [datasets, products, qualityFlags] = await Promise.all([
+const [datasets, datasetVersions, products, qualityFlags] = await Promise.all([
   supabase
     .from("observatory_datasets")
     .select("dataset_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_dataset_versions")
+    .select("dataset_version_id", { count: "exact", head: true }),
   supabase
     .from("observatory_products")
     .select("product_id", { count: "exact", head: true }),
@@ -42,6 +45,7 @@ const [datasets, products, qualityFlags] = await Promise.all([
 
 for (const [name, result] of [
   ["observatory_datasets", datasets],
+  ["observatory_dataset_versions", datasetVersions],
   ["observatory_products", products],
 ]) {
   if (result.error) {
@@ -59,6 +63,7 @@ const expectedPublicProductCount = registry.products.filter((product) =>
     product.publishGate.status,
   ),
 ).length;
+const expectedPublicDatasetVersionCount = 1;
 
 if (datasets.count !== expectedPublicDatasetCount) {
   throw new Error(
@@ -69,6 +74,11 @@ if (datasets.count !== expectedPublicDatasetCount) {
 if (products.count !== expectedPublicProductCount) {
   throw new Error(
     `Public product count mismatch: expected ${expectedPublicProductCount}, received ${products.count}.`,
+  );
+}
+if (datasetVersions.count !== expectedPublicDatasetVersionCount) {
+  throw new Error(
+    `Public dataset version count mismatch: expected ${expectedPublicDatasetVersionCount}, received ${datasetVersions.count}.`,
   );
 }
 
@@ -83,6 +93,7 @@ console.log(
     {
       status: "public-rls-verified",
       publicDatasetCount: datasets.count,
+      publicDatasetVersionCount: datasetVersions.count,
       publicProductCount: products.count,
       internalQualityFlagsPubliclyReadable: false,
       serviceRoleUsed: false,

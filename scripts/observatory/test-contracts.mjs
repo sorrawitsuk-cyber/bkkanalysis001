@@ -9,6 +9,7 @@ const [
   registryRaw,
   areasRaw,
   boundaryReportRaw,
+  sentinelReportRaw,
   catalogSource,
   observationsSource,
   migrationSource,
@@ -21,6 +22,10 @@ const [
     ),
     readFile(
       resolve(ROOT, "reports/observatory/bma-boundary-intake.json"),
+      "utf8",
+    ),
+    readFile(
+      resolve(ROOT, "reports/observatory/sentinel-2-source-intake.json"),
       "utf8",
     ),
     readFile(resolve(ROOT, "src/lib/observatory/catalog.ts"), "utf8"),
@@ -37,6 +42,7 @@ const [
 const registry = JSON.parse(registryRaw);
 const areas = JSON.parse(areasRaw);
 const boundaryReport = JSON.parse(boundaryReportRaw);
+const sentinelReport = JSON.parse(sentinelReportRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -75,6 +81,58 @@ assert.ok(officialBoundaryResourceIds.has("bma-district-shapefile"));
 assert.ok(officialBoundaryResourceIds.has("bma-district-gml"));
 assert.equal(officialBoundaryDataset.license.status, "unverified");
 assert.equal(officialBoundaryDataset.license.redistribution, "pending");
+
+const sentinelDataset = registry.datasets.find(
+  (dataset) => dataset.id === "sentinel-2-l2a",
+);
+assert.equal(sentinelDataset.license.status, "verified");
+assert.equal(sentinelDataset.license.redistribution, "allowed");
+assert.match(
+  sentinelDataset.license.attributionTemplate,
+  /^Contains modified Copernicus Sentinel data /,
+);
+assert.equal(sentinelDataset.acceptance.status, "validated");
+assert.deepEqual(sentinelDataset.acceptance.blockers, []);
+
+assert.equal(
+  sentinelReport.reportSchemaVersion,
+  "observatory-source-intake/v1",
+);
+assert.equal(sentinelReport.datasetId, "sentinel-2-l2a");
+assert.equal(sentinelReport.source.collectionAssetType, "ImageCollection");
+assert.equal(sentinelReport.acceptance.status, "validated");
+assert.equal(sentinelReport.acceptance.datasetVersionStatus, "validated");
+assert.deepEqual(sentinelReport.acceptance.blockers, []);
+assert.equal(sentinelReport.acceptance.boundaryGeometryUsed, false);
+assert.equal(sentinelReport.acceptance.observationsCreated, false);
+assert.equal(sentinelReport.acceptance.rasterAssetsCreated, false);
+assert.ok(sentinelReport.inventory.sceneCount >= 1);
+assert.equal(
+  sentinelReport.version.sceneManifest.sceneIds.length,
+  sentinelReport.inventory.sceneCount,
+);
+assert.equal(
+  sentinelReport.version.sceneManifest.sensingTimes.length,
+  sentinelReport.inventory.sceneCount,
+);
+assert.match(
+  sentinelReport.version.manifestChecksumSha256,
+  /^[a-f0-9]{64}$/,
+);
+assert.ok(
+  Object.values(sentinelReport.inventory.seasonSceneCounts).every(
+    (count) => count >= 3,
+  ),
+);
+
+const vegetationProduct = registry.products.find(
+  (product) => product.id === "vegetation",
+);
+assert.ok(vegetationProduct.sourceDatasetIds.includes("sentinel-2-l2a"));
+assert.ok(
+  vegetationProduct.sourceDatasetIds.includes("bma-district-boundaries"),
+);
+assert.equal(vegetationProduct.publishGate.status, "acceptance");
 
 const allowedAreaProperties = [
   "areaCode",
@@ -173,4 +231,5 @@ console.log(JSON.stringify({
   productCount: productIds.length,
   tablesChecked: requiredTables.length,
   officialBoundaryStatus: boundaryReport.acceptance.status,
+  sentinelSourceStatus: sentinelReport.acceptance.status,
 }));

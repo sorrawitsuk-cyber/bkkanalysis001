@@ -30,6 +30,7 @@ export type ObservatoryRegistryDataset = {
     name: string;
     url: string;
     redistribution: RedistributionStatus;
+    attributionTemplate?: string;
   };
   acceptance: {
     status: AcceptanceStatus;
