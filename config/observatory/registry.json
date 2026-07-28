@@ -1,6 +1,6 @@
 {
   "schemaVersion": "observatory-registry/v1",
-  "registryVersion": "2026.07.28-2",
+  "registryVersion": "2026.07.28-3",
   "lastReviewedAt": "2026-07-28",
   "scope": {
     "city": "Bangkok",
@@ -443,7 +443,9 @@
         "recipeManifestChecksumSha256": "38ef3722ef3473d2bfbadced637c5a495e3d4df4686696d62fb1d2e3e1ca1c92",
         "goldenFixturePath": "fixtures/observatory/ndvi-seasonal-v1.golden.json",
         "goldenQaReportPath": "reports/observatory/ndvi-seasonal-golden-qa.json",
-        "algorithmFixtureStatus": "passed"
+        "algorithmFixtureStatus": "passed",
+        "fieldQaReportPath": "reports/observatory/ndvi-2025-field-qa.json",
+        "fieldQaStatus": "preflight-passed"
       },
       "publishGate": {
         "status": "acceptance",

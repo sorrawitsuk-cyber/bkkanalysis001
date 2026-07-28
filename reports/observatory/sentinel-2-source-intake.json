@@ -1,8 +1,8 @@
 {
   "reportSchemaVersion": "observatory-source-intake/v1",
-  "registryVersion": "2026.07.28-2",
+  "registryVersion": "2026.07.28-3",
   "datasetId": "sentinel-2-l2a",
-  "inspectedAt": "2026-07-28T06:18:19.948Z",
+  "inspectedAt": "2026-07-28T06:50:42.037Z",
   "source": {
     "provider": "European Union / ESA / Copernicus",
     "accessPlatform": "Google Earth Engine",

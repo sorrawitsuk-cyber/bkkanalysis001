@@ -28,7 +28,15 @@ const supabase = createClient(supabaseUrl, anonKey, {
   },
 });
 
-const [datasets, datasetVersions, products, qualityFlags] = await Promise.all([
+const [
+  datasets,
+  datasetVersions,
+  products,
+  processingRuns,
+  observations,
+  rasterAssets,
+  qualityFlags,
+] = await Promise.all([
   supabase
     .from("observatory_datasets")
     .select("dataset_id", { count: "exact", head: true }),
@@ -39,6 +47,15 @@ const [datasets, datasetVersions, products, qualityFlags] = await Promise.all([
     .from("observatory_products")
     .select("product_id", { count: "exact", head: true }),
   supabase
+    .from("observatory_processing_runs")
+    .select("processing_run_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_observations")
+    .select("observation_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_raster_assets")
+    .select("asset_id", { count: "exact", head: true }),
+  supabase
     .from("observatory_quality_flags")
     .select("quality_flag_id", { count: "exact", head: true }),
 ]);
@@ -47,6 +64,9 @@ for (const [name, result] of [
   ["observatory_datasets", datasets],
   ["observatory_dataset_versions", datasetVersions],
   ["observatory_products", products],
+  ["observatory_processing_runs", processingRuns],
+  ["observatory_observations", observations],
+  ["observatory_raster_assets", rasterAssets],
 ]) {
   if (result.error) {
     throw new Error(`${name}: ${result.error.code} ${result.error.message}`);
@@ -81,6 +101,17 @@ if (datasetVersions.count !== expectedPublicDatasetVersionCount) {
     `Public dataset version count mismatch: expected ${expectedPublicDatasetVersionCount}, received ${datasetVersions.count}.`,
   );
 }
+for (const [name, result] of [
+  ["observatory_processing_runs", processingRuns],
+  ["observatory_observations", observations],
+  ["observatory_raster_assets", rasterAssets],
+]) {
+  if (result.count !== 0) {
+    throw new Error(
+      `${name} unexpectedly exposes ${result.count} rows to anonymous users.`,
+    );
+  }
+}
 
 if (!qualityFlags.error) {
   throw new Error(
@@ -95,6 +126,9 @@ console.log(
       publicDatasetCount: datasets.count,
       publicDatasetVersionCount: datasetVersions.count,
       publicProductCount: products.count,
+      publicProcessingRunCount: processingRuns.count,
+      publicObservationCount: observations.count,
+      publicRasterAssetCount: rasterAssets.count,
       internalQualityFlagsPubliclyReadable: false,
       serviceRoleUsed: false,
     },

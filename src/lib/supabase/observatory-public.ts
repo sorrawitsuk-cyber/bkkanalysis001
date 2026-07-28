@@ -6,6 +6,9 @@ export type ObservatoryDatabaseStatus =
       publicDatasetCount: number;
       publicDatasetVersionCount: number;
       publicProductCount: number;
+      publicProcessingRunCount: number;
+      publicObservationCount: number;
+      publicRasterAssetCount: number;
       checkedAt: string;
     }
   | {
@@ -14,6 +17,9 @@ export type ObservatoryDatabaseStatus =
       publicDatasetCount: null;
       publicDatasetVersionCount: null;
       publicProductCount: null;
+      publicProcessingRunCount: null;
+      publicObservationCount: null;
+      publicRasterAssetCount: null;
       checkedAt: string;
     };
 
@@ -28,6 +34,9 @@ function getUnavailableStatus(
     publicDatasetCount: null,
     publicDatasetVersionCount: null,
     publicProductCount: null,
+    publicProcessingRunCount: null,
+    publicObservationCount: null,
+    publicRasterAssetCount: null,
     checkedAt: new Date().toISOString(),
   };
 }
@@ -66,7 +75,14 @@ export async function getObservatoryDatabaseStatus(): Promise<ObservatoryDatabas
   });
 
   try {
-    const [datasets, datasetVersions, products] = await Promise.all([
+    const [
+      datasets,
+      datasetVersions,
+      products,
+      processingRuns,
+      observations,
+      rasterAssets,
+    ] = await Promise.all([
       supabase
         .from("observatory_datasets")
         .select("dataset_id", { count: "exact", head: true }),
@@ -76,9 +92,24 @@ export async function getObservatoryDatabaseStatus(): Promise<ObservatoryDatabas
       supabase
         .from("observatory_products")
         .select("product_id", { count: "exact", head: true }),
+      supabase
+        .from("observatory_processing_runs")
+        .select("processing_run_id", { count: "exact", head: true }),
+      supabase
+        .from("observatory_observations")
+        .select("observation_id", { count: "exact", head: true }),
+      supabase
+        .from("observatory_raster_assets")
+        .select("asset_id", { count: "exact", head: true }),
     ]);
 
-    const error = datasets.error ?? datasetVersions.error ?? products.error;
+    const error =
+      datasets.error
+      ?? datasetVersions.error
+      ?? products.error
+      ?? processingRuns.error
+      ?? observations.error
+      ?? rasterAssets.error;
     if (error) {
       const schemaUnavailable =
         error.code === "42P01" ||
@@ -102,6 +133,9 @@ export async function getObservatoryDatabaseStatus(): Promise<ObservatoryDatabas
       publicDatasetCount: datasets.count ?? 0,
       publicDatasetVersionCount: datasetVersions.count ?? 0,
       publicProductCount: products.count ?? 0,
+      publicProcessingRunCount: processingRuns.count ?? 0,
+      publicObservationCount: observations.count ?? 0,
+      publicRasterAssetCount: rasterAssets.count ?? 0,
       checkedAt: new Date().toISOString(),
     };
   } catch {

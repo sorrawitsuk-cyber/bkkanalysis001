@@ -217,14 +217,21 @@ for (const [index, product] of (registry.products ?? []).entries()) {
       fail(`${path}.evidence.algorithmFixtureStatus`, "must be passed or failed");
     }
 
-    const [recipeRaw, fixtureRaw, qaReportRaw] = await Promise.all([
+    const [recipeRaw, fixtureRaw, qaReportRaw, fieldQaReportRaw] =
+      await Promise.all([
       readFile(resolve(ROOT, evidence.recipeManifestPath), "utf8"),
       readFile(resolve(ROOT, evidence.goldenFixturePath), "utf8"),
       readFile(resolve(ROOT, evidence.goldenQaReportPath), "utf8"),
+      evidence.fieldQaReportPath
+        ? readFile(resolve(ROOT, evidence.fieldQaReportPath), "utf8")
+        : Promise.resolve(null),
     ]);
     const recipeManifest = JSON.parse(recipeRaw);
     const fixtureManifest = JSON.parse(fixtureRaw);
     const qaReport = JSON.parse(qaReportRaw);
+    const fieldQaReport = fieldQaReportRaw
+      ? JSON.parse(fieldQaReportRaw)
+      : null;
     const recipeChecksum = createHash("sha256")
       .update(recipeRaw)
       .digest("hex");
@@ -289,7 +296,7 @@ for (const [index, product] of (registry.products ?? []).entries()) {
     if (
       qaReport.publicationStatus
       !==
-        "algorithm-fixture-passed-source-validated-boundary-and-field-qa-pending"
+        "algorithm-fixture-and-field-preflight-passed-boundary-and-exhaustive-qa-pending"
     ) {
       fail(
         `${path}.evidence.goldenQaReportPath`,
@@ -298,6 +305,63 @@ for (const [index, product] of (registry.products ?? []).entries()) {
     }
     if (evidence.algorithmFixtureStatus !== "passed") {
       fail(`${path}.evidence.algorithmFixtureStatus`, "only passed evidence may be registered");
+    }
+    if (evidence.fieldQaReportPath !== undefined) {
+      requireText(
+        evidence.fieldQaReportPath,
+        `${path}.evidence.fieldQaReportPath`,
+      );
+      if (
+        !["preflight-passed", "preflight-failed"].includes(
+          evidence.fieldQaStatus,
+        )
+      ) {
+        fail(
+          `${path}.evidence.fieldQaStatus`,
+          "must be preflight-passed or preflight-failed",
+        );
+      }
+      if (
+        fieldQaReport?.reportSchemaVersion !== "observatory-field-qa/v1"
+      ) {
+        fail(
+          `${path}.evidence.fieldQaReportPath`,
+          "unsupported field QA report schema",
+        );
+      }
+      if (
+        fieldQaReport?.productId !== product.id
+        || fieldQaReport?.methodVersion !== product.recipe.methodVersion
+      ) {
+        fail(
+          `${path}.evidence.fieldQaReportPath`,
+          "field QA product or method does not match",
+        );
+      }
+      if (fieldQaReport?.qa?.fieldQaStatus !== evidence.fieldQaStatus) {
+        fail(
+          `${path}.evidence.fieldQaStatus`,
+          "does not match field QA report",
+        );
+      }
+      if (
+        fieldQaReport?.scope?.boundaryGeometryUsed !== false
+        || fieldQaReport?.scope?.districtStatisticsCreated !== false
+      ) {
+        fail(
+          `${path}.evidence.fieldQaReportPath`,
+          "preflight must not use boundary geometry or district statistics",
+        );
+      }
+      if (
+        fieldQaReport?.publication?.status
+        !== "blocked-boundary-and-exhaustive-qa-pending"
+      ) {
+        fail(
+          `${path}.evidence.fieldQaReportPath`,
+          "field preflight must remain blocked from publication",
+        );
+      }
     }
   }
 

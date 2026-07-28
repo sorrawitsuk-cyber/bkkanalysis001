@@ -281,3 +281,21 @@ Copernicus Sentinel Data Legal Notice อนุญาตให้ทำซ้ำ
 สถานะนี้ยังไม่ใช่การเผยแพร่ NDVI รายเขต ผลิตภัณฑ์ vegetation ยังคงอยู่ที่
 `acceptance` จนกว่า canonical boundary, field coverage QA, processing run และ
 derived-asset checksum จะผ่านครบ
+
+## 11. NDVI field preflight
+
+ก่อน canonical boundary ผ่าน license gate ได้รัน preflight บนกรอบวิจัย
+กรุงเทพฯ โดยใช้ scene manifest เดิม, สูตร NDVI และ SCL mask จาก
+`ndvi-seasonal-v1.0.0` แบบไม่เปลี่ยน threshold
+
+เพื่อไม่ให้ synchronous QA ต้องสแกนประมาณ 70 ล้านพิกเซลทุกครั้ง preflight
+ใช้จุดสุ่มคงที่ 5,000 จุดต่อฤดูที่ native scale 10 เมตร และตัดสิน coverage
+ด้วยขอบล่างของช่วงความเชื่อมั่น Wilson 95%
+
+- ฤดูร้อน: 92 scenes, coverage 99.90%, ขอบล่าง 99.77%
+- ฤดูฝน: 153 scenes, coverage 99.70%, ขอบล่าง 99.51%
+- ฤดูหนาว: 114 scenes, coverage 100.00%, ขอบล่าง 99.92%
+
+ทั้งสามฤดูผ่าน preflight gate แต่ยังไม่ใช่ exhaustive QA และไม่ใช่สถิติรายเขต
+จึงไม่สร้าง observation, raster asset หรือ public product จนกว่า canonical
+boundary และ batch QA ฉบับเต็มจะผ่าน

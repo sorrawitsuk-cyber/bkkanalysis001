@@ -1,0 +1,153 @@
+{
+  "reportSchemaVersion": "observatory-field-qa/v1",
+  "productId": "vegetation",
+  "methodVersion": "ndvi-seasonal-v1.0.0",
+  "analysisYear": 2025,
+  "executionClass": "offline-batch-research-preflight",
+  "startedAt": "2026-07-28T06:44:28.490Z",
+  "finishedAt": "2026-07-28T06:48:52.755Z",
+  "source": {
+    "datasetId": "sentinel-2-l2a",
+    "versionLabel": "bangkok-seasonal-2025-a17b5d5c2a0b",
+    "manifestChecksumSha256": "a17b5d5c2a0b1950b9173032dfc3a10346c1e5c9e596d5ba88143cd068125c40",
+    "sceneCount": 359,
+    "manifestVerifiedAtExecution": true
+  },
+  "scope": {
+    "type": "research-envelope",
+    "bounds": [
+      100.25,
+      13.35,
+      101,
+      14.15
+    ],
+    "boundaryGeometryUsed": false,
+    "districtStatisticsCreated": false
+  },
+  "processing": {
+    "analysisScaleMeters": 10,
+    "analysisCrs": "EPSG:32647",
+    "qualityBandNativeScaleMeters": 20,
+    "formula": "(nir - red) / (nir + red)",
+    "temporalComposite": "per-pixel median of valid observations",
+    "spatialAggregation": "pixel-area weighted",
+    "clearSclClasses": [
+      2,
+      4,
+      5,
+      6,
+      7
+    ],
+    "reflectanceValidRange": [
+      -0.1,
+      1.6
+    ],
+    "sampling": {
+      "method": "deterministic random native-grid sample",
+      "requestedSampleSizePerSeason": 5000,
+      "seed": 20250728,
+      "scaleMeters": 10,
+      "confidenceLevel": 0.95
+    }
+  },
+  "gates": {
+    "minValidCoverage": 0.75,
+    "minSceneCount": 3
+  },
+  "seasons": [
+    {
+      "seasonId": "hot",
+      "periodStart": "2025-03-01T00:00:00.000Z",
+      "periodEndExclusive": "2025-06-01T00:00:00.000Z",
+      "sceneCount": 92,
+      "requestedSampleSize": 5000,
+      "sampleCount": 5000,
+      "validSampleCount": 4995,
+      "validCoverageEstimate": 0.999,
+      "coverageConfidence95": {
+        "lower": 0.997661,
+        "upper": 0.999573
+      },
+      "sampledValidObservationCount": 39018,
+      "meanValidObservationsPerSample": 7.8036,
+      "totalAreaSquareMeters": 7205924286.643,
+      "validAreaEstimateSquareMeters": 7198718362.356,
+      "statistics": {
+        "median": 0.214584,
+        "p10": -0.222794,
+        "p90": 0.620816,
+        "interquartileRange": 0.453162
+      },
+      "qualityStatus": "preflight-accepted",
+      "blockers": []
+    },
+    {
+      "seasonId": "wet",
+      "periodStart": "2025-06-01T00:00:00.000Z",
+      "periodEndExclusive": "2025-11-01T00:00:00.000Z",
+      "sceneCount": 153,
+      "requestedSampleSize": 5000,
+      "sampleCount": 5000,
+      "validSampleCount": 4985,
+      "validCoverageEstimate": 0.997,
+      "coverageConfidence95": {
+        "lower": 0.995056,
+        "upper": 0.998181
+      },
+      "sampledValidObservationCount": 44153,
+      "meanValidObservationsPerSample": 8.8306,
+      "totalAreaSquareMeters": 7205924286.643,
+      "validAreaEstimateSquareMeters": 7184306513.783,
+      "statistics": {
+        "median": 0.308991,
+        "p10": -0.222571,
+        "p90": 0.730494,
+        "interquartileRange": 0.586737
+      },
+      "qualityStatus": "preflight-accepted",
+      "blockers": []
+    },
+    {
+      "seasonId": "cool",
+      "periodStart": "2025-11-01T00:00:00.000Z",
+      "periodEndExclusive": "2026-03-01T00:00:00.000Z",
+      "sceneCount": 114,
+      "requestedSampleSize": 5000,
+      "sampleCount": 5000,
+      "validSampleCount": 5000,
+      "validCoverageEstimate": 1,
+      "coverageConfidence95": {
+        "lower": 0.999232,
+        "upper": 1
+      },
+      "sampledValidObservationCount": 107295,
+      "meanValidObservationsPerSample": 21.459,
+      "totalAreaSquareMeters": 7205924286.643,
+      "validAreaEstimateSquareMeters": 7205924286.643,
+      "statistics": {
+        "median": 0.316518,
+        "p10": -0.520107,
+        "p90": 0.777727,
+        "interquartileRange": 0.649011
+      },
+      "qualityStatus": "preflight-accepted",
+      "blockers": []
+    }
+  ],
+  "qa": {
+    "fieldQaStatus": "preflight-passed",
+    "blockers": [],
+    "resultChecksumSha256": "33e29759d2d0dd56e87f8dbf93a1219a87622ac8f0a64f0b6b9dee59571bfe4f"
+  },
+  "processingRun": {
+    "deterministicRunId": "315f181e-9544-5009-80f0-8293d7f43584",
+    "seedPolicy": "seed only after a committed code SHA is available"
+  },
+  "publication": {
+    "status": "blocked-boundary-and-exhaustive-qa-pending",
+    "productPublished": false,
+    "observationsCreated": false,
+    "rasterAssetsCreated": false,
+    "blocker": "Canonical district boundary and exhaustive native-grid QA are not validated."
+  }
+}

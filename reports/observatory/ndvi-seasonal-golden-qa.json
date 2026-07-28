@@ -101,5 +101,5 @@
       }
     }
   ],
-  "publicationStatus": "algorithm-fixture-passed-source-validated-boundary-and-field-qa-pending"
+  "publicationStatus": "algorithm-fixture-and-field-preflight-passed-boundary-and-exhaustive-qa-pending"
 }

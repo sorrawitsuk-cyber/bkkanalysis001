@@ -10,6 +10,7 @@ const [
   areasRaw,
   boundaryReportRaw,
   sentinelReportRaw,
+  ndviFieldQaRaw,
   catalogSource,
   observationsSource,
   migrationSource,
@@ -28,6 +29,10 @@ const [
       resolve(ROOT, "reports/observatory/sentinel-2-source-intake.json"),
       "utf8",
     ),
+    readFile(
+      resolve(ROOT, "reports/observatory/ndvi-2025-field-qa.json"),
+      "utf8",
+    ),
     readFile(resolve(ROOT, "src/lib/observatory/catalog.ts"), "utf8"),
     readFile(resolve(ROOT, "src/app/api/v1/observations/route.ts"), "utf8"),
     readFile(
@@ -43,6 +48,7 @@ const registry = JSON.parse(registryRaw);
 const areas = JSON.parse(areasRaw);
 const boundaryReport = JSON.parse(boundaryReportRaw);
 const sentinelReport = JSON.parse(sentinelReportRaw);
+const ndviFieldQa = JSON.parse(ndviFieldQaRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -133,6 +139,48 @@ assert.ok(
   vegetationProduct.sourceDatasetIds.includes("bma-district-boundaries"),
 );
 assert.equal(vegetationProduct.publishGate.status, "acceptance");
+assert.equal(vegetationProduct.evidence.fieldQaStatus, "preflight-passed");
+
+assert.equal(ndviFieldQa.reportSchemaVersion, "observatory-field-qa/v1");
+assert.equal(ndviFieldQa.productId, "vegetation");
+assert.equal(ndviFieldQa.methodVersion, "ndvi-seasonal-v1.0.0");
+assert.equal(ndviFieldQa.source.manifestVerifiedAtExecution, true);
+assert.equal(
+  ndviFieldQa.source.manifestChecksumSha256,
+  sentinelReport.version.manifestChecksumSha256,
+);
+assert.equal(ndviFieldQa.scope.type, "research-envelope");
+assert.equal(ndviFieldQa.scope.boundaryGeometryUsed, false);
+assert.equal(ndviFieldQa.scope.districtStatisticsCreated, false);
+assert.equal(ndviFieldQa.qa.fieldQaStatus, "preflight-passed");
+assert.deepEqual(ndviFieldQa.qa.blockers, []);
+assert.match(ndviFieldQa.qa.resultChecksumSha256, /^[a-f0-9]{64}$/);
+assert.match(
+  ndviFieldQa.processingRun.deterministicRunId,
+  /^[a-f0-9]{8}-[a-f0-9]{4}-5[a-f0-9]{3}-8[a-f0-9]{3}-[a-f0-9]{12}$/,
+);
+assert.equal(ndviFieldQa.seasons.length, 3);
+for (const season of ndviFieldQa.seasons) {
+  assert.equal(season.requestedSampleSize, 5000);
+  assert.equal(season.sampleCount, 5000);
+  assert.ok(season.validSampleCount > 0);
+  assert.ok(
+    season.coverageConfidence95.lower
+      >= vegetationProduct.publishGate.minValidCoverage,
+  );
+  assert.ok(
+    season.sceneCount >= vegetationProduct.publishGate.minSceneCount,
+  );
+  assert.equal(season.qualityStatus, "preflight-accepted");
+  assert.deepEqual(season.blockers, []);
+}
+assert.equal(
+  ndviFieldQa.publication.status,
+  "blocked-boundary-and-exhaustive-qa-pending",
+);
+assert.equal(ndviFieldQa.publication.productPublished, false);
+assert.equal(ndviFieldQa.publication.observationsCreated, false);
+assert.equal(ndviFieldQa.publication.rasterAssetsCreated, false);
 
 const allowedAreaProperties = [
   "areaCode",
@@ -232,4 +280,5 @@ console.log(JSON.stringify({
   tablesChecked: requiredTables.length,
   officialBoundaryStatus: boundaryReport.acceptance.status,
   sentinelSourceStatus: sentinelReport.acceptance.status,
+  ndviFieldPreflightStatus: ndviFieldQa.qa.fieldQaStatus,
 }));
