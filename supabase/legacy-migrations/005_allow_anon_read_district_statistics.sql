@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Allow anonymous (public) read access to district_statistics
 -- The API routes use the anon key and need to read this table.
 

@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Migration 011: Materialized view for Bangkok-wide yearly averages
 -- Replaces the 450-row full-table scan in district-profile route with a 9-row lookup.
 -- Created: 2026-05-29

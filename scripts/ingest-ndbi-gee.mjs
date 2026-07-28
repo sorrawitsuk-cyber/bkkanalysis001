@@ -3,7 +3,7 @@
  * into Supabase district_statistics table.
  *
  * Prerequisites:
- *   1. Run the migration: supabase/migrations/004_add_ndbi_columns.sql
+ *   1. Verify the legacy migration: supabase/legacy-migrations/004_add_ndbi_columns.sql
  *   2. Ensure .env.local has: GEE_CLIENT_EMAIL, GEE_PRIVATE_KEY, GEE_PROJECT_ID,
  *      NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
  *

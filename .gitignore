@@ -34,6 +34,9 @@ yarn-error.log*
 # cloudflare open-next build output
 .open-next
 
+# Supabase CLI local linkage and cached service versions
+/supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

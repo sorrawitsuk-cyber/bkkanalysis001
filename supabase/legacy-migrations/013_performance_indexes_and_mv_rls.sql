@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Migration 013: Additional performance indexes + RLS for bkk_yearly_averages
 -- Created: 2026-05-29
 

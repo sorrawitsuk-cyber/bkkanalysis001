@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- NDVI metric expansion for Bangkok District Analytics Dashboard.
 -- Safe to run multiple times in Supabase SQL Editor.
 

@@ -1,0 +1,93 @@
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+dotenv.config({ path: resolve(ROOT, ".env.local"), quiet: true });
+
+const registry = JSON.parse(
+  await readFile(resolve(ROOT, "config/observatory/registry.json"), "utf8"),
+);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !anonKey) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+  );
+}
+
+const supabase = createClient(supabaseUrl, anonKey, {
+  auth: {
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    persistSession: false,
+  },
+});
+
+const [datasets, products, qualityFlags] = await Promise.all([
+  supabase
+    .from("observatory_datasets")
+    .select("dataset_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_products")
+    .select("product_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_quality_flags")
+    .select("quality_flag_id", { count: "exact", head: true }),
+]);
+
+for (const [name, result] of [
+  ["observatory_datasets", datasets],
+  ["observatory_products", products],
+]) {
+  if (result.error) {
+    throw new Error(`${name}: ${result.error.code} ${result.error.message}`);
+  }
+}
+
+const expectedPublicDatasetCount = registry.datasets.filter((dataset) =>
+  registry.publicationPolicy.publicDatasetStatuses.includes(
+    dataset.acceptance.status,
+  ),
+).length;
+const expectedPublicProductCount = registry.products.filter((product) =>
+  registry.publicationPolicy.publicProductStatuses.includes(
+    product.publishGate.status,
+  ),
+).length;
+
+if (datasets.count !== expectedPublicDatasetCount) {
+  throw new Error(
+    `Public dataset count mismatch: expected ${expectedPublicDatasetCount}, received ${datasets.count}.`,
+  );
+}
+
+if (products.count !== expectedPublicProductCount) {
+  throw new Error(
+    `Public product count mismatch: expected ${expectedPublicProductCount}, received ${products.count}.`,
+  );
+}
+
+if (!qualityFlags.error) {
+  throw new Error(
+    "observatory_quality_flags unexpectedly allows anonymous reads.",
+  );
+}
+
+console.log(
+  JSON.stringify(
+    {
+      status: "public-rls-verified",
+      publicDatasetCount: datasets.count,
+      publicProductCount: products.count,
+      internalQualityFlagsPubliclyReadable: false,
+      serviceRoleUsed: false,
+    },
+    null,
+    2,
+  ),
+);

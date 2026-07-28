@@ -26,7 +26,10 @@ const [
     readFile(resolve(ROOT, "src/lib/observatory/catalog.ts"), "utf8"),
     readFile(resolve(ROOT, "src/app/api/v1/observations/route.ts"), "utf8"),
     readFile(
-      resolve(ROOT, "supabase/migrations/015_observatory_v2_core.sql"),
+      resolve(
+        ROOT,
+        "supabase/migrations/20260728023000_observatory_v2_core.sql",
+      ),
       "utf8",
     ),
   ]);

@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Add NDVI columns to district_statistics for GEE-computed vegetation data
 -- Safe to run multiple times.
 

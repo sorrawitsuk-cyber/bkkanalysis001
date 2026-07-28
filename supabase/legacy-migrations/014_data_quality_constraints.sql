@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Data-quality guardrails for district_statistics.
 -- These constraints allow NULL when a product is unavailable.
 

@@ -20,3 +20,4 @@ CREATE INDEX IF NOT EXISTS district_statistics_no2_mean_idx
 
 CREATE INDEX IF NOT EXISTS district_statistics_pollution_score_idx
   ON district_statistics (year, pollution_score);
+;

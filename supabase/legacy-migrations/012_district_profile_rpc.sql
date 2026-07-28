@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Migration 012: RPC functions for efficient per-district data access
 -- All functions use SECURITY DEFINER so anon key can call them (bypasses RLS on behalf of service role).
 -- Created: 2026-05-29

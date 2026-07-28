@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Migration 010: water_area_rai generated column + RLS hardening + FK constraint
 -- Created: 2026-05-29
 

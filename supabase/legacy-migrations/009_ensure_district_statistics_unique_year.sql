@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Ensure district_statistics can be safely upserted by district/year.
 
 DO $$

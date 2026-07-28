@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Add Land Surface Temperature (LST) columns to district_statistics
 -- Safe to run multiple times.
 

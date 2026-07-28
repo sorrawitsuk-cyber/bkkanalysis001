@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- ============================================================
 -- Remove Traffy Fondue data from Supabase.
 -- Traffy data has been migrated to Google BigQuery.

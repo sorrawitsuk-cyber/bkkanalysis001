@@ -212,7 +212,7 @@ Schema เป้าหมาย:
 
 ## 9. Implementation checkpoint
 
-สถานะ ณ 26 กรกฎาคม 2026:
+สถานะ ณ 28 กรกฎาคม 2026:
 
 - `config/observatory/registry.json` เป็นทะเบียนกลางของ 11 แหล่งข้อมูลและ
   7 ผลิตภัณฑ์วิเคราะห์
@@ -227,8 +227,13 @@ Schema เป้าหมาย:
   ไม่มี Placemark/Polygon อยู่ภายใน แต่เป็น NetworkLink ไปยัง WMS ผ่าน HTTP
   จึงบันทึกเฉพาะ checksum และรายงานตรวจรับ โดยไม่เก็บ source KML และไม่ promote
   เป็น runtime geometry
-- `supabase/migrations/015_observatory_v2_core.sql` สร้าง schema long-form,
+- `supabase/migrations/20260728023000_observatory_v2_core.sql` สร้าง schema long-form,
   lineage, raster asset, quality flag และ RLS แบบ fail-closed
+- Supabase project `bkkanalysis001` ถูก restore, link กับ CLI และ apply migration แล้ว
+  โดย registry version `2026.07.26-2` ถูกซิงก์ครบ 11 datasets, 7 products และ
+  11 product-source relations โดยไม่มีการลบหรือ promote สถานะ
+- public anon/RLS อ่านได้เฉพาะสถานะ `validated` ซึ่งปัจจุบันยังเป็น 0 datasets /
+  0 products และไม่สามารถอ่าน internal quality flags ได้
 - `/api/v1/catalog` และ `/api/v1/status` เปิดเผย registry readiness
   โดยไม่อ้างว่าเป็น live source health
 - `/api/v1/observations` ไม่เผยแพร่ผลจาก legacy bridge

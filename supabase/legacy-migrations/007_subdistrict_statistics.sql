@@ -1,3 +1,4 @@
+-- Legacy migration retained for audit; not part of linked CLI history.
 -- Sub-district (แขวง) statistics table — mirrors district_statistics at finer granularity.
 -- Safe to run multiple times.
 

@@ -1,4 +1,5 @@
 -- Bangkok Urban Earth Observatory v2
+-- Canonical linked-project migration: 2026-07-28 02:30 UTC.
 -- Long-form, versioned evidence model. This migration does not copy legacy
 -- district_statistics values and does not publish provisional data.
 
@@ -418,9 +419,6 @@ CREATE POLICY "public read accepted observatory assets"
   );
 
 DROP POLICY IF EXISTS "public read unresolved observatory quality flags" ON observatory_quality_flags;
-CREATE POLICY "public read unresolved observatory quality flags"
-  ON observatory_quality_flags FOR SELECT TO anon, authenticated
-  USING (resolved_at IS NULL);
 
 GRANT SELECT ON
   observatory_datasets,
@@ -431,13 +429,16 @@ GRANT SELECT ON
   observatory_processing_runs,
   observatory_processing_run_inputs,
   observatory_observations,
-  observatory_raster_assets,
-  observatory_quality_flags
+  observatory_raster_assets
 TO anon, authenticated;
+
+REVOKE ALL ON observatory_quality_flags FROM anon, authenticated;
 
 COMMENT ON TABLE observatory_observations IS
   'Long-form published observations. Public reads require validated product, data sources, run, coverage and QA status.';
 COMMENT ON TABLE observatory_raster_assets IS
   'Immutable derived raster references such as COG, PMTiles or STAC items, addressed by checksum.';
+COMMENT ON TABLE observatory_quality_flags IS
+  'Internal QA findings. No public grant is provided until target-aware disclosure rules are defined.';
 COMMENT ON COLUMN observatory_areas.boundary_dataset_version_id IS
   'Exact accepted source snapshot used to construct this boundary version.';
