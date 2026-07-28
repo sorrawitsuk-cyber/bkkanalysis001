@@ -150,6 +150,12 @@ const verificationQueries = await Promise.all([
   supabase
     .from("observatory_product_datasets")
     .select("product_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_dataset_versions")
+    .select("dataset_version_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_areas")
+    .select("area_code", { count: "exact", head: true }),
 ]);
 
 for (const result of verificationQueries) {
@@ -166,6 +172,8 @@ console.log(
         datasets: verificationQueries[0].count,
         products: verificationQueries[1].count,
         productDatasets: verificationQueries[2].count,
+        datasetVersions: verificationQueries[3].count,
+        areas: verificationQueries[4].count,
       },
       result: "registry-synced",
       note: "No status was promoted and no row was deleted.",

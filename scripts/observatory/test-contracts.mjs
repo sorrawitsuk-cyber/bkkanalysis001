@@ -43,21 +43,38 @@ assert.equal(areas.features.length, 50);
 
 assert.equal(
   boundaryReport.reportSchemaVersion,
-  "observatory-boundary-intake/v1",
+  "observatory-boundary-intake/v2",
 );
 assert.equal(boundaryReport.datasetId, "bma-district-boundaries");
-assert.equal(boundaryReport.resourceId, "bma-district-kml");
-assert.match(boundaryReport.snapshot.checksumSha256, /^[a-f0-9]{64}$/);
-assert.equal(boundaryReport.snapshot.sourcePersisted, false);
+assert.equal(boundaryReport.resourceId, "bma-district-gml");
+assert.equal(boundaryReport.source.mode, "remote");
+assert.equal(boundaryReport.source.httpStatus, 200);
+assert.match(boundaryReport.source.checksumSha256, /^[a-f0-9]{64}$/);
+assert.equal(boundaryReport.source.sourcePersisted, false);
+assert.equal(boundaryReport.schemaInspection.featureMemberCount, 50);
+assert.equal(boundaryReport.schemaInspection.parsedFeatureCount, 50);
+assert.equal(boundaryReport.geometryQa.status, "passed");
+assert.equal(boundaryReport.geometryQa.uniqueDistrictCodeCount, 50);
+assert.equal(boundaryReport.geometryQa.uniqueAreaCodeCount, 50);
+assert.deepEqual(boundaryReport.geometryQa.invalidGeometryAreaCodes, []);
+assert.equal(boundaryReport.geometryQa.boundsWithinBangkok, true);
+assert.equal(boundaryReport.geometryQa.overlapAreaEstimateSquareMeters, 0);
 assert.equal(boundaryReport.acceptance.status, "blocked");
+assert.equal(boundaryReport.acceptance.geometryAccepted, true);
+assert.equal(boundaryReport.acceptance.licenseAccepted, false);
 assert.equal(boundaryReport.acceptance.promotedToRuntime, false);
-assert.equal(boundaryReport.kmlInspection.placemarkCount, 0);
-assert.equal(boundaryReport.kmlInspection.embeddedGeometryCount, 0);
-assert.equal(boundaryReport.kmlInspection.networkLinkCount, 1);
-assert.ok(
-  boundaryReport.kmlInspection.networkLinkProtocols.includes("http:"),
-  "current BMA KML delegates to a non-HTTPS NetworkLink and must stay blocked",
+assert.equal(boundaryReport.acceptance.seededToSupabase, false);
+
+const officialBoundaryDataset = registry.datasets.find(
+  (dataset) => dataset.id === "bma-district-boundaries",
 );
+const officialBoundaryResourceIds = new Set(
+  officialBoundaryDataset.resources.map((resource) => resource.id),
+);
+assert.ok(officialBoundaryResourceIds.has("bma-district-shapefile"));
+assert.ok(officialBoundaryResourceIds.has("bma-district-gml"));
+assert.equal(officialBoundaryDataset.license.status, "unverified");
+assert.equal(officialBoundaryDataset.license.redistribution, "pending");
 
 const allowedAreaProperties = [
   "areaCode",

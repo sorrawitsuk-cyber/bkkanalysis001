@@ -1,0 +1,40 @@
+{
+  "reportSchemaVersion": "observatory-boundary-intake/v1",
+  "registryVersion": "2026.07.28-1",
+  "datasetId": "bma-district-boundaries",
+  "resourceId": "bma-district-kml",
+  "sourceUrl": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/0f40f9b4-617b-46a9-8806-f590da610954/download/district.kml",
+  "retrievedAt": "2026-07-28T06:02:13.723Z",
+  "http": {
+    "status": 200,
+    "finalUrl": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/0f40f9b4-617b-46a9-8806-f590da610954/download/district.kml",
+    "contentType": "application/vnd.google-earth.kml+xml",
+    "contentLengthBytes": 1837
+  },
+  "snapshot": {
+    "checksumSha256": "ef467739e057637e6823caa90cbb0890c4793a662ba3f747118d42fc386c8df1",
+    "sourcePersisted": false
+  },
+  "kmlInspection": {
+    "placemarkCount": 0,
+    "embeddedGeometryCount": 0,
+    "networkLinkCount": 1,
+    "networkLinkProtocols": [
+      "http:"
+    ],
+    "networkLinkHosts": [
+      "gid.bangkok.go.th:8090"
+    ]
+  },
+  "acceptance": {
+    "status": "blocked",
+    "blockers": [
+      "expected 50 embedded placemarks, received 0",
+      "resource does not contain embedded Polygon or MultiGeometry elements",
+      "resource delegates geometry through 1 NetworkLink element(s)",
+      "NetworkLink uses non-HTTPS protocol: http:",
+      "license and redistribution permission are not verified"
+    ],
+    "promotedToRuntime": false
+  }
+}

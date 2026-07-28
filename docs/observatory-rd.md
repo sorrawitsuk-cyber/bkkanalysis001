@@ -223,14 +223,16 @@ Schema เป้าหมาย:
 - runtime boundary ยังเป็น third-party provisional geometry
   ส่วนไฟล์ 50 เขตจาก BMA ถูกบันทึกเป็น candidate และยังไม่ publish
   เพราะ resource ระบุ license ไม่ชัดเจน
-- boundary intake วันที่ 26 กรกฎาคม 2026 พบว่า KML ทางการขนาด 1,837 bytes
-  ไม่มี Placemark/Polygon อยู่ภายใน แต่เป็น NetworkLink ไปยัง WMS ผ่าน HTTP
-  จึงบันทึกเฉพาะ checksum และรายงานตรวจรับ โดยไม่เก็บ source KML และไม่ promote
-  เป็น runtime geometry
+- boundary intake วันที่ 28 กรกฎาคม 2026 พบ static ZIP/Shapefile และ GML
+  ในชุดข้อมูลทางการเดียวกับ KML เดิม โดย GML มี 50 เขต รหัส 1001–1050,
+  CRS EPSG:32647, geometry valid, ไม่พบ overlap และพื้นที่เทียบกับ `AREA`
+  ต่างสูงสุดประมาณ 0.000234% แต่ metadata ยังระบุ `License not specified`
+  จึงบันทึกเฉพาะ URL, retrievedAt, checksum และ aggregate QA โดยไม่เก็บ source,
+  ไม่ seed ลง Supabase และไม่ promote เป็น runtime geometry
 - `supabase/migrations/20260728023000_observatory_v2_core.sql` สร้าง schema long-form,
   lineage, raster asset, quality flag และ RLS แบบ fail-closed
 - Supabase project `bkkanalysis001` ถูก restore, link กับ CLI และ apply migration แล้ว
-  โดย registry version `2026.07.26-2` ถูกซิงก์ครบ 11 datasets, 7 products และ
+  โดย registry version `2026.07.28-1` ถูกซิงก์ครบ 11 datasets, 7 products และ
   11 product-source relations โดยไม่มีการลบหรือ promote สถานะ
 - public anon/RLS อ่านได้เฉพาะสถานะ `validated` ซึ่งปัจจุบันยังเป็น 0 datasets /
   0 products และไม่สามารถอ่าน internal quality flags ได้
@@ -246,9 +248,9 @@ Schema เป้าหมาย:
 
 งานข้อมูลลำดับถัดไป:
 
-1. ขอ static KML/Shapefile/GeoPackage ทางการที่ฝัง geometry และใช้ HTTPS
-2. ยืนยันสิทธิการใช้ซ้ำและการเผยแพร่ geometry
-3. snapshot source, แปลง CRS, validate topology, เทียบพื้นที่/ชื่อ/รหัส และบันทึก checksum
-4. seed canonical city/district/subdistrict areas จาก dataset version ที่ผ่านตรวจรับ
+1. ขอคำยืนยันสิทธิการแปลง ใช้ซ้ำ และเผยแพร่ geometry พร้อมข้อความ attribution
+2. ขอ version/date และ stable HTTPS snapshot URL จากกรุงเทพมหานคร
+3. เมื่อ license gate ผ่าน จึงเก็บ source snapshot และสร้าง dataset version
+4. สร้าง canonical geometry แล้ว seed city/district/subdistrict areas
 5. สร้าง offline Landsat/Sentinel recipes พร้อม golden fixtures และ QA report
 6. publish COG/PMTiles และ long-form observations เฉพาะ processing run ที่ผ่าน gate

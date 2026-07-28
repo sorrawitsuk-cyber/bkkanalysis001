@@ -7,7 +7,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const REGISTRY_PATH = resolve(ROOT, "config/observatory/registry.json");
 const REPORT_PATH = resolve(
   ROOT,
-  "reports/observatory/bma-boundary-intake.json",
+  "reports/observatory/bma-boundary-kml-inspection.json",
 );
 
 const registry = JSON.parse(await readFile(REGISTRY_PATH, "utf8"));

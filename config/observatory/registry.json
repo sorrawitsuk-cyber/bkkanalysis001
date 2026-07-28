@@ -1,7 +1,7 @@
 {
   "schemaVersion": "observatory-registry/v1",
-  "registryVersion": "2026.07.26-2",
-  "lastReviewedAt": "2026-07-26",
+  "registryVersion": "2026.07.28-1",
+  "lastReviewedAt": "2026-07-28",
   "scope": {
     "city": "Bangkok",
     "country": "Thailand",
@@ -95,6 +95,16 @@
           "id": "bma-district-kml",
           "format": "KML",
           "url": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/0f40f9b4-617b-46a9-8806-f590da610954/download/district.kml"
+        },
+        {
+          "id": "bma-district-shapefile",
+          "format": "ZIP/Shapefile",
+          "url": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/d7be7e84-9d84-4595-bf8f-79b0bc01f1ae/download/district-2.zip"
+        },
+        {
+          "id": "bma-district-gml",
+          "format": "GML",
+          "url": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/c31ccc0f-c592-46b3-b616-716b20396c60/download/district.gml"
         }
       ],
       "license": {
@@ -105,12 +115,11 @@
       },
       "acceptance": {
         "status": "acceptance",
-        "checkedAt": null,
+        "checkedAt": "2026-07-28",
         "blockers": [
-          "ต้องขอหรือยืนยันเงื่อนไขการนำกลับมาเผยแพร่",
-          "KML ที่ดาวน์โหลดเป็น NetworkLink ไปยัง WMS ไม่ได้ฝัง geometry 50 เขต",
-          "NetworkLink อ้าง endpoint แบบ HTTP จึงยังไม่ใช่ immutable source snapshot",
-          "ต้องหา export ที่บันทึก checksum และตรวจ CRS, topology, feature count และรหัสเขตได้"
+          "metadata ระบุ License not specified จึงยังห้ามนำ source หรือ geometry ที่แปลงแล้วไปเผยแพร่ซ้ำ",
+          "ต้องได้รับคำยืนยันสิทธิ์ใช้ซ้ำและ attribution จากกรุงเทพมหานคร",
+          "resource ไม่ระบุวันที่ปรับปรุงหรือ version ของ geometry จึงต้องอ้างอิงด้วย URL, retrievedAt และ SHA-256"
         ]
       }
     },

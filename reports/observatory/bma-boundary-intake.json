@@ -1,40 +1,99 @@
 {
-  "reportSchemaVersion": "observatory-boundary-intake/v1",
-  "registryVersion": "2026.07.26-2",
+  "reportSchemaVersion": "observatory-boundary-intake/v2",
+  "registryVersion": "2026.07.28-1",
   "datasetId": "bma-district-boundaries",
-  "resourceId": "bma-district-kml",
-  "sourceUrl": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/0f40f9b4-617b-46a9-8806-f590da610954/download/district.kml",
-  "retrievedAt": "2026-07-26T15:03:02.598Z",
-  "http": {
-    "status": 200,
-    "finalUrl": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/0f40f9b4-617b-46a9-8806-f590da610954/download/district.kml",
-    "contentType": "application/vnd.google-earth.kml+xml",
-    "contentLengthBytes": 1837
+  "resourceId": "bma-district-gml",
+  "sourceUrl": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/c31ccc0f-c592-46b3-b616-716b20396c60/download/district.gml",
+  "retrievedAt": "2026-07-28T06:00:42.310Z",
+  "source": {
+    "mode": "remote",
+    "httpStatus": 200,
+    "finalUrl": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/c31ccc0f-c592-46b3-b616-716b20396c60/download/district.gml",
+    "contentType": "application/gml+xml",
+    "contentLengthBytes": 2722948,
+    "checksumSha256": "4aa2e8d1c9d17d45808fc92984dbebd4ff7093e9e1c4c391d4bf22f52bf3eef2",
+    "sourcePersisted": false,
+    "sourcePersistenceReason": "License and redistribution permission are not verified."
   },
-  "snapshot": {
-    "checksumSha256": "ef467739e057637e6823caa90cbb0890c4793a662ba3f747118d42fc386c8df1",
-    "sourcePersisted": false
-  },
-  "kmlInspection": {
-    "placemarkCount": 0,
-    "embeddedGeometryCount": 0,
-    "networkLinkCount": 1,
-    "networkLinkProtocols": [
-      "http:"
+  "schemaInspection": {
+    "featureMemberCount": 50,
+    "parsedFeatureCount": 50,
+    "sourceCrsValues": [
+      "http://www.opengis.net/gml/srs/epsg.xml#32647"
     ],
-    "networkLinkHosts": [
-      "gid.bangkok.go.th:8090"
+    "sourceFieldsObserved": [
+      "the_geom",
+      "OBJECTID",
+      "AREA",
+      "dcode",
+      "dname",
+      "dname_e",
+      "pcode",
+      "pname",
+      "num_male",
+      "num_female",
+      "num_school",
+      "num_hos",
+      "num_comm",
+      "num_temple",
+      "num_health"
+    ],
+    "acceptedOutputProperties": [
+      "areaCode",
+      "officialDistrictCode",
+      "nameTh",
+      "nameEn",
+      "level"
+    ],
+    "excludedSourceProperties": [
+      "OBJECTID",
+      "AREA",
+      "pcode",
+      "pname",
+      "num_male",
+      "num_female",
+      "num_school",
+      "num_hos",
+      "num_comm",
+      "num_temple",
+      "num_health"
     ]
+  },
+  "geometryQa": {
+    "status": "passed",
+    "expectedDistrictCodes": "1001-1050",
+    "uniqueDistrictCodeCount": 50,
+    "uniqueAreaCodeCount": 50,
+    "uniqueThaiNameCount": 50,
+    "uniqueEnglishNameCount": 50,
+    "invalidGeometryAreaCodes": [],
+    "transformedCrs": "EPSG:4326",
+    "bounds": [
+      100.32792087047004,
+      13.493818984605955,
+      100.93850886431825,
+      13.954595768278812
+    ],
+    "boundsWithinBangkok": true,
+    "sourceAreaTolerance": 0.001,
+    "maxSourceAreaRelativeDelta": 0.0000023400462581582756,
+    "meanSourceAreaRelativeDelta": 0.000002190800972843518,
+    "totalFeatureAreaSquareMeters": 1589213495.335447,
+    "unionAreaSquareMeters": 1589213495.3355868,
+    "overlapAreaEstimateSquareMeters": 0,
+    "unionGeometryType": "Polygon",
+    "parsingErrors": [],
+    "blockers": []
   },
   "acceptance": {
     "status": "blocked",
+    "geometryAccepted": true,
+    "licenseAccepted": false,
     "blockers": [
-      "expected 50 embedded placemarks, received 0",
-      "resource does not contain embedded Polygon or MultiGeometry elements",
-      "resource delegates geometry through 1 NetworkLink element(s)",
-      "NetworkLink uses non-HTTPS protocol: http:",
-      "license and redistribution permission are not verified"
+      "dataset metadata says License not specified; reuse terms are not verified",
+      "redistribution permission for source and derived geometry is not verified"
     ],
-    "promotedToRuntime": false
+    "promotedToRuntime": false,
+    "seededToSupabase": false
   }
 }
