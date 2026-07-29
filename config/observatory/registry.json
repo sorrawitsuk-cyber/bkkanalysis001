@@ -206,7 +206,7 @@
         "name": "Copernicus Sentinel Data Legal Notice",
         "url": "https://dataspace.copernicus.eu/terms-and-conditions",
         "redistribution": "allowed",
-        "attributionTemplate": "Contains modified Copernicus Sentinel data 2025–2026"
+        "attributionTemplate": "Contains modified Copernicus Sentinel data 2024–2026"
       },
       "acceptance": {
         "status": "validated",
@@ -499,7 +499,26 @@
         "fieldQaReportPath": "reports/observatory/ndvi-2025-field-qa.json",
         "fieldQaStatus": "preflight-passed",
         "exhaustiveQaReportPath": "reports/observatory/ndvi-2025-exhaustive-qa.json",
-        "exhaustiveQaStatus": "passed-research-envelope"
+        "exhaustiveQaStatus": "passed-research-envelope",
+        "researchPreview": {
+          "status": "available",
+          "reportPath": "reports/observatory/ndvi-2024-2025-district-research.json",
+          "processingRunId": "91ede1d6-7dda-5aec-8bc2-582cefa60a21",
+          "resultChecksumSha256": "503953bb20fd9985e782c18155398f97c6e4999ca70642e3429085451970935b",
+          "sourceManifestChecksumSha256": "ebfea6058a2d5b3e7c0c8c944adbcbc42a07cb142b3446ccab60b67e58f061a1",
+          "boundaryResultChecksumSha256": "8bf2df430077d9c89ed8eed13d7a3cdfa18b502cd7ea1e8475590e27001bf7d2",
+          "analysisYears": [
+            2024,
+            2025
+          ],
+          "seasons": [
+            "hot",
+            "wet",
+            "cool"
+          ],
+          "districtCount": 50,
+          "statisticRowCount": 1200
+        }
       },
       "publishGate": {
         "status": "acceptance",

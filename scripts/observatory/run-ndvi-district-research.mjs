@@ -520,17 +520,13 @@ async function processPeriod(period, sceneIds) {
   const composite = ndviCollection.median().rename("NDVI");
   const validMask = composite.mask().rename("valid");
   const pixelArea = ee.Image.pixelArea();
-  const metricImage = pixelArea
-    .rename("total_area")
-    .addBands(
-      pixelArea.updateMask(validMask).rename("valid_area"),
-    )
-    .addBands(
-      ndviCollection
-        .count()
-        .unmask(0)
-        .rename("valid_observation_count"),
-    );
+  const validAreaImage = pixelArea
+    .updateMask(validMask)
+    .rename("valid_area");
+  const validObservationCountImage = ndviCollection
+    .count()
+    .unmask(0)
+    .rename("valid_observation_count");
   const reduceOptions = {
     collection: collectionWithDistrictSceneCount,
     scale: recipe.processing.nativeScaleMeters,
@@ -546,32 +542,53 @@ async function processPeriod(period, sceneIds) {
       ...reduceOptions,
     })
     .map((feature) => feature.setGeometry(null));
-  const metricFeatures = metricImage
+  const validAreaFeatures = validAreaImage
     .reduceRegions({
-      reducer: ee.Reducer.sum()
-        .repeat(3)
-        .setOutputs([
-          "total_area_square_meters",
-          "valid_area_square_meters",
-          "valid_observation_count",
-        ]),
+      reducer: ee.Reducer.sum().setOutputs([
+        "valid_area_square_meters",
+      ]),
       ...reduceOptions,
     })
     .map((feature) => feature.setGeometry(null));
-  const [percentileRaw, metricRaw] = await Promise.all([
-    evaluate(percentileFeatures),
-    evaluate(metricFeatures),
-  ]);
-  const metricsByArea = new Map(
-    metricRaw.features.map((feature) => [
+  const observationCountFeatures = validObservationCountImage
+    .reduceRegions({
+      reducer: ee.Reducer.sum().setOutputs([
+        "valid_observation_count",
+      ]),
+      ...reduceOptions,
+    })
+    .map((feature) => feature.setGeometry(null));
+  const label = `${period.analysisYear}/${period.seasonId}`;
+  const percentileRaw = await evaluateWithRetry(
+    percentileFeatures,
+    `${label}/percentiles`,
+  );
+  const validAreaRaw = await evaluateWithRetry(
+    validAreaFeatures,
+    `${label}/valid-area`,
+  );
+  const observationCountRaw = await evaluateWithRetry(
+    observationCountFeatures,
+    `${label}/observation-count`,
+  );
+  const validAreaByArea = new Map(
+    validAreaRaw.features.map((feature) => [
+      feature.properties.area_code,
+      feature.properties,
+    ]),
+  );
+  const observationCountByArea = new Map(
+    observationCountRaw.features.map((feature) => [
       feature.properties.area_code,
       feature.properties,
     ]),
   );
   const results = percentileRaw.features.map((feature) => {
     const properties = feature.properties;
-    const metrics = metricsByArea.get(properties.area_code);
-    if (!metrics) {
+    const validArea = validAreaByArea.get(properties.area_code);
+    const observationCount =
+      observationCountByArea.get(properties.area_code);
+    if (!validArea || !observationCount) {
       throw new Error(
         `Missing area metrics for ${properties.area_code}`,
       );
@@ -585,12 +602,12 @@ async function processPeriod(period, sceneIds) {
       ),
     };
     const validCoverage = round(
-      metrics.valid_area_square_meters
-      / metrics.total_area_square_meters,
+      validArea.valid_area_square_meters
+      / properties.area_square_meters,
     );
     const sceneCount = Number(properties.scene_count);
     const validObservationCount = Math.round(
-      metrics.valid_observation_count,
+      observationCount.valid_observation_count,
     );
     const blockers = [];
     if (validCoverage < recipe.quality.minValidCoverage) {
@@ -642,11 +659,11 @@ async function processPeriod(period, sceneIds) {
         `${period.endExclusive}T00:00:00.000Z`,
       sceneCount,
       totalAreaSquareMeters: round(
-        metrics.total_area_square_meters,
+        properties.area_square_meters,
         3,
       ),
       validAreaSquareMeters: round(
-        metrics.valid_area_square_meters,
+        validArea.valid_area_square_meters,
         3,
       ),
       validCoverage,
@@ -1149,8 +1166,45 @@ function initializeEarthEngine() {
 
 function evaluate(computedObject) {
   return new Promise((resolvePromise, rejectPromise) => {
-    computedObject.evaluate(resolvePromise, rejectPromise);
+    computedObject.evaluate((value, error) => {
+      if (error) {
+        rejectPromise(
+          error instanceof Error
+            ? error
+            : new Error(String(error)),
+        );
+        return;
+      }
+      resolvePromise(value);
+    });
   });
+}
+
+async function evaluateWithRetry(
+  computedObject,
+  label,
+  maxAttempts = 3,
+) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await evaluate(computedObject);
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxAttempts) {
+        break;
+      }
+      const delayMs = attempt * 5_000;
+      console.warn(
+        `${label}: Earth Engine attempt ${attempt} failed; `
+        + `retrying in ${delayMs / 1_000}s`,
+      );
+      await new Promise((resolvePromise) => {
+        setTimeout(resolvePromise, delayMs);
+      });
+    }
+  }
+  throw lastError;
 }
 
 function createServiceClient() {

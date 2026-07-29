@@ -47,7 +47,10 @@ const [
     .select("dataset_id", { count: "exact", head: true }),
   supabase
     .from("observatory_dataset_versions")
-    .select("dataset_version_id", { count: "exact", head: true }),
+    .select(
+      "dataset_version_id,dataset_id,acceptance_status",
+      { count: "exact" },
+    ),
   supabase
     .from("observatory_products")
     .select("product_id", { count: "exact", head: true }),
@@ -103,7 +106,18 @@ const expectedPublicProductCount = registry.products.filter((product) =>
     product.publishGate.status,
   ),
 ).length;
-const expectedPublicDatasetVersionCount = 1;
+const expectedPublicDatasetIds = new Set(
+  registry.datasets
+    .filter((dataset) =>
+      registry.publicationPolicy.publicDatasetStatuses.includes(
+        dataset.acceptance.status,
+      ),
+    )
+    .map((dataset) => dataset.id),
+);
+const observedPublicDatasetIds = new Set(
+  datasetVersions.data.map((version) => version.dataset_id),
+);
 
 if (datasets.count !== expectedPublicDatasetCount) {
   throw new Error(
@@ -116,9 +130,19 @@ if (products.count !== expectedPublicProductCount) {
     `Public product count mismatch: expected ${expectedPublicProductCount}, received ${products.count}.`,
   );
 }
-if (datasetVersions.count !== expectedPublicDatasetVersionCount) {
+if (
+  datasetVersions.count < expectedPublicDatasetIds.size
+  || [...expectedPublicDatasetIds].some(
+    (datasetId) => !observedPublicDatasetIds.has(datasetId),
+  )
+  || datasetVersions.data.some(
+    (version) =>
+      !expectedPublicDatasetIds.has(version.dataset_id)
+      || version.acceptance_status !== "validated",
+  )
+) {
   throw new Error(
-    `Public dataset version count mismatch: expected ${expectedPublicDatasetVersionCount}, received ${datasetVersions.count}.`,
+    "Public dataset versions include an unregistered or unvalidated row.",
   );
 }
 for (const [name, result] of [
