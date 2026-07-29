@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { evaluateBoundaryAuthorization } from "./lib/boundary-authorization.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -18,6 +19,9 @@ const [
   observationsSource,
   migrationSource,
   tileMigrationSource,
+  boundaryAuthorizationRaw,
+  authorizationMigrationSource,
+  authorizationRequestSource,
 ] =
   await Promise.all([
     readFile(resolve(ROOT, "config/observatory/registry.json"), "utf8"),
@@ -68,6 +72,27 @@ const [
       ),
       "utf8",
     ),
+    readFile(
+      resolve(
+        ROOT,
+        "config/observatory/authorizations/bma-district-boundaries.json",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "supabase/migrations/20260729043000_observatory_dataset_authorizations.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "docs/requests/bma-district-boundary-reuse-request.md",
+      ),
+      "utf8",
+    ),
   ]);
 
 const registry = JSON.parse(registryRaw);
@@ -78,6 +103,7 @@ const ndviFieldQa = JSON.parse(ndviFieldQaRaw);
 const exhaustiveConfig = JSON.parse(exhaustiveConfigRaw);
 const exhaustivePlan = JSON.parse(exhaustivePlanRaw);
 const exhaustiveQa = JSON.parse(exhaustiveQaRaw);
+const boundaryAuthorization = JSON.parse(boundaryAuthorizationRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -116,6 +142,119 @@ assert.ok(officialBoundaryResourceIds.has("bma-district-shapefile"));
 assert.ok(officialBoundaryResourceIds.has("bma-district-gml"));
 assert.equal(officialBoundaryDataset.license.status, "unverified");
 assert.equal(officialBoundaryDataset.license.redistribution, "pending");
+
+assert.equal(
+  boundaryAuthorization.schemaVersion,
+  "observatory-boundary-authorization/v1",
+);
+assert.equal(
+  boundaryAuthorization.source.datasetId,
+  boundaryReport.datasetId,
+);
+assert.equal(
+  boundaryAuthorization.source.resourceId,
+  boundaryReport.resourceId,
+);
+assert.equal(
+  boundaryAuthorization.source.checksumSha256,
+  boundaryReport.source.checksumSha256,
+);
+assert.equal(boundaryAuthorization.decisionStatus, "pending");
+assert.equal(boundaryAuthorization.gateStatus, "blocked");
+assert.ok(boundaryAuthorization.blockers.length >= 1);
+assert.ok(
+  Object.values(boundaryAuthorization.permissions).every(
+    (permission) => permission === null,
+  ),
+);
+assert.equal(boundaryAuthorization.evidence.artifactReference, null);
+assert.equal(boundaryAuthorization.evidence.artifactChecksumSha256, null);
+const pendingAuthorizationEvaluation = evaluateBoundaryAuthorization(
+  boundaryAuthorization,
+  { registry, boundaryReport },
+);
+assert.equal(pendingAuthorizationEvaluation.validContract, true);
+assert.equal(pendingAuthorizationEvaluation.gateOpen, false);
+
+const approvedAuthorizationFixture = structuredClone(boundaryAuthorization);
+approvedAuthorizationFixture.decisionStatus = "approved";
+approvedAuthorizationFixture.gateStatus = "open";
+approvedAuthorizationFixture.authority.responseSignerName = "Authorized officer";
+approvedAuthorizationFixture.authority.responseSignerRole = "Data custodian";
+approvedAuthorizationFixture.request.sentAt = "2026-07-29T08:00:00.000Z";
+approvedAuthorizationFixture.request.externalReference = "BMA-REPLY-2026-001";
+approvedAuthorizationFixture.evidence = {
+  artifactReference: "restricted://bma-replies/BMA-REPLY-2026-001",
+  artifactChecksumSha256:
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  issuedAt: "2026-07-29T09:00:00.000Z",
+  receivedAt: "2026-07-29T09:01:00.000Z",
+  verifiedAt: "2026-07-29T10:00:00.000Z",
+  verifiedBy: "Observatory evidence reviewer",
+};
+approvedAuthorizationFixture.permissions = {
+  useForAnalysis: true,
+  transformGeometry: true,
+  retainSourceSnapshotPrivately: true,
+  redistributeSourceGeometry: false,
+  redistributeDerivedGeometry: true,
+  publishDerivedTiles: true,
+  publishDistrictStatistics: true,
+};
+approvedAuthorizationFixture.terms = {
+  licenseName: "Written BMA permission",
+  termsUrl: null,
+  attributionText: "Boundary data: Bangkok Metropolitan Administration",
+  authoritativeVersionLabel: "BMA-50-districts-2026-07",
+  updateCadence: "Confirm with BMA before each annual refresh",
+};
+approvedAuthorizationFixture.blockers = [];
+
+const approvedRegistryFixture = structuredClone(registry);
+const approvedBoundaryDataset = approvedRegistryFixture.datasets.find(
+  (dataset) => dataset.id === "bma-district-boundaries",
+);
+approvedBoundaryDataset.license.status = "verified";
+approvedBoundaryDataset.license.redistribution = "allowed";
+approvedBoundaryDataset.license.attributionTemplate =
+  approvedAuthorizationFixture.terms.attributionText;
+approvedBoundaryDataset.acceptance.status = "validated";
+approvedBoundaryDataset.acceptance.blockers = [];
+const approvedAuthorizationEvaluation = evaluateBoundaryAuthorization(
+  approvedAuthorizationFixture,
+  { registry: approvedRegistryFixture, boundaryReport },
+);
+assert.equal(approvedAuthorizationEvaluation.validContract, true);
+assert.equal(approvedAuthorizationEvaluation.gateOpen, true);
+
+const deniedPublicationFixture = structuredClone(
+  approvedAuthorizationFixture,
+);
+deniedPublicationFixture.permissions.publishDistrictStatistics = false;
+const deniedPublicationEvaluation = evaluateBoundaryAuthorization(
+  deniedPublicationFixture,
+  { registry: approvedRegistryFixture, boundaryReport },
+);
+assert.equal(deniedPublicationEvaluation.validContract, false);
+assert.equal(deniedPublicationEvaluation.gateOpen, false);
+assert.ok(
+  deniedPublicationEvaluation.approvalErrors.includes(
+    "permissions.publishDistrictStatistics must be true",
+  ),
+);
+assert.ok(
+  deniedPublicationEvaluation.contractErrors.includes(
+    "registry dataset cannot be validated while authorization gate is closed",
+  ),
+);
+assert.match(
+  authorizationRequestSource,
+  /License not specified/,
+);
+assert.match(
+  authorizationRequestSource,
+  new RegExp(boundaryReport.source.checksumSha256),
+);
 
 const sentinelDataset = registry.datasets.find(
   (dataset) => dataset.id === "sentinel-2-l2a",
@@ -403,6 +542,27 @@ assert.doesNotMatch(
   /CREATE POLICY[\s\S]*observatory_processing_tiles/,
   "tile checkpoints must not have a public RLS policy",
 );
+assert.match(
+  authorizationMigrationSource,
+  /CREATE TABLE IF NOT EXISTS observatory_dataset_authorizations/,
+);
+assert.match(
+  authorizationMigrationSource,
+  /ALTER TABLE observatory_dataset_authorizations ENABLE ROW LEVEL SECURITY/,
+);
+assert.match(
+  authorizationMigrationSource,
+  /REVOKE ALL ON observatory_dataset_authorizations FROM anon, authenticated/,
+);
+assert.match(
+  authorizationMigrationSource,
+  /TO service_role/,
+);
+assert.doesNotMatch(
+  authorizationMigrationSource,
+  /CREATE POLICY[\s\S]*observatory_dataset_authorizations/,
+  "authorization evidence must not have a public RLS policy",
+);
 
 const requiredTables = [
   "observatory_datasets",
@@ -446,6 +606,7 @@ console.log(JSON.stringify({
   ndviFieldPreflightStatus: ndviFieldQa.qa.fieldQaStatus,
   exhaustiveTileJobs: exhaustivePlan.jobs.length,
   exhaustiveQaStatus: exhaustiveQa.qa.status,
+  boundaryAuthorizationStatus: boundaryAuthorization.decisionStatus,
 }));
 
 function assertTilesPartitionBounds(tiles, expectedBounds) {

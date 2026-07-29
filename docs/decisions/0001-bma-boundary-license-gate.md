@@ -49,3 +49,6 @@ Request written confirmation from Bangkok Metropolitan Administration covering:
 
 The dataset resource page lists `saraban.sed.gis@bangkok.go.th` as a contact
 channel.
+
+Decision 0005 defines the machine-verifiable authorization record, restricted
+Supabase storage and fail-closed approval command used to resolve this gate.

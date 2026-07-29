@@ -2,9 +2,18 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { evaluateBoundaryAuthorization } from "./lib/boundary-authorization.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const REGISTRY_PATH = resolve(ROOT, "config/observatory/registry.json");
+const BOUNDARY_AUTHORIZATION_PATH = resolve(
+  ROOT,
+  "config/observatory/authorizations/bma-district-boundaries.json",
+);
+const BOUNDARY_REPORT_PATH = resolve(
+  ROOT,
+  "reports/observatory/bma-boundary-intake.json",
+);
 const VALID_STATUSES = new Set([
   "provisional",
   "acceptance",
@@ -59,8 +68,23 @@ function requireUniqueIds(items, path) {
   return ids;
 }
 
-const rawRegistry = await readFile(REGISTRY_PATH, "utf8");
+const [rawRegistry, boundaryAuthorizationRaw, boundaryReportRaw] =
+  await Promise.all([
+    readFile(REGISTRY_PATH, "utf8"),
+    readFile(BOUNDARY_AUTHORIZATION_PATH, "utf8"),
+    readFile(BOUNDARY_REPORT_PATH, "utf8"),
+  ]);
 const registry = JSON.parse(rawRegistry);
+const boundaryAuthorization = JSON.parse(boundaryAuthorizationRaw);
+const boundaryReport = JSON.parse(boundaryReportRaw);
+const boundaryAuthorizationEvaluation = evaluateBoundaryAuthorization(
+  boundaryAuthorization,
+  { registry, boundaryReport },
+);
+
+for (const error of boundaryAuthorizationEvaluation.contractErrors) {
+  fail("boundaryAuthorization", error);
+}
 
 if (registry.schemaVersion !== "observatory-registry/v1") {
   fail("schemaVersion", "unsupported registry schema");

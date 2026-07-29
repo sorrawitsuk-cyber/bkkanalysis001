@@ -37,6 +37,7 @@ const [
   rasterAssets,
   processingTiles,
   qualityFlags,
+  datasetAuthorizations,
 ] = await Promise.all([
   supabase
     .from("observatory_datasets")
@@ -62,6 +63,9 @@ const [
   supabase
     .from("observatory_quality_flags")
     .select("quality_flag_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_dataset_authorizations")
+    .select("authorization_id", { count: "exact", head: true }),
 ]);
 
 for (const [name, result] of [
@@ -127,6 +131,11 @@ if (!processingTiles.error) {
     "observatory_processing_tiles unexpectedly allows anonymous reads.",
   );
 }
+if (!datasetAuthorizations.error) {
+  throw new Error(
+    "observatory_dataset_authorizations unexpectedly allows anonymous reads.",
+  );
+}
 
 console.log(
   JSON.stringify(
@@ -140,6 +149,7 @@ console.log(
       publicRasterAssetCount: rasterAssets.count,
       internalTileCheckpointsPubliclyReadable: false,
       internalQualityFlagsPubliclyReadable: false,
+      internalAuthorizationsPubliclyReadable: false,
       serviceRoleUsed: false,
     },
     null,

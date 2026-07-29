@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "observatory-boundary-authorization/v1",
+  "authorizationId": "bma-district-boundaries-2026-review",
+  "decisionStatus": "pending",
+  "gateStatus": "blocked",
+  "authority": {
+    "organization": "Bangkok Metropolitan Administration",
+    "contactChannel": "saraban.sed.gis@bangkok.go.th",
+    "responseSignerName": null,
+    "responseSignerRole": null
+  },
+  "source": {
+    "datasetId": "bma-district-boundaries",
+    "resourceId": "bma-district-gml",
+    "url": "https://data.bangkok.go.th/dataset/e537025b-1cf6-4c5b-8e46-c2e976f13283/resource/c31ccc0f-c592-46b3-b616-716b20396c60/download/district.gml",
+    "checksumSha256": "4aa2e8d1c9d17d45808fc92984dbebd4ff7093e9e1c4c391d4bf22f52bf3eef2",
+    "retrievedAt": "2026-07-28T06:00:42.310Z"
+  },
+  "request": {
+    "documentPath": "docs/requests/bma-district-boundary-reuse-request.md",
+    "preparedAt": "2026-07-29",
+    "sentAt": null,
+    "externalReference": null
+  },
+  "evidence": {
+    "artifactReference": null,
+    "artifactChecksumSha256": null,
+    "issuedAt": null,
+    "receivedAt": null,
+    "verifiedAt": null,
+    "verifiedBy": null
+  },
+  "permissions": {
+    "useForAnalysis": null,
+    "transformGeometry": null,
+    "retainSourceSnapshotPrivately": null,
+    "redistributeSourceGeometry": null,
+    "redistributeDerivedGeometry": null,
+    "publishDerivedTiles": null,
+    "publishDistrictStatistics": null
+  },
+  "terms": {
+    "licenseName": null,
+    "termsUrl": null,
+    "attributionText": null,
+    "authoritativeVersionLabel": null,
+    "updateCadence": null
+  },
+  "blockers": [
+    "written authorization evidence has not been received",
+    "permission to transform and retain the source geometry is not confirmed",
+    "permission to redistribute derived geometry and tiles is not confirmed",
+    "permission to publish district statistics is not confirmed",
+    "required attribution and authoritative version label are not confirmed"
+  ]
+}
