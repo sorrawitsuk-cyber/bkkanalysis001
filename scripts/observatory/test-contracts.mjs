@@ -11,9 +11,12 @@ const [
   boundaryReportRaw,
   sentinelReportRaw,
   ndviFieldQaRaw,
+  exhaustiveConfigRaw,
+  exhaustivePlanRaw,
   catalogSource,
   observationsSource,
   migrationSource,
+  tileMigrationSource,
 ] =
   await Promise.all([
     readFile(resolve(ROOT, "config/observatory/registry.json"), "utf8"),
@@ -33,12 +36,30 @@ const [
       resolve(ROOT, "reports/observatory/ndvi-2025-field-qa.json"),
       "utf8",
     ),
+    readFile(
+      resolve(
+        ROOT,
+        "config/observatory/qa/ndvi-exhaustive-coverage-v1.0.0.json",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(ROOT, "reports/observatory/ndvi-2025-exhaustive-plan.json"),
+      "utf8",
+    ),
     readFile(resolve(ROOT, "src/lib/observatory/catalog.ts"), "utf8"),
     readFile(resolve(ROOT, "src/app/api/v1/observations/route.ts"), "utf8"),
     readFile(
       resolve(
         ROOT,
         "supabase/migrations/20260728023000_observatory_v2_core.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "supabase/migrations/20260729013000_observatory_processing_tiles.sql",
       ),
       "utf8",
     ),
@@ -49,6 +70,8 @@ const areas = JSON.parse(areasRaw);
 const boundaryReport = JSON.parse(boundaryReportRaw);
 const sentinelReport = JSON.parse(sentinelReportRaw);
 const ndviFieldQa = JSON.parse(ndviFieldQaRaw);
+const exhaustiveConfig = JSON.parse(exhaustiveConfigRaw);
+const exhaustivePlan = JSON.parse(exhaustivePlanRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -182,6 +205,62 @@ assert.equal(ndviFieldQa.publication.productPublished, false);
 assert.equal(ndviFieldQa.publication.observationsCreated, false);
 assert.equal(ndviFieldQa.publication.rasterAssetsCreated, false);
 
+assert.equal(
+  exhaustiveConfig.schemaVersion,
+  "observatory-tiled-qa/v1",
+);
+assert.equal(
+  exhaustiveConfig.qaMethodVersion,
+  "ndvi-exhaustive-coverage-v1.0.0",
+);
+assert.equal(exhaustiveConfig.processing.analysisScaleMeters, 10);
+assert.equal(exhaustiveConfig.processing.analysisCrs, "EPSG:32647");
+assert.equal(exhaustiveConfig.retry.maxAttempts, 3);
+assert.equal(exhaustiveConfig.publication.allowsPublicProduct, false);
+assert.equal(exhaustiveConfig.publication.allowsObservations, false);
+assert.equal(exhaustiveConfig.publication.allowsRasterAssets, false);
+
+assert.equal(
+  exhaustivePlan.reportSchemaVersion,
+  "observatory-exhaustive-plan/v1",
+);
+assert.equal(exhaustivePlan.summary.tileCount, 16);
+assert.equal(exhaustivePlan.summary.seasonCount, 3);
+assert.equal(exhaustivePlan.summary.jobCount, 48);
+assert.equal(
+  exhaustivePlan.summary.jobCount,
+  exhaustivePlan.summary.expectedJobCount,
+);
+assert.equal(exhaustivePlan.tiles.length, 16);
+assert.equal(exhaustivePlan.jobs.length, 48);
+assert.match(exhaustivePlan.planChecksumSha256, /^[a-f0-9]{64}$/);
+assert.match(
+  exhaustivePlan.processingRunId,
+  /^[a-f0-9]{8}-[a-f0-9]{4}-5[a-f0-9]{3}-8[a-f0-9]{3}-[a-f0-9]{12}$/,
+);
+assert.equal(exhaustivePlan.publication.productPublished, false);
+assert.equal(exhaustivePlan.publication.observationsCreated, false);
+assert.equal(exhaustivePlan.publication.rasterAssetsCreated, false);
+
+const tileIds = new Set(
+  exhaustivePlan.tiles.map((tile) => tile.tileId),
+);
+const jobIds = new Set(exhaustivePlan.jobs.map((job) => job.jobId));
+assert.equal(tileIds.size, 16);
+assert.equal(jobIds.size, 48);
+for (const job of exhaustivePlan.jobs) {
+  assert.ok(tileIds.has(job.tileId));
+  assert.ok(["hot", "wet", "cool"].includes(job.seasonId));
+  assert.equal(job.bounds.length, 4);
+  assert.ok(job.bounds[0] < job.bounds[2]);
+  assert.ok(job.bounds[1] < job.bounds[3]);
+  assert.equal(job.maxAttempts, 3);
+}
+assertTilesPartitionBounds(
+  exhaustivePlan.tiles,
+  sentinelReport.version.sceneManifest.query.bounds,
+);
+
 const allowedAreaProperties = [
   "areaCode",
   "legacyId",
@@ -241,6 +320,36 @@ assert.doesNotMatch(
   "observation API must not generate or seed fallback values",
 );
 
+assert.match(
+  tileMigrationSource,
+  /CREATE TABLE IF NOT EXISTS observatory_processing_tiles/,
+);
+assert.match(
+  tileMigrationSource,
+  /ALTER TABLE observatory_processing_tiles ENABLE ROW LEVEL SECURITY/,
+);
+assert.match(
+  tileMigrationSource,
+  /REVOKE ALL ON observatory_processing_tiles FROM anon, authenticated/,
+);
+assert.match(
+  tileMigrationSource,
+  /FOR UPDATE SKIP LOCKED/,
+);
+assert.match(
+  tileMigrationSource,
+  /SECURITY DEFINER/,
+);
+assert.match(
+  tileMigrationSource,
+  /TO service_role/,
+);
+assert.doesNotMatch(
+  tileMigrationSource,
+  /CREATE POLICY[\s\S]*observatory_processing_tiles/,
+  "tile checkpoints must not have a public RLS policy",
+);
+
 const requiredTables = [
   "observatory_datasets",
   "observatory_dataset_versions",
@@ -281,4 +390,38 @@ console.log(JSON.stringify({
   officialBoundaryStatus: boundaryReport.acceptance.status,
   sentinelSourceStatus: sentinelReport.acceptance.status,
   ndviFieldPreflightStatus: ndviFieldQa.qa.fieldQaStatus,
+  exhaustiveTileJobs: exhaustivePlan.jobs.length,
 }));
+
+function assertTilesPartitionBounds(tiles, expectedBounds) {
+  const [west, south, east, north] = expectedBounds;
+  const expectedArea = (east - west) * (north - south);
+  const tileArea = tiles.reduce(
+    (sum, tile) =>
+      sum
+      + (tile.bounds[2] - tile.bounds[0])
+        * (tile.bounds[3] - tile.bounds[1]),
+    0,
+  );
+  assert.ok(Math.abs(tileArea - expectedArea) < 1e-12);
+
+  for (let leftIndex = 0; leftIndex < tiles.length; leftIndex += 1) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < tiles.length;
+      rightIndex += 1
+    ) {
+      const left = tiles[leftIndex].bounds;
+      const right = tiles[rightIndex].bounds;
+      const overlapWidth = Math.max(
+        0,
+        Math.min(left[2], right[2]) - Math.max(left[0], right[0]),
+      );
+      const overlapHeight = Math.max(
+        0,
+        Math.min(left[3], right[3]) - Math.max(left[1], right[1]),
+      );
+      assert.equal(overlapWidth * overlapHeight, 0);
+    }
+  }
+}

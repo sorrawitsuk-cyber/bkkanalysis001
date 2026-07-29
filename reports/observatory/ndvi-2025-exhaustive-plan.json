@@ -1,0 +1,895 @@
+{
+  "reportSchemaVersion": "observatory-exhaustive-plan/v1",
+  "createdAt": "2026-07-29T05:11:49.902Z",
+  "processingRunId": "1aef676f-73cc-5206-865c-63084e3f3d07",
+  "planChecksumSha256": "945b64d9dcfc4e72afd18e0fc64fba19d852073b45a9aa7f504d878d99be99d0",
+  "schemaVersion": "observatory-exhaustive-plan/v1",
+  "qaMethodVersion": "ndvi-exhaustive-coverage-v1.0.0",
+  "productId": "vegetation",
+  "productMethodVersion": "ndvi-seasonal-v1.0.0",
+  "analysisYear": 2025,
+  "sourceVersionLabel": "bangkok-seasonal-2025-a17b5d5c2a0b",
+  "sourceManifestChecksumSha256": "a17b5d5c2a0b1950b9173032dfc3a10346c1e5c9e596d5ba88143cd068125c40",
+  "grid": {
+    "rows": 4,
+    "columns": 4,
+    "tileOrder": "season-row-column",
+    "boundsSource": "validated Sentinel-2 Bangkok research envelope"
+  },
+  "processing": {
+    "analysisScaleMeters": 10,
+    "analysisCrs": "EPSG:32647",
+    "tileScale": 8,
+    "maxPixelsPerReducer": 100000000,
+    "statisticsAreTileDiagnosticsOnly": true
+  },
+  "retry": {
+    "maxAttempts": 3,
+    "claimMode": "atomic-skip-locked",
+    "resumePolicy": "preserve succeeded jobs and explicitly requeue failed jobs"
+  },
+  "tiles": [
+    {
+      "tileId": "r00-c00",
+      "row": 0,
+      "column": 0,
+      "bounds": [
+        100.25,
+        13.35,
+        100.4375,
+        13.55
+      ]
+    },
+    {
+      "tileId": "r00-c01",
+      "row": 0,
+      "column": 1,
+      "bounds": [
+        100.4375,
+        13.35,
+        100.625,
+        13.55
+      ]
+    },
+    {
+      "tileId": "r00-c02",
+      "row": 0,
+      "column": 2,
+      "bounds": [
+        100.625,
+        13.35,
+        100.8125,
+        13.55
+      ]
+    },
+    {
+      "tileId": "r00-c03",
+      "row": 0,
+      "column": 3,
+      "bounds": [
+        100.8125,
+        13.35,
+        101,
+        13.55
+      ]
+    },
+    {
+      "tileId": "r01-c00",
+      "row": 1,
+      "column": 0,
+      "bounds": [
+        100.25,
+        13.55,
+        100.4375,
+        13.75
+      ]
+    },
+    {
+      "tileId": "r01-c01",
+      "row": 1,
+      "column": 1,
+      "bounds": [
+        100.4375,
+        13.55,
+        100.625,
+        13.75
+      ]
+    },
+    {
+      "tileId": "r01-c02",
+      "row": 1,
+      "column": 2,
+      "bounds": [
+        100.625,
+        13.55,
+        100.8125,
+        13.75
+      ]
+    },
+    {
+      "tileId": "r01-c03",
+      "row": 1,
+      "column": 3,
+      "bounds": [
+        100.8125,
+        13.55,
+        101,
+        13.75
+      ]
+    },
+    {
+      "tileId": "r02-c00",
+      "row": 2,
+      "column": 0,
+      "bounds": [
+        100.25,
+        13.75,
+        100.4375,
+        13.95
+      ]
+    },
+    {
+      "tileId": "r02-c01",
+      "row": 2,
+      "column": 1,
+      "bounds": [
+        100.4375,
+        13.75,
+        100.625,
+        13.95
+      ]
+    },
+    {
+      "tileId": "r02-c02",
+      "row": 2,
+      "column": 2,
+      "bounds": [
+        100.625,
+        13.75,
+        100.8125,
+        13.95
+      ]
+    },
+    {
+      "tileId": "r02-c03",
+      "row": 2,
+      "column": 3,
+      "bounds": [
+        100.8125,
+        13.75,
+        101,
+        13.95
+      ]
+    },
+    {
+      "tileId": "r03-c00",
+      "row": 3,
+      "column": 0,
+      "bounds": [
+        100.25,
+        13.95,
+        100.4375,
+        14.15
+      ]
+    },
+    {
+      "tileId": "r03-c01",
+      "row": 3,
+      "column": 1,
+      "bounds": [
+        100.4375,
+        13.95,
+        100.625,
+        14.15
+      ]
+    },
+    {
+      "tileId": "r03-c02",
+      "row": 3,
+      "column": 2,
+      "bounds": [
+        100.625,
+        13.95,
+        100.8125,
+        14.15
+      ]
+    },
+    {
+      "tileId": "r03-c03",
+      "row": 3,
+      "column": 3,
+      "bounds": [
+        100.8125,
+        13.95,
+        101,
+        14.15
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "jobId": "hot-r00-c00",
+      "tileId": "r00-c00",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.25,
+        13.35,
+        100.4375,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r00-c01",
+      "tileId": "r00-c01",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.4375,
+        13.35,
+        100.625,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r00-c02",
+      "tileId": "r00-c02",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.625,
+        13.35,
+        100.8125,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r00-c03",
+      "tileId": "r00-c03",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.8125,
+        13.35,
+        101,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r01-c00",
+      "tileId": "r01-c00",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.25,
+        13.55,
+        100.4375,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r01-c01",
+      "tileId": "r01-c01",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.4375,
+        13.55,
+        100.625,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r01-c02",
+      "tileId": "r01-c02",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.625,
+        13.55,
+        100.8125,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r01-c03",
+      "tileId": "r01-c03",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.8125,
+        13.55,
+        101,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r02-c00",
+      "tileId": "r02-c00",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.25,
+        13.75,
+        100.4375,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r02-c01",
+      "tileId": "r02-c01",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.4375,
+        13.75,
+        100.625,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r02-c02",
+      "tileId": "r02-c02",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.625,
+        13.75,
+        100.8125,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r02-c03",
+      "tileId": "r02-c03",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.8125,
+        13.75,
+        101,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r03-c00",
+      "tileId": "r03-c00",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.25,
+        13.95,
+        100.4375,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r03-c01",
+      "tileId": "r03-c01",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.4375,
+        13.95,
+        100.625,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r03-c02",
+      "tileId": "r03-c02",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.625,
+        13.95,
+        100.8125,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "hot-r03-c03",
+      "tileId": "r03-c03",
+      "seasonId": "hot",
+      "periodStart": "2025-03-01",
+      "periodEndExclusive": "2025-06-01",
+      "bounds": [
+        100.8125,
+        13.95,
+        101,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r00-c00",
+      "tileId": "r00-c00",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.25,
+        13.35,
+        100.4375,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r00-c01",
+      "tileId": "r00-c01",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.4375,
+        13.35,
+        100.625,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r00-c02",
+      "tileId": "r00-c02",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.625,
+        13.35,
+        100.8125,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r00-c03",
+      "tileId": "r00-c03",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.8125,
+        13.35,
+        101,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r01-c00",
+      "tileId": "r01-c00",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.25,
+        13.55,
+        100.4375,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r01-c01",
+      "tileId": "r01-c01",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.4375,
+        13.55,
+        100.625,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r01-c02",
+      "tileId": "r01-c02",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.625,
+        13.55,
+        100.8125,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r01-c03",
+      "tileId": "r01-c03",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.8125,
+        13.55,
+        101,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r02-c00",
+      "tileId": "r02-c00",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.25,
+        13.75,
+        100.4375,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r02-c01",
+      "tileId": "r02-c01",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.4375,
+        13.75,
+        100.625,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r02-c02",
+      "tileId": "r02-c02",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.625,
+        13.75,
+        100.8125,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r02-c03",
+      "tileId": "r02-c03",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.8125,
+        13.75,
+        101,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r03-c00",
+      "tileId": "r03-c00",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.25,
+        13.95,
+        100.4375,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r03-c01",
+      "tileId": "r03-c01",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.4375,
+        13.95,
+        100.625,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r03-c02",
+      "tileId": "r03-c02",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.625,
+        13.95,
+        100.8125,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "wet-r03-c03",
+      "tileId": "r03-c03",
+      "seasonId": "wet",
+      "periodStart": "2025-06-01",
+      "periodEndExclusive": "2025-11-01",
+      "bounds": [
+        100.8125,
+        13.95,
+        101,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r00-c00",
+      "tileId": "r00-c00",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.25,
+        13.35,
+        100.4375,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r00-c01",
+      "tileId": "r00-c01",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.4375,
+        13.35,
+        100.625,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r00-c02",
+      "tileId": "r00-c02",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.625,
+        13.35,
+        100.8125,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r00-c03",
+      "tileId": "r00-c03",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.8125,
+        13.35,
+        101,
+        13.55
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r01-c00",
+      "tileId": "r01-c00",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.25,
+        13.55,
+        100.4375,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r01-c01",
+      "tileId": "r01-c01",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.4375,
+        13.55,
+        100.625,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r01-c02",
+      "tileId": "r01-c02",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.625,
+        13.55,
+        100.8125,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r01-c03",
+      "tileId": "r01-c03",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.8125,
+        13.55,
+        101,
+        13.75
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r02-c00",
+      "tileId": "r02-c00",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.25,
+        13.75,
+        100.4375,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r02-c01",
+      "tileId": "r02-c01",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.4375,
+        13.75,
+        100.625,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r02-c02",
+      "tileId": "r02-c02",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.625,
+        13.75,
+        100.8125,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r02-c03",
+      "tileId": "r02-c03",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.8125,
+        13.75,
+        101,
+        13.95
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r03-c00",
+      "tileId": "r03-c00",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.25,
+        13.95,
+        100.4375,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r03-c01",
+      "tileId": "r03-c01",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.4375,
+        13.95,
+        100.625,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r03-c02",
+      "tileId": "r03-c02",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.625,
+        13.95,
+        100.8125,
+        14.15
+      ],
+      "maxAttempts": 3
+    },
+    {
+      "jobId": "cool-r03-c03",
+      "tileId": "r03-c03",
+      "seasonId": "cool",
+      "periodStart": "2025-11-01",
+      "periodEndExclusive": "2026-03-01",
+      "bounds": [
+        100.8125,
+        13.95,
+        101,
+        14.15
+      ],
+      "maxAttempts": 3
+    }
+  ],
+  "summary": {
+    "tileCount": 16,
+    "seasonCount": 3,
+    "jobCount": 48,
+    "expectedJobCount": 48
+  },
+  "publication": {
+    "status": "internal-plan-only",
+    "productPublished": false,
+    "observationsCreated": false,
+    "rasterAssetsCreated": false
+  }
+}

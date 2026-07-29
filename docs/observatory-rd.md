@@ -299,3 +299,16 @@ derived-asset checksum จะผ่านครบ
 ทั้งสามฤดูผ่าน preflight gate แต่ยังไม่ใช่ exhaustive QA และไม่ใช่สถิติรายเขต
 จึงไม่สร้าง observation, raster asset หรือ public product จนกว่า canonical
 boundary และ batch QA ฉบับเต็มจะผ่าน
+
+## 12. Exhaustive QA checkpoints
+
+วันที่ 29 กรกฎาคม 2026 ได้เพิ่มแผน exhaustive coverage QA แบบ 4×4 tiles
+แยกฤดูร้อน ฝน และหนาว รวม 48 jobs ที่ native scale 10 เมตร
+
+แต่ละ worker claim งานผ่าน Supabase แบบ atomic `SKIP LOCKED` และเก็บ
+attempt, metrics, checksum และ error ภายใน `observatory_processing_tiles`
+ทำให้ resume ได้โดยไม่คำนวณ tile ที่สำเร็จแล้วซ้ำ และ retry งานล้มเหลวได้
+สูงสุด 3 ครั้ง
+
+ตาราง checkpoint และ RPC ไม่มีสิทธิ์สำหรับ public user รอบนี้ไม่ใช้ R2
+เพราะยังไม่มี raster artifact และยังไม่สร้าง observation หรือผลรายเขต

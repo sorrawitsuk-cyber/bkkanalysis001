@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "observatory-tiled-qa/v1",
+  "qaMethodVersion": "ndvi-exhaustive-coverage-v1.0.0",
+  "productId": "vegetation",
+  "productMethodVersion": "ndvi-seasonal-v1.0.0",
+  "sourceDatasetId": "sentinel-2-l2a",
+  "executionClass": "offline-tiled-batch",
+  "grid": {
+    "rows": 4,
+    "columns": 4,
+    "tileOrder": "season-row-column",
+    "boundsSource": "validated Sentinel-2 Bangkok research envelope"
+  },
+  "processing": {
+    "analysisScaleMeters": 10,
+    "analysisCrs": "EPSG:32647",
+    "tileScale": 8,
+    "maxPixelsPerReducer": 100000000,
+    "statisticsAreTileDiagnosticsOnly": true
+  },
+  "retry": {
+    "maxAttempts": 3,
+    "claimMode": "atomic-skip-locked",
+    "resumePolicy": "preserve succeeded jobs and explicitly requeue failed jobs"
+  },
+  "outputs": {
+    "requiredTileMetrics": [
+      "sceneCount",
+      "totalAreaSquareMeters",
+      "validAreaSquareMeters",
+      "validCoverage",
+      "validObservationCount",
+      "statistics",
+      "qualityStatus"
+    ],
+    "globalMetrics": [
+      "totalAreaSquareMeters",
+      "validAreaSquareMeters",
+      "validCoverage",
+      "validObservationCount"
+    ]
+  },
+  "publication": {
+    "allowsPublicProduct": false,
+    "allowsObservations": false,
+    "allowsRasterAssets": false,
+    "blockedUntil": [
+      "all tile jobs succeed",
+      "all tile quality gates pass",
+      "canonical district boundary dataset version is validated"
+    ]
+  }
+}
