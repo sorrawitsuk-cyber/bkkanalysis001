@@ -1,8 +1,8 @@
 {
   "reportSchemaVersion": "observatory-public-map-service-intake/v1",
-  "registryVersion": "2026.07.29-2",
+  "registryVersion": "2026.07.29-3",
   "datasetId": "bma-citymap-basemap",
-  "inspectedAt": "2026-07-29T06:16:06.905Z",
+  "inspectedAt": "2026-07-29T06:27:58.214Z",
   "service": {
     "mapName": "Basemap1000_4326_H",
     "currentVersion": 11.5,

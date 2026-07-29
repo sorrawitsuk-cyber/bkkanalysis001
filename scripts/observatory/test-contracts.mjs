@@ -24,6 +24,10 @@ const [
   authorizationRequestSource,
   cityMapReportRaw,
   authorizationWithdrawnMigrationSource,
+  cityMapBoundaryConfigRaw,
+  cityMapBoundaryQaRaw,
+  datasetVersionEvidenceMigrationSource,
+  evidenceResultChecksumMigrationSource,
   observatoryMapSource,
   cityMapRuntimeSource,
 ] =
@@ -112,6 +116,34 @@ const [
       "utf8",
     ),
     readFile(
+      resolve(
+        ROOT,
+        "config/observatory/qa/citymap-district-boundary-v1.0.0.json",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "reports/observatory/bma-citymap-boundary-qa.json",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "supabase/migrations/20260729093000_observatory_dataset_version_evidence.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "supabase/migrations/20260729094500_observatory_dataset_version_evidence_result_checksum.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
       resolve(ROOT, "src/components/observatory/ObservatoryMap.tsx"),
       "utf8",
     ),
@@ -131,6 +163,8 @@ const exhaustivePlan = JSON.parse(exhaustivePlanRaw);
 const exhaustiveQa = JSON.parse(exhaustiveQaRaw);
 const boundaryAuthorization = JSON.parse(boundaryAuthorizationRaw);
 const cityMapReport = JSON.parse(cityMapReportRaw);
+const cityMapBoundaryConfig = JSON.parse(cityMapBoundaryConfigRaw);
+const cityMapBoundaryQa = JSON.parse(cityMapBoundaryQaRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -337,6 +371,154 @@ assert.equal(
   cityMapReport.consumptionPolicy.sourceRepublicationAllowed,
   false,
 );
+assert.equal(
+  cityMapDataset.evidence.serviceIntakeReportPath,
+  "reports/observatory/bma-citymap-service-intake.json",
+);
+assert.equal(
+  cityMapDataset.evidence.serviceIntakeStatus,
+  cityMapReport.consumptionPolicy.status,
+);
+assert.equal(
+  cityMapDataset.evidence.boundaryQaReportPath,
+  "reports/observatory/bma-citymap-boundary-qa.json",
+);
+assert.equal(
+  cityMapDataset.evidence.boundaryQaMethodVersion,
+  "citymap-district-boundary-qa-v1.0.0",
+);
+assert.equal(
+  cityMapDataset.evidence.boundaryQaStatus,
+  "passed-technical-qa",
+);
+
+assert.equal(
+  cityMapBoundaryConfig.schemaVersion,
+  "observatory-boundary-qa-config/v1",
+);
+assert.equal(
+  cityMapBoundaryConfig.qaMethodVersion,
+  cityMapDataset.evidence.boundaryQaMethodVersion,
+);
+assert.equal(cityMapBoundaryConfig.datasetId, cityMapDataset.id);
+assert.equal(cityMapBoundaryConfig.serviceLayerId, 13);
+assert.equal(cityMapBoundaryConfig.expected.featureCount, 50);
+assert.equal(cityMapBoundaryConfig.expected.districtCodeStart, 1001);
+assert.equal(cityMapBoundaryConfig.expected.districtCodeEnd, 1050);
+assert.deepEqual(
+  cityMapBoundaryConfig.expected.surveyYearsBuddhist,
+  [2561],
+);
+assert.equal(
+  cityMapBoundaryConfig.expected.spatialReference,
+  "EPSG:4326",
+);
+assert.equal(
+  cityMapBoundaryConfig.areaSemantics.geometryComparisonField,
+  "AREA_CAL",
+);
+assert.equal(
+  cityMapBoundaryConfig.areaSemantics.reportedAdministrativeAreaField,
+  "AREA_BMA",
+);
+assert.equal(cityMapBoundaryConfig.persistence.persistSourceResponse, false);
+assert.equal(cityMapBoundaryConfig.persistence.persistGeometry, false);
+assert.equal(cityMapBoundaryConfig.persistence.publishGeometry, false);
+assert.equal(
+  cityMapBoundaryConfig.persistence.persistAggregateQaReport,
+  true,
+);
+
+assert.equal(
+  cityMapBoundaryQa.reportSchemaVersion,
+  "observatory-boundary-qa/v1",
+);
+assert.equal(cityMapBoundaryQa.registryVersion, registry.registryVersion);
+assert.equal(cityMapBoundaryQa.datasetId, cityMapDataset.id);
+assert.equal(
+  cityMapBoundaryQa.qaMethodVersion,
+  cityMapBoundaryConfig.qaMethodVersion,
+);
+assert.equal(
+  cityMapBoundaryQa.serviceVersion.versionLabel,
+  cityMapReport.version.versionLabel,
+);
+assert.equal(
+  cityMapBoundaryQa.serviceVersion.manifestChecksumSha256,
+  cityMapReport.version.manifestChecksumSha256,
+);
+assert.match(cityMapBoundaryQa.config.checksumSha256, /^[a-f0-9]{64}$/);
+assert.equal(cityMapBoundaryQa.source.layerId, 13);
+assert.equal(cityMapBoundaryQa.source.httpStatus, 200);
+assert.match(
+  cityMapBoundaryQa.source.responseChecksumSha256,
+  /^[a-f0-9]{64}$/,
+);
+assert.equal(cityMapBoundaryQa.source.geometryRequested, true);
+assert.equal(cityMapBoundaryQa.source.sourceResponsePersisted, false);
+assert.equal(cityMapBoundaryQa.source.geometryPersisted, false);
+assert.equal(cityMapBoundaryQa.qa.status, "passed-technical-qa");
+assert.equal(
+  cityMapBoundaryQa.qa.resultChecksumSha256,
+  cityMapDataset.evidence.boundaryQaResultChecksumSha256,
+);
+assert.equal(cityMapBoundaryQa.qa.featureCount, 50);
+assert.equal(cityMapBoundaryQa.qa.completeOfficialCodeSet, true);
+assert.equal(cityMapBoundaryQa.qa.uniqueDistrictCodeCount, 50);
+assert.equal(cityMapBoundaryQa.qa.uniqueThaiNameCount, 50);
+assert.equal(cityMapBoundaryQa.qa.thaiNameMatchRatio, 1);
+assert.deepEqual(cityMapBoundaryQa.qa.surveyYearsBuddhist, [2561]);
+assert.deepEqual(cityMapBoundaryQa.qa.invalidDistrictCodes, []);
+assert.equal(cityMapBoundaryQa.qa.boundsWithinEnvelope, true);
+assert.ok(
+  cityMapBoundaryQa.qa.overlapAreaRatio
+    <= cityMapBoundaryConfig.thresholds.maxOverlapAreaRatio,
+);
+assert.ok(
+  cityMapBoundaryQa.qa.maxRelativeDeltaToAreaCal
+    <= cityMapBoundaryConfig.thresholds.maxRelativeDeltaToAreaCal,
+);
+assert.deepEqual(cityMapBoundaryQa.qa.blockers, []);
+assert.equal(cityMapBoundaryQa.perDistrict.length, 50);
+assert.ok(
+  cityMapBoundaryQa.perDistrict.every(
+    (district) =>
+      district.geometryValid === true
+      && district.thaiNameMatchesApplication === true
+      && Number.isFinite(district.geodesicAreaSquareMeters)
+      && Number.isFinite(district.areaCalSquareKilometers)
+      && Number.isFinite(district.areaBmaSquareKilometers),
+  ),
+);
+assert.equal(
+  cityMapBoundaryQa.areaSemantics.geometryGateField,
+  "AREA_CAL",
+);
+assert.equal(
+  cityMapBoundaryQa.areaSemantics.administrativeContextField,
+  "AREA_BMA",
+);
+assert.equal(
+  cityMapBoundaryQa.priorOfficialSnapshotComparison.sourceChecksumSha256,
+  boundaryReport.source.checksumSha256,
+);
+assert.ok(
+  cityMapBoundaryQa.priorOfficialSnapshotComparison.relativeTotalAreaDelta
+    < 0.01,
+);
+assert.equal(
+  cityMapBoundaryQa.acceptance.status,
+  "accepted-for-internal-processing",
+);
+assert.equal(
+  cityMapBoundaryQa.acceptance.internalProcessingAccepted,
+  true,
+);
+assert.equal(cityMapBoundaryQa.acceptance.canonicalPublicBoundary, false);
+assert.equal(cityMapBoundaryQa.acceptance.publicGeometryCreated, false);
+assert.equal(cityMapBoundaryQa.acceptance.sourceGeometryPublished, false);
+assert.equal(cityMapBoundaryQa.acceptance.supabaseAreaRowsCreated, false);
+assert.deepEqual(cityMapBoundaryQa.acceptance.blockers, []);
 assert.match(observatoryMapSource, /L\.tileLayer\.wms/);
 assert.match(observatoryMapSource, /crs: L\.CRS\.EPSG4326/);
 assert.doesNotMatch(observatoryMapSource, /cartocdn|OpenStreetMap/);
@@ -658,6 +840,35 @@ assert.match(
   authorizationWithdrawnMigrationSource,
   /gate remains blocked/,
 );
+assert.match(
+  datasetVersionEvidenceMigrationSource,
+  /CREATE TABLE IF NOT EXISTS observatory_dataset_version_evidence/,
+);
+assert.match(
+  datasetVersionEvidenceMigrationSource,
+  /ALTER TABLE observatory_dataset_version_evidence ENABLE ROW LEVEL SECURITY/,
+);
+assert.match(
+  datasetVersionEvidenceMigrationSource,
+  /REVOKE ALL ON observatory_dataset_version_evidence[\s\S]*FROM anon, authenticated/,
+);
+assert.match(
+  datasetVersionEvidenceMigrationSource,
+  /TO service_role/,
+);
+assert.doesNotMatch(
+  datasetVersionEvidenceMigrationSource,
+  /CREATE POLICY[\s\S]*observatory_dataset_version_evidence/,
+  "dataset version evidence must not have a public RLS policy",
+);
+assert.match(
+  evidenceResultChecksumMigrationSource,
+  /RENAME COLUMN report_checksum_sha256 TO result_checksum_sha256/,
+);
+assert.match(
+  evidenceResultChecksumMigrationSource,
+  /Stable checksum of the QA method/,
+);
 
 const requiredTables = [
   "observatory_datasets",
@@ -703,6 +914,7 @@ console.log(JSON.stringify({
   exhaustiveQaStatus: exhaustiveQa.qa.status,
   boundaryAuthorizationStatus: boundaryAuthorization.decisionStatus,
   cityMapBasemapStatus: cityMapReport.consumptionPolicy.status,
+  cityMapBoundaryQaStatus: cityMapBoundaryQa.qa.status,
 }));
 
 function assertTilesPartitionBounds(tiles, expectedBounds) {

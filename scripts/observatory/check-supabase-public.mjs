@@ -38,6 +38,7 @@ const [
   processingTiles,
   qualityFlags,
   datasetAuthorizations,
+  datasetVersionEvidence,
 ] = await Promise.all([
   supabase
     .from("observatory_datasets")
@@ -66,6 +67,9 @@ const [
   supabase
     .from("observatory_dataset_authorizations")
     .select("authorization_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_dataset_version_evidence")
+    .select("evidence_id", { count: "exact", head: true }),
 ]);
 
 for (const [name, result] of [
@@ -136,6 +140,11 @@ if (!datasetAuthorizations.error) {
     "observatory_dataset_authorizations unexpectedly allows anonymous reads.",
   );
 }
+if (!datasetVersionEvidence.error) {
+  throw new Error(
+    "observatory_dataset_version_evidence unexpectedly allows anonymous reads.",
+  );
+}
 
 console.log(
   JSON.stringify(
@@ -150,6 +159,7 @@ console.log(
       internalTileCheckpointsPubliclyReadable: false,
       internalQualityFlagsPubliclyReadable: false,
       internalAuthorizationsPubliclyReadable: false,
+      internalDatasetVersionEvidencePubliclyReadable: false,
       serviceRoleUsed: false,
     },
     null,

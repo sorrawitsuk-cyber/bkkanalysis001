@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "observatory-boundary-qa-config/v1",
+  "qaMethodVersion": "citymap-district-boundary-qa-v1.0.0",
+  "datasetId": "bma-citymap-basemap",
+  "serviceLayerId": 13,
+  "expected": {
+    "featureCount": 50,
+    "districtCodeStart": 1001,
+    "districtCodeEnd": 1050,
+    "surveyYearsBuddhist": [
+      2561
+    ],
+    "spatialReference": "EPSG:4326",
+    "bangkokBoundsEnvelope": [
+      100.25,
+      13.35,
+      101.05,
+      14.15
+    ]
+  },
+  "thresholds": {
+    "maxInvalidGeometryCount": 0,
+    "maxRelativeDeltaToAreaCal": 0.01,
+    "maxOverlapAreaRatio": 0.00001,
+    "requiredThaiNameMatchRatio": 1
+  },
+  "areaSemantics": {
+    "geometryComparisonField": "AREA_CAL",
+    "geometryComparisonUnit": "square-kilometers",
+    "reportedAdministrativeAreaField": "AREA_BMA",
+    "reportedAdministrativeAreaUse": "context-only-not-a-geometry-qa-gate"
+  },
+  "persistence": {
+    "persistSourceResponse": false,
+    "persistGeometry": false,
+    "publishGeometry": false,
+    "persistAggregateQaReport": true
+  }
+}

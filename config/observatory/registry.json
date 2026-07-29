@@ -1,6 +1,6 @@
 {
   "schemaVersion": "observatory-registry/v1",
-  "registryVersion": "2026.07.29-2",
+  "registryVersion": "2026.07.29-3",
   "lastReviewedAt": "2026-07-29",
   "scope": {
     "city": "Bangkok",
@@ -156,12 +156,20 @@
         "url": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer",
         "redistribution": "restricted"
       },
+      "evidence": {
+        "serviceIntakeReportPath": "reports/observatory/bma-citymap-service-intake.json",
+        "serviceIntakeStatus": "accepted-for-direct-basemap",
+        "boundaryQaReportPath": "reports/observatory/bma-citymap-boundary-qa.json",
+        "boundaryQaMethodVersion": "citymap-district-boundary-qa-v1.0.0",
+        "boundaryQaStatus": "passed-technical-qa",
+        "boundaryQaResultChecksumSha256": "8bf2df430077d9c89ed8eed13d7a3cdfa18b502cd7ea1e8475590e27001bf7d2"
+      },
       "acceptance": {
         "status": "research",
         "checkedAt": "2026-07-29",
         "blockers": [
           "อนุญาตเฉพาะการเรียกแสดงผลจาก public service โดยตรงในขั้นนี้",
-          "ห้ามใช้ basemap เป็นค่าตัวชี้วัดหรืออ้างว่าเป็น source ที่ผ่าน license validation",
+          "layer 13 ผ่าน technical QA สำหรับ processing ภายในแบบ ephemeral แต่ยังไม่ใช่ canonical public boundary",
           "ยังไม่อนุญาตให้ cache, republish หรือส่งออก source geometry จากบริการนี้"
         ]
       }

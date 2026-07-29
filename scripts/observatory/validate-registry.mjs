@@ -175,6 +175,101 @@ for (const [index, dataset] of (registry.datasets ?? []).entries()) {
       `${path}.license.attributionTemplate`,
     );
   }
+  if (dataset.evidence !== undefined) {
+    const evidence = dataset.evidence;
+    requireText(
+      evidence.serviceIntakeReportPath,
+      `${path}.evidence.serviceIntakeReportPath`,
+    );
+    requireText(
+      evidence.serviceIntakeStatus,
+      `${path}.evidence.serviceIntakeStatus`,
+    );
+    requireText(
+      evidence.boundaryQaReportPath,
+      `${path}.evidence.boundaryQaReportPath`,
+    );
+    requireText(
+      evidence.boundaryQaMethodVersion,
+      `${path}.evidence.boundaryQaMethodVersion`,
+    );
+    requireText(
+      evidence.boundaryQaStatus,
+      `${path}.evidence.boundaryQaStatus`,
+    );
+    if (
+      !SHA256_PATTERN.test(
+        evidence.boundaryQaResultChecksumSha256 ?? "",
+      )
+    ) {
+      fail(
+        `${path}.evidence.boundaryQaResultChecksumSha256`,
+        "must be a lowercase SHA-256 checksum",
+      );
+    }
+
+    const [serviceIntakeRaw, boundaryQaRaw] = await Promise.all([
+      readFile(resolve(ROOT, evidence.serviceIntakeReportPath), "utf8"),
+      readFile(resolve(ROOT, evidence.boundaryQaReportPath), "utf8"),
+    ]);
+    const serviceIntake = JSON.parse(serviceIntakeRaw);
+    const boundaryQa = JSON.parse(boundaryQaRaw);
+
+    if (
+      serviceIntake.datasetId !== dataset.id
+      || serviceIntake.registryVersion !== registry.registryVersion
+    ) {
+      fail(
+        `${path}.evidence.serviceIntakeReportPath`,
+        "service intake dataset or registry version does not match",
+      );
+    }
+    if (
+      serviceIntake.consumptionPolicy?.status
+      !== evidence.serviceIntakeStatus
+    ) {
+      fail(
+        `${path}.evidence.serviceIntakeStatus`,
+        "does not match the service intake report",
+      );
+    }
+    if (
+      boundaryQa.datasetId !== dataset.id
+      || boundaryQa.registryVersion !== registry.registryVersion
+      || boundaryQa.qaMethodVersion !== evidence.boundaryQaMethodVersion
+    ) {
+      fail(
+        `${path}.evidence.boundaryQaReportPath`,
+        "boundary QA dataset, registry version or method does not match",
+      );
+    }
+    if (boundaryQa.qa?.status !== evidence.boundaryQaStatus) {
+      fail(
+        `${path}.evidence.boundaryQaStatus`,
+        "does not match the boundary QA report",
+      );
+    }
+    if (
+      boundaryQa.qa?.resultChecksumSha256
+      !== evidence.boundaryQaResultChecksumSha256
+    ) {
+      fail(
+        `${path}.evidence.boundaryQaResultChecksumSha256`,
+        "does not match the boundary QA report",
+      );
+    }
+    if (
+      boundaryQa.acceptance?.internalProcessingAccepted !== true
+      || boundaryQa.acceptance?.canonicalPublicBoundary !== false
+      || boundaryQa.source?.sourceResponsePersisted !== false
+      || boundaryQa.source?.geometryPersisted !== false
+    ) {
+      fail(
+        `${path}.evidence.boundaryQaReportPath`,
+        "boundary QA must remain internal and non-persistent",
+      );
+    }
+  }
   if (!VALID_STATUSES.has(dataset.acceptance?.status)) {
     fail(`${path}.acceptance.status`, "invalid acceptance status");
   }

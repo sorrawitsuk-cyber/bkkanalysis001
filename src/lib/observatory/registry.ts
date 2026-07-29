@@ -32,6 +32,14 @@ export type ObservatoryRegistryDataset = {
     redistribution: RedistributionStatus;
     attributionTemplate?: string;
   };
+  evidence?: {
+    serviceIntakeReportPath: string;
+    serviceIntakeStatus: string;
+    boundaryQaReportPath: string;
+    boundaryQaMethodVersion: string;
+    boundaryQaStatus: string;
+    boundaryQaResultChecksumSha256: string;
+  };
   acceptance: {
     status: AcceptanceStatus;
     checkedAt: string | null;
