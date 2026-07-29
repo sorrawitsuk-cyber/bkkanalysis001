@@ -217,7 +217,13 @@ for (const [index, product] of (registry.products ?? []).entries()) {
       fail(`${path}.evidence.algorithmFixtureStatus`, "must be passed or failed");
     }
 
-    const [recipeRaw, fixtureRaw, qaReportRaw, fieldQaReportRaw] =
+    const [
+      recipeRaw,
+      fixtureRaw,
+      qaReportRaw,
+      fieldQaReportRaw,
+      exhaustiveQaReportRaw,
+    ] =
       await Promise.all([
       readFile(resolve(ROOT, evidence.recipeManifestPath), "utf8"),
       readFile(resolve(ROOT, evidence.goldenFixturePath), "utf8"),
@@ -225,12 +231,18 @@ for (const [index, product] of (registry.products ?? []).entries()) {
       evidence.fieldQaReportPath
         ? readFile(resolve(ROOT, evidence.fieldQaReportPath), "utf8")
         : Promise.resolve(null),
+      evidence.exhaustiveQaReportPath
+        ? readFile(resolve(ROOT, evidence.exhaustiveQaReportPath), "utf8")
+        : Promise.resolve(null),
     ]);
     const recipeManifest = JSON.parse(recipeRaw);
     const fixtureManifest = JSON.parse(fixtureRaw);
     const qaReport = JSON.parse(qaReportRaw);
     const fieldQaReport = fieldQaReportRaw
       ? JSON.parse(fieldQaReportRaw)
+      : null;
+    const exhaustiveQaReport = exhaustiveQaReportRaw
+      ? JSON.parse(exhaustiveQaReportRaw)
       : null;
     const recipeChecksum = createHash("sha256")
       .update(recipeRaw)
@@ -296,7 +308,7 @@ for (const [index, product] of (registry.products ?? []).entries()) {
     if (
       qaReport.publicationStatus
       !==
-        "algorithm-fixture-and-field-preflight-passed-boundary-and-exhaustive-qa-pending"
+        "algorithm-fixture-field-preflight-and-exhaustive-envelope-qa-passed-boundary-pending"
     ) {
       fail(
         `${path}.evidence.goldenQaReportPath`,
@@ -360,6 +372,71 @@ for (const [index, product] of (registry.products ?? []).entries()) {
         fail(
           `${path}.evidence.fieldQaReportPath`,
           "field preflight must remain blocked from publication",
+        );
+      }
+    }
+    if (evidence.exhaustiveQaReportPath !== undefined) {
+      requireText(
+        evidence.exhaustiveQaReportPath,
+        `${path}.evidence.exhaustiveQaReportPath`,
+      );
+      if (
+        !["passed-research-envelope", "failed"].includes(
+          evidence.exhaustiveQaStatus,
+        )
+      ) {
+        fail(
+          `${path}.evidence.exhaustiveQaStatus`,
+          "must be passed-research-envelope or failed",
+        );
+      }
+      if (
+        exhaustiveQaReport?.reportSchemaVersion
+        !== "observatory-exhaustive-qa/v1"
+      ) {
+        fail(
+          `${path}.evidence.exhaustiveQaReportPath`,
+          "unsupported exhaustive QA report schema",
+        );
+      }
+      if (
+        exhaustiveQaReport?.productId !== product.id
+        || exhaustiveQaReport?.productMethodVersion
+          !== product.recipe.methodVersion
+      ) {
+        fail(
+          `${path}.evidence.exhaustiveQaReportPath`,
+          "exhaustive QA product or method does not match",
+        );
+      }
+      if (
+        exhaustiveQaReport?.qa?.status !== evidence.exhaustiveQaStatus
+      ) {
+        fail(
+          `${path}.evidence.exhaustiveQaStatus`,
+          "does not match exhaustive QA report",
+        );
+      }
+      if (
+        exhaustiveQaReport?.execution?.succeededJobs !== 48
+        || exhaustiveQaReport?.execution?.failedJobs !== 0
+        || exhaustiveQaReport?.execution?.rejectedJobs !== 0
+      ) {
+        fail(
+          `${path}.evidence.exhaustiveQaReportPath`,
+          "all 48 exhaustive QA jobs must pass",
+        );
+      }
+      if (
+        exhaustiveQaReport?.publication?.status
+          !== "blocked-canonical-boundary-pending"
+        || exhaustiveQaReport?.publication?.productPublished !== false
+        || exhaustiveQaReport?.publication?.observationsCreated !== false
+        || exhaustiveQaReport?.publication?.rasterAssetsCreated !== false
+      ) {
+        fail(
+          `${path}.evidence.exhaustiveQaReportPath`,
+          "exhaustive QA must remain blocked from publication",
         );
       }
     }

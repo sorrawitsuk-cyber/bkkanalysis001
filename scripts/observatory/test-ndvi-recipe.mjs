@@ -64,7 +64,7 @@ const report = {
   },
   results,
   publicationStatus:
-    "algorithm-fixture-and-field-preflight-passed-boundary-and-exhaustive-qa-pending",
+    "algorithm-fixture-field-preflight-and-exhaustive-envelope-qa-passed-boundary-pending",
 };
 
 if (process.argv.includes("--write-report")) {

@@ -13,6 +13,7 @@ const [
   ndviFieldQaRaw,
   exhaustiveConfigRaw,
   exhaustivePlanRaw,
+  exhaustiveQaRaw,
   catalogSource,
   observationsSource,
   migrationSource,
@@ -47,6 +48,10 @@ const [
       resolve(ROOT, "reports/observatory/ndvi-2025-exhaustive-plan.json"),
       "utf8",
     ),
+    readFile(
+      resolve(ROOT, "reports/observatory/ndvi-2025-exhaustive-qa.json"),
+      "utf8",
+    ),
     readFile(resolve(ROOT, "src/lib/observatory/catalog.ts"), "utf8"),
     readFile(resolve(ROOT, "src/app/api/v1/observations/route.ts"), "utf8"),
     readFile(
@@ -72,6 +77,7 @@ const sentinelReport = JSON.parse(sentinelReportRaw);
 const ndviFieldQa = JSON.parse(ndviFieldQaRaw);
 const exhaustiveConfig = JSON.parse(exhaustiveConfigRaw);
 const exhaustivePlan = JSON.parse(exhaustivePlanRaw);
+const exhaustiveQa = JSON.parse(exhaustiveQaRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -262,6 +268,53 @@ assertTilesPartitionBounds(
   sentinelReport.version.sceneManifest.query.bounds,
 );
 
+assert.equal(
+  exhaustiveQa.reportSchemaVersion,
+  "observatory-exhaustive-qa/v1",
+);
+assert.equal(
+  exhaustiveQa.processingRun.processingRunId,
+  exhaustivePlan.processingRunId,
+);
+assert.equal(exhaustiveQa.processingRun.status, "succeeded");
+assert.equal(
+  exhaustiveQa.source.manifestChecksumSha256,
+  sentinelReport.version.manifestChecksumSha256,
+);
+assert.equal(
+  exhaustiveQa.plan.planChecksumSha256,
+  exhaustivePlan.planChecksumSha256,
+);
+assert.equal(exhaustiveQa.execution.succeededJobs, 48);
+assert.equal(exhaustiveQa.execution.failedJobs, 0);
+assert.equal(exhaustiveQa.execution.rejectedJobs, 0);
+assert.equal(exhaustiveQa.execution.checksumVerifiedJobs, 48);
+assert.equal(exhaustiveQa.execution.retryCount, 0);
+assert.match(
+  exhaustiveQa.execution.resultChecksumSha256,
+  /^[a-f0-9]{64}$/,
+);
+assert.equal(exhaustiveQa.seasons.length, 3);
+for (const season of exhaustiveQa.seasons) {
+  assert.equal(season.succeededJobs, 16);
+  assert.equal(season.failedJobs, 0);
+  assert.ok(
+    season.validCoverage
+      >= vegetationProduct.publishGate.minValidCoverage,
+  );
+  assert.equal(season.qualityStatus, "accepted");
+}
+assert.equal(exhaustiveQa.qa.status, "passed-research-envelope");
+assert.deepEqual(exhaustiveQa.qa.blockers, []);
+assert.equal(exhaustiveQa.qa.exhaustiveCoverage, true);
+assert.equal(exhaustiveQa.publication.productPublished, false);
+assert.equal(exhaustiveQa.publication.observationsCreated, false);
+assert.equal(exhaustiveQa.publication.rasterAssetsCreated, false);
+assert.equal(
+  vegetationProduct.evidence.exhaustiveQaStatus,
+  "passed-research-envelope",
+);
+
 const allowedAreaProperties = [
   "areaCode",
   "legacyId",
@@ -392,6 +445,7 @@ console.log(JSON.stringify({
   sentinelSourceStatus: sentinelReport.acceptance.status,
   ndviFieldPreflightStatus: ndviFieldQa.qa.fieldQaStatus,
   exhaustiveTileJobs: exhaustivePlan.jobs.length,
+  exhaustiveQaStatus: exhaustiveQa.qa.status,
 }));
 
 function assertTilesPartitionBounds(tiles, expectedBounds) {

@@ -17,6 +17,7 @@
     "observatory:intake-sentinel": "node scripts/observatory/intake-sentinel-2.mjs --write-report",
     "observatory:inspect-boundary": "node scripts/observatory/inspect-bma-boundary.mjs --write-report",
     "observatory:ndvi:exhaustive-plan": "node scripts/observatory/plan-ndvi-exhaustive-qa.mjs --write-report",
+    "observatory:ndvi:exhaustive-report": "node scripts/observatory/summarize-ndvi-exhaustive-qa.mjs --write-report",
     "observatory:ndvi:exhaustive-worker": "node scripts/observatory/run-ndvi-exhaustive-worker.mjs",
     "observatory:ndvi:field-qa": "node scripts/observatory/run-ndvi-field-qa.mjs --write-report",
     "observatory:recipes": "node scripts/observatory/test-ndvi-recipe.mjs --write-report",

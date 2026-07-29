@@ -63,6 +63,8 @@ export type ObservatoryRegistryProduct = {
     algorithmFixtureStatus: "passed" | "failed";
     fieldQaReportPath?: string;
     fieldQaStatus?: "preflight-passed" | "preflight-failed";
+    exhaustiveQaReportPath?: string;
+    exhaustiveQaStatus?: "passed-research-envelope" | "failed";
   };
   publishGate: {
     status: AcceptanceStatus;

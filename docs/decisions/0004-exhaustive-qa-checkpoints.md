@@ -40,3 +40,18 @@ unused at this stage.
 Even after all 48 jobs pass, the vegetation product remains blocked until the
 canonical district boundary version is validated and area-level production QA
 passes.
+
+## Execution result
+
+Run `de900e87-4d5a-5c77-8a96-c5a4085b622d` completed all 48 jobs with no
+failure or retry. Every tile passed its coverage and scene-count gates.
+
+Area-weighted valid coverage across the research envelope was:
+
+- hot season: 99.5393%;
+- wet season: 99.4872%;
+- cool season: 99.6284%.
+
+All 48 stored metric checksums were verified when producing the final evidence
+report. Global NDVI percentiles were intentionally not inferred from tile
+percentiles because percentiles are not directly mergeable.

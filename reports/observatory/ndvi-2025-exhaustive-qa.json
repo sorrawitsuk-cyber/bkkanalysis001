@@ -1,0 +1,95 @@
+{
+  "reportSchemaVersion": "observatory-exhaustive-qa/v1",
+  "createdAt": "2026-07-29T05:24:59.238Z",
+  "productId": "vegetation",
+  "productMethodVersion": "ndvi-seasonal-v1.0.0",
+  "qaMethodVersion": "ndvi-exhaustive-coverage-v1.0.0",
+  "analysisYear": 2025,
+  "processingRun": {
+    "processingRunId": "de900e87-4d5a-5c77-8a96-c5a4085b622d",
+    "codeCommitSha": "78264974ca4b2510a19b9a987248f1fa4d586de0",
+    "status": "succeeded",
+    "startedAt": "2026-07-29T05:16:46.989+00:00",
+    "finishedAt": "2026-07-29T05:23:34.842+00:00"
+  },
+  "source": {
+    "datasetId": "sentinel-2-l2a",
+    "versionLabel": "bangkok-seasonal-2025-a17b5d5c2a0b",
+    "manifestChecksumSha256": "a17b5d5c2a0b1950b9173032dfc3a10346c1e5c9e596d5ba88143cd068125c40"
+  },
+  "plan": {
+    "planChecksumSha256": "35c4726900c60b7e14a59d1fb965973fdd78161289c544c49d261e448ead2f43",
+    "tileCount": 16,
+    "seasonCount": 3,
+    "jobCount": 48
+  },
+  "execution": {
+    "succeededJobs": 48,
+    "failedJobs": 0,
+    "rejectedJobs": 0,
+    "totalAttempts": 48,
+    "checksumVerifiedJobs": 48,
+    "retryCount": 0,
+    "resultChecksumSha256": "2e71801e7aaef4d95d334edde1397317d11455def7dfe7bc906c174f0f6033df"
+  },
+  "seasons": [
+    {
+      "seasonId": "hot",
+      "succeededJobs": 16,
+      "failedJobs": 0,
+      "totalAttempts": 16,
+      "totalAreaSquareMeters": 7205924286.644,
+      "validAreaSquareMeters": 7172727206.161,
+      "validCoverage": 0.995393,
+      "validObservationCount": 559691794.4666667,
+      "minTileCoverage": 0.990161,
+      "maxTileCoverage": 0.996325,
+      "minSceneCount": 23,
+      "maxSceneCount": 92,
+      "qualityStatus": "accepted"
+    },
+    {
+      "seasonId": "wet",
+      "succeededJobs": 16,
+      "failedJobs": 0,
+      "totalAttempts": 16,
+      "totalAreaSquareMeters": 7205924286.644,
+      "validAreaSquareMeters": 7168971974.282,
+      "validCoverage": 0.994872,
+      "validObservationCount": 634589862.5803922,
+      "minTileCoverage": 0.979546,
+      "maxTileCoverage": 0.996325,
+      "minSceneCount": 38,
+      "maxSceneCount": 152,
+      "qualityStatus": "accepted"
+    },
+    {
+      "seasonId": "cool",
+      "succeededJobs": 16,
+      "failedJobs": 0,
+      "totalAttempts": 16,
+      "totalAreaSquareMeters": 7205924286.644,
+      "validAreaSquareMeters": 7179150212.88,
+      "validCoverage": 0.996284,
+      "validObservationCount": 1540277020.6941178,
+      "minTileCoverage": 0.996249,
+      "maxTileCoverage": 0.996325,
+      "minSceneCount": 28,
+      "maxSceneCount": 114,
+      "qualityStatus": "accepted"
+    }
+  ],
+  "qa": {
+    "status": "passed-research-envelope",
+    "blockers": [],
+    "exhaustiveCoverage": true,
+    "globalPercentilesCalculated": false,
+    "note": "Tile percentiles are diagnostics only; global percentile aggregation is intentionally omitted."
+  },
+  "publication": {
+    "status": "blocked-canonical-boundary-pending",
+    "productPublished": false,
+    "observationsCreated": false,
+    "rasterAssetsCreated": false
+  }
+}

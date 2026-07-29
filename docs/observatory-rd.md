@@ -312,3 +312,14 @@ attempt, metrics, checksum และ error ภายใน `observatory_processi
 
 ตาราง checkpoint และ RPC ไม่มีสิทธิ์สำหรับ public user รอบนี้ไม่ใช้ R2
 เพราะยังไม่มี raster artifact และยังไม่สร้าง observation หรือผลรายเขต
+
+ผล run `de900e87-4d5a-5c77-8a96-c5a4085b622d` สำเร็จครบ 48/48 jobs
+โดยไม่ retry และ checksum ของ tile metrics ผ่านครบ:
+
+- ฤดูร้อน coverage แบบ area-weighted 99.5393%
+- ฤดูฝน 99.4872%
+- ฤดูหนาว 99.6284%
+
+ผลนี้ผ่านในระดับ research envelope เท่านั้น ค่า percentile รวมไม่ถูกอนุมาน
+จาก percentile ราย tile เพราะไม่สามารถ merge กันโดยตรง และ vegetation
+product ยังคง `acceptance` จนกว่า canonical boundary จะผ่าน
