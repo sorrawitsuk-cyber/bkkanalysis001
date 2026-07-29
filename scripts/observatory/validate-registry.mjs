@@ -29,6 +29,8 @@ const VALID_LICENSE_STATUSES = new Set([
 const VALID_REDISTRIBUTION = new Set(["allowed", "pending", "restricted"]);
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const UUID_PATTERN =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const METHOD_VERSION_PATTERN = /^[a-z0-9-]+-v\d+\.\d+\.\d+$/;
 
 const errors = [];
@@ -66,6 +68,23 @@ function requireUniqueIds(items, path) {
     ids.add(item.id);
   }
   return ids;
+}
+
+function sameMembers(left, right) {
+  if (
+    !Array.isArray(left)
+    || !Array.isArray(right)
+    || left.length !== right.length
+  ) {
+    return false;
+  }
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return (
+    sortedLeft.every(
+      (value, index) => value === sortedRight[index],
+    )
+  );
 }
 
 const [rawRegistry, boundaryAuthorizationRaw, boundaryReportRaw] =
@@ -342,6 +361,7 @@ for (const [index, product] of (registry.products ?? []).entries()) {
       qaReportRaw,
       fieldQaReportRaw,
       exhaustiveQaReportRaw,
+      researchPreviewReportRaw,
     ] =
       await Promise.all([
       readFile(resolve(ROOT, evidence.recipeManifestPath), "utf8"),
@@ -353,6 +373,12 @@ for (const [index, product] of (registry.products ?? []).entries()) {
       evidence.exhaustiveQaReportPath
         ? readFile(resolve(ROOT, evidence.exhaustiveQaReportPath), "utf8")
         : Promise.resolve(null),
+      evidence.researchPreview?.reportPath
+        ? readFile(
+            resolve(ROOT, evidence.researchPreview.reportPath),
+            "utf8",
+          )
+        : Promise.resolve(null),
     ]);
     const recipeManifest = JSON.parse(recipeRaw);
     const fixtureManifest = JSON.parse(fixtureRaw);
@@ -362,6 +388,9 @@ for (const [index, product] of (registry.products ?? []).entries()) {
       : null;
     const exhaustiveQaReport = exhaustiveQaReportRaw
       ? JSON.parse(exhaustiveQaReportRaw)
+      : null;
+    const researchPreviewReport = researchPreviewReportRaw
+      ? JSON.parse(researchPreviewReportRaw)
       : null;
     const recipeChecksum = createHash("sha256")
       .update(recipeRaw)
@@ -556,6 +585,112 @@ for (const [index, product] of (registry.products ?? []).entries()) {
         fail(
           `${path}.evidence.exhaustiveQaReportPath`,
           "exhaustive QA must remain blocked from publication",
+        );
+      }
+    }
+    if (evidence.researchPreview !== undefined) {
+      const preview = evidence.researchPreview;
+      requireText(
+        preview.reportPath,
+        `${path}.evidence.researchPreview.reportPath`,
+      );
+      if (preview.status !== "available") {
+        fail(
+          `${path}.evidence.researchPreview.status`,
+          "must be available",
+        );
+      }
+      if (
+        !UUID_PATTERN.test(preview.processingRunId ?? "")
+        || !SHA256_PATTERN.test(
+          preview.resultChecksumSha256 ?? "",
+        )
+        || !SHA256_PATTERN.test(
+          preview.sourceManifestChecksumSha256 ?? "",
+        )
+        || !SHA256_PATTERN.test(
+          preview.boundaryResultChecksumSha256 ?? "",
+        )
+      ) {
+        fail(
+          `${path}.evidence.researchPreview`,
+          "run ID and checksums must be valid",
+        );
+      }
+      if (
+        researchPreviewReport?.reportSchemaVersion
+          !== "observatory-district-research/v1"
+        || researchPreviewReport?.registryVersion
+          !== registry.registryVersion
+        || researchPreviewReport?.productId !== product.id
+        || researchPreviewReport?.methodVersion
+          !== product.recipe.methodVersion
+      ) {
+        fail(
+          `${path}.evidence.researchPreview.reportPath`,
+          "research report registry, product or method does not match",
+        );
+      }
+      if (
+        researchPreviewReport?.processingRun?.processingRunId
+          !== preview.processingRunId
+        || researchPreviewReport?.qa?.resultChecksumSha256
+          !== preview.resultChecksumSha256
+        || researchPreviewReport?.source?.manifestChecksumSha256
+          !== preview.sourceManifestChecksumSha256
+        || researchPreviewReport?.boundary?.qaResultChecksumSha256
+          !== preview.boundaryResultChecksumSha256
+      ) {
+        fail(
+          `${path}.evidence.researchPreview`,
+          "research preview provenance does not match its report",
+        );
+      }
+      if (
+        researchPreviewReport?.processingRun?.status !== "succeeded"
+        || researchPreviewReport?.qa?.status
+          !== "passed-research-districts"
+        || researchPreviewReport?.scope?.districtCount
+          !== preview.districtCount
+        || researchPreviewReport?.scope?.statisticRowCount
+          !== preview.statisticRowCount
+        || researchPreviewReport?.database?.researchObservationRows
+          !== preview.statisticRowCount
+      ) {
+        fail(
+          `${path}.evidence.researchPreview.reportPath`,
+          "research preview run, QA or row counts are incomplete",
+        );
+      }
+      if (
+        !sameMembers(
+          researchPreviewReport?.scope?.analysisYears ?? [],
+          preview.analysisYears,
+        )
+        || !sameMembers(
+          researchPreviewReport?.scope?.seasons ?? [],
+          preview.seasons,
+        )
+      ) {
+        fail(
+          `${path}.evidence.researchPreview`,
+          "research preview years or seasons do not match",
+        );
+      }
+      if (
+        researchPreviewReport?.boundary?.geometryPersisted !== false
+        || researchPreviewReport?.boundary?.sourceGeometryPublished
+          !== false
+        || researchPreviewReport?.publication?.productPublished
+          !== false
+        || researchPreviewReport?.publication
+          ?.publicObservationsCreated !== false
+        || researchPreviewReport?.publication
+          ?.researchObservationsCreated !== true
+      ) {
+        fail(
+          `${path}.evidence.researchPreview.reportPath`,
+          "research preview must remain non-public and geometry-free",
         );
       }
     }

@@ -10,6 +10,8 @@ type ObservatoryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+type ObservatorySeason = "hot" | "wet" | "cool";
+
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -25,8 +27,17 @@ export default async function ObservatoryPage({ searchParams }: ObservatoryPageP
   const lens = OBSERVATORY_LENSES.some((item) => item.id === requestedLens)
     ? requestedLens as ObservatoryLensId
     : DEFAULT_LENS_ID;
-  const year = safeYear(first(params.year), 2024);
-  const baseline = Math.min(safeYear(first(params.baseline), 2018), year - 1);
+  const isVegetation = lens === "vegetation";
+  const year = safeYear(first(params.year), isVegetation ? 2025 : 2024);
+  const baseline = Math.min(
+    safeYear(first(params.baseline), isVegetation ? 2024 : 2018),
+    year - 1,
+  );
+  const requestedSeason = first(params.season);
+  const season: ObservatorySeason =
+    requestedSeason === "hot" || requestedSeason === "cool"
+      ? requestedSeason
+      : "wet";
   const area = first(params.area) || "bangkok";
 
   return (
@@ -35,6 +46,7 @@ export default async function ObservatoryPage({ searchParams }: ObservatoryPageP
         initialLens={lens}
         initialYear={year}
         initialBaseline={baseline}
+        initialSeason={season}
         initialArea={area}
       />
     </AppShell>

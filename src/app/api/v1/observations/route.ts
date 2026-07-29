@@ -9,6 +9,10 @@ import {
   getRegistryProduct,
   OBSERVATORY_REGISTRY,
 } from "@/lib/observatory/registry";
+import {
+  getResearchDistrictObservations,
+  type ResearchSeason,
+} from "@/lib/supabase/observatory-research";
 
 const SUSPICIOUS_SOURCE = /mock|demo|fallback|seeded|synthetic|local fallback/i;
 const MIN_YEAR = 2015;
@@ -25,6 +29,7 @@ function unavailable(options: {
   lensId: ObservatoryLensId;
   year: number;
   baseline: number;
+  season?: ResearchSeason;
   reason: string;
   quality?: string;
 }) {
@@ -34,7 +39,11 @@ function unavailable(options: {
     {
       productId: lens.id,
       status: "unavailable",
-      period: { year: options.year, baseline: options.baseline },
+      period: {
+        year: options.year,
+        baseline: options.baseline,
+        season: options.season ?? null,
+      },
       observations: [],
       summary: null,
       provenance: {
@@ -70,7 +79,86 @@ export async function GET(request: Request) {
 
   const year = parseYear(searchParams.get("year"), 2024);
   const baseline = Math.min(parseYear(searchParams.get("baseline"), 2018), year - 1);
+  const requestedSeason = searchParams.get("season");
+  const season: ResearchSeason =
+    requestedSeason === "hot"
+    || requestedSeason === "cool"
+      ? requestedSeason
+      : "wet";
   const registryProduct = getRegistryProduct(lens.id);
+
+  const researchPreview = registryProduct?.evidence?.researchPreview;
+  if (
+    lens.id === "vegetation"
+    && registryProduct
+    && researchPreview?.status === "available"
+  ) {
+    try {
+      const research = await getResearchDistrictObservations({
+        preview: researchPreview,
+        productId: lens.id,
+        year,
+        baseline,
+        season,
+      });
+      const seasonLabel = {
+        hot: "ฤดูร้อน มี.ค.–พ.ค.",
+        wet: "ฤดูฝน มิ.ย.–ต.ค.",
+        cool: "ฤดูเย็น พ.ย.–ก.พ.",
+      }[season];
+      return NextResponse.json(
+        {
+          productId: lens.id,
+          status: "research",
+          period: { year, baseline, season },
+          observations: research.observations,
+          summary: research.summary,
+          provenance: {
+            sourceLabel:
+              "Copernicus Sentinel-2 Level-2A ผ่าน Google Earth Engine",
+            sourceId: lens.sourceId,
+            sourceNote:
+              "สถิติ NDVI ระดับเขตสำหรับ R&D ใช้ขอบเขต CityMap "
+              + `ปีสำรวจ ${research.boundarySurveyYearsBuddhist.join(", ")} `
+              + "แบบชั่วคราว ไม่เก็บหรือเผยแพร่ geometry ต้นทาง",
+            measurementType: lens.measurementType,
+            quality: "research-qa-passed",
+            acceptanceStatus:
+              registryProduct.publishGate.status,
+            methodVersion: registryProduct.recipe.methodVersion,
+            resolution: lens.resolution,
+            periodLabel:
+              `${seasonLabel} ปี ${year} เทียบ ${baseline}`,
+            processingRunId: researchPreview.processingRunId,
+            resultChecksumSha256:
+              researchPreview.resultChecksumSha256,
+            boundaryResultChecksumSha256:
+              researchPreview.boundaryResultChecksumSha256,
+          },
+          reason:
+            "ข้อมูลผ่าน QA ภายในสำหรับ R&D แต่ยังไม่ใช่ผลิตภัณฑ์ "
+            + "validated สำหรับการเผยแพร่ทั่วไป",
+        },
+        {
+          headers: {
+            "Cache-Control": "no-store",
+          },
+        },
+      );
+    } catch (error: unknown) {
+      console.error("Observatory research observations failed", error);
+      return unavailable({
+        lensId: lens.id,
+        year,
+        baseline,
+        season,
+        reason:
+          "ชุดข้อมูลวิจัยไม่ครบหรือ provenance ไม่ตรง "
+          + "ระบบจึงไม่แสดงค่า",
+        quality: "research-unavailable",
+      });
+    }
+  }
 
   if (
     !registryProduct
@@ -82,6 +170,7 @@ export async function GET(request: Request) {
       lensId: lens.id,
       year,
       baseline,
+      season,
       reason: registryProduct
         ? `product อยู่ในสถานะ ${registryProduct.publishGate.status} และยังไม่ผ่าน publish gate`
         : "product ยังไม่ถูกบันทึกใน evidence registry",
@@ -94,6 +183,7 @@ export async function GET(request: Request) {
       lensId: lens.id,
       year,
       baseline,
+      season,
       reason: "product นี้ยังไม่มี observation pipeline ที่ผ่าน data acceptance",
       quality: "unavailable",
     });
@@ -111,6 +201,7 @@ export async function GET(request: Request) {
         lensId: lens.id,
         year,
         baseline,
+        season,
         reason: "legacy bridge ตอบกลับไม่สำเร็จ จึงไม่เผยแพร่ observation",
       });
     }
@@ -136,6 +227,7 @@ export async function GET(request: Request) {
         lensId: lens.id,
         year,
         baseline,
+        season,
         reason: quality === "unavailable"
           ? "ไม่พบข้อมูลที่ผ่านการตรวจสำหรับปีและตัวชี้วัดที่เลือก"
           : "ข้อมูล bridge มีสถานะ modeled, estimated, fallback หรือไม่ทราบที่มา",
@@ -164,6 +256,7 @@ export async function GET(request: Request) {
         lensId: lens.id,
         year,
         baseline,
+        season,
         reason: "ไม่พบ observation ที่มีค่าและ area code ครบ",
         quality,
       });
@@ -207,6 +300,7 @@ export async function GET(request: Request) {
       lensId: lens.id,
       year,
       baseline,
+      season,
       reason: "ตรวจ observation ไม่สำเร็จ ระบบจึงไม่เผยแพร่ค่าชั่วคราว",
     });
   }

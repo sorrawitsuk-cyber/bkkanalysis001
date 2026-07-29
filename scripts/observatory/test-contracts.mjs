@@ -28,6 +28,10 @@ const [
   cityMapBoundaryQaRaw,
   datasetVersionEvidenceMigrationSource,
   evidenceResultChecksumMigrationSource,
+  researchObservationMigrationSource,
+  researchPipelineSource,
+  researchStoreSource,
+  observatoryWorkspaceSource,
   observatoryMapSource,
   cityMapRuntimeSource,
 ] =
@@ -140,6 +144,34 @@ const [
       resolve(
         ROOT,
         "supabase/migrations/20260729094500_observatory_dataset_version_evidence_result_checksum.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "supabase/migrations/20260729113000_observatory_research_observations.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "scripts/observatory/run-ndvi-district-research.mjs",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "src/lib/supabase/observatory-research.ts",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "src/components/observatory/ObservatoryWorkspace.tsx",
       ),
       "utf8",
     ),
@@ -575,6 +607,9 @@ assert.ok(vegetationProduct.sourceDatasetIds.includes("sentinel-2-l2a"));
 assert.ok(
   vegetationProduct.sourceDatasetIds.includes("bma-district-boundaries"),
 );
+assert.ok(
+  vegetationProduct.sourceDatasetIds.includes("bma-citymap-basemap"),
+);
 assert.equal(vegetationProduct.publishGate.status, "acceptance");
 assert.equal(vegetationProduct.evidence.fieldQaStatus, "preflight-passed");
 
@@ -869,6 +904,71 @@ assert.match(
   evidenceResultChecksumMigrationSource,
   /Stable checksum of the QA method/,
 );
+for (const table of [
+  "observatory_research_areas",
+  "observatory_research_observations",
+]) {
+  assert.match(
+    researchObservationMigrationSource,
+    new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`),
+  );
+  assert.match(
+    researchObservationMigrationSource,
+    new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`),
+  );
+  assert.match(
+    researchObservationMigrationSource,
+    new RegExp(
+      `REVOKE ALL ON ${table}[\\s\\S]*FROM anon, authenticated`,
+    ),
+  );
+}
+assert.match(researchObservationMigrationSource, /TO service_role/);
+assert.doesNotMatch(
+  researchObservationMigrationSource,
+  /CREATE POLICY[\s\S]*observatory_research_/,
+  "research observations must not have a public RLS policy",
+);
+assert.doesNotMatch(
+  researchObservationMigrationSource,
+  /\bgeom\s+geometry/i,
+  "research tables must not persist boundary geometry",
+);
+assert.match(researchPipelineSource, /ANALYSIS_YEARS = \[2024, 2025\]/);
+assert.match(researchPipelineSource, /expectedStatisticRows: 1200/);
+assert.match(
+  researchPipelineSource,
+  /responseChecksumSha256[\s\S]*boundaryQa\.source\.responseChecksumSha256/,
+);
+assert.match(researchPipelineSource, /\.setGeometry\(null\)/);
+assert.match(
+  researchPipelineSource,
+  /\.from\("observatory_research_observations"\)/,
+);
+assert.doesNotMatch(
+  researchPipelineSource,
+  /\.from\("observatory_observations"\)/,
+  "research run must not write validated public observations",
+);
+assert.doesNotMatch(
+  researchPipelineSource,
+  /\.from\("observatory_raster_assets"\)/,
+  "district research run must not create raster assets",
+);
+assert.match(researchStoreSource, /import "server-only"/);
+assert.match(
+  researchStoreSource,
+  /\.eq\("processing_run_id", preview\.processingRunId\)/,
+);
+assert.match(
+  researchStoreSource,
+  /research observation provenance does not match/,
+);
+assert.match(observationsSource, /status: "research"/);
+assert.match(observationsSource, /"Cache-Control": "no-store"/);
+assert.match(observatoryWorkspaceSource, /DataState[\s\S]*"research"/);
+assert.match(observatoryWorkspaceSource, /validCoverage|Coverage/);
+assert.match(observatoryWorkspaceSource, /p10–p90/);
 
 const requiredTables = [
   "observatory_datasets",

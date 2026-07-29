@@ -73,6 +73,18 @@ export type ObservatoryRegistryProduct = {
     fieldQaStatus?: "preflight-passed" | "preflight-failed";
     exhaustiveQaReportPath?: string;
     exhaustiveQaStatus?: "passed-research-envelope" | "failed";
+    researchPreview?: {
+      status: "available";
+      reportPath: string;
+      processingRunId: string;
+      resultChecksumSha256: string;
+      sourceManifestChecksumSha256: string;
+      boundaryResultChecksumSha256: string;
+      analysisYears: number[];
+      seasons: Array<"hot" | "wet" | "cool">;
+      districtCount: number;
+      statisticRowCount: number;
+    };
   };
   publishGate: {
     status: AcceptanceStatus;

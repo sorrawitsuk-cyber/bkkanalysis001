@@ -23,6 +23,7 @@
     "observatory:ndvi:exhaustive-plan": "node scripts/observatory/plan-ndvi-exhaustive-qa.mjs --write-report",
     "observatory:ndvi:exhaustive-report": "node scripts/observatory/summarize-ndvi-exhaustive-qa.mjs --write-report",
     "observatory:ndvi:exhaustive-worker": "node scripts/observatory/run-ndvi-exhaustive-worker.mjs",
+    "observatory:ndvi:district-research": "node scripts/observatory/run-ndvi-district-research.mjs --apply --write-report",
     "observatory:ndvi:field-qa": "node scripts/observatory/run-ndvi-field-qa.mjs --write-report",
     "observatory:recipes": "node scripts/observatory/test-ndvi-recipe.mjs --write-report",
     "observatory:supabase:check": "node scripts/observatory/check-supabase-public.mjs",

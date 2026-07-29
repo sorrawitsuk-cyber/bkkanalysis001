@@ -1,12 +1,12 @@
 {
   "reportSchemaVersion": "observatory-boundary-qa/v1",
-  "registryVersion": "2026.07.29-3",
+  "registryVersion": "2026.07.29-4",
   "datasetId": "bma-citymap-basemap",
   "serviceVersion": {
     "versionLabel": "citymap-11.5-district-y2561-731a5bae4431",
     "manifestChecksumSha256": "731a5bae44319cca56b262e09fe4c2daecf59306c02b080367e246434b7f9725"
   },
-  "inspectedAt": "2026-07-29T06:28:00.528Z",
+  "inspectedAt": "2026-07-29T08:35:52.611Z",
   "qaMethodVersion": "citymap-district-boundary-qa-v1.0.0",
   "config": {
     "path": "config/observatory/qa/citymap-district-boundary-v1.0.0.json",

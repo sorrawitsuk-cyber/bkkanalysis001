@@ -1,6 +1,6 @@
 {
   "schemaVersion": "observatory-registry/v1",
-  "registryVersion": "2026.07.29-3",
+  "registryVersion": "2026.07.29-4",
   "lastReviewedAt": "2026-07-29",
   "scope": {
     "city": "Bangkok",
@@ -469,7 +469,8 @@
       "measurementType": "derived-indicator",
       "sourceDatasetIds": [
         "sentinel-2-l2a",
-        "bma-district-boundaries"
+        "bma-district-boundaries",
+        "bma-citymap-basemap"
       ],
       "unit": "NDVI",
       "statistics": [

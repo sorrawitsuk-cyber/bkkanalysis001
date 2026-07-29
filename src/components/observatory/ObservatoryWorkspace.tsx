@@ -9,6 +9,7 @@ import {
   CircleOff,
   Database,
   FileCheck2,
+  FlaskConical,
   Layers3,
   Map as MapIcon,
   ScanSearch,
@@ -34,6 +35,12 @@ type AreaProperties = {
   nameEn: string;
   level: string;
   metricValue?: number | null;
+  baselineValue?: number | null;
+  metricDelta?: number | null;
+  metricCoverage?: number | null;
+  metricP10?: number | null;
+  metricP90?: number | null;
+  sceneCount?: number | null;
 };
 
 type AreaFeature = {
@@ -55,18 +62,35 @@ type AreaCollection = {
 
 type ObservationPayload = {
   productId?: string;
-  status?: "available" | "unavailable";
-  period?: { year: number; baseline: number };
+  status?: "available" | "research" | "unavailable";
+  period?: {
+    year: number;
+    baseline: number;
+    season?: ObservatorySeason | null;
+  };
   observations?: Array<{
     areaCode: string;
     statistic: string;
     value: number;
+    baselineValue?: number;
+    delta?: number;
+    p10?: number;
+    p90?: number;
+    interquartileRange?: number;
     unit: string;
     coverage: number | null;
+    baselineCoverage?: number;
+    sceneCount?: number;
+    baselineSceneCount?: number;
+    validObservationCount?: number;
   }>;
   summary?: {
     averageValue: number | null;
+    averageBaselineValue?: number | null;
+    averageDelta?: number | null;
     observationCount: number;
+    minCoverage?: number;
+    minBaselineCoverage?: number;
   } | null;
   provenance?: {
     sourceLabel?: string;
@@ -77,22 +101,43 @@ type ObservationPayload = {
     methodVersion?: string;
     resolution?: string;
     periodLabel?: string;
+    processingRunId?: string;
+    resultChecksumSha256?: string;
+    boundaryResultChecksumSha256?: string;
   };
   reason?: string | null;
   error?: string;
 };
 
-type DataState = "loading" | "available" | "withheld" | "planned" | "error";
+type DataState =
+  | "loading"
+  | "available"
+  | "research"
+  | "withheld"
+  | "planned"
+  | "error";
 type ViewMode = "map" | "table";
+type ObservatorySeason = "hot" | "wet" | "cool";
 
 type ObservatoryWorkspaceProps = {
   initialLens: ObservatoryLensId;
   initialYear: number;
   initialBaseline: number;
+  initialSeason: ObservatorySeason;
   initialArea: string;
 };
 
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
+const RESEARCH_YEARS = [2025, 2024];
+const SEASONS: Array<{
+  id: ObservatorySeason;
+  label: string;
+  shortLabel: string;
+}> = [
+  { id: "hot", label: "ฤดูร้อน มี.ค.–พ.ค.", shortLabel: "ฤดูร้อน" },
+  { id: "wet", label: "ฤดูฝน มิ.ย.–ต.ค.", shortLabel: "ฤดูฝน" },
+  { id: "cool", label: "ฤดูเย็น พ.ย.–ก.พ.", shortLabel: "ฤดูเย็น" },
+];
 
 function formatValue(value: number | null | undefined, decimals: number, unit: string) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "ไม่มีค่าที่ผ่านเงื่อนไข";
@@ -100,27 +145,45 @@ function formatValue(value: number | null | undefined, decimals: number, unit: s
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
-  return unit === "NDVI" || unit === "NDBI" ? `${formatted} ${unit}` : `${formatted} ${unit}`;
+  return unit ? `${formatted} ${unit}` : formatted;
 }
 
 function qualityText(state: DataState) {
   if (state === "available") return "ข้อมูลสังเกตพร้อมอ่าน";
+  if (state === "research") return "ข้อมูล R&D ผ่าน QA ภายใน";
   if (state === "withheld") return "ระงับการแสดงค่าที่ไม่ผ่านนโยบาย";
   if (state === "planned") return "อยู่ระหว่าง data acceptance";
   if (state === "error") return "ตรวจสถานะข้อมูลไม่ได้";
   return "กำลังตรวจหลักฐานข้อมูล";
 }
 
+function formatSignedValue(
+  value: number | null | undefined,
+  decimals: number,
+) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "ไม่มีค่าเปรียบเทียบ";
+  }
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toLocaleString("th-TH", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+}
+
 export default function ObservatoryWorkspace({
   initialLens,
   initialYear,
   initialBaseline,
+  initialSeason,
   initialArea,
 }: ObservatoryWorkspaceProps) {
   const router = useRouter();
   const [lensId, setLensId] = useState<ObservatoryLensId>(initialLens);
   const [year, setYear] = useState(initialYear);
   const [baseline, setBaseline] = useState(initialBaseline);
+  const [season, setSeason] =
+    useState<ObservatorySeason>(initialSeason);
   const [areas, setAreas] = useState<AreaCollection | null>(null);
   const [observationPayload, setObservationPayload] = useState<ObservationPayload | null>(null);
   const [state, setState] = useState<DataState>("loading");
@@ -133,6 +196,11 @@ export default function ObservatoryWorkspace({
   );
   const [appliedArea, setAppliedArea] = useState(initialArea);
   const lens = getObservatoryLens(lensId);
+  const isResearchVegetation = lens.id === "vegetation";
+  const hasValues = state === "available" || state === "research";
+  const seasonLabel = SEASONS.find(
+    (item) => item.id === season,
+  )?.shortLabel;
   const boundaryVersion = areas?.meta?.boundaryVersion;
   const boundaryLabel = boundaryVersion
     ? boundaryVersion.length > 16
@@ -179,6 +247,7 @@ export default function ObservatoryWorkspace({
       product: lens.id,
       year: String(year),
       baseline: String(baseline),
+      season,
     });
 
     fetch(`/api/v1/observations?${params.toString()}`)
@@ -194,6 +263,14 @@ export default function ObservatoryWorkspace({
           setState("available");
           return;
         }
+        if (payload.status === "research") {
+          setState("research");
+          setStatusReason(
+            payload.reason
+            || "ข้อมูลนี้พร้อมสำหรับการวิเคราะห์ R&D เท่านั้น",
+          );
+          return;
+        }
         setState("withheld");
         setStatusReason(payload.reason || "ข้อมูลไม่ผ่านนโยบายการเผยแพร่ของ Observatory");
       })
@@ -207,30 +284,59 @@ export default function ObservatoryWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [baseline, lens.apiMetric, lens.id, year]);
+  }, [baseline, lens.apiMetric, lens.id, season, year]);
 
   const mergedAreas = useMemo<AreaCollection | null>(() => {
     if (!areas) return null;
-    if (state !== "available" || !observationPayload?.observations) return areas;
+    if (!hasValues || !observationPayload?.observations) return areas;
 
     const byAreaCode = new Map(
-      observationPayload.observations.map((observation) => [observation.areaCode, observation.value]),
+      observationPayload.observations.map(
+        (observation) => [observation.areaCode, observation],
+      ),
     );
 
     return {
       ...areas,
       features: areas.features.map((feature) => {
-        const rawValue = byAreaCode.get(feature.properties.areaCode);
+        const observation = byAreaCode.get(
+          feature.properties.areaCode,
+        );
+        const rawValue = observation?.value;
         return {
           ...feature,
           properties: {
             ...feature.properties,
             metricValue: typeof rawValue === "number" && Number.isFinite(rawValue) ? rawValue : null,
+            baselineValue:
+              typeof observation?.baselineValue === "number"
+                ? observation.baselineValue
+                : null,
+            metricDelta:
+              typeof observation?.delta === "number"
+                ? observation.delta
+                : null,
+            metricCoverage:
+              typeof observation?.coverage === "number"
+                ? observation.coverage
+                : null,
+            metricP10:
+              typeof observation?.p10 === "number"
+                ? observation.p10
+                : null,
+            metricP90:
+              typeof observation?.p90 === "number"
+                ? observation.p90
+                : null,
+            sceneCount:
+              typeof observation?.sceneCount === "number"
+                ? observation.sceneCount
+                : null,
           },
         };
       }),
     };
-  }, [areas, observationPayload, state]);
+  }, [areas, hasValues, observationPayload]);
 
   const selectedFeature = useMemo(
     () => mergedAreas?.features.find((feature) => feature.properties.nameTh === selectedName) ?? null,
@@ -240,33 +346,44 @@ export default function ObservatoryWorkspace({
   const sortedAreas = useMemo(() => {
     if (!mergedAreas) return [];
     return [...mergedAreas.features].sort((a, b) => {
-      if (state === "available") {
+      if (hasValues) {
         return (b.properties.metricValue ?? -Infinity) - (a.properties.metricValue ?? -Infinity);
       }
       return a.properties.nameTh.localeCompare(b.properties.nameTh, "th");
     });
-  }, [mergedAreas, state]);
+  }, [hasValues, mergedAreas]);
 
   const updateUrl = useCallback((next?: {
     lens?: ObservatoryLensId;
     nextYear?: number;
     nextBaseline?: number;
+    nextSeason?: ObservatorySeason;
     area?: string;
   }) => {
     const params = new URLSearchParams({
       lens: next?.lens ?? lensId,
       year: String(next?.nextYear ?? year),
       baseline: String(next?.nextBaseline ?? baseline),
+      season: next?.nextSeason ?? season,
       area: next?.area ?? appliedArea,
     });
     router.replace(`/observatory?${params.toString()}`, { scroll: false });
-  }, [appliedArea, baseline, lensId, router, year]);
+  }, [appliedArea, baseline, lensId, router, season, year]);
 
   function chooseLens(nextLens: ObservatoryLensId) {
+    const nextYear = nextLens === "vegetation" ? 2025 : year;
+    const nextBaseline = nextLens === "vegetation" ? 2024 : baseline;
     setLensId(nextLens);
+    setYear(nextYear);
+    setBaseline(nextBaseline);
     setSelectedName(null);
     setAppliedArea("bangkok");
-    updateUrl({ lens: nextLens, area: "bangkok" });
+    updateUrl({
+      lens: nextLens,
+      nextYear,
+      nextBaseline,
+      area: "bangkok",
+    });
   }
 
   function applySelectedArea() {
@@ -298,6 +415,29 @@ export default function ObservatoryWorkspace({
               ))}
             </select>
           </label>
+          {isResearchVegetation && (
+            <label>
+              <span className="mb-1 block text-xs font-semibold text-[var(--oe-muted)]">
+                ฤดูกาล
+              </span>
+              <select
+                value={season}
+                onChange={(event) => {
+                  const value =
+                    event.target.value as ObservatorySeason;
+                  setSeason(value);
+                  updateUrl({ nextSeason: value });
+                }}
+                className="min-h-11 rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
+              >
+                {SEASONS.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             <span className="mb-1 block text-xs font-semibold text-[var(--oe-muted)]">ปีที่ตรวจ</span>
             <select
@@ -309,7 +449,8 @@ export default function ObservatoryWorkspace({
               }}
               className="min-h-11 rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
             >
-              {YEARS.map((item) => <option key={item}>{item}</option>)}
+              {(isResearchVegetation ? [RESEARCH_YEARS[0]] : YEARS)
+                .map((item) => <option key={item}>{item}</option>)}
             </select>
           </label>
           <label>
@@ -323,17 +464,27 @@ export default function ObservatoryWorkspace({
               }}
               className="min-h-11 rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
             >
-              {YEARS.filter((item) => item < year).map((item) => <option key={item}>{item}</option>)}
+              {(isResearchVegetation ? RESEARCH_YEARS : YEARS)
+                .filter((item) => item < year)
+                .map((item) => <option key={item}>{item}</option>)}
             </select>
           </label>
           <div className={`flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-3 text-sm font-semibold ${
             state === "available"
               ? "bg-[var(--oe-success-soft)] text-[var(--oe-success-ink)]"
+              : state === "research"
+                ? "bg-[var(--oe-warning-soft)] text-[var(--oe-warning-ink)]"
               : state === "loading"
                 ? "bg-[var(--oe-info-soft)] text-[var(--oe-info-ink)]"
                 : "bg-[var(--oe-warning-soft)] text-[var(--oe-warning-ink)]"
           }`}>
-            {state === "available" ? <Check className="h-4 w-4" /> : state === "loading" ? <ScanSearch className="h-4 w-4" /> : <CircleOff className="h-4 w-4" />}
+            {state === "available"
+              ? <Check className="h-4 w-4" />
+              : state === "research"
+                ? <FlaskConical className="h-4 w-4" />
+                : state === "loading"
+                  ? <ScanSearch className="h-4 w-4" />
+                  : <CircleOff className="h-4 w-4" />}
             {qualityText(state)}
           </div>
         </div>
@@ -379,7 +530,10 @@ export default function ObservatoryWorkspace({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--oe-line)] px-3 py-2">
             <div>
               <h2 className="text-sm font-bold">{lens.title}</h2>
-              <p className="mt-0.5 text-xs text-[var(--oe-muted)]">ปี {year} เทียบปีฐาน {baseline} · หน่วยพื้นที่ เขต</p>
+              <p className="mt-0.5 text-xs text-[var(--oe-muted)]">
+                {isResearchVegetation && `${seasonLabel} · `}
+                ปี {year} เทียบปีฐาน {baseline} · หน่วยพื้นที่ เขต
+              </p>
             </div>
             <div className="flex rounded-[var(--radius-control)] border border-[var(--oe-line)] bg-[var(--oe-surface-muted)] p-1">
               <button
@@ -405,7 +559,22 @@ export default function ObservatoryWorkspace({
             </div>
           </div>
 
-          {state !== "available" && state !== "loading" && (
+          {state === "research" && (
+            <div className="flex items-start gap-3 border-b border-[var(--oe-warning-line)] bg-[var(--oe-warning-soft)] px-4 py-3 text-sm text-[var(--oe-warning-ink)]">
+              <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <strong className="font-bold">
+                  ข้อมูลวิจัย แสดงเพื่อการตรวจสอบ R&D
+                </strong>
+                <p className="mt-0.5 max-w-[75ch] leading-6">
+                  {statusReason} ค่าบนแผนที่เป็นสัญญาณระดับเขต
+                  ควรอ่าน coverage และช่วง p10–p90 ร่วมกัน
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!hasValues && state !== "loading" && (
             <div className="flex items-start gap-3 border-b border-[var(--oe-warning-line)] bg-[var(--oe-warning-soft)] px-4 py-3 text-sm text-[var(--oe-warning-ink)]">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
@@ -419,7 +588,7 @@ export default function ObservatoryWorkspace({
             <div className="relative min-h-[520px]">
               <ObservatoryMap
                 geojson={mergedAreas}
-                trustedValues={state === "available"}
+                trustedValues={hasValues}
                 selectedName={selectedName}
                 ramp={lens.ramp}
                 onSelect={(feature) => setSelectedName(feature.properties.nameTh)}
@@ -453,8 +622,8 @@ export default function ObservatoryWorkspace({
                     : "Bangkok CityMap ไม่พร้อมใช้งาน"}
               </div>
               <div className="absolute bottom-4 right-4 z-[400] max-w-[250px] rounded-[var(--radius-control)] border border-[var(--oe-line)] bg-white/95 p-3 text-xs">
-                <p className="font-bold">{state === "available" ? `ช่วงสี ${lens.unit}` : "ขอบเขตพื้นที่เท่านั้น"}</p>
-                {state === "available" ? (
+                <p className="font-bold">{hasValues ? `ช่วงสี ${lens.unit}` : "ขอบเขตพื้นที่เท่านั้น"}</p>
+                {hasValues ? (
                   <div className="mt-2 flex">
                     {lens.ramp.map((color) => <span key={color} className="h-2.5 flex-1" style={{ backgroundColor: color }} />)}
                   </div>
@@ -471,7 +640,22 @@ export default function ObservatoryWorkspace({
                   <tr>
                     <th className="px-4 py-3 font-bold">พื้นที่</th>
                     <th className="px-4 py-3 font-bold">รหัสชั่วคราว</th>
-                    <th className="px-4 py-3 text-right font-bold">{lens.unit}</th>
+                    <th className="px-4 py-3 text-right font-bold">
+                      {year}
+                    </th>
+                    {isResearchVegetation && (
+                      <>
+                        <th className="px-4 py-3 text-right font-bold">
+                          {baseline}
+                        </th>
+                        <th className="px-4 py-3 text-right font-bold">
+                          เปลี่ยนแปลง
+                        </th>
+                        <th className="px-4 py-3 text-right font-bold">
+                          Coverage
+                        </th>
+                      </>
+                    )}
                     <th className="w-12 px-3 py-3"><span className="sr-only">เลือก</span></th>
                   </tr>
                 </thead>
@@ -481,10 +665,41 @@ export default function ObservatoryWorkspace({
                       <td className="px-4 py-3 font-semibold">{feature.properties.nameTh}</td>
                       <td className="px-4 py-3 font-mono text-xs text-[var(--oe-muted)]">{feature.properties.areaCode}</td>
                       <td className="px-4 py-3 text-right font-mono text-xs">
-                        {state === "available"
+                        {hasValues
                           ? formatValue(feature.properties.metricValue, lens.decimals, lens.unit)
                           : "ระงับการแสดง"}
                       </td>
+                      {isResearchVegetation && (
+                        <>
+                          <td className="px-4 py-3 text-right font-mono text-xs">
+                            {hasValues
+                              ? formatValue(
+                                  feature.properties.baselineValue,
+                                  lens.decimals,
+                                  lens.unit,
+                                )
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-xs">
+                            {hasValues
+                              ? formatSignedValue(
+                                  feature.properties.metricDelta,
+                                  lens.decimals,
+                                )
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-xs">
+                            {typeof feature.properties.metricCoverage
+                              === "number"
+                              ? `${(
+                                  feature.properties.metricCoverage * 100
+                                ).toLocaleString("th-TH", {
+                                  maximumFractionDigits: 1,
+                                })}%`
+                              : "—"}
+                          </td>
+                        </>
+                      )}
                       <td className="px-3 py-2">
                         <button
                           type="button"
@@ -504,11 +719,19 @@ export default function ObservatoryWorkspace({
           <div className="border-t border-[var(--oe-line)] bg-[var(--oe-surface-muted)] px-4 py-3 text-xs text-[var(--oe-muted)]">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <span className="font-bold text-[var(--oe-ink)]">{lens.measurementType}</span>
-              <span>{lens.source}</span>
+              <span>{sourceLabel}</span>
               <span>{lens.resolution}</span>
-              <span>ปี {year}</span>
+              <span>
+                {isResearchVegetation && `${seasonLabel} · `}
+                ปี {year}
+              </span>
+              {state === "research" && (
+                <span className="font-semibold text-[var(--oe-warning-ink)]">
+                  Research preview
+                </span>
+              )}
               <span title={boundaryVersion}>
-                Boundary: {areas?.meta?.qualityStatus ?? "กำลังตรวจ"} · {boundaryLabel}
+                Display geometry: {areas?.meta?.qualityStatus ?? "กำลังตรวจ"} · {boundaryLabel}
               </span>
             </div>
           </div>
@@ -532,12 +755,72 @@ export default function ObservatoryWorkspace({
                 <div className="mt-4 border-y border-[var(--oe-line-soft)] py-4">
                   <p className="text-xs font-semibold text-[var(--oe-muted)]">{lens.shortTitle}</p>
                   <p className="mt-1 text-xl font-bold tabular-nums">
-                    {state === "available"
+                    {hasValues
                       ? formatValue(selectedFeature.properties.metricValue, lens.decimals, lens.unit)
                       : "ยังไม่มีค่าที่ผ่าน QA"}
                   </p>
+                  {hasValues && isResearchVegetation && (
+                    <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                      <div>
+                        <dt className="text-[var(--oe-muted)]">
+                          ปีฐาน {baseline}
+                        </dt>
+                        <dd className="mt-1 font-mono font-semibold">
+                          {formatValue(
+                            selectedFeature.properties.baselineValue,
+                            lens.decimals,
+                            lens.unit,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[var(--oe-muted)]">
+                          เปลี่ยนแปลง
+                        </dt>
+                        <dd className="mt-1 font-mono font-semibold">
+                          {formatSignedValue(
+                            selectedFeature.properties.metricDelta,
+                            lens.decimals,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[var(--oe-muted)]">
+                          ช่วง p10–p90
+                        </dt>
+                        <dd className="mt-1 font-mono font-semibold">
+                          {formatValue(
+                            selectedFeature.properties.metricP10,
+                            lens.decimals,
+                            "",
+                          )}{" – "}
+                          {formatValue(
+                            selectedFeature.properties.metricP90,
+                            lens.decimals,
+                            lens.unit,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[var(--oe-muted)]">
+                          Coverage
+                        </dt>
+                        <dd className="mt-1 font-mono font-semibold">
+                          {typeof selectedFeature.properties.metricCoverage
+                          === "number"
+                            ? `${(
+                                selectedFeature.properties.metricCoverage
+                                * 100
+                              ).toLocaleString("th-TH", {
+                                maximumFractionDigits: 1,
+                              })}%`
+                            : "ไม่มีค่า"}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
                   <p className="mt-2 text-xs leading-5 text-[var(--oe-muted)]">
-                    {state === "available"
+                    {hasValues
                       ? "ค่านี้เป็นสัญญาณระดับเขต ควรเปิด distribution และ pixel coverage ก่อนสรุป"
                       : statusReason || "กำลังตรวจสถานะข้อมูล"}
                   </p>
@@ -568,6 +851,18 @@ export default function ObservatoryWorkspace({
                 </div>
                 <p className="mt-1 text-xs leading-5 text-[var(--oe-muted)]">{sourceLabel}</p>
                 <p className="mt-1 font-mono text-[11px] text-[var(--oe-muted)]">{lens.sourceId}</p>
+                {observationPayload?.provenance?.processingRunId && (
+                  <p
+                    className="mt-2 break-all font-mono text-[10px] leading-4 text-[var(--oe-muted)]"
+                    title={
+                      observationPayload.provenance
+                        .resultChecksumSha256
+                    }
+                  >
+                    Run:{" "}
+                    {observationPayload.provenance.processingRunId}
+                  </p>
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold">

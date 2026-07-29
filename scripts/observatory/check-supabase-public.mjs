@@ -39,6 +39,8 @@ const [
   qualityFlags,
   datasetAuthorizations,
   datasetVersionEvidence,
+  researchAreas,
+  researchObservations,
 ] = await Promise.all([
   supabase
     .from("observatory_datasets")
@@ -70,6 +72,12 @@ const [
   supabase
     .from("observatory_dataset_version_evidence")
     .select("evidence_id", { count: "exact", head: true }),
+  supabase
+    .from("observatory_research_areas")
+    .select("area_code", { count: "exact", head: true }),
+  supabase
+    .from("observatory_research_observations")
+    .select("research_observation_id", { count: "exact", head: true }),
 ]);
 
 for (const [name, result] of [
@@ -145,6 +153,16 @@ if (!datasetVersionEvidence.error) {
     "observatory_dataset_version_evidence unexpectedly allows anonymous reads.",
   );
 }
+if (!researchAreas.error) {
+  throw new Error(
+    "observatory_research_areas unexpectedly allows anonymous reads.",
+  );
+}
+if (!researchObservations.error) {
+  throw new Error(
+    "observatory_research_observations unexpectedly allows anonymous reads.",
+  );
+}
 
 console.log(
   JSON.stringify(
@@ -160,6 +178,8 @@ console.log(
       internalQualityFlagsPubliclyReadable: false,
       internalAuthorizationsPubliclyReadable: false,
       internalDatasetVersionEvidencePubliclyReadable: false,
+      internalResearchAreasPubliclyReadable: false,
+      internalResearchObservationsPubliclyReadable: false,
       serviceRoleUsed: false,
     },
     null,
