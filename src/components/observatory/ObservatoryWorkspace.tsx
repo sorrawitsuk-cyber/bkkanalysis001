@@ -20,6 +20,7 @@ import {
   OBSERVATORY_LENSES,
   type ObservatoryLensId,
 } from "@/lib/observatory/catalog";
+import type { CityMapStatus } from "@/lib/observatory/citymap";
 
 const ObservatoryMap = dynamic(() => import("./ObservatoryMap"), {
   ssr: false,
@@ -125,6 +126,8 @@ export default function ObservatoryWorkspace({
   const [state, setState] = useState<DataState>("loading");
   const [statusReason, setStatusReason] = useState("");
   const [view, setView] = useState<ViewMode>("map");
+  const [basemapStatus, setBasemapStatus] =
+    useState<CityMapStatus>("loading");
   const [selectedName, setSelectedName] = useState<string | null>(
     initialArea !== "bangkok" ? initialArea : null,
   );
@@ -420,7 +423,35 @@ export default function ObservatoryWorkspace({
                 selectedName={selectedName}
                 ramp={lens.ramp}
                 onSelect={(feature) => setSelectedName(feature.properties.nameTh)}
+                onBasemapStatus={setBasemapStatus}
               />
+              <div
+                className={`absolute right-3 top-3 z-[400] inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] border px-2.5 text-xs font-semibold ${
+                  basemapStatus === "ready"
+                    ? "border-[var(--oe-line)] bg-white text-[var(--oe-ink)]"
+                    : basemapStatus === "loading"
+                      ? "border-[var(--oe-line)] bg-white text-[var(--oe-muted)]"
+                      : "border-[var(--oe-warning-line)] bg-[var(--oe-warning-soft)] text-[var(--oe-warning-ink)]"
+                }`}
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    basemapStatus === "ready"
+                      ? "bg-[var(--oe-success)]"
+                      : basemapStatus === "loading"
+                        ? "bg-[var(--oe-info)]"
+                        : "bg-[var(--oe-warning)]"
+                  }`}
+                  aria-hidden="true"
+                />
+                {basemapStatus === "ready"
+                  ? "แผนที่ฐาน Bangkok CityMap"
+                  : basemapStatus === "loading"
+                    ? "กำลังโหลด Bangkok CityMap"
+                    : "Bangkok CityMap ไม่พร้อมใช้งาน"}
+              </div>
               <div className="absolute bottom-4 right-4 z-[400] max-w-[250px] rounded-[var(--radius-control)] border border-[var(--oe-line)] bg-white/95 p-3 text-xs">
                 <p className="font-bold">{state === "available" ? `ช่วงสี ${lens.unit}` : "ขอบเขตพื้นที่เท่านั้น"}</p>
                 {state === "available" ? (

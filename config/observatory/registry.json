@@ -1,6 +1,6 @@
 {
   "schemaVersion": "observatory-registry/v1",
-  "registryVersion": "2026.07.29-1",
+  "registryVersion": "2026.07.29-2",
   "lastReviewedAt": "2026-07-29",
   "scope": {
     "city": "Bangkok",
@@ -120,6 +120,49 @@
           "metadata ระบุ License not specified จึงยังห้ามนำ source หรือ geometry ที่แปลงแล้วไปเผยแพร่ซ้ำ",
           "ต้องได้รับคำยืนยันสิทธิ์ใช้ซ้ำและ attribution จากกรุงเทพมหานคร",
           "resource ไม่ระบุวันที่ปรับปรุงหรือ version ของ geometry จึงต้องอ้างอิงด้วย URL, retrievedAt และ SHA-256"
+        ]
+      }
+    },
+    {
+      "id": "bma-citymap-basemap",
+      "name": "Bangkok CityMap Basemap 1:1000",
+      "owner": "กรุงเทพมหานคร",
+      "sourceUrl": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer",
+      "roleTh": "แผนที่ฐานและบริบทเชิงพื้นที่ที่เรียกจากบริการสาธารณะของกรุงเทพมหานครโดยตรง",
+      "measurementType": "administrative",
+      "sourceClass": "official-public-map-service",
+      "spatialResolution": "แผนที่ฐานมาตราส่วน 1:1000; service CRS EPSG:4326",
+      "temporalCadence": "ไม่ระบุใน service metadata; layer เขตระบุปีสำรวจ 2561",
+      "resources": [
+        {
+          "id": "citymap-arcgis-mapserver",
+          "format": "ArcGIS REST MapServer",
+          "url": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer"
+        },
+        {
+          "id": "citymap-wms",
+          "format": "OGC WMS 1.3.0",
+          "url": "https://citymap.bangkok.go.th/citymap/services/Basemap_Service/Basemap1000_4326_H/MapServer/WMSServer"
+        },
+        {
+          "id": "citymap-district-layer",
+          "format": "ArcGIS REST Feature Layer 13",
+          "url": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer/13"
+        }
+      ],
+      "license": {
+        "status": "unverified",
+        "name": "Public ArcGIS REST/WMS access; service metadata does not declare reuse terms",
+        "url": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer",
+        "redistribution": "restricted"
+      },
+      "acceptance": {
+        "status": "research",
+        "checkedAt": "2026-07-29",
+        "blockers": [
+          "อนุญาตเฉพาะการเรียกแสดงผลจาก public service โดยตรงในขั้นนี้",
+          "ห้ามใช้ basemap เป็นค่าตัวชี้วัดหรืออ้างว่าเป็น source ที่ผ่าน license validation",
+          "ยังไม่อนุญาตให้ cache, republish หรือส่งออก source geometry จากบริการนี้"
         ]
       }
     },

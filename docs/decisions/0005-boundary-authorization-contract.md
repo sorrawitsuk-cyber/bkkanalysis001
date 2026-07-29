@@ -1,7 +1,7 @@
 # Decision 0005: Fail-closed boundary authorization contract
 
 Date: 2026-07-29
-Status: Accepted
+Status: Superseded by Decision 0006
 
 ## Context
 
@@ -48,3 +48,9 @@ restricted reference and checksum.
 - Receiving a reply does not automatically promote geometry. A second review
   must normalize the response into the contract and pass the approval command.
 - Revocation or expiry can close the gate without deleting the audit record.
+
+## Supersession
+
+The request workflow was withdrawn on 2026-07-29. No email was sent. The static
+GML authorization gate remains closed for audit purposes, while Decision 0006
+defines direct consumption of the separate public Bangkok CityMap service.

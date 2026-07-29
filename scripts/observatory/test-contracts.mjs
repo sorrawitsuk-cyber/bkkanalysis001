@@ -22,6 +22,10 @@ const [
   boundaryAuthorizationRaw,
   authorizationMigrationSource,
   authorizationRequestSource,
+  cityMapReportRaw,
+  authorizationWithdrawnMigrationSource,
+  observatoryMapSource,
+  cityMapRuntimeSource,
 ] =
   await Promise.all([
     readFile(resolve(ROOT, "config/observatory/registry.json"), "utf8"),
@@ -93,6 +97,28 @@ const [
       ),
       "utf8",
     ),
+    readFile(
+      resolve(
+        ROOT,
+        "reports/observatory/bma-citymap-service-intake.json",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(
+        ROOT,
+        "supabase/migrations/20260729070000_observatory_authorization_withdrawn_status.sql",
+      ),
+      "utf8",
+    ),
+    readFile(
+      resolve(ROOT, "src/components/observatory/ObservatoryMap.tsx"),
+      "utf8",
+    ),
+    readFile(
+      resolve(ROOT, "src/lib/observatory/citymap.ts"),
+      "utf8",
+    ),
   ]);
 
 const registry = JSON.parse(registryRaw);
@@ -104,6 +130,7 @@ const exhaustiveConfig = JSON.parse(exhaustiveConfigRaw);
 const exhaustivePlan = JSON.parse(exhaustivePlanRaw);
 const exhaustiveQa = JSON.parse(exhaustiveQaRaw);
 const boundaryAuthorization = JSON.parse(boundaryAuthorizationRaw);
+const cityMapReport = JSON.parse(cityMapReportRaw);
 
 assert.equal(areas.type, "FeatureCollection");
 assert.equal(areas.features.length, 50);
@@ -159,7 +186,7 @@ assert.equal(
   boundaryAuthorization.source.checksumSha256,
   boundaryReport.source.checksumSha256,
 );
-assert.equal(boundaryAuthorization.decisionStatus, "pending");
+assert.equal(boundaryAuthorization.decisionStatus, "withdrawn");
 assert.equal(boundaryAuthorization.gateStatus, "blocked");
 assert.ok(boundaryAuthorization.blockers.length >= 1);
 assert.ok(
@@ -169,12 +196,12 @@ assert.ok(
 );
 assert.equal(boundaryAuthorization.evidence.artifactReference, null);
 assert.equal(boundaryAuthorization.evidence.artifactChecksumSha256, null);
-const pendingAuthorizationEvaluation = evaluateBoundaryAuthorization(
+const withdrawnAuthorizationEvaluation = evaluateBoundaryAuthorization(
   boundaryAuthorization,
   { registry, boundaryReport },
 );
-assert.equal(pendingAuthorizationEvaluation.validContract, true);
-assert.equal(pendingAuthorizationEvaluation.gateOpen, false);
+assert.equal(withdrawnAuthorizationEvaluation.validContract, true);
+assert.equal(withdrawnAuthorizationEvaluation.gateOpen, false);
 
 const approvedAuthorizationFixture = structuredClone(boundaryAuthorization);
 approvedAuthorizationFixture.decisionStatus = "approved";
@@ -255,6 +282,66 @@ assert.match(
   authorizationRequestSource,
   new RegExp(boundaryReport.source.checksumSha256),
 );
+assert.match(authorizationRequestSource, /ห้ามส่ง/);
+
+const cityMapDataset = registry.datasets.find(
+  (dataset) => dataset.id === "bma-citymap-basemap",
+);
+assert.equal(cityMapDataset.owner, "กรุงเทพมหานคร");
+assert.equal(cityMapDataset.acceptance.status, "research");
+assert.equal(cityMapDataset.license.status, "unverified");
+assert.equal(cityMapDataset.license.redistribution, "restricted");
+assert.equal(
+  cityMapReport.reportSchemaVersion,
+  "observatory-public-map-service-intake/v1",
+);
+assert.equal(cityMapReport.registryVersion, registry.registryVersion);
+assert.equal(cityMapReport.datasetId, cityMapDataset.id);
+assert.equal(cityMapReport.service.mapName, "Basemap1000_4326_H");
+assert.equal(cityMapReport.service.spatialReference, "EPSG:4326");
+assert.equal(cityMapReport.service.layerCount, 15);
+assert.equal(cityMapReport.service.singleFusedMapCache, false);
+assert.equal(cityMapReport.wms.version, "1.3.0");
+assert.ok(cityMapReport.wms.supportedCrs.includes("EPSG:4326"));
+assert.equal(cityMapReport.wms.getMapSmokeStatus, 200);
+assert.equal(cityMapReport.wms.getMapContentType, "image/png");
+assert.equal(cityMapReport.districtLayer.id, 13);
+assert.equal(cityMapReport.districtLayer.recordCount, 50);
+assert.equal(cityMapReport.districtLayer.completeOfficialCodeSet, true);
+assert.deepEqual(cityMapReport.districtLayer.surveyYearsBuddhist, [2561]);
+assert.equal(cityMapReport.districtLayer.geometryQueried, false);
+assert.equal(cityMapReport.districtLayer.geometryPersisted, false);
+assert.match(
+  cityMapReport.version.versionLabel,
+  /^citymap-11\.5-district-y2561-[a-f0-9]{12}$/,
+);
+assert.match(
+  cityMapReport.version.manifestChecksumSha256,
+  /^[a-f0-9]{64}$/,
+);
+assert.equal(cityMapReport.version.acceptanceStatus, "research");
+assert.equal(
+  cityMapReport.consumptionPolicy.status,
+  "accepted-for-direct-basemap",
+);
+assert.equal(
+  cityMapReport.consumptionPolicy.directExternalRequestsOnly,
+  true,
+);
+assert.equal(cityMapReport.consumptionPolicy.proxyEnabled, false);
+assert.equal(
+  cityMapReport.consumptionPolicy.analyticalGeometryAccepted,
+  false,
+);
+assert.equal(
+  cityMapReport.consumptionPolicy.sourceRepublicationAllowed,
+  false,
+);
+assert.match(observatoryMapSource, /L\.tileLayer\.wms/);
+assert.match(observatoryMapSource, /crs: L\.CRS\.EPSG4326/);
+assert.doesNotMatch(observatoryMapSource, /cartocdn|OpenStreetMap/);
+assert.match(cityMapRuntimeSource, /Basemap1000_4326_H/);
+assert.match(cityMapRuntimeSource, /Bangkok CityMap/);
 
 const sentinelDataset = registry.datasets.find(
   (dataset) => dataset.id === "sentinel-2-l2a",
@@ -563,6 +650,14 @@ assert.doesNotMatch(
   /CREATE POLICY[\s\S]*observatory_dataset_authorizations/,
   "authorization evidence must not have a public RLS policy",
 );
+assert.match(
+  authorizationWithdrawnMigrationSource,
+  /'withdrawn'/,
+);
+assert.match(
+  authorizationWithdrawnMigrationSource,
+  /gate remains blocked/,
+);
 
 const requiredTables = [
   "observatory_datasets",
@@ -607,6 +702,7 @@ console.log(JSON.stringify({
   exhaustiveTileJobs: exhaustivePlan.jobs.length,
   exhaustiveQaStatus: exhaustiveQa.qa.status,
   boundaryAuthorizationStatus: boundaryAuthorization.decisionStatus,
+  cityMapBasemapStatus: cityMapReport.consumptionPolicy.status,
 }));
 
 function assertTilesPartitionBounds(tiles, expectedBounds) {

@@ -52,3 +52,8 @@ channel.
 
 Decision 0005 defines the machine-verifiable authorization record, restricted
 Supabase storage and fail-closed approval command used to resolve this gate.
+
+On 2026-07-29 the product direction withdrew the email workflow. No request will
+be sent. This gate now applies only to promotion of the static GML snapshot;
+Decision 0006 separately allows direct display of the public Bangkok CityMap
+service without proxying or republishing it.

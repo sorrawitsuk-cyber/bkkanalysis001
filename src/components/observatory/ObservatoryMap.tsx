@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  BMA_CITYMAP,
+  type CityMapStatus,
+} from "@/lib/observatory/citymap";
 
 type AreaProperties = {
   areaCode: string;
@@ -30,6 +34,7 @@ type ObservatoryMapProps = {
   selectedName: string | null;
   ramp: string[];
   onSelect: (feature: AreaFeature) => void;
+  onBasemapStatus: (status: CityMapStatus) => void;
 };
 
 const EMPTY_COLOR = "oklch(0.90 0.012 275)";
@@ -48,12 +53,15 @@ export default function ObservatoryMap({
   selectedName,
   ramp,
   onSelect,
+  onBasemapStatus,
 }: ObservatoryMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
   const selectRef = useRef(onSelect);
+  const basemapStatusRef = useRef(onBasemapStatus);
   selectRef.current = onSelect;
+  basemapStatusRef.current = onBasemapStatus;
 
   const range = useMemo(() => {
     if (!geojson || !trustedValues) return { min: 0, max: 0 };
@@ -71,17 +79,31 @@ export default function ObservatoryMap({
 
     const map = L.map(containerRef.current, {
       center: [13.7563, 100.5018],
+      crs: L.CRS.EPSG4326,
       zoom: 10,
       zoomControl: true,
       attributionControl: true,
       keyboard: true,
     });
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: "abcd",
-      maxZoom: 19,
-    }).addTo(map);
+    const basemap = L.tileLayer.wms(BMA_CITYMAP.wmsUrl, {
+      attribution: BMA_CITYMAP.attribution,
+      layers: BMA_CITYMAP.wmsLayers,
+      version: BMA_CITYMAP.wmsVersion,
+      crs: L.CRS.EPSG4326,
+      format: "image/png",
+      transparent: false,
+      minZoom: 8,
+      maxZoom: 20,
+      keepBuffer: 2,
+      updateWhenIdle: true,
+    });
+    basemap.on("loading", () => basemapStatusRef.current("loading"));
+    basemap.on("load", () => basemapStatusRef.current("ready"));
+    basemap.on("tileerror", () =>
+      basemapStatusRef.current("unavailable"),
+    );
+    basemap.addTo(map);
 
     mapRef.current = map;
     return () => {
@@ -106,7 +128,7 @@ export default function ObservatoryMap({
           fillColor: trustedValues
             ? rampColor(properties?.metricValue, range.min, range.max, ramp)
             : EMPTY_COLOR,
-          fillOpacity: trustedValues ? 0.78 : 0.68,
+          fillOpacity: trustedValues ? 0.72 : 0.22,
           color: selected ? SELECTED_STROKE : EMPTY_STROKE,
           weight: selected ? 3 : 1,
           opacity: 1,

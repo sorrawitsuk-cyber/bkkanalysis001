@@ -1,0 +1,97 @@
+{
+  "reportSchemaVersion": "observatory-public-map-service-intake/v1",
+  "registryVersion": "2026.07.29-2",
+  "datasetId": "bma-citymap-basemap",
+  "inspectedAt": "2026-07-29T06:16:06.905Z",
+  "service": {
+    "mapName": "Basemap1000_4326_H",
+    "currentVersion": 11.5,
+    "capabilities": [
+      "Query",
+      "Map",
+      "Data"
+    ],
+    "singleFusedMapCache": false,
+    "spatialReference": "EPSG:4326",
+    "fullExtent": [
+      100.24604210604475,
+      13.475465931088857,
+      101.01992729916272,
+      13.963184732157053
+    ],
+    "layerCount": 15,
+    "restUrl": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer",
+    "metadataChecksumSha256": "afb2477d168364eb2082675021b389cbd22b5804e8764e04626907fcb9b8f460",
+    "copyrightTextDeclared": false
+  },
+  "wms": {
+    "url": "https://citymap.bangkok.go.th/citymap/services/Basemap_Service/Basemap1000_4326_H/MapServer/WMSServer",
+    "version": "1.3.0",
+    "supportedCrs": [
+      "CRS:84",
+      "EPSG:4326"
+    ],
+    "layerIds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "capabilitiesChecksumSha256": "e2dc4ef0b655e7a73d959d794cc38f11e5e8c83a2327eb529e1c7bb497972468",
+    "getMapSmokeStatus": 200,
+    "getMapContentType": "image/png",
+    "getMapBytes": 31215
+  },
+  "districtLayer": {
+    "id": 13,
+    "name": "พื้นที่เขตการปกครอง",
+    "geometryType": "esriGeometryPolygon",
+    "queryFormats": [
+      "JSON",
+      "geoJSON",
+      "PBF"
+    ],
+    "recordCount": 50,
+    "completeOfficialCodeSet": true,
+    "surveyYearsBuddhist": [
+      2561
+    ],
+    "attributeManifestChecksumSha256": "bee4da32098ad99a72b2f63b53500ec393ae433e929b0dd42c2bfaba3593f6f2",
+    "geometryQueried": false,
+    "geometryPersisted": false
+  },
+  "version": {
+    "versionLabel": "citymap-11.5-district-y2561-731a5bae4431",
+    "manifestChecksumSha256": "731a5bae44319cca56b262e09fe4c2daecf59306c02b080367e246434b7f9725",
+    "schemaVersion": "bma-citymap-service-manifest/v1",
+    "sourceSnapshotUri": "https://citymap.bangkok.go.th/citymap/rest/services/Basemap_Service/Basemap1000_4326_H/MapServer",
+    "acceptanceStatus": "research"
+  },
+  "consumptionPolicy": {
+    "status": "accepted-for-direct-basemap",
+    "directExternalRequestsOnly": true,
+    "proxyEnabled": false,
+    "sourceSnapshotPersisted": false,
+    "analyticalGeometryAccepted": false,
+    "sourceRepublicationAllowed": false,
+    "role": "contextual-basemap-only",
+    "attribution": "กรุงเทพมหานคร · Bangkok CityMap",
+    "limitations": [
+      "service metadata does not declare reuse or redistribution terms",
+      "district layer reports survey year 2561",
+      "service availability and rendering may change outside this application"
+    ],
+    "blockers": []
+  }
+}

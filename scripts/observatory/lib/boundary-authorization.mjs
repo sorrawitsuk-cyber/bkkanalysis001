@@ -5,6 +5,7 @@ const DECISION_STATUSES = new Set([
   "rejected",
   "revoked",
   "expired",
+  "withdrawn",
 ]);
 const GATE_STATUSES = new Set(["blocked", "open"]);
 const PERMISSION_KEYS = [

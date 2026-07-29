@@ -1,7 +1,7 @@
 {
   "schemaVersion": "observatory-boundary-authorization/v1",
   "authorizationId": "bma-district-boundaries-2026-review",
-  "decisionStatus": "pending",
+  "decisionStatus": "withdrawn",
   "gateStatus": "blocked",
   "authority": {
     "organization": "Bangkok Metropolitan Administration",
@@ -47,10 +47,8 @@
     "updateCadence": null
   },
   "blockers": [
-    "written authorization evidence has not been received",
-    "permission to transform and retain the source geometry is not confirmed",
-    "permission to redistribute derived geometry and tiles is not confirmed",
-    "permission to publish district statistics is not confirmed",
-    "required attribution and authoritative version label are not confirmed"
+    "email authorization workflow was withdrawn by product direction on 2026-07-29",
+    "the static GML snapshot remains blocked from promotion and redistribution",
+    "the application will consume the separate public Bangkok CityMap service directly as a basemap"
   ]
 }
