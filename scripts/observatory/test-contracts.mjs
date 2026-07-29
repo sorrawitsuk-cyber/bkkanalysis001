@@ -227,6 +227,7 @@ assert.equal(
 assert.equal(exhaustivePlan.summary.tileCount, 16);
 assert.equal(exhaustivePlan.summary.seasonCount, 3);
 assert.equal(exhaustivePlan.summary.jobCount, 48);
+assert.equal(exhaustivePlan.sourceDatasetId, "sentinel-2-l2a");
 assert.equal(
   exhaustivePlan.summary.jobCount,
   exhaustivePlan.summary.expectedJobCount,

@@ -1,13 +1,14 @@
 {
   "reportSchemaVersion": "observatory-exhaustive-plan/v1",
-  "createdAt": "2026-07-29T05:11:49.902Z",
-  "processingRunId": "1aef676f-73cc-5206-865c-63084e3f3d07",
-  "planChecksumSha256": "945b64d9dcfc4e72afd18e0fc64fba19d852073b45a9aa7f504d878d99be99d0",
+  "createdAt": "2026-07-29T05:16:23.626Z",
+  "processingRunId": "de900e87-4d5a-5c77-8a96-c5a4085b622d",
+  "planChecksumSha256": "35c4726900c60b7e14a59d1fb965973fdd78161289c544c49d261e448ead2f43",
   "schemaVersion": "observatory-exhaustive-plan/v1",
   "qaMethodVersion": "ndvi-exhaustive-coverage-v1.0.0",
   "productId": "vegetation",
   "productMethodVersion": "ndvi-seasonal-v1.0.0",
   "analysisYear": 2025,
+  "sourceDatasetId": "sentinel-2-l2a",
   "sourceVersionLabel": "bangkok-seasonal-2025-a17b5d5c2a0b",
   "sourceManifestChecksumSha256": "a17b5d5c2a0b1950b9173032dfc3a10346c1e5c9e596d5ba88143cd068125c40",
   "grid": {

@@ -82,6 +82,7 @@ const stablePlan = {
   productId: config.productId,
   productMethodVersion: config.productMethodVersion,
   analysisYear: sourceManifest.analysisYear,
+  sourceDatasetId: sourceReport.datasetId,
   sourceVersionLabel: sourceReport.version.versionLabel,
   sourceManifestChecksumSha256:
     sourceReport.version.manifestChecksumSha256,
