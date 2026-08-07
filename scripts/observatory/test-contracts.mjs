@@ -551,9 +551,12 @@ assert.equal(cityMapBoundaryQa.acceptance.publicGeometryCreated, false);
 assert.equal(cityMapBoundaryQa.acceptance.sourceGeometryPublished, false);
 assert.equal(cityMapBoundaryQa.acceptance.supabaseAreaRowsCreated, false);
 assert.deepEqual(cityMapBoundaryQa.acceptance.blockers, []);
-assert.match(observatoryMapSource, /L\.tileLayer\.wms/);
-assert.match(observatoryMapSource, /crs: L\.CRS\.EPSG4326/);
-assert.doesNotMatch(observatoryMapSource, /cartocdn|OpenStreetMap/);
+assert.match(observatoryMapSource, /L\.tileLayer\(/);
+assert.match(observatoryMapSource, /tile\.openstreetmap\.org/);
+assert.match(observatoryMapSource, /OpenStreetMap/);
+assert.doesNotMatch(observatoryMapSource, /L\.tileLayer\.wms/);
+assert.doesNotMatch(observatoryMapSource, /crs: L\.CRS\.EPSG4326/);
+assert.doesNotMatch(observatoryMapSource, /Basemap1000_4326_H/);
 assert.match(cityMapRuntimeSource, /Basemap1000_4326_H/);
 assert.match(cityMapRuntimeSource, /Bangkok CityMap/);
 
@@ -967,8 +970,8 @@ assert.match(
 assert.match(observationsSource, /status: "research"/);
 assert.match(observationsSource, /"Cache-Control": "no-store"/);
 assert.match(observatoryWorkspaceSource, /DataState[\s\S]*"research"/);
-assert.match(observatoryWorkspaceSource, /validCoverage|Coverage/);
-assert.match(observatoryWorkspaceSource, /p10–p90/);
+assert.match(observatoryWorkspaceSource, /ความครบของข้อมูล/);
+assert.match(observatoryWorkspaceSource, /ช่วงค่าที่พบ/);
 
 const requiredTables = [
   "observatory_datasets",

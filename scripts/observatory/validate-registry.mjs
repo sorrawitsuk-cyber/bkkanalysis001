@@ -87,6 +87,12 @@ function sameMembers(left, right) {
   );
 }
 
+function sha256Text(value) {
+  return createHash("sha256")
+    .update(value.replace(/\r\n/g, "\n"))
+    .digest("hex");
+}
+
 const [rawRegistry, boundaryAuthorizationRaw, boundaryReportRaw] =
   await Promise.all([
     readFile(REGISTRY_PATH, "utf8"),
@@ -392,12 +398,8 @@ for (const [index, product] of (registry.products ?? []).entries()) {
     const researchPreviewReport = researchPreviewReportRaw
       ? JSON.parse(researchPreviewReportRaw)
       : null;
-    const recipeChecksum = createHash("sha256")
-      .update(recipeRaw)
-      .digest("hex");
-    const fixtureChecksum = createHash("sha256")
-      .update(fixtureRaw)
-      .digest("hex");
+    const recipeChecksum = sha256Text(recipeRaw);
+    const fixtureChecksum = sha256Text(fixtureRaw);
 
     if (recipeChecksum !== evidence.recipeManifestChecksumSha256) {
       fail(
@@ -736,7 +738,7 @@ for (const [index, artifact] of (registry.runtimeArtifacts ?? []).entries()) {
 
   const artifactPath = resolve(ROOT, artifact.path);
   const artifactRaw = await readFile(artifactPath, "utf8");
-  const actualChecksum = createHash("sha256").update(artifactRaw).digest("hex");
+  const actualChecksum = sha256Text(artifactRaw);
   if (actualChecksum !== artifact.checksumSha256) {
     fail(`${path}.checksumSha256`, `expected ${artifact.checksumSha256}, received ${actualChecksum}`);
   }
