@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import ee, { initGEE } from '@/lib/gee';
 import bkkBoundaryData from '@/data/bkk_districts.json';
@@ -245,18 +246,9 @@ export async function GET(request: Request) {
       const landsatImg = getLandsatImage(y, endMMDD);
       const bt = landsatImg.select('ST_B10').multiply(0.00341802).add(149.0); // Kelvin
 
-      const ndviForEmis = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-        .filterBounds(bkkBoundary)
-        .filterDate(...Object.values(getDateRange(y, endMMDD)) as [string, string])
-        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
-        .map(maskSentinel2)
-        .map((img: any) => {
-          const nir = img.select('B8').divide(10000);
-          const red = img.select('B4').divide(10000);
-          return nir.subtract(red).divide(nir.add(red)).rename('NDVI');
-        })
-        .median()
-        .reproject({ crs: 'EPSG:4326', scale: 30 });
+      const nir = landsatImg.select('SR_B5').multiply(0.0000275).add(-0.2);
+      const red = landsatImg.select('SR_B4').multiply(0.0000275).add(-0.2);
+      const ndviForEmis = nir.subtract(red).divide(nir.add(red)).rename('NDVI');
 
       const pv = ndviForEmis.subtract(0.2).divide(0.3).clamp(0, 1).pow(2);
       const emissivity = pv.multiply(0.004).add(0.986);

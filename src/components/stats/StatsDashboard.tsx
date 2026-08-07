@@ -561,20 +561,20 @@ export default function StatsDashboard({
         </div>
       )}
 
-      {/* ── No-stats banner (DB empty for this metric) ────────────────────────── */}
+      {/* ── No-stats banner ───────────────────────────────────────────────────── */}
       {hasNoDbStats && !isDistrictMode && (
         <div className="shrink-0 flex items-start gap-3 px-5 py-3 bg-amber-950/30 border-b border-amber-800/40">
           <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-[11px] font-bold text-amber-300">ยังไม่มีสถิติรายเขตในฐานข้อมูล</p>
+            <p className="text-[11px] font-bold text-amber-300">ยังไม่มีสถิติรายเขตที่ตรวจสอบได้</p>
             <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
-              ข้อมูลสถิติ <span className="font-bold text-slate-200">{cfg.barTitle}</span> ยังไม่ถูกประมวลผลใส่ Supabase
-              — แผนที่ GEE แสดงค่าจริงจากดาวเทียม เลือกเขตจากแผนที่เพื่อดูค่า pixel จริงได้เลย
+              ระบบไม่แสดงตัวเลขทดแทนสำหรับ <span className="font-bold text-slate-200">{cfg.barTitle}</span>
+              {summary.unavailableReason ? `: ${summary.unavailableReason}` : " กรุณาลองเลือกปีอื่นหรือลองใหม่อีกครั้ง"}
             </p>
           </div>
           <div className="ml-auto shrink-0 flex items-center gap-1">
             <Database className="h-3 w-3 text-slate-600" />
-            <span className="text-[9px] text-slate-600">Supabase: ไม่มีข้อมูล</span>
+            <span className="text-[9px] text-slate-600">ข้อมูลไม่พร้อม</span>
           </div>
         </div>
       )}

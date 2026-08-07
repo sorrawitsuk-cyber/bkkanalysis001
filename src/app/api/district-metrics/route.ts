@@ -2,9 +2,12 @@
 import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import geojson from "@/data/bkk_districts.json";
-import lstData from "@/data/lst_data.json";
 import { supabaseServer as supabase } from "@/lib/supabase/server";
 import ee, { initGEE } from "@/lib/gee";
+import {
+  getGeeDistrictStatistics,
+  type GeeDistrictStatisticsMetadata,
+} from "@/lib/gee-district-statistics";
 import {
   calculatePriorityScore,
   getNdviClass,
@@ -82,46 +85,22 @@ function valueFor(row: any, metric: DistrictMetric): number | null {
   return typeof row.mean_lst === "number" ? row.mean_lst : null;
 }
 
-function toVegetationFallbackRow(row: any): DistrictStatistic {
-  const ndviMean = typeof row.vegetation_index === "number" ? row.vegetation_index : null;
-  // Urban green threshold 0.20 (Zhu et al. 2023): fraction of pixels with NDVI ≥ 0.20
-  const greenAreaRatio = ndviMean === null ? null : Math.max(0.03, Math.min(0.65, ndviMean - 0.08));
-  const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 19600; // ~BKK avg if unknown
-  return {
-    district_id: row.district_id,
-    district_name: row.district_name,
-    year: row.year,
-    ndvi_mean: ndviMean,
-    ndvi_median: ndviMean,
-    ndvi_min: ndviMean === null ? null : Math.max(-0.1, ndviMean - 0.18),
-    ndvi_max: ndviMean === null ? null : Math.min(0.85, ndviMean + 0.22),
-    ndvi_score: normalizeNdviScore(ndviMean),
-    ndvi_class: getNdviClass(ndviMean),
-    green_area_ratio: greenAreaRatio,
-    green_area_rai: greenAreaRatio === null ? null : Math.round(greenAreaRatio * districtAreaRai),
-    low_green_ratio: greenAreaRatio === null ? null : Math.max(0.05, 0.62 - greenAreaRatio),
-    water_ratio: 0,
-    ntl_mean: null,
-    processing_note: "Local fallback from demo vegetation_index; green area is approximate.",
-  };
-}
-
 // Compute derived green-space fields from ndvi_mean when Supabase rows lack them.
 function enrichVegetationRow(row: any): any {
   const ndviMean = typeof row.ndvi_mean === "number" ? row.ndvi_mean : null;
   if (ndviMean === null) return row;
-  const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 19600;
-  const greenAreaRatio = row.green_area_ratio ?? Math.max(0.03, Math.min(0.65, ndviMean - 0.08));
+  const districtAreaRai = districtAreaRaiMap.get(row.district_id) ?? 0;
+  const greenAreaRatio = typeof row.green_area_ratio === "number" ? row.green_area_ratio : null;
   return {
     ...row,
-    ndvi_median: row.ndvi_median ?? ndviMean,
-    ndvi_min: row.ndvi_min ?? Math.max(-0.1, ndviMean - 0.18),
-    ndvi_max: row.ndvi_max ?? Math.min(0.85, ndviMean + 0.22),
+    ndvi_median: row.ndvi_median ?? null,
+    ndvi_min: row.ndvi_min ?? null,
+    ndvi_max: row.ndvi_max ?? null,
     ndvi_score: row.ndvi_score ?? normalizeNdviScore(ndviMean),
     ndvi_class: row.ndvi_class || getNdviClass(ndviMean),
     green_area_ratio: greenAreaRatio,
-    green_area_rai: row.green_area_rai ?? Math.round(greenAreaRatio * districtAreaRai),
-    low_green_ratio: row.low_green_ratio ?? Math.max(0.05, 0.62 - greenAreaRatio),
+    green_area_rai: row.green_area_rai ?? (greenAreaRatio === null ? null : Math.round(greenAreaRatio * districtAreaRai)),
+    low_green_ratio: row.low_green_ratio ?? null,
   };
 }
 
@@ -208,12 +187,10 @@ function firstSource(rows: any[], field: string): string | null {
   return rows.find((row) => typeof row?.[field] === "string" && row[field].trim())?.[field] ?? null;
 }
 
-function metricProvenance(metric: DistrictMetric, rows: any[], useDatabase: boolean, airDataSource: string) {
-  if (!useDatabase) {
+function metricProvenance(metric: DistrictMetric, rows: any[], hasData: boolean, airDataSource: string) {
+  if (!hasData) {
     return {
-      dataSource: metric === "builtup" || metric === "air_pollution"
-        ? "no district_statistics rows"
-        : "local fallback (mock)",
+      dataSource: "unavailable",
       dataQuality: "unavailable",
       sourceLabel: null,
       sourceNote: "ไม่พบข้อมูลสำหรับปีและตัวชี้วัดที่เลือก",
@@ -256,10 +233,10 @@ function metricProvenance(metric: DistrictMetric, rows: any[], useDatabase: bool
   }
 
   return {
-    dataSource: "district_statistics (Landsat LST)",
-    dataQuality: "unknown",
-    sourceLabel: "Landsat 8/9 Surface Temperature",
-    sourceNote: "ฐานเดิมไม่มี provenance รายแถว; ค่าเป็นอุณหภูมิพื้นผิว ไม่ใช่อุณหภูมิอากาศ",
+    dataSource: firstSource(rows, "lst_data_source") || "district_statistics (Landsat LST)",
+    dataQuality: "observed",
+    sourceLabel: firstSource(rows, "lst_data_source") || "Landsat 8/9 Surface Temperature",
+    sourceNote: "ค่าเป็นอุณหภูมิพื้นผิวจากดาวเทียม ไม่ใช่อุณหภูมิอากาศ",
   };
 }
 
@@ -398,8 +375,16 @@ export async function GET(request: Request) {
     await getGeoJsonIdBySupabaseId();
 
     const [dbYearRows, dbCompareRows] = await Promise.all([
-      loadDbRows(year),
-      compareYear ? loadDbRows(compareYear) : Promise.resolve([]),
+      withTimeout(loadDbRows(year), 5000).catch((error) => {
+        console.warn(`district_statistics timed out for ${year}:`, error);
+        return [];
+      }),
+      compareYear
+        ? withTimeout(loadDbRows(compareYear), 5000).catch((error) => {
+            console.warn(`district_statistics timed out for ${compareYear}:`, error);
+            return [];
+          })
+        : Promise.resolve([]),
     ]);
 
     // Keep this endpoint citywide even when a district is selected in the UI.
@@ -407,20 +392,81 @@ export async function GET(request: Request) {
     // powers the 50-district map, rankings, exports, and stats charts.
     const dbAllRows =
       dbYearRows.length > 0
-        ? await loadAllDbRows()
+        ? await withTimeout(loadAllDbRows(), 5000).catch((error) => {
+            console.warn("district_statistics trend fetch timed out:", error);
+            return [];
+          })
         : [];
-
-    const localYearRows = lstData.filter((row: any) => row.year === year);
-    const localCompareRows = compareYear ? lstData.filter((row: any) => row.year === compareYear) : [];
 
     let effectiveYearRows = dbYearRows;
     let effectiveCompareRows = dbCompareRows;
     let effectiveAllRows = dbAllRows;
     let airDataSource = "supabase district_statistics";
+    let liveMetadata: GeeDistrictStatisticsMetadata | null = null;
+    let dataOrigin = "database";
+    let unavailableReason: string | null = null;
 
     let useDbYear = metric === "vegetation" ? hasNdviData(effectiveYearRows) : metric === "builtup" ? hasNdbiData(effectiveYearRows) : metric === "air_pollution" ? hasAirPollutionData(effectiveYearRows) : hasLstData(effectiveYearRows);
     let useDbCompare = metric === "vegetation" ? hasNdviData(effectiveCompareRows) : metric === "builtup" ? hasNdbiData(effectiveCompareRows) : metric === "air_pollution" ? hasAirPollutionData(effectiveCompareRows) : hasLstData(effectiveCompareRows);
     let useDbAll = metric === "vegetation" ? hasNdviData(effectiveAllRows) : metric === "builtup" ? hasNdbiData(effectiveAllRows) : metric === "air_pollution" ? hasAirPollutionData(effectiveAllRows) : effectiveAllRows.some((r) => typeof r.mean_lst === "number");
+
+    if (metric !== "air_pollution" && !useDbYear) {
+      try {
+        await initGEE();
+        const [geeYearResult, geeCompareResult] = await Promise.allSettled([
+          withTimeout(getGeeDistrictStatistics(metric, year), 48000),
+          compareYear && !useDbCompare
+            ? withTimeout(getGeeDistrictStatistics(metric, compareYear), 48000)
+            : Promise.resolve(null),
+        ]);
+        if (geeYearResult.status === "rejected") {
+          console.warn(`GEE ${metric} district stats failed for ${year}:`, geeYearResult.reason);
+          unavailableReason = geeYearResult.reason instanceof Error
+            ? geeYearResult.reason.message
+            : String(geeYearResult.reason);
+        }
+        if (geeCompareResult.status === "rejected") {
+          console.warn(`GEE ${metric} district stats failed for ${compareYear}:`, geeCompareResult.reason);
+        }
+        const liveYear = geeYearResult.status === "fulfilled" ? geeYearResult.value : null;
+        const liveCompare = geeCompareResult.status === "fulfilled" ? geeCompareResult.value : null;
+        const hasLiveYear = liveYear
+          ? metric === "vegetation"
+            ? hasNdviData(liveYear.rows)
+            : metric === "builtup"
+              ? hasNdbiData(liveYear.rows)
+              : hasLstData(liveYear.rows)
+          : false;
+        const hasLiveCompare = liveCompare
+          ? metric === "vegetation"
+            ? hasNdviData(liveCompare.rows)
+            : metric === "builtup"
+              ? hasNdbiData(liveCompare.rows)
+              : hasLstData(liveCompare.rows)
+          : false;
+
+        if (liveYear && hasLiveYear) {
+          effectiveYearRows = liveYear.rows;
+          useDbYear = true;
+          liveMetadata = liveYear.metadata;
+          dataOrigin = "gee-live";
+        }
+        if (compareYear && liveCompare && hasLiveCompare) {
+          effectiveCompareRows = liveCompare.rows;
+          useDbCompare = true;
+        }
+        if (!useDbAll && liveYear && hasLiveYear) {
+          effectiveAllRows = [
+            ...(liveCompare && hasLiveCompare ? liveCompare.rows : []),
+            ...liveYear.rows,
+          ];
+          useDbAll = true;
+        }
+      } catch (geeError) {
+        console.warn(`GEE ${metric} district stats failed:`, geeError);
+        unavailableReason = geeError instanceof Error ? geeError.message : String(geeError);
+      }
+    }
 
     if (metric === "air_pollution" && !useDbYear) {
       try {
@@ -438,6 +484,7 @@ export async function GET(request: Request) {
           effectiveYearRows = geeYearRows;
           useDbYear = true;
           airDataSource = "GEE live Sentinel-5P";
+          dataOrigin = "gee-live";
         }
         if (compareYear && !useDbCompare && hasAirPollutionData(geeCompareRows)) {
           effectiveCompareRows = geeCompareRows;
@@ -449,15 +496,17 @@ export async function GET(request: Request) {
         }
       } catch (geeErr) {
         console.warn("GEE air-pollution district stats failed:", geeErr);
+        unavailableReason = geeErr instanceof Error ? geeErr.message : String(geeErr);
       }
     }
 
     const yearData: any[] = metric === "vegetation"
-      ? (useDbYear ? effectiveYearRows.map(enrichVegetationRow) : localYearRows.map((r: any) => toVegetationFallbackRow(r)))
-      : (useDbYear ? effectiveYearRows : localYearRows);
+      ? (useDbYear ? effectiveYearRows.map(enrichVegetationRow) : [])
+      : (useDbYear ? effectiveYearRows : []);
     const compareData: any[] = metric === "vegetation"
-      ? (useDbCompare ? effectiveCompareRows.map(enrichVegetationRow) : localCompareRows.map((r: any) => toVegetationFallbackRow(r)))
-      : (useDbCompare ? effectiveCompareRows : localCompareRows);
+      ? (useDbCompare ? effectiveCompareRows.map(enrichVegetationRow) : [])
+      : (useDbCompare ? effectiveCompareRows : []);
+    if (yearData.length === 0) dataOrigin = "unavailable";
 
     const lstMap = new Map<number, any>();
     yearData.forEach((row) => lstMap.set(row.district_id, row));
@@ -558,12 +607,12 @@ export async function GET(request: Request) {
     const hasAnyDbNdbi = effectiveAllRows.some((r) => typeof r.ndbi_mean === "number");
     const hasAnyDbAir = hasAirPollutionData(effectiveAllRows);
     const summaryData: any[] = metric === "vegetation"
-      ? (useDbAll ? effectiveAllRows.map(enrichVegetationRow) : lstData.map((r: any) => toVegetationFallbackRow(r)))
+      ? (useDbAll ? effectiveAllRows.map(enrichVegetationRow) : [])
       : metric === "builtup"
         ? (hasAnyDbNdbi ? effectiveAllRows : [])
-        : metric === "air_pollution"
+      : metric === "air_pollution"
           ? (hasAnyDbAir ? effectiveAllRows : [])
-          : (hasAnyDbLst ? effectiveAllRows : lstData);
+          : (hasAnyDbLst ? effectiveAllRows : []);
     const trendData = summaryData.reduce((acc: any, row: any) => {
       const trendValue = valueFor(row, metric);
       if (trendValue === null) return acc;
@@ -594,13 +643,7 @@ export async function GET(request: Request) {
         if (typeof row.ndvi_max === "number") acc[row.year].ndviMax = Math.max(acc[row.year].ndviMax, row.ndvi_max);
       }
       if (metric === "lst") {
-        let monthlyLst = row.monthly_lst;
-        if (!monthlyLst || monthlyLst.length === 0) {
-          const fallbackRow = lstData.find((r: any) => r.district_id === row.district_id && r.year === row.year);
-          if (fallbackRow && fallbackRow.monthly_lst) {
-            monthlyLst = fallbackRow.monthly_lst;
-          }
-        }
+        const monthlyLst = row.monthly_lst;
         if (monthlyLst) {
           monthlyLst.forEach((temp: number, idx: number) => {
             acc[row.year].monthlyData[idx] += temp;
@@ -893,13 +936,7 @@ export async function GET(request: Request) {
     const monthlyMaxData = new Array(12).fill(-Infinity);
     currentYearData.forEach((row: any) => {
       if (metric === "lst") {
-        let monthlyLst = row.monthly_lst;
-        if (!monthlyLst || monthlyLst.length === 0) {
-          const fallbackRow = lstData.find((r: any) => r.district_id === row.district_id && r.year === row.year);
-          if (fallbackRow && fallbackRow.monthly_lst) {
-            monthlyLst = fallbackRow.monthly_lst;
-          }
-        }
+        const monthlyLst = row.monthly_lst;
         if (monthlyLst) {
           monthlyLst.forEach((temp: number, monthIdx: number) => {
             monthlyData[monthIdx] += temp;
@@ -912,26 +949,20 @@ export async function GET(request: Request) {
       }
     });
     const monthlyTrend = monthlyData.map((sum, idx) =>
-      monthlyCounts[idx] > 0 ? parseFloat((sum / monthlyCounts[idx]).toFixed(2)) : 0,
+      monthlyCounts[idx] > 0 ? parseFloat((sum / monthlyCounts[idx]).toFixed(2)) : null,
     );
     const monthlyMaxTrend = metric === "lst"
-      ? monthlyMaxData.map((temp) => temp > -Infinity ? parseFloat(temp.toFixed(2)) : 0)
+      ? monthlyMaxData.map((temp) => temp > -Infinity ? parseFloat(temp.toFixed(2)) : null)
       : [];
 
-    let baselineMonthlyTrend: number[] = [];
+    let baselineMonthlyTrend: Array<number | null> = [];
     const monthlyDeltaTrend = compareYear ? (() => {
       const baselineMonthlyData = new Array(12).fill(0);
       const baselineMonthlyCounts = new Array(12).fill(0);
       summaryData
         .filter((row: any) => row.year === compareYear)
         .forEach((row: any) => {
-          let monthlyLst = row.monthly_lst;
-          if (!monthlyLst || monthlyLst.length === 0) {
-            const fallbackRow = lstData.find((r: any) => r.district_id === row.district_id && r.year === row.year);
-            if (fallbackRow && fallbackRow.monthly_lst) {
-              monthlyLst = fallbackRow.monthly_lst;
-            }
-          }
+          const monthlyLst = row.monthly_lst;
           if (monthlyLst) {
             monthlyLst.forEach((temp: number, monthIdx: number) => {
               baselineMonthlyData[monthIdx] += temp;
@@ -941,12 +972,13 @@ export async function GET(request: Request) {
         });
 
       baselineMonthlyTrend = baselineMonthlyData.map((sum, idx) =>
-        baselineMonthlyCounts[idx] > 0 ? parseFloat((sum / baselineMonthlyCounts[idx]).toFixed(2)) : 0,
+        baselineMonthlyCounts[idx] > 0 ? parseFloat((sum / baselineMonthlyCounts[idx]).toFixed(2)) : null,
       );
 
       return monthlyTrend.map((temp, idx) => {
-        if (monthlyCounts[idx] === 0 || baselineMonthlyCounts[idx] === 0) return 0;
-        return parseFloat((temp - baselineMonthlyTrend[idx]).toFixed(2));
+        const baselineTemp = baselineMonthlyTrend[idx];
+        if (temp === null || baselineTemp === null) return null;
+        return parseFloat((temp - baselineTemp).toFixed(2));
       });
     })() : [];
 
@@ -984,6 +1016,22 @@ export async function GET(request: Request) {
           }))
       : [];
     const provenance = metricProvenance(metric, yearData, useDbYear, airDataSource);
+    const currentDataAvailable = currentYearData.some((row: any) => valueFor(row, metric) !== null);
+    const baselineDataAvailable = compareYear
+      ? summaryData.some((row: any) => row.year === compareYear && valueFor(row, metric) !== null)
+      : false;
+    const valueDigits = (metric === "vegetation" || metric === "builtup")
+      ? 3
+      : metric === "air_pollution"
+        ? 6
+        : 2;
+    const averageValue = currentDataAvailable ? parseFloat(currentAvg.toFixed(valueDigits)) : null;
+    const baselineAverageValue = baselineDataAvailable ? parseFloat(baselineAvg.toFixed(valueDigits)) : null;
+    const averageDelta = currentDataAvailable && baselineDataAvailable
+      ? parseFloat((currentAvg - baselineAvg).toFixed(valueDigits))
+      : null;
+    const validDistrictCount = currentYearData.filter((row: any) => valueFor(row, metric) !== null).length;
+    const totalDistrictCount = geojson.features.length;
 
     return NextResponse.json({
       geojson: { type: "FeatureCollection", features },
@@ -992,34 +1040,34 @@ export async function GET(request: Request) {
         metric,
         selectedYear: year,
         compareYear,
-        averageTemp: parseFloat(currentAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)),
-        baselineAverageTemp: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
-        avgDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : 0,
+        averageTemp: averageValue,
+        baselineAverageTemp: baselineAverageValue,
+        avgDelta: averageDelta,
         maxTemp: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
         
         // Generic value aliases
-        averageValue: parseFloat(currentAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)),
-        baselineAverageValue: baselineAvg ? parseFloat(baselineAvg.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
+        averageValue,
+        baselineAverageValue,
         maxValue: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : null,
         minValue: minValue !== Infinity ? minValue : null,
-        valueDelta: compareYear && baselineAvg ? parseFloat((currentAvg - baselineAvg).toFixed((metric === "vegetation" || metric === "builtup") ? 3 : metric === "air_pollution" ? 6 : 2)) : 0,
+        valueDelta: averageDelta,
         
         // Metric-specific aliases
         ...(metric === "vegetation" ? {
-          averageNdvi: parseFloat(currentAvg.toFixed(3)),
-          baselineAverageNdvi: baselineAvg ? parseFloat(baselineAvg.toFixed(3)) : null,
+          averageNdvi: averageValue,
+          baselineAverageNdvi: baselineAverageValue,
           maxNdvi: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(3)) : null,
           minNdvi: minValue !== Infinity ? minValue : null,
         } : {}),
         ...(metric === "builtup" ? {
-          averageNdbi: parseFloat(currentAvg.toFixed(3)),
-          baselineAverageNdbi: baselineAvg ? parseFloat(baselineAvg.toFixed(3)) : null,
+          averageNdbi: averageValue,
+          baselineAverageNdbi: baselineAverageValue,
           maxNdbi: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(3)) : null,
           minNdbi: minValue !== Infinity ? minValue : null,
         } : {}),
         ...(metric === "air_pollution" ? {
-          averagePollutionScore: parseFloat(currentAvg.toFixed(6)),
-          baselineAveragePollutionScore: baselineAvg ? parseFloat(baselineAvg.toFixed(6)) : null,
+          averagePollutionScore: averageValue,
+          baselineAveragePollutionScore: baselineAverageValue,
           maxPollutionScore: maxCurrentValue > -Infinity ? parseFloat(maxCurrentValue.toFixed(6)) : null,
           minPollutionScore: minValue !== Infinity ? minValue : null,
         } : {}),
@@ -1052,6 +1100,16 @@ export async function GET(request: Request) {
         lowestNdviRanking,
         priorityRanking,
         encroachmentRanking,
+        dataOrigin,
+        unavailableReason: dataOrigin === "unavailable" ? unavailableReason : null,
+        observationStart: liveMetadata?.observationStart ?? `${year}-01-01`,
+        observationEnd: liveMetadata?.observationEnd ?? `${year}-12-31`,
+        resolutionMeters: liveMetadata?.resolutionMeters ?? null,
+        aggregationScaleMeters: liveMetadata?.aggregationScaleMeters ?? null,
+        sceneCount: liveMetadata?.sceneCount ?? null,
+        validDistrictCount,
+        totalDistrictCount,
+        coverageRatio: totalDistrictCount > 0 ? validDistrictCount / totalDistrictCount : null,
         ...provenance,
       },
     }, {

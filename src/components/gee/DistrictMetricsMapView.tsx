@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
@@ -114,6 +114,10 @@ export default function DistrictMetricsMapView({
   const geeLayerRef = useRef<L.TileLayer | null>(null);
   const cacheLayerRef = useRef<L.ImageOverlay | null>(null);
   const maskLayerRef = useRef<L.GeoJSON | null>(null);
+  const [geeLayerStatus, setGeeLayerStatus] = useState<{
+    state: "idle" | "loading" | "ready" | "error";
+    message?: string;
+  }>({ state: "idle" });
   const yearRef = useRef(summary?.selectedYear || 2024);
   const baselineYearRef = useRef(summary?.compareYear || 2018);
   const mapModeRef = useRef(mapMode);
@@ -382,13 +386,18 @@ export default function DistrictMetricsMapView({
         cacheLayerRef.current = null;
       }
       if (mapMode === "idw" && summary?.selectedYear) {
+        setGeeLayerStatus({ state: "loading" });
         try {
           const metricParam = analysisType === "green" ? "&metric=vegetation" : analysisType === "builtup" ? "&metric=builtup" : analysisType === "nightlights" ? `&metric=nightlights&product=${nightLightsProduct}${nightLightsMonth ? `&month=${nightLightsMonth}` : ""}` : analysisType === "air" ? `&metric=air_pollution&pollutant=${airPollutant}` : "";
           const compareParam = compareModeRef.current ? `&compare=true&baseline=${baselineYearRef.current}` : "";
           const res = await fetch(`/api/gee/tiles?year=${summary.selectedYear}&compare=${compareMode}&baseline=${summary.compareYear}${metricParam}${compareParam}`);
           const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Google Earth Engine ไม่พร้อมใช้งาน");
           if (data.urlFormat) {
             geeLayerRef.current = L.tileLayer(data.urlFormat, { maxZoom: 20, opacity }).addTo(mapRef.current);
+            setGeeLayerStatus({ state: "ready" });
+          } else {
+            throw new Error("Google Earth Engine ไม่ส่งที่อยู่ชั้นแผนที่กลับมา");
           }
           if (onTileMetadata && data.dataSource !== undefined) {
             onTileMetadata({
@@ -399,7 +408,13 @@ export default function DistrictMetricsMapView({
           }
         } catch (error) {
           console.error("Failed to load GEE tiles:", error);
+          setGeeLayerStatus({
+            state: "error",
+            message: error instanceof Error ? error.message : "โหลดชั้นข้อมูลดาวเทียมไม่สำเร็จ",
+          });
         }
+      } else {
+        setGeeLayerStatus({ state: "idle" });
       }
     };
     updateGeeLayer();
@@ -584,5 +599,23 @@ export default function DistrictMetricsMapView({
     }
   }, [geojsonData, activeDistrict, mapMode, compareMode, summary, ndviLayer, ndviPresentation, airPollutionLayer, analysisType, granularity, satelliteCachePreviewUrl, onFeatureSelect, getColor, getFeatureValue]);
 
-  return <div id="lst-map" className="w-full h-full z-0" style={{ background: "#0b0f19" }} />;
+  return (
+    <div className="relative h-full w-full">
+      <div id="lst-map" className="h-full w-full z-0" style={{ background: "#0b0f19" }} />
+      {mapMode === "idw" && geeLayerStatus.state === "loading" && (
+        <div className="pointer-events-none absolute left-3 top-3 z-[var(--z-sticky)] rounded-lg bg-slate-950/95 px-3 py-2 text-xs text-slate-200 shadow-sm">
+          กำลังเตรียมชั้นข้อมูล Google Earth Engine…
+        </div>
+      )}
+      {mapMode === "idw" && geeLayerStatus.state === "error" && (
+        <div
+          role="status"
+          className="absolute inset-x-3 top-3 z-[var(--z-sticky)] rounded-lg border border-amber-700 bg-amber-950/95 px-3 py-2 text-xs leading-5 text-amber-100"
+        >
+          <span className="font-semibold">ยังแสดงชั้นดาวเทียมไม่ได้</span>
+          <span className="ml-1">{geeLayerStatus.message}</span>
+        </div>
+      )}
+    </div>
+  );
 }
