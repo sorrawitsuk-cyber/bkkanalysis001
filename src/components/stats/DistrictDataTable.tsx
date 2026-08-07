@@ -276,7 +276,7 @@ export default function DistrictDataTable({
       const yearCell = multiYearMode ? [`"${row.year ?? ""}"`] : [];
       const cells = visibleColumns.map((c) => {
         const v = row[c.key];
-        const formatted = c.format ? c.format(v) : (v != null ? v : "–");
+        const formatted = v == null ? "–" : (c.format ? c.format(v) : v);
         return `"${formatted}"`;
       });
       return [...rankCell, ...yearCell, ...cells].join(",");
@@ -540,7 +540,7 @@ export default function DistrictDataTable({
                   )}
                   {visibleColumns.map((col) => {
                     const v = row[col.key];
-                    const display = col.format ? col.format(v) : (v != null ? String(v) : "–");
+                    const display = v == null ? "–" : (col.format ? col.format(v) : String(v));
                     const isName = col.key === "name";
                     const isNum = typeof v === "number";
                     const { bg, color } = getCellStyle(col, v);

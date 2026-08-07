@@ -61,7 +61,7 @@ async function computeGeeWaterStats(year: number): Promise<any[]> {
   const startDate = `${year}-01-01`;
   const endDate = year === today.getFullYear()
     ? today.toISOString().split("T")[0]
-    : `${year}-12-31`;
+    : `${year + 1}-01-01`;
 
   const bkkBbox = ee.Geometry.BBox(100.329, 13.494, 100.935, 13.956);
 
@@ -104,6 +104,7 @@ async function computeGeeWaterStats(year: number): Promise<any[]> {
     return {
       district_id:           p.id,
       district_name:         p.name_th,
+      year,
       ndwi_mean:             toNum(p.ndwi_mean),
       mndwi_mean:            toNum(p.mndwi_mean),
       water_ratio:           toNum(p.water_ratio),
@@ -291,7 +292,9 @@ export async function GET(request: Request) {
     const trendAcc: Record<number, { weightedSum: number; area: number }> = {};
     summaryRows.forEach((r: any) => {
       if (typeof r?.[requestedLayer] !== "number") return;
+      if (!Number.isInteger(r.year)) return;
       const area = districtAreaRaiMap.get(r.district_id) ?? 0;
+      if (area <= 0) return;
       if (!trendAcc[r.year]) trendAcc[r.year] = { weightedSum: 0, area: 0 };
       trendAcc[r.year].weightedSum += r[requestedLayer] * area;
       trendAcc[r.year].area += area;
@@ -312,14 +315,19 @@ export async function GET(request: Request) {
         };
       }
     }
-    const yearlyTrend = Object.keys(trendAcc).sort().map((y) => [
-      y,
-      parseFloat((trendAcc[Number(y)].weightedSum / trendAcc[Number(y)].area).toFixed(4)),
-    ]);
+    const yearlyTrend = Object.keys(trendAcc)
+      .map(Number)
+      .filter((trendYear) => Number.isInteger(trendYear) && trendAcc[trendYear]?.area > 0)
+      .sort((a, b) => a - b)
+      .map((trendYear) => [
+        String(trendYear),
+        parseFloat((trendAcc[trendYear].weightedSum / trendAcc[trendYear].area).toFixed(4)),
+      ]);
 
     const areaTrendAcc: Record<number, number> = {};
-    [...summaryRows, ...(geeYearRows.length > 0 && !allRows.length ? geeYearRows.map((r: any) => ({ ...r, year })) : [])].forEach((r: any) => {
+    summaryRows.forEach((r: any) => {
       if (typeof r.water_ratio !== "number") return;
+      if (!Number.isInteger(r.year)) return;
       const areaRai = districtAreaRaiMap.get(r.district_id) ?? 0;
       areaTrendAcc[r.year] = (areaTrendAcc[r.year] || 0) + Math.round(r.water_ratio * areaRai);
     });
@@ -429,34 +437,13 @@ export async function GET(request: Request) {
     );
   } catch (err: any) {
     console.error("Flood Risk API Error:", err);
-    // Return valid empty GeoJSON so the page never shows a broken state
-    const emptyFeatures = (geojson.features as any[]).map((feature: any) => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        water_ratio: null, water_area_rai: null,
-        district_area_rai: districtAreaRaiMap.get(feature.properties.id) ?? null,
-        delta: null, compare_water_ratio: null,
-        ndwi_mean: null, mndwi_mean: null,
-        display_value: null, display_label: "NDWI",
+    return NextResponse.json(
+      {
+        error: "ข้อมูลสัญญาณน้ำจาก Google Earth Engine ไม่พร้อมใช้งานในขณะนี้",
+        status: "unavailable",
+        source: "Sentinel-2 SR Harmonized",
       },
-    }));
-    return NextResponse.json({
-      geojson: { type: "FeatureCollection", features: emptyFeatures },
-      invertedMask: null,
-      summary: {
-        selectedYear: 0, compareYear: null,
-        avgWaterRatio: null, avgDisplayValue: null,
-        totalWaterAreaRai: null, baselineAvg: null, avgDelta: null,
-        topWet: [], topDry: [], ranking: [],
-        yearlyTrend: [], waterAreaTrend: [],
-        min_value: 0, max_value: 0.5,
-        displayLabel: "NDWI",
-        dataSource: `error: ${err.message}`,
-        dataQuality: "unavailable",
-        sourceLabel: null,
-        sourceNote: "โหลดข้อมูลพื้นที่น้ำไม่สำเร็จ",
-      },
-    });
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }

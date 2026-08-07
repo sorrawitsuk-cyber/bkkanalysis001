@@ -6,16 +6,13 @@ import {
   URBAN_EXPANSION_MIN_YEAR,
   type UrbanExpansionDistrictRow,
 } from "@/lib/urban-expansion";
-import { supabaseServer as supabase } from "@/lib/supabase/server";
-import * as turf from "@turf/turf";
-
-
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const SOURCE = "Google Dynamic World V1";
 const COLLECTION = "GOOGLE/DYNAMICWORLD/V1";
 const CONFIDENCE_THRESHOLD = 0.45;
+const AGGREGATION_SCALE_METERS = 30;
 const PROBABILITY_BANDS = ["water", "trees", "grass", "flooded_vegetation", "crops", "shrub_and_scrub", "built", "bare", "snow_and_ice"];
 const sourceFeatures = bkkDistricts.features as any[];
 const CACHE = new Map<string, { payload: Record<string, unknown>; expiresAt: number }>();
@@ -138,9 +135,9 @@ export async function GET(request: Request) {
     const districtStats = statsImage.reduceRegions({
       collection: districtCollection(),
       reducer: ee.Reducer.sum(),
-      scale: 10,
+      scale: AGGREGATION_SCALE_METERS,
       tileScale: 4,
-    });
+    }).map((feature: any) => ee.Feature(feature).setGeometry(null));
 
     const changeCode = ee.Image(0)
       .where(stableBuilt, 1)
@@ -227,7 +224,8 @@ export async function GET(request: Request) {
         baselineSceneCount,
         source: SOURCE,
         dataQuality: "modeled" as const,
-        processingNote: "Annual mean Dynamic World probabilities; highest-probability class; confidence >= 45%; built class is the primary indicator.",
+        aggregationScaleMeters: AGGREGATION_SCALE_METERS,
+        processingNote: "Annual mean Dynamic World probabilities; highest-probability class; confidence >= 45%; built class is the primary indicator; district statistics aggregated at 30 m.",
       },
       rasters: {
         current: { urlFormat: tileUrl(currentMap), palette: ["#fff7ed", "#fdba74", "#f97316", "#991b1b"], labels: ["โอกาสเป็นสิ่งปลูกสร้างต่ำ", "ปานกลาง", "สูง", "สูงมาก"] },
@@ -238,140 +236,10 @@ export async function GET(request: Request) {
     CACHE.set(cacheKey, { payload, expiresAt: Date.now() + cacheSeconds * 1000 });
     return NextResponse.json(payload, { headers: { "Cache-Control": `public, s-maxage=${cacheSeconds}, stale-while-revalidate=3600`, "X-Cache": "MISS" } });
   } catch (error: any) {
-    console.error("Urban expansion API error, attempting DB Fallback:", error);
-    const fallbackPayload = await dbFallback(year, baselineYear);
-    if (fallbackPayload) {
-      return NextResponse.json(fallbackPayload, {
-        headers: { "Cache-Control": "public, s-maxage=3600", "X-Cache": "FALLBACK" }
-      });
-    }
-    return NextResponse.json({ error: error?.message ?? "ไม่สามารถประมวลผลพื้นที่สิ่งปลูกสร้างได้" }, { status: 500 });
-  }
-}
-
-async function dbFallback(year: number, baselineYear: number) {
-  try {
-    const [dbYearRes, dbBaseRes] = await Promise.all([
-      supabase.from("district_statistics").select("district_id, ndbi_mean, ndbi_max").eq("year", year),
-      supabase.from("district_statistics").select("district_id, ndbi_mean, ndbi_max").eq("year", baselineYear),
-    ]);
-
-    if (dbYearRes.error || !dbYearRes.data || dbYearRes.data.length === 0) {
-      throw new Error(dbYearRes.error?.message || "No data in Supabase");
-    }
-
-    const yearDataMap = new Map<number, any>(dbYearRes.data.map(r => [r.district_id, r]));
-    const baseDataMap = new Map<number, any>((dbBaseRes.data || []).map(r => [r.district_id, r]));
-
-    const districtAreaRaiMap = new Map<number, number>(
-      sourceFeatures.map((f: any) => [
-        f.properties.id,
-        Math.round(turf.area(f) / 1600),
-      ])
+    console.error("Urban expansion API error:", error);
+    return NextResponse.json(
+      { error: "ข้อมูลพื้นที่สิ่งปลูกสร้างจาก Google Earth Engine ไม่พร้อมใช้งานในขณะนี้", status: "unavailable", source: SOURCE },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
-
-    const rows: UrbanExpansionDistrictRow[] = sourceFeatures.map((feature: any) => {
-      const id = Number(feature.properties.id);
-      const name = String(feature.properties.name_th);
-      const yearRow = yearDataMap.get(id);
-      const baseRow = baseDataMap.get(id);
-      const areaRai = districtAreaRaiMap.get(id) ?? 0;
-
-      const currentNdbi = yearRow?.ndbi_mean ?? null;
-      const baseNdbi = baseRow?.ndbi_mean ?? null;
-
-      // Map NDBI (-0.2 to 0.4) to built ratio (0 to 1)
-      const builtCoverPct = currentNdbi !== null
-        ? roundOrNull(Math.max(0, Math.min(1, (currentNdbi + 0.2) / 0.6)) * 100)
-        : null;
-      const builtAreaRai = builtCoverPct !== null
-        ? Math.round((builtCoverPct / 100) * areaRai)
-        : null;
-
-      const baseBuiltCoverPct = baseNdbi !== null
-        ? roundOrNull(Math.max(0, Math.min(1, (baseNdbi + 0.2) / 0.6)) * 100)
-        : null;
-
-      return {
-        district_id: id,
-        district_name: name,
-        built_cover_pct: builtCoverPct,
-        built_area_rai: builtAreaRai,
-        baseline_built_cover_pct: baseBuiltCoverPct,
-        built_change_pp: builtCoverPct !== null && baseBuiltCoverPct !== null
-          ? roundOrNull(builtCoverPct - baseBuiltCoverPct)
-          : null,
-        built_gain_pct: null,
-        built_loss_pct: null,
-        stable_built_pct: null,
-        green_to_built_pct: null,
-        bare_to_built_pct: null,
-        built_to_green_pct: null,
-        confidence_pct: null,
-        coverage_pct: 100,
-      };
-    });
-
-    rows.sort((a, b) => (b.built_cover_pct ?? -1) - (a.built_cover_pct ?? -1));
-    const rowById = new Map(rows.map((row) => [row.district_id, row]));
-
-    const geojson = {
-      type: "FeatureCollection" as const,
-      features: sourceFeatures.map((feature) => ({
-        ...feature,
-        properties: {
-          ...feature.properties,
-          district_name: feature.properties.name_th,
-          ...(rowById.get(Number(feature.properties.id)) ?? {}),
-        },
-      })),
-    };
-
-    const average = (key: keyof UrbanExpansionDistrictRow) => {
-      const values = rows.map((row) => row[key]).filter((value): value is number => typeof value === "number");
-      return values.length ? roundOrNull(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
-    };
-    const sum = (key: keyof UrbanExpansionDistrictRow) => {
-      const values = rows.map((row) => row[key]).filter((value): value is number => typeof value === "number");
-      return values.length ? roundOrNull(values.reduce((total, value) => total + value, 0), 0) : null;
-    };
-
-    return {
-      period: {
-        year,
-        baselineYear,
-        currentLabel: `ปี ${year}`,
-        baselineLabel: `ปี ${baselineYear}`,
-      },
-      rows,
-      geojson,
-      summary: {
-        builtCoverPct: average("built_cover_pct"),
-        builtAreaRai: sum("built_area_rai"),
-        builtChangePp: average("built_change_pp"),
-        builtGainPct: null,
-        builtLossPct: null,
-        greenToBuiltPct: null,
-        bareToBuiltPct: null,
-        averageConfidencePct: null,
-        averageCoveragePct: 100,
-        highestBuiltCoverDistrict: rows[0]?.district_name ?? null,
-        highestBuiltGainDistrict: null,
-        highestGreenConversionDistrict: null,
-        currentSceneCount: 0,
-        baselineSceneCount: 0,
-        source: "Supabase fallback (district_statistics)",
-        dataQuality: "observed" as const,
-        processingNote: "ข้อมูลสถิติสิ่งปลูกสร้างสะท้อนดัชนี NDBI สำรองจากฐานข้อมูลภายใน (ไม่มีชั้นข้อมูลแผนที่สด)",
-      },
-      rasters: {
-        current: { urlFormat: null, palette: ["#fff7ed", "#fdba74", "#f97316", "#991b1b"], labels: ["โอกาสเป็นสิ่งปลูกสร้างต่ำ", "ปานกลาง", "สูง", "สูงมาก"] },
-        change: { urlFormat: null, palette: ["#7f1d1d", "#fb923c", "#ef4444", "#facc15", "#22c55e"], labels: ["สิ่งปลูกสร้างคงเดิม", "สิ่งปลูกสร้างเพิ่มจากประเภทอื่น", "พื้นที่สีเขียวเป็นสิ่งปลูกสร้าง", "พื้นที่โล่งเป็นสิ่งปลูกสร้าง", "สิ่งปลูกสร้างลดลง"] },
-      },
-    };
-  } catch (err: any) {
-    console.warn("DB Fallback failed for urban-expansion:", err.message);
-    return null;
   }
 }
-

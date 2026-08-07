@@ -319,7 +319,11 @@ export default function FloodRiskPage() {
         if (res.ok) {
           const data = await res.json();
           setGeojsonData(data.geojson);
-          setSummary({ ...data.summary, cacheStatus: meta?.status ?? "pending" });
+          setSummary({
+            ...data.summary,
+            cacheStatus: meta?.status ?? "pending",
+            periodFallback: selectedMonth ? "annual" : null,
+          });
         } else {
           const built = buildFloodRiskView(null, null, selectedYear, null, cacheLayer);
           setGeojsonData(built.geojson);
@@ -489,8 +493,9 @@ export default function FloodRiskPage() {
     [geojsonData, granularity, subdistrictFeatures],
   );
 
-  const periodLabel = selectedMonth
-    ? buildPeriodLabel(selectedYear, selectedMonth)
+  const effectiveMonth = summary?.periodFallback === "annual" ? null : selectedMonth;
+  const periodLabel = effectiveMonth
+    ? buildPeriodLabel(selectedYear, effectiveMonth)
     : selectedYear === new Date().getFullYear()
       ? `1 ม.ค. – ${new Date().toLocaleDateString("th-TH", { day: "2-digit", month: "short" })} ${selectedYear} (YTD)`
       : `1 ม.ค. – 31 ธ.ค. ${selectedYear}`;
@@ -523,7 +528,7 @@ export default function FloodRiskPage() {
     provenance: panelProvenance,
   });
 
-  const csvFilename = `flood-risk_${selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear}`;
+  const csvFilename = `flood-risk_${effectiveMonth ? `${selectedYear}-${String(effectiveMonth).padStart(2, "0")}` : selectedYear}`;
   const csvHeaders = ["เขต", WATER_LAYER_LABELS[cacheLayer], "พื้นที่ตรวจพบสัญญาณน้ำ (ไร่)", "Layer", "ช่วงเวลา"];
 
   const rankingForExport: (string | number | null)[][] = (summary?.ranking ?? []).map(
@@ -532,7 +537,7 @@ export default function FloodRiskPage() {
       val !== null ? +val.toFixed(4) : null,
       areaRai ?? null,
       WATER_LAYER_LABELS[cacheLayer] ?? cacheLayer,
-      selectedMonth ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}` : selectedYear,
+      effectiveMonth ? `${selectedYear}-${String(effectiveMonth).padStart(2, "0")}` : selectedYear,
     ],
   );
 
@@ -765,7 +770,7 @@ export default function FloodRiskPage() {
             </div>
           )}
           <div className="ml-auto hidden shrink-0 text-[10px] text-slate-500 sm:block">
-            {loading ? "กำลังโหลด…" : `${selectedYear}${selectedMonth ? `-${String(selectedMonth).padStart(2, "0")}` : ""} • ${WATER_LAYER_LABELS[cacheLayer]}`}
+            {loading ? "กำลังโหลด…" : `${selectedYear}${effectiveMonth ? `-${String(effectiveMonth).padStart(2, "0")}` : ""} • ${WATER_LAYER_LABELS[cacheLayer]}`}
           </div>
         </div>
 
