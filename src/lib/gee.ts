@@ -2,6 +2,10 @@ import ee from '@google/earthengine';
 import { getServiceAccountAccessToken } from '@/lib/google-service-account';
 
 const GEE_SCOPE = 'https://www.googleapis.com/auth/earthengine';
+const TOKEN_REFRESH_SECONDS = 3500;
+
+let geeInitPromise: Promise<void> | null = null;
+let geeInitialized = false;
 
 type GeeCredentials = {
   clientEmail: string;
@@ -64,17 +68,30 @@ function getAccessToken(email: string, key: string, retries = 2): Promise<string
  * that breaks the built-in authenticateViaPrivateKey on Node.js 22+.
  */
 export const initGEE = async (): Promise<void> => {
+  if (geeInitialized) return;
+  if (geeInitPromise) return geeInitPromise;
+
+  geeInitPromise = initializeGEE().catch((error) => {
+    geeInitPromise = null;
+    geeInitialized = false;
+    throw error;
+  });
+
+  return geeInitPromise;
+};
+
+async function initializeGEE(): Promise<void> {
   const { clientEmail, privateKey, projectId } = getGeeCredentials();
 
   const token = await getAccessToken(clientEmail, privateKey);
 
   // Inject token and set up auto-refresh so long-running jobs don't expire
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (ee.apiclient as any).setAuthToken('', 'Bearer', token, 3500, [], null, false);
+  (ee.apiclient as any).setAuthToken('', 'Bearer', token, TOKEN_REFRESH_SECONDS, [], null, false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (ee.apiclient as any).setAuthTokenRefresher((_args: any, cb: any) => {
     getAccessToken(clientEmail, privateKey)
-      .then((t) => cb({ token_type: 'Bearer', access_token: t, expires_in: 3500 }))
+      .then((t) => cb({ token_type: 'Bearer', access_token: t, expires_in: TOKEN_REFRESH_SECONDS }))
       .catch((e) => {
         console.error('❌ GEE token refresh failed:', e?.message);
         cb(null); // GEE SDK will surface the error on the next API call
@@ -90,6 +107,8 @@ export const initGEE = async (): Promise<void> => {
       projectId
     );
   });
-};
+
+  geeInitialized = true;
+}
 
 export default ee;

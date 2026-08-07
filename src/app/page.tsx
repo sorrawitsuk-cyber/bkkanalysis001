@@ -40,6 +40,39 @@ const workflows = [
   },
 ];
 
+const liveGeeModules = [
+  {
+    title: "ความร้อนผิวเมือง",
+    description: "เปิดภาพอุณหภูมิพื้นผิวจากดาวเทียมและอ่านค่ารายจุดบนแผนที่",
+    href: "/heat-island",
+  },
+  {
+    title: "ความเขียวของพืชพรรณ",
+    description: "ดูภาพความเขียวจากดาวเทียมและเปรียบเทียบปีหรือพื้นที่",
+    href: "/ndvi",
+  },
+  {
+    title: "ฝนและสัญญาณน้ำ",
+    description: "เปิดข้อมูลฝน GPM และสัญญาณน้ำจากภาพดาวเทียม",
+    href: "/flood-risk",
+  },
+  {
+    title: "มลพิษจากดาวเทียม",
+    description: "ดูชั้นข้อมูลบรรยากาศรายพิกเซลและค่าเฉลี่ยรายเขต",
+    href: "/air-quality",
+  },
+  {
+    title: "แสงกลางคืน",
+    description: "ดูภาพความสว่างยามค่ำและสัญญาณกิจกรรมเมือง",
+    href: "/nighttime-lights",
+  },
+  {
+    title: "ฝนสะสม",
+    description: "ดูปริมาณฝนสะสมและแนวโน้มช่วง 1, 3, 7 หรือ 30 วัน",
+    href: "/rainfall",
+  },
+];
+
 const registrySummary = getRegistrySummary();
 const readiness = [
   {
@@ -178,6 +211,32 @@ export default function Home() {
                 </li>
               ))}
             </ol>
+          </div>
+        </section>
+
+        <section className="mt-10 border-t border-[var(--oe-line)] pt-7">
+          <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <div>
+              <h2 className="text-xl font-bold">ข้อมูลดาวเทียมสด</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--oe-muted)]">
+                เปิดหน้าโมดูลเดิมที่เรียกข้อมูลจาก Google Earth Engine โดยตรงเมื่อระบบมีสิทธิ์เชื่อมต่อ
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {liveGeeModules.map((module) => (
+                <Link
+                  key={module.href}
+                  href={module.href}
+                  className="group min-h-[132px] rounded-[var(--radius-panel)] border border-[var(--oe-line)] bg-[var(--oe-surface)] p-4 outline-none transition-colors hover:border-[var(--oe-primary)] hover:bg-[var(--oe-surface-muted)] focus-visible:ring-2 focus-visible:ring-[var(--oe-primary)]"
+                >
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="text-sm font-bold">{module.title}</span>
+                    <ArrowRight aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--oe-primary-ink)] transition-transform duration-150 group-hover:translate-x-1" />
+                  </span>
+                  <span className="mt-3 block text-sm leading-6 text-[var(--oe-muted)]">{module.description}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
