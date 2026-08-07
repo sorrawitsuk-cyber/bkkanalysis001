@@ -293,7 +293,10 @@ export default function MapView({ activeTag, activeDistrict, traffyData, mapMode
       // Use Canvas renderer for much better performance with many markers
       renderer={canvasRenderer}
     >
-      <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
 
       {/* Auto fit bounds when data changes */}
       <MapBoundsFitter bounds={dataBounds.bounds} boundsKey={dataBounds.key} />
@@ -335,7 +338,7 @@ export default function MapView({ activeTag, activeDistrict, traffyData, mapMode
       {mapMode === 'points' && pointMarkers}
 
       <div className="absolute bottom-2 right-2 text-[10px] text-slate-500 z-[1000] bg-black/50 px-2 py-1 rounded backdrop-blur-sm">
-        &copy; CARTO &copy; OpenStreetMap | Data: Traffy Fondue
+        &copy; OpenStreetMap | Data: Traffy Fondue
       </div>
     </MapContainer>
   );

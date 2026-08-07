@@ -11,55 +11,55 @@ import AppShell from "@/components/observatory/AppShell";
 import BangkokBoundaryPreview from "@/components/observatory/BangkokBoundaryPreview";
 import QuestionBuilder from "@/components/observatory/QuestionBuilder";
 import districtGeoJson from "@/data/observatory/bkk-districts.provisional.json";
-import {
-  getRegistrySummary,
-  OBSERVATORY_REGISTRY,
-} from "@/lib/observatory/registry";
+import { getRegistrySummary } from "@/lib/observatory/registry";
 
 const workflows = [
   {
     title: "สำรวจสภาพล่าสุดที่มีข้อมูล",
-    description: "อ่านสภาพผิวเมือง ความร้อน พืชพรรณ น้ำ และบริบทที่มี coverage เพียงพอ",
-    result: "แผนที่สถานะ + หลักฐาน",
+    description: "อ่านภาพรวมความร้อน พืชพรรณ น้ำ และบริบทเมืองจากข้อมูลที่พร้อมใช้งาน",
+    result: "เปิดแผนที่",
+    href: "/observatory",
   },
   {
     title: "เปรียบเทียบพื้นที่และเวลา",
-    description: "กำหนด baseline ที่อยู่ในฤดูกาลเดียวกัน และรักษาหน่วยกับช่วงสีให้เทียบกันได้",
-    result: "ค่าจริง + ผลต่าง",
+    description: "เลือกปีที่ต้องการดูและปีอ้างอิง เพื่อเปรียบเทียบเขตหรือช่วงเวลาอย่างเป็นธรรม",
+    result: "เลือกช่วงเวลา",
+    href: "/observatory?lens=vegetation&year=2025&baseline=2024",
   },
   {
     title: "ตรวจการเปลี่ยนแปลงหรือเหตุการณ์",
-    description: "ใช้หลาย acquisition แยกสัญญาณต่อเนื่องออกจาก noise และข้อมูลขาดหาย",
-    result: "ก่อน / หลัง + persistence",
+    description: "ดูว่าสัญญาณเปลี่ยนต่อเนื่องหรือเป็นเพียงภาพบางช่วงที่ต้องตรวจซ้ำ",
+    result: "ดูการเปลี่ยนแปลง",
+    href: "/observatory?lens=urban&year=2024&baseline=2018",
   },
   {
     title: "ประเมินบริบทที่อาจได้รับผล",
-    description: "เชื่อมประชากรตามทะเบียน แบบจำลองประชากร และทรัพย์สินโดยไม่หลอมเป็นตัวเลขเดียว",
-    result: "exposure + ข้อจำกัด",
+    description: "อ่านผลร่วมกับประชากร บริการเมือง และข้อควรระวังก่อนนำไปวางแผน",
+    result: "ดูบริบทพื้นที่",
+    href: "/areas",
   },
 ];
 
 const registrySummary = getRegistrySummary();
-const boundaryArtifact = OBSERVATORY_REGISTRY.runtimeArtifacts[0];
 const readiness = [
   {
     label: "โครงพื้นที่ 50 เขต",
-    detail: `${boundaryArtifact.status} · ล้าง attribute legacy แล้ว · รอตรวจรับขอบเขต กทม.`,
+    detail: "พร้อมใช้เป็นขอบเขตเริ่มต้น และรอตรวจรับเป็นฐานอ้างอิงถาวร",
     state: "provisional",
   },
   {
-    label: `แหล่งข้อมูล ${registrySummary.datasetCount} ชุด`,
-    detail: `${registrySummary.publicDatasetCount} ชุดผ่าน publish gate`,
+    label: `ข้อมูลพร้อมใช้ ${registrySummary.publicDatasetCount} จาก ${registrySummary.datasetCount} ชุด`,
+    detail: "แสดงเฉพาะชุดที่ระบุที่มาและข้อควรระวังแล้ว",
     state: registrySummary.publicDatasetCount > 0 ? "validated" : "acceptance",
   },
   {
-    label: `ผลิตภัณฑ์วิเคราะห์ ${registrySummary.productCount} รายการ`,
-    detail: `${registrySummary.publicProductCount} รายการพร้อมเผยแพร่ค่าจริง`,
+    label: `หัวข้อวิเคราะห์พร้อมใช้ ${registrySummary.publicProductCount} จาก ${registrySummary.productCount} รายการ`,
+    detail: "หัวข้อที่ยังตรวจไม่ครบจะบอกสถานะแทนการแสดงค่า",
     state: registrySummary.publicProductCount > 0 ? "validated" : "acceptance",
   },
   {
-    label: `Evidence registry ${OBSERVATORY_REGISTRY.registryVersion}`,
-    detail: "API และหน้า Evidence อ่านจากทะเบียนเดียวกัน",
+    label: "ที่มาและข้อควรระวัง",
+    detail: "อ้างอิงรายการข้อมูลชุดเดียวกันทั้งระบบ",
     state: "checking",
   },
 ];
@@ -83,14 +83,14 @@ export default function Home() {
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--oe-muted)] text-pretty">
               ระบบเริ่มจากคำถาม พื้นที่ เวลา และฐานเปรียบเทียบ ผลทุกชิ้นต้องระบุแหล่งข้อมูล
-              วิธีคำนวณ coverage และข้อจำกัดก่อนนำไปตรวจสอบต่อ
+              วิธีอ่านผล และข้อควรระวังก่อนนำไปตรวจสอบต่อ
             </p>
           </div>
           <div className="border-l border-[var(--oe-line)] pl-5">
             <p className="text-xs font-bold text-[var(--oe-muted)]">ขอบเขตการใช้งาน</p>
             <p className="mt-2 text-sm leading-6">
               ผลดาวเทียมเป็นสัญญาณคัดกรอง ไม่ใช่ข้อยืนยันระดับภาคสนาม
-              และยังไม่มีคะแนนจัดลำดับรวมจนกว่าวิธีวิเคราะห์จะผ่าน validation
+              และยังไม่สรุปเป็นคะแนนเดียวจนกว่าวิธีวิเคราะห์จะตรวจสอบครบ
             </p>
           </div>
         </section>
@@ -116,10 +116,10 @@ export default function Home() {
             <div className="border-b border-[var(--oe-line)] p-4">
               <div className="flex items-center gap-2">
                 <Layers3 aria-hidden="true" className="h-4 w-4 text-[var(--oe-primary)]" />
-                <h2 className="text-sm font-bold">Data readiness</h2>
+              <h2 className="text-sm font-bold">สถานะข้อมูล</h2>
               </div>
               <p className="mt-1 text-xs leading-5 text-[var(--oe-muted)]">
-                สถานะนี้บอกความพร้อมของ pipeline ไม่ได้บอกว่าค่าทุกปีพร้อมใช้งาน
+                สถานะนี้บอกว่าหน้าจอใดพร้อมแสดงผล และช่วงใดยังต้องรอตรวจ
               </p>
             </div>
             <ul>
@@ -143,7 +143,7 @@ export default function Home() {
             </ul>
             <div className="border-t border-[var(--oe-line)] p-4">
               <Link href="/evidence" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-[var(--oe-primary-ink)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--oe-primary)]">
-                ตรวจทะเบียนแหล่งข้อมูล
+                ดูที่มาและข้อควรระวัง
                 <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>
@@ -155,18 +155,26 @@ export default function Home() {
             <div>
               <h2 className="text-xl font-bold">งานหลักของ Observatory</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--oe-muted)]">
-                ทุก workflow ใช้ query state และหลักฐานรูปแบบเดียวกัน เพื่อให้ผลทำซ้ำและตรวจสอบย้อนหลังได้
+                ทุกงานเริ่มจากคำถามเดียวกัน เลือกพื้นที่และเวลาได้ และเปิดดูหลักฐานย้อนหลังได้
               </p>
             </div>
             <ol className="border-y border-[var(--oe-line)]">
               {workflows.map((workflow, index) => (
-                <li key={workflow.title} className="grid gap-2 border-b border-[var(--oe-line-soft)] py-4 last:border-b-0 sm:grid-cols-[36px_minmax(0,1fr)_190px] sm:items-start">
-                  <span className="font-mono text-xs font-bold text-[var(--oe-primary-ink)]">{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <h3 className="text-sm font-bold">{workflow.title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">{workflow.description}</p>
-                  </div>
-                  <p className="text-xs font-semibold text-[var(--oe-muted)] sm:text-right">{workflow.result}</p>
+                <li key={workflow.title} className="border-b border-[var(--oe-line-soft)] last:border-b-0">
+                  <Link
+                    href={workflow.href}
+                    className="grid gap-2 rounded-[var(--radius-control)] py-4 outline-none transition-colors hover:bg-[var(--oe-surface-muted)] focus-visible:ring-2 focus-visible:ring-[var(--oe-primary)] sm:grid-cols-[36px_minmax(0,1fr)_190px] sm:items-start"
+                  >
+                    <span className="font-mono text-xs font-bold text-[var(--oe-primary-ink)]">{String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <h3 className="text-sm font-bold">{workflow.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">{workflow.description}</p>
+                    </div>
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--oe-primary-ink)] sm:justify-end">
+                      {workflow.result}
+                      <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ol>
@@ -177,32 +185,32 @@ export default function Home() {
           <div>
             <h2 className="text-xl font-bold">กติกาก่อนอ่านผล</h2>
             <p className="mt-2 text-sm leading-6 text-[var(--oe-muted)]">
-              ระบบใหม่เลือกไม่แสดงค่าดีกว่าแสดง fallback ที่อาจทำให้เข้าใจว่าเป็นข้อมูลจริง
+              ถ้าข้อมูลยังไม่พร้อม ระบบจะแจ้งสถานะให้รู้ แทนการใส่ค่าประมาณที่อาจทำให้เข้าใจผิด
             </p>
           </div>
           <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2">
             <div>
-              <dt className="text-sm font-bold">ช่วงสังเกตไม่เท่ากับวันที่ประมวลผล</dt>
-              <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ทั้งสองวันต้องแสดงแยกกันพร้อม latency ของแหล่งข้อมูล</dd>
+              <dt className="text-sm font-bold">วันที่ข้อมูลกับวันที่ประมวลผลอาจไม่ตรงกัน</dt>
+              <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ควรดูช่วงเวลาของข้อมูลก่อนนำไปเปรียบเทียบ</dd>
             </div>
             <div>
-              <dt className="text-sm font-bold">Resolution ต้องตรงกับข้อสรุป</dt>
-              <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ข้อมูล 10 กิโลเมตรจะไม่ถูกนำเสนอเสมือนเป็นค่าระดับถนน</dd>
+              <dt className="text-sm font-bold">ความละเอียดของข้อมูลต้องเหมาะกับคำถาม</dt>
+              <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ข้อมูลภาพรวมเมืองไม่ควรถูกอ่านเหมือนการสำรวจรายถนน</dd>
             </div>
             <div>
               <dt className="text-sm font-bold">ความสัมพันธ์ไม่ใช่สาเหตุ</dt>
               <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ผลเชื่อมโยงกับประชากรหรือบริการเมืองเป็นจุดเริ่มตรวจต่อ</dd>
             </div>
             <div>
-              <dt className="text-sm font-bold">No-data เป็นสถานะข้อมูล</dt>
-              <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ไม่เติมศูนย์ ไม่จัดอันดับ และไม่ซ่อนพื้นที่ที่ coverage ต่ำ</dd>
+              <dt className="text-sm font-bold">พื้นที่ที่ไม่มีข้อมูลต้องถูกบอกตรง ๆ</dt>
+              <dd className="mt-1 text-sm leading-6 text-[var(--oe-muted)]">ไม่เติมศูนย์ ไม่จัดอันดับ และไม่ซ่อนพื้นที่ที่ข้อมูลยังไม่พอ</dd>
             </div>
           </dl>
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 py-6 text-xs text-[var(--oe-muted)]">
-          <span>Bangkok Urban Earth Observatory · R&D baseline 2026-07-26</span>
-          <span>Remote sensing + Bangkok Open Data</span>
+          <span>Bangkok City Observatory · อัปเดตแนวทาง 2026-07-26</span>
+          <span>แผนที่เมือง + ข้อมูลเปิดกรุงเทพฯ</span>
         </footer>
       </main>
     </AppShell>

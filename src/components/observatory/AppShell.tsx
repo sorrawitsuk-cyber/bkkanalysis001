@@ -16,7 +16,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[var(--oe-bg)] text-[var(--oe-ink)]">
+    <div className="oe-dark-shell min-h-screen bg-[var(--oe-bg)] text-[var(--oe-ink)]">
       <header className="sticky top-0 z-[var(--z-sticky)] border-b border-[var(--oe-line)] bg-[color:var(--oe-surface-strong)]">
         <div className="mx-auto flex min-h-16 max-w-[1600px] items-center gap-4 px-4 sm:px-6">
           <Link
@@ -27,15 +27,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <Satellite aria-hidden="true" className="h-4 w-4" />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-bold leading-5">Bangkok Urban Earth Observatory</span>
-              <span className="hidden truncate text-xs text-[var(--oe-muted)] sm:block">ข้อมูลดาวเทียมและบริบทเมืองที่ตรวจสอบที่มาได้</span>
+              <span className="block truncate text-sm font-bold leading-5">Bangkok City Observatory</span>
+              <span className="hidden truncate text-xs text-[var(--oe-muted)] sm:block">อ่านสัญญาณเมืองจากแผนที่และข้อมูลที่ตรวจสอบได้</span>
             </span>
           </Link>
 
           <div className="ml-auto hidden items-center gap-2 lg:flex">
             <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-[var(--oe-info-soft)] px-3 text-xs font-semibold text-[var(--oe-info-ink)]">
               <span className="h-2 w-2 rounded-full bg-[var(--oe-info)]" aria-hidden="true" />
-              แสดงเฉพาะข้อมูลที่ผ่านสถานะการใช้งาน
+              แสดงเฉพาะข้อมูลที่พร้อมใช้งาน
             </span>
           </div>
         </div>

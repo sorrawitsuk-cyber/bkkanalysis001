@@ -38,13 +38,13 @@ const SERVICE_COLORS: Record<AccessibilityCategory, string> = {
 
 const BASEMAPS = {
   dark: {
-    label: "แผนที่มืด",
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    label: "แผนที่ทั่วไป",
+    attribution: "&copy; OpenStreetMap contributors",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   },
   light: {
     label: "แผนที่สว่าง",
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
   },
   satellite: {

@@ -24,6 +24,28 @@ interface FloodRiskMapViewProps {
 
 const ALL_DISTRICTS = "ทั้งหมด";
 const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13.956, 100.935]];
+const BASEMAPS = {
+  dark: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  },
+  light: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  },
+  satellite: {
+    attribution: "Tiles &copy; Esri",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  },
+  streets: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  },
+  none: {
+    attribution: "",
+    url: "",
+  },
+} as const;
 
 function getIndexColor(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "#334155";
@@ -75,6 +97,7 @@ export default function FloodRiskMapView({
 }: FloodRiskMapViewProps) {
   const mapRef            = useRef<L.Map | null>(null);
   const baseLayerRef      = useRef<L.TileLayer | null>(null);
+  const baseAttributionRef = useRef<string>(BASEMAPS.dark.attribution);
   const geojsonLayerRef   = useRef<L.GeoJSON | null>(null);
   const geeLayerRef       = useRef<L.TileLayer | null>(null);
   const maskLayerRef      = useRef<L.GeoJSON | null>(null);
@@ -95,23 +118,25 @@ export default function FloodRiskMapView({
       zoomControl: false,
     });
     baseLayerRef.current = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      { attribution: "© OpenStreetMap contributors © CARTO", subdomains: "abcd", maxZoom: 20 }
+      BASEMAPS.dark.url,
+      { attribution: BASEMAPS.dark.attribution, maxZoom: 19 }
     ).addTo(mapRef.current);
   }, []);
 
   // Base map change
   useEffect(() => {
     if (!mapRef.current || !baseLayerRef.current) return;
-    const urls: Record<string, string> = {
-      dark:      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      light:     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      streets:   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      none:      "",
-    };
+    const nextBasemap = BASEMAPS[baseMap] ?? BASEMAPS.dark;
+    if (mapRef.current.attributionControl) {
+      mapRef.current.attributionControl.removeAttribution(baseAttributionRef.current);
+      if (nextBasemap.attribution) {
+        mapRef.current.attributionControl.addAttribution(nextBasemap.attribution);
+      }
+      baseAttributionRef.current = nextBasemap.attribution;
+    }
+    baseLayerRef.current.options.attribution = nextBasemap.attribution;
     if (baseMap === "none") { baseLayerRef.current.setOpacity(0); }
-    else { baseLayerRef.current.setOpacity(1); baseLayerRef.current.setUrl(urls[baseMap] || urls.dark); }
+    else { baseLayerRef.current.setOpacity(1); baseLayerRef.current.setUrl(nextBasemap.url); }
   }, [baseMap]);
 
   // Opacity sync

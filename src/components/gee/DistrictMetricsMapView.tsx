@@ -37,6 +37,28 @@ interface DistrictMetricsMapViewProps {
 }
 
 const ALL_DISTRICTS = "ทั้งหมด";
+const BASEMAPS = {
+  dark: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  },
+  light: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  },
+  satellite: {
+    attribution: "Tiles &copy; Esri",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  },
+  streets: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  },
+  none: {
+    attribution: "",
+    url: "",
+  },
+} as const;
 
 const layerLabels: Record<string, string> = {
   green_area_rai: "ขนาดพื้นที่สีเขียว",
@@ -87,6 +109,7 @@ export default function DistrictMetricsMapView({
 }: DistrictMetricsMapViewProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
+  const baseAttributionRef = useRef<string>(BASEMAPS.dark.attribution);
   const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
   const geeLayerRef = useRef<L.TileLayer | null>(null);
   const cacheLayerRef = useRef<L.ImageOverlay | null>(null);
@@ -192,10 +215,9 @@ export default function DistrictMetricsMapView({
       zoomControl: false,
     });
 
-    baseLayerRef.current = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: "abcd",
-      maxZoom: 20,
+    baseLayerRef.current = L.tileLayer(BASEMAPS.dark.url, {
+      attribution: BASEMAPS.dark.attribution,
+      maxZoom: 19,
     }).addTo(mapRef.current);
 
     mapRef.current.on("click", async (e: L.LeafletMouseEvent) => {
@@ -232,18 +254,20 @@ export default function DistrictMetricsMapView({
 
   useEffect(() => {
     if (!mapRef.current || !baseLayerRef.current) return;
-    const mapUrls: Record<string, string> = {
-      dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      streets: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      none: "",
-    };
+    const nextBasemap = BASEMAPS[baseMap] ?? BASEMAPS.dark;
+    if (mapRef.current.attributionControl) {
+      mapRef.current.attributionControl.removeAttribution(baseAttributionRef.current);
+      if (nextBasemap.attribution) {
+        mapRef.current.attributionControl.addAttribution(nextBasemap.attribution);
+      }
+      baseAttributionRef.current = nextBasemap.attribution;
+    }
+    baseLayerRef.current.options.attribution = nextBasemap.attribution;
     if (baseMap === "none") {
       baseLayerRef.current.setOpacity(0);
     } else {
       baseLayerRef.current.setOpacity(1);
-      baseLayerRef.current.setUrl(mapUrls[baseMap] || mapUrls.dark);
+      baseLayerRef.current.setUrl(nextBasemap.url);
     }
   }, [baseMap]);
 

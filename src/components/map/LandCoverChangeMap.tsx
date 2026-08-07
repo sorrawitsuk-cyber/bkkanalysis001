@@ -54,7 +54,10 @@ export default function LandCoverChangeMap({
       className="h-full w-full bg-slate-950"
       attributionControl={false}
     >
-      <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
       {rasterVisible && rasterUrl && <TileLayer url={rasterUrl} opacity={0.78} maxZoom={18} />}
       {geojsonData && (
         <>

@@ -61,7 +61,7 @@ export default function BangkokBoundaryPreview() {
       <figcaption className="absolute left-5 top-5 z-10 max-w-[300px] rounded-[var(--radius-control)] bg-white/95 px-3 py-2 text-sm">
         <span className="block font-bold">ขอบเขตพื้นที่ศึกษา 50 เขต</span>
         <span className="mt-0.5 block text-xs leading-5 text-[var(--oe-muted)]">
-          แสดง geometry เพื่อเริ่มเลือกพื้นที่ ไม่ได้ใช้สีแทนค่าตัวชี้วัด
+          ใช้เลือกพื้นที่เริ่มต้น สีในภาพนี้ไม่ได้แทนค่าตัวชี้วัด
         </span>
       </figcaption>
       <svg
@@ -84,7 +84,7 @@ export default function BangkokBoundaryPreview() {
         ))}
       </svg>
       <div className="absolute bottom-4 left-4 rounded-[var(--radius-control)] bg-white/95 px-3 py-2 text-xs text-[var(--oe-muted)]">
-        Geometry อยู่ระหว่างจัดทำ canonical area code และตรวจรุ่นขอบเขต
+        ขอบเขตอยู่ระหว่างตรวจรุ่นข้อมูลก่อนใช้เป็นฐานอ้างอิงถาวร
       </div>
     </figure>
   );

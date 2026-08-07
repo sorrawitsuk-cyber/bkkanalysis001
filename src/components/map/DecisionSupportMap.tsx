@@ -38,7 +38,10 @@ export default function DecisionSupportMap({
 }) {
   return (
     <MapContainer center={[13.7563, 100.5018]} zoom={10} className="h-full w-full bg-slate-950" attributionControl={false}>
-      <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
       {data && (
         <>
           <GeoJSON

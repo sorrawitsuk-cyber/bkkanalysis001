@@ -21,10 +21,22 @@ interface TreeCoverMapProps {
 const ALL_DISTRICTS = "ทั้งหมด";
 const BKK_BOUNDS: [[number, number], [number, number]] = [[13.494, 100.329], [13.956, 100.935]];
 const BASE_MAPS = {
-  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-  satellite: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  streets: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  dark: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  },
+  light: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  },
+  satellite: {
+    attribution: "Tiles &copy; Esri",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  },
+  streets: {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  },
 };
 
 export default function TreeCoverMap({
@@ -39,6 +51,7 @@ export default function TreeCoverMap({
 }: TreeCoverMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const baseLayerRef = useRef<L.TileLayer | null>(null);
+  const baseAttributionRef = useRef<string>(BASE_MAPS.dark.attribution);
   const rasterRef = useRef<L.TileLayer | null>(null);
   const geojsonRef = useRef<L.GeoJSON | null>(null);
 
@@ -50,10 +63,9 @@ export default function TreeCoverMap({
       zoomControl: false,
     });
     L.control.zoom({ position: "bottomright" }).addTo(mapRef.current);
-    baseLayerRef.current = L.tileLayer(BASE_MAPS.dark, {
-      attribution: "© OpenStreetMap contributors © CARTO",
-      subdomains: "abcd",
-      maxZoom: 20,
+    baseLayerRef.current = L.tileLayer(BASE_MAPS.dark.url, {
+      attribution: BASE_MAPS.dark.attribution,
+      maxZoom: 19,
     }).addTo(mapRef.current);
     mapRef.current.fitBounds(BKK_BOUNDS, { padding: [12, 12] });
     return () => {
@@ -68,8 +80,15 @@ export default function TreeCoverMap({
       baseLayerRef.current.setOpacity(0);
       return;
     }
+    const nextBasemap = BASE_MAPS[baseMap];
+    if (mapRef.current.attributionControl) {
+      mapRef.current.attributionControl.removeAttribution(baseAttributionRef.current);
+      mapRef.current.attributionControl.addAttribution(nextBasemap.attribution);
+      baseAttributionRef.current = nextBasemap.attribution;
+    }
+    baseLayerRef.current.options.attribution = nextBasemap.attribution;
     baseLayerRef.current.setOpacity(1);
-    baseLayerRef.current.setUrl(BASE_MAPS[baseMap]);
+    baseLayerRef.current.setUrl(nextBasemap.url);
   }, [baseMap]);
 
   useEffect(() => {
@@ -103,8 +122,8 @@ export default function TreeCoverMap({
         const district = props.district_name ?? props.name_th;
         bindLeafletKeyboardSelection(layer, `เลือกเขต${district}บนแผนที่`, () => onDistrictSelect(activeDistrict === district ? ALL_DISTRICTS : district));
         layer.bindTooltip(
-          `<div class="min-w-[190px]">
-            <div class="font-bold text-slate-900">เขต${district}</div>
+          `<div class="min-w-[190px] rounded border border-slate-700 bg-slate-900 p-2 text-slate-100">
+            <div class="font-bold text-slate-100">เขต${district}</div>
             <div class="mt-1 text-xs">Tree Cover: <b>${formatTreePercent(props.tree_cover_pct)}</b></div>
             <div class="text-xs">พื้นที่: <b>${formatTreeRai(props.tree_cover_rai)}</b></div>
             <div class="text-xs">เปลี่ยนจากปีฐาน: <b>${formatTreeChange(props.tree_cover_change_pp)}</b></div>

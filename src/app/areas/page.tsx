@@ -24,20 +24,20 @@ export default function AreasPage() {
             </div>
             <h1 className="mt-3 text-3xl font-bold tracking-[-0.025em]">เลือกเขตเพื่อเริ่มอ่านหลักฐานเชิงพื้นที่</h1>
             <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--oe-muted)]">
-              รุ่นนี้ใช้รายชื่อและ geometry ระดับเขตเป็นจุดเริ่มต้นเท่านั้น
-              attributes เดิมที่เป็นค่าจำลองไม่ได้ถูกส่งต่อมายัง Observatory
+              รุ่นนี้ใช้รายชื่อและขอบเขตระดับเขตเป็นจุดเริ่มต้น
+              ข้อมูลประกอบอื่นจะแสดงเฉพาะเมื่อผ่านการตรวจสอบแล้ว
             </p>
           </div>
           <div className="border-l border-[var(--oe-line)] pl-5 text-sm leading-6 text-[var(--oe-muted)]">
-            Canonical area code, boundary source, publication date และ geometry version
-            ยังต้องผ่าน data acceptance ก่อนใช้เป็นฐานอ้างอิงถาวร
+            ขอบเขตพื้นที่ แหล่งที่มา และวันที่เผยแพร่ยังอยู่ในขั้นตรวจรับ
+            ก่อนใช้เป็นฐานอ้างอิงถาวร
           </div>
         </header>
 
         <section className="mt-6 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--oe-line)] bg-white">
           <div className="border-b border-[var(--oe-line)] px-4 py-3">
             <h2 className="text-sm font-bold">50 เขตของกรุงเทพมหานคร</h2>
-            <p className="mt-1 text-xs text-[var(--oe-muted)]">เลือกแล้วเปิดในพื้นที่วิเคราะห์ โดยยังไม่สร้างอันดับล่วงหน้า</p>
+            <p className="mt-1 text-xs text-[var(--oe-muted)]">เลือกเขตเพื่อเปิดแผนที่และอ่านข้อมูลที่เกี่ยวข้อง</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3">
             {districts.map((district) => (

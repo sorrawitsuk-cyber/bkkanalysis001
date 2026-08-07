@@ -21,7 +21,8 @@ import {
   OBSERVATORY_LENSES,
   type ObservatoryLensId,
 } from "@/lib/observatory/catalog";
-import type { CityMapStatus } from "@/lib/observatory/citymap";
+
+type BasemapStatus = "loading" | "ready" | "unavailable";
 
 const ObservatoryMap = dynamic(() => import("./ObservatoryMap"), {
   ssr: false,
@@ -140,7 +141,7 @@ const SEASONS: Array<{
 ];
 
 function formatValue(value: number | null | undefined, decimals: number, unit: string) {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "ไม่มีค่าที่ผ่านเงื่อนไข";
+  if (typeof value !== "number" || !Number.isFinite(value)) return "ยังไม่มีค่าพร้อมแสดง";
   const formatted = value.toLocaleString("th-TH", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -148,11 +149,19 @@ function formatValue(value: number | null | undefined, decimals: number, unit: s
   return unit ? `${formatted} ${unit}` : formatted;
 }
 
+function measurementText(type: string) {
+  if (type === "Satellite observation") return "อ่านจากภาพสำรวจ";
+  if (type === "Derived indicator") return "อ่านจากค่าที่คำนวณแล้ว";
+  if (type === "Administrative") return "อ่านจากข้อมูลหน่วยงาน";
+  if (type === "Proxy") return "อ่านจากสัญญาณประกอบ";
+  return "อ่านจากข้อมูลที่ตรวจแล้ว";
+}
+
 function qualityText(state: DataState) {
   if (state === "available") return "ข้อมูลสังเกตพร้อมอ่าน";
-  if (state === "research") return "ข้อมูล R&D ผ่าน QA ภายใน";
-  if (state === "withheld") return "ระงับการแสดงค่าที่ไม่ผ่านนโยบาย";
-  if (state === "planned") return "อยู่ระหว่าง data acceptance";
+  if (state === "research") return "ข้อมูลทดลองพร้อมตรวจสอบ";
+  if (state === "withheld") return "ยังไม่แสดงค่าที่ต้องตรวจเพิ่ม";
+  if (state === "planned") return "อยู่ระหว่างตรวจรับข้อมูล";
   if (state === "error") return "ตรวจสถานะข้อมูลไม่ได้";
   return "กำลังตรวจหลักฐานข้อมูล";
 }
@@ -190,7 +199,7 @@ export default function ObservatoryWorkspace({
   const [statusReason, setStatusReason] = useState("");
   const [view, setView] = useState<ViewMode>("map");
   const [basemapStatus, setBasemapStatus] =
-    useState<CityMapStatus>("loading");
+    useState<BasemapStatus>("loading");
   const [selectedName, setSelectedName] = useState<string | null>(
     initialArea !== "bangkok" ? initialArea : null,
   );
@@ -201,12 +210,6 @@ export default function ObservatoryWorkspace({
   const seasonLabel = SEASONS.find(
     (item) => item.id === season,
   )?.shortLabel;
-  const boundaryVersion = areas?.meta?.boundaryVersion;
-  const boundaryLabel = boundaryVersion
-    ? boundaryVersion.length > 16
-      ? `${boundaryVersion.slice(0, 12)}…`
-      : boundaryVersion
-    : "กำลังตรวจ";
 
   useEffect(() => {
     let cancelled = false;
@@ -236,7 +239,7 @@ export default function ObservatoryWorkspace({
 
     if (!lens.apiMetric) {
       setState("planned");
-      setStatusReason("product นี้ยังไม่มี read-only API ที่ผ่าน data acceptance จึงไม่แสดงค่าชั่วคราว");
+      setStatusReason("หัวข้อนี้ยังไม่พร้อมแสดงผล จึงยังไม่เปิดค่าบนแผนที่");
       return () => {
         cancelled = true;
       };
@@ -267,12 +270,12 @@ export default function ObservatoryWorkspace({
           setState("research");
           setStatusReason(
             payload.reason
-            || "ข้อมูลนี้พร้อมสำหรับการวิเคราะห์ R&D เท่านั้น",
+            || "ข้อมูลนี้อยู่ในช่วงทดลอง ควรใช้เพื่อประกอบการตรวจสอบเท่านั้น",
           );
           return;
         }
         setState("withheld");
-        setStatusReason(payload.reason || "ข้อมูลไม่ผ่านนโยบายการเผยแพร่ของ Observatory");
+        setStatusReason(payload.reason || "ข้อมูลชุดนี้ยังไม่พร้อมแสดงต่อผู้ใช้");
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -494,7 +497,7 @@ export default function ObservatoryWorkspace({
         <aside className="hidden rounded-[var(--radius-panel)] border border-[var(--oe-line)] bg-white p-3 xl:block">
           <div className="flex items-center gap-2 border-b border-[var(--oe-line-soft)] pb-3">
             <Layers3 className="h-4 w-4 text-[var(--oe-primary)]" />
-            <h2 className="text-sm font-bold">คลังชั้นข้อมูล</h2>
+            <h2 className="text-sm font-bold">หัวข้อที่เลือกดู</h2>
           </div>
           <div className="mt-2 space-y-1">
             {OBSERVATORY_LENSES.map((item) => (
@@ -511,17 +514,17 @@ export default function ObservatoryWorkspace({
               >
                 <span>{item.shortTitle}</span>
                 <span className={`text-[11px] font-semibold ${item.phase === "mvp" ? "text-[var(--oe-success-ink)]" : "text-[var(--oe-muted)]"}`}>
-                  {item.phase === "mvp" ? "MVP" : "P2"}
+                  {item.phase === "mvp" ? "พร้อมใช้" : "ถัดไป"}
                 </span>
               </button>
             ))}
           </div>
           <div className="mt-5 border-t border-[var(--oe-line-soft)] pt-4">
-            <h3 className="text-xs font-bold text-[var(--oe-muted)]">บริบทที่จะเชื่อม</h3>
+            <h3 className="text-xs font-bold text-[var(--oe-muted)]">ข้อมูลที่ควรอ่านร่วมกัน</h3>
             <ul className="mt-2 space-y-2 text-xs leading-5 text-[var(--oe-muted)]">
-              <li className="flex items-start justify-between gap-2"><span>ประชากรตามทะเบียน</span><span>ตรวจสิทธิ</span></li>
-              <li className="flex items-start justify-between gap-2"><span>ประชากรแบบจำลอง</span><span>ตรวจรุ่น</span></li>
-              <li className="flex items-start justify-between gap-2"><span>บริการเมือง BMA</span><span>ตรวจ resource</span></li>
+              <li className="flex items-start justify-between gap-2"><span>ประชากรตามทะเบียน</span><span>พร้อมตรวจต่อ</span></li>
+              <li className="flex items-start justify-between gap-2"><span>จำนวนคนในพื้นที่</span><span>กำลังตรวจรุ่นข้อมูล</span></li>
+              <li className="flex items-start justify-between gap-2"><span>บริการเมือง</span><span>กำลังตรวจรายการ</span></li>
             </ul>
           </div>
         </aside>
@@ -532,7 +535,7 @@ export default function ObservatoryWorkspace({
               <h2 className="text-sm font-bold">{lens.title}</h2>
               <p className="mt-0.5 text-xs text-[var(--oe-muted)]">
                 {isResearchVegetation && `${seasonLabel} · `}
-                ปี {year} เทียบปีฐาน {baseline} · หน่วยพื้นที่ เขต
+                ปี {year} เทียบปีอ้างอิง {baseline} · แสดงระดับเขต
               </p>
             </div>
             <div className="flex rounded-[var(--radius-control)] border border-[var(--oe-line)] bg-[var(--oe-surface-muted)] p-1">
@@ -564,11 +567,11 @@ export default function ObservatoryWorkspace({
               <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 <strong className="font-bold">
-                  ข้อมูลวิจัย แสดงเพื่อการตรวจสอบ R&D
+                  ข้อมูลทดลอง แสดงเพื่อประกอบการตรวจสอบ
                 </strong>
                 <p className="mt-0.5 max-w-[75ch] leading-6">
                   {statusReason} ค่าบนแผนที่เป็นสัญญาณระดับเขต
-                  ควรอ่าน coverage และช่วง p10–p90 ร่วมกัน
+                  ควรอ่านร่วมกับรายละเอียดพื้นที่ก่อนสรุป
                 </p>
               </div>
             </div>
@@ -616,10 +619,10 @@ export default function ObservatoryWorkspace({
                   aria-hidden="true"
                 />
                 {basemapStatus === "ready"
-                  ? "แผนที่ฐาน Bangkok CityMap"
+                  ? "แผนที่ทั่วไปพร้อมใช้งาน"
                   : basemapStatus === "loading"
-                    ? "กำลังโหลด Bangkok CityMap"
-                    : "Bangkok CityMap ไม่พร้อมใช้งาน"}
+                    ? "กำลังโหลดแผนที่"
+                    : "แผนที่ฐานไม่พร้อมใช้งาน"}
               </div>
               <div className="absolute bottom-4 right-4 z-[400] max-w-[250px] rounded-[var(--radius-control)] border border-[var(--oe-line)] bg-white/95 p-3 text-xs">
                 <p className="font-bold">{hasValues ? `ช่วงสี ${lens.unit}` : "ขอบเขตพื้นที่เท่านั้น"}</p>
@@ -639,7 +642,7 @@ export default function ObservatoryWorkspace({
                 <thead className="sticky top-0 bg-[var(--oe-surface-muted)] text-xs text-[var(--oe-muted)]">
                   <tr>
                     <th className="px-4 py-3 font-bold">พื้นที่</th>
-                    <th className="px-4 py-3 font-bold">รหัสชั่วคราว</th>
+                    <th className="px-4 py-3 font-bold">รหัสพื้นที่</th>
                     <th className="px-4 py-3 text-right font-bold">
                       {year}
                     </th>
@@ -652,7 +655,7 @@ export default function ObservatoryWorkspace({
                           เปลี่ยนแปลง
                         </th>
                         <th className="px-4 py-3 text-right font-bold">
-                          Coverage
+                          ความครบของข้อมูล
                         </th>
                       </>
                     )}
@@ -667,7 +670,7 @@ export default function ObservatoryWorkspace({
                       <td className="px-4 py-3 text-right font-mono text-xs">
                         {hasValues
                           ? formatValue(feature.properties.metricValue, lens.decimals, lens.unit)
-                          : "ระงับการแสดง"}
+                          : "ยังไม่แสดงค่า"}
                       </td>
                       {isResearchVegetation && (
                         <>
@@ -718,20 +721,19 @@ export default function ObservatoryWorkspace({
 
           <div className="border-t border-[var(--oe-line)] bg-[var(--oe-surface-muted)] px-4 py-3 text-xs text-[var(--oe-muted)]">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="font-bold text-[var(--oe-ink)]">{lens.measurementType}</span>
-              <span>{sourceLabel}</span>
-              <span>{lens.resolution}</span>
+              <span className="font-bold text-[var(--oe-ink)]">{measurementText(lens.measurementType)}</span>
+              <span>ที่มา: {sourceLabel}</span>
               <span>
                 {isResearchVegetation && `${seasonLabel} · `}
                 ปี {year}
               </span>
               {state === "research" && (
                 <span className="font-semibold text-[var(--oe-warning-ink)]">
-                  Research preview
+                  ข้อมูลทดลอง
                 </span>
               )}
-              <span title={boundaryVersion}>
-                Display geometry: {areas?.meta?.qualityStatus ?? "กำลังตรวจ"} · {boundaryLabel}
+              <span>
+                ขอบเขตพื้นที่: {areas?.meta?.qualityStatus === "ok" ? "พร้อมใช้" : "กำลังตรวจ"}
               </span>
             </div>
           </div>
@@ -749,7 +751,7 @@ export default function ObservatoryWorkspace({
           <div className="p-4">
             {selectedFeature ? (
               <>
-                <p className="text-xs font-semibold text-[var(--oe-muted)]">พื้นที่ที่เลือกชั่วคราว</p>
+                <p className="text-xs font-semibold text-[var(--oe-muted)]">พื้นที่ที่เลือก</p>
                 <h3 className="mt-1 text-lg font-bold">{selectedFeature.properties.nameTh}</h3>
                 <p className="text-xs text-[var(--oe-muted)]">{selectedFeature.properties.nameEn}</p>
                 <div className="mt-4 border-y border-[var(--oe-line-soft)] py-4">
@@ -757,7 +759,7 @@ export default function ObservatoryWorkspace({
                   <p className="mt-1 text-xl font-bold tabular-nums">
                     {hasValues
                       ? formatValue(selectedFeature.properties.metricValue, lens.decimals, lens.unit)
-                      : "ยังไม่มีค่าที่ผ่าน QA"}
+                      : "ยังไม่มีค่าที่พร้อมแสดง"}
                   </p>
                   {hasValues && isResearchVegetation && (
                     <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
@@ -786,7 +788,7 @@ export default function ObservatoryWorkspace({
                       </div>
                       <div>
                         <dt className="text-[var(--oe-muted)]">
-                          ช่วง p10–p90
+                          ช่วงค่าที่พบ
                         </dt>
                         <dd className="mt-1 font-mono font-semibold">
                           {formatValue(
@@ -803,7 +805,7 @@ export default function ObservatoryWorkspace({
                       </div>
                       <div>
                         <dt className="text-[var(--oe-muted)]">
-                          Coverage
+                          ความครบของข้อมูล
                         </dt>
                         <dd className="mt-1 font-mono font-semibold">
                           {typeof selectedFeature.properties.metricCoverage
@@ -821,7 +823,7 @@ export default function ObservatoryWorkspace({
                   )}
                   <p className="mt-2 text-xs leading-5 text-[var(--oe-muted)]">
                     {hasValues
-                      ? "ค่านี้เป็นสัญญาณระดับเขต ควรเปิด distribution และ pixel coverage ก่อนสรุป"
+                      ? "ค่านี้เป็นสัญญาณระดับเขต ควรดูแผนที่และตารางประกอบก่อนสรุป"
                       : statusReason || "กำลังตรวจสถานะข้อมูล"}
                   </p>
                 </div>
@@ -834,12 +836,12 @@ export default function ObservatoryWorkspace({
                   ใช้เป็นพื้นที่ศึกษา
                 </button>
                 {appliedArea === selectedFeature.properties.nameTh && (
-                  <p className="mt-2 text-center text-xs font-semibold text-[var(--oe-success-ink)]">ใช้เป็นตัวกรองใน URL แล้ว</p>
+                  <p className="mt-2 text-center text-xs font-semibold text-[var(--oe-success-ink)]">ตั้งเป็นพื้นที่ศึกษาแล้ว</p>
                 )}
               </>
             ) : (
               <div className="rounded-[var(--radius-control)] bg-[var(--oe-surface-muted)] p-4 text-sm leading-6 text-[var(--oe-muted)]">
-                ยังไม่ได้เลือกพื้นที่ การคลิกจะแสดง inspector ก่อน และจะเปลี่ยนตัวกรองเมื่อกด “ใช้เป็นพื้นที่ศึกษา”
+                ยังไม่ได้เลือกพื้นที่ คลิกเขตบนแผนที่หรือตารางเพื่อดูรายละเอียด แล้วกด “ใช้เป็นพื้นที่ศึกษา”
               </div>
             )}
 
@@ -850,19 +852,6 @@ export default function ObservatoryWorkspace({
                   แหล่งข้อมูล
                 </div>
                 <p className="mt-1 text-xs leading-5 text-[var(--oe-muted)]">{sourceLabel}</p>
-                <p className="mt-1 font-mono text-[11px] text-[var(--oe-muted)]">{lens.sourceId}</p>
-                {observationPayload?.provenance?.processingRunId && (
-                  <p
-                    className="mt-2 break-all font-mono text-[10px] leading-4 text-[var(--oe-muted)]"
-                    title={
-                      observationPayload.provenance
-                        .resultChecksumSha256
-                    }
-                  >
-                    Run:{" "}
-                    {observationPayload.provenance.processingRunId}
-                  </p>
-                )}
               </div>
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold">

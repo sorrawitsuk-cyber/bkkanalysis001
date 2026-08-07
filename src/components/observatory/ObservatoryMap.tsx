@@ -3,10 +3,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import {
-  BMA_CITYMAP,
-  type CityMapStatus,
-} from "@/lib/observatory/citymap";
+
+type BasemapStatus = "loading" | "ready" | "unavailable";
 
 type AreaProperties = {
   areaCode: string;
@@ -34,12 +32,12 @@ type ObservatoryMapProps = {
   selectedName: string | null;
   ramp: string[];
   onSelect: (feature: AreaFeature) => void;
-  onBasemapStatus: (status: CityMapStatus) => void;
+  onBasemapStatus: (status: BasemapStatus) => void;
 };
 
-const EMPTY_COLOR = "oklch(0.90 0.012 275)";
-const EMPTY_STROKE = "oklch(0.63 0.025 278)";
-const SELECTED_STROKE = "oklch(0.40 0.13 294)";
+const EMPTY_COLOR = "oklch(0.32 0.02 265)";
+const EMPTY_STROKE = "oklch(0.72 0.035 255)";
+const SELECTED_STROKE = "oklch(0.82 0.13 240)";
 
 function rampColor(value: number | null | undefined, min: number, max: number, ramp: string[]) {
   if (typeof value !== "number" || !Number.isFinite(value) || min === max) return EMPTY_COLOR;
@@ -79,22 +77,16 @@ export default function ObservatoryMap({
 
     const map = L.map(containerRef.current, {
       center: [13.7563, 100.5018],
-      crs: L.CRS.EPSG4326,
       zoom: 10,
       zoomControl: true,
       attributionControl: true,
       keyboard: true,
     });
 
-    const basemap = L.tileLayer.wms(BMA_CITYMAP.wmsUrl, {
-      attribution: BMA_CITYMAP.attribution,
-      layers: BMA_CITYMAP.wmsLayers,
-      version: BMA_CITYMAP.wmsVersion,
-      crs: L.CRS.EPSG4326,
-      format: "image/png",
-      transparent: false,
+    const basemap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
       minZoom: 8,
-      maxZoom: 20,
+      maxZoom: 19,
       keepBuffer: 2,
       updateWhenIdle: true,
     });
