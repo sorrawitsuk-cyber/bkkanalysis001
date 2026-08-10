@@ -1,6 +1,7 @@
 export type ObservatoryLensId =
   | "heat"
   | "vegetation"
+  | "treecover"
   | "urban"
   | "water"
   | "people"
@@ -10,6 +11,7 @@ export type ObservatoryLensId =
 export type BridgeMetric =
   | "lst"
   | "vegetation"
+  | "tree_cover"
   | "builtup"
   | "water"
   | "population"
@@ -26,7 +28,8 @@ export type ObservatoryDataEndpoint =
   | "district-metrics"
   | "flood-risk"
   | "population"
-  | "nighttime-lights";
+  | "nighttime-lights"
+  | "tree-cover";
 
 export type ObservatoryLens = {
   id: ObservatoryLensId;
@@ -116,6 +119,36 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
       "oklch(0.73 0.13 140)",
       "oklch(0.58 0.14 145)",
       "oklch(0.42 0.10 150)",
+    ],
+  },
+  {
+    id: "treecover",
+    title: "เรือนยอดไม้และการเปลี่ยนแปลง",
+    shortTitle: "เรือนยอดไม้",
+    question: "พื้นที่ใดมีสัดส่วนเรือนยอดไม้เปลี่ยนแปลงเมื่อเทียบกับปีฐาน",
+    description: "ดูพื้นที่ที่แบบจำลองจัดเป็นชั้นต้นไม้ พร้อมการเพิ่มและสูญเสีย โดยแยกจากสัญญาณความเขียว NDVI",
+    phase: "phase-2",
+    measurementType: "Derived indicator",
+    apiMetric: "tree_cover",
+    apiEndpoint: "tree-cover",
+    valueKey: "tree_cover_pct",
+    deltaKey: "tree_cover_change_pp",
+    minYear: 2016,
+    unit: "%",
+    decimals: 1,
+    source: "Google Dynamic World V1",
+    sourceId: "GOOGLE/DYNAMICWORLD/V1",
+    resolution: "จำแนกที่ประมาณ 10 ม. และสรุปรายเขตที่ 30 ม.",
+    cadence: "รายปีจากภาพที่มีในช่วงปี",
+    method: "สัดส่วนปีปัจจุบันใช้พื้นที่ที่จำแนกได้ในปีนั้น ส่วนค่าการเปลี่ยนแปลงใช้เฉพาะพิกเซลที่มีข้อมูลทั้งสองปี หลังเลือกชั้นที่มีความน่าจะเป็นสูงสุดและความเชื่อมั่นอย่างน้อย 45%",
+    limitation: "เป็นชั้นต้นไม้จากแบบจำลอง ไม่ใช่ทะเบียนต้นไม้จริง ขอบเขตเรือนยอดรายต้น หรือการยืนยันการสูญเสียภาคสนาม และ coverage ที่ต่างกันระหว่างปีอาจทำให้สัดส่วนปัจจุบันกับค่าการเปลี่ยนแปลงดูไม่สอดคล้องกัน",
+    verifyWith: "ทะเบียนต้นไม้ของกรุงเทพฯ ภาพถ่ายทางอากาศ ขอบเขตสวน และการสำรวจภาคสนาม",
+    ramp: [
+      "oklch(0.95 0.02 145)",
+      "oklch(0.86 0.07 145)",
+      "oklch(0.73 0.12 148)",
+      "oklch(0.58 0.14 150)",
+      "oklch(0.41 0.11 153)",
     ],
   },
   {

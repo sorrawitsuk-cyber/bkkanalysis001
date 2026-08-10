@@ -7,7 +7,7 @@ import {
   Home, Download, Printer, TrendingUp, TrendingDown, Minus,
   ChevronDown, Flame, Trees, Building2, Wind, Droplets, Moon,
   Search, X, ArrowUp, ArrowDown, AlertCircle, CheckCircle, Info,
-  BookOpen,
+  BookOpen, Footprints, Users, ArrowRight,
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -15,6 +15,11 @@ import {
 } from "recharts";
 import PlainLanguageGuide from "@/components/analysis/PlainLanguageGuide";
 import { useDistrictUrlState } from "@/lib/url-selection-state";
+import {
+  ACCESSIBILITY_CATEGORIES,
+  ACCESSIBILITY_LABELS,
+  type AccessibilityDistrict,
+} from "@/lib/accessibility";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -31,6 +36,27 @@ interface YearMetrics {
 interface ProfileData {
   district: string; areaRai: number; years: number[];
   metrics: Record<number, YearMetrics>; bkkAverages: Record<number, YearMetrics>;
+  accessibility: {
+    district: AccessibilityDistrict;
+    summary: {
+      average_accessibility_score: number;
+      inclusive_average_accessibility_score: number;
+      average_complete_coverage_pct: number;
+      population: number;
+      underserved_population: number;
+    };
+    metadata: {
+      generatedAt: string;
+      populationYear: number;
+      populationSource: string;
+      thresholdMinutes: number;
+      standardMode: { label: string; speedKmh: number; routeDetourFactor: number; fixedMinutes: number };
+      inclusiveMode: { label: string; speedKmh: number; routeDetourFactor: number; fixedMinutes: number };
+      coverageBasis: string;
+      interpretation: string;
+      serviceSourceCount: number;
+    };
+  } | null;
 }
 interface DistrictRow {
   name_th: string; id: number; district_area_rai: number;
@@ -576,6 +602,16 @@ export default function DistrictAnalysisPage() {
     ].filter((m): m is typeof m & { d: number; b: number } => m.d != null && m.b != null);
   }, [cur, profileData, selectedYear]);
 
+  const accessibilityCategories = useMemo(() => {
+    const district = profileData?.accessibility?.district;
+    if (!district) return [];
+    return ACCESSIBILITY_CATEGORIES.map(category => ({
+      category,
+      label: ACCESSIBILITY_LABELS[category],
+      ...district.categories[category],
+    })).sort((a, b) => a.coverage_pct - b.coverage_pct);
+  }, [profileData]);
+
   const yearlyDeltas = useMemo(() => {
     if (!profileData) return {} as Record<number, Partial<YearMetrics>>;
     const sorted = [...profileData.years].sort((a, b) => a - b);
@@ -596,10 +632,21 @@ export default function DistrictAnalysisPage() {
 
   const exportCSV = useCallback(() => {
     if (!profileData) return;
-    const headers = ["เขต","พื้นที่รวม(ไร่)","ปี","LST เฉลี่ย(°C)","LST สูงสุด(°C)","NDVI","พื้นที่สีเขียว(ไร่)","สัดส่วนสีเขียว(%)","NDBI","สิ่งปลูกสร้าง(ไร่)","NO₂(mol/m²)","CO(mol/m²)","SO₂(mol/m²)","คะแนนมลพิษ","สัดส่วนน้ำ(%)","พื้นที่น้ำ(ไร่)","NDWI","NTL Mean","NTL Max"].join(",");
+    const headers = ["เขต","พื้นที่รวม(ไร่)","ปี","LST เฉลี่ย(°C)","LST สูงสุด(°C)","NDVI","พื้นที่สีเขียว(ไร่)","สัดส่วนสีเขียว(%)","NDBI","สิ่งปลูกสร้าง(ไร่)","NO₂(mol/m²)","CO(mol/m²)","SO₂(mol/m²)","คะแนนมลพิษ","สัดส่วนน้ำ(%)","พื้นที่น้ำ(ไร่)","NDWI","NTL Mean","NTL Max","ปีประชากรด้านการเข้าถึง","คะแนนการเข้าถึง 5 หมวด","คะแนนกรณีเดินช้า","เข้าถึงครบ 5 หมวด(%)","ประชากรยังเข้าไม่ถึงครบ(คน)"].join(",");
     const rows = profileData.years.map(yr => {
       const m = profileData.metrics[yr] ?? {};
-      return [`"${profileData.district}"`,profileData.areaRai,yr,m.mean_lst?.toFixed(2)??"",m.max_lst?.toFixed(2)??"",m.ndvi_mean?.toFixed(4)??"",m.green_area_rai?.toFixed(0)??"",m.green_area_ratio!=null?(m.green_area_ratio*100).toFixed(2):"",m.ndbi_mean?.toFixed(4)??"",m.builtup_area_rai?.toFixed(0)??"",m.no2_mean?.toFixed(6)??"",m.co_mean?.toFixed(4)??"",m.so2_mean?.toFixed(6)??"",m.pollution_score?.toFixed(2)??"",m.water_ratio!=null?(m.water_ratio*100).toFixed(2):"",m.water_area_rai?.toFixed(0)??"",m.ndwi_mean?.toFixed(4)??"",m.ntl_mean?.toFixed(3)??"",m.ntl_max?.toFixed(3)??""
+      const access = profileData.accessibility;
+      return [
+        `"${profileData.district}"`, profileData.areaRai, yr,
+        m.mean_lst?.toFixed(2) ?? "", m.max_lst?.toFixed(2) ?? "", m.ndvi_mean?.toFixed(4) ?? "",
+        m.green_area_rai?.toFixed(0) ?? "", m.green_area_ratio != null ? (m.green_area_ratio * 100).toFixed(2) : "",
+        m.ndbi_mean?.toFixed(4) ?? "", m.builtup_area_rai?.toFixed(0) ?? "", m.no2_mean?.toFixed(6) ?? "",
+        m.co_mean?.toFixed(4) ?? "", m.so2_mean?.toFixed(6) ?? "", m.pollution_score?.toFixed(2) ?? "",
+        m.water_ratio != null ? (m.water_ratio * 100).toFixed(2) : "", m.water_area_rai?.toFixed(0) ?? "",
+        m.ndwi_mean?.toFixed(4) ?? "", m.ntl_mean?.toFixed(3) ?? "", m.ntl_max?.toFixed(3) ?? "",
+        access?.metadata.populationYear ?? "", access?.district.accessibility_score?.toFixed(1) ?? "",
+        access?.district.inclusive_accessibility_score?.toFixed(1) ?? "", access?.district.complete_coverage_pct?.toFixed(1) ?? "",
+        access?.district.underserved_population ?? "",
       ].join(",");
     }).join("\n");
     const blob = new Blob(["﻿" + headers + "\n" + rows], { type: "text/csv;charset=utf-8;" });
@@ -724,6 +771,11 @@ export default function DistrictAnalysisPage() {
           extraSummary={[
             `ค่าเฉลี่ยพื้นที่สีเขียวของกรุงเทพฯ คือ ${bkkAvg?.green != null ? `${Math.round(bkkAvg.green).toLocaleString()} ไร่` : "ยังไม่มีข้อมูล"}`,
             `คะแนนมลพิษเฉลี่ยอยู่ที่ ${bkkAvg?.pollution != null ? `${bkkAvg.pollution.toFixed(2)} จาก 10` : "ยังไม่มีข้อมูล"} และสัดส่วนสัญญาณน้ำเฉลี่ยอยู่ที่ ${bkkAvg?.water != null ? `${(bkkAvg.water * 100).toFixed(2)}%` : "ยังไม่มีข้อมูล"}`,
+            ...(profileData?.accessibility
+              ? [
+                  `เขต${profileData.district}มีค่าเฉลี่ยการเข้าถึงบริการ 5 หมวด ${profileData.accessibility.district.accessibility_score.toFixed(1)} จาก 100 และมีประชากรตามทะเบียน ${profileData.accessibility.district.underserved_population.toLocaleString("th-TH")} คนที่ยังเข้าไม่ถึงครบทุกหมวดภายใน ${profileData.accessibility.metadata.thresholdMinutes} นาที`,
+                ]
+              : []),
           ]}
         />
       ) : (
@@ -1088,6 +1140,104 @@ export default function DistrictAnalysisPage() {
               <div className="rounded-xl border border-amber-800/30 bg-amber-950/20 px-5 py-4 text-[11px] text-amber-300">
                 ยังไม่มีข้อมูลดาวเทียมปี {selectedYear} สำหรับเขต{profileData.district} — เลือกปีอื่น หรือดูแนวโน้มรายปีที่ตารางด้านล่าง
               </div>
+            )}
+
+            {profileData.accessibility && (
+              <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+                <div className="flex flex-wrap items-start gap-3 border-b border-slate-800 px-4 py-4">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10">
+                      <Footprints className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-black text-slate-100">การเข้าถึงบริการเมือง</h2>
+                      <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-slate-400">
+                        คัดกรองสัดส่วนประชากรตามทะเบียนที่อยู่ใกล้บริการ 5 หมวดภายใน {profileData.accessibility.metadata.thresholdMinutes} นาที
+                        โดยใช้จุดตัวอย่างทุก 250 เมตรและปรับระยะทางอ้อมสำหรับการเดิน
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-full border border-slate-700 px-2.5 py-1 text-[10px] font-bold text-slate-400">
+                    ประชากรปี {profileData.accessibility.metadata.populationYear}
+                  </span>
+                  <Link
+                    href={`/accessibility?districtId=${profileData.accessibility.district.district_id}`}
+                    className="flex min-h-9 items-center gap-1.5 rounded-lg border border-cyan-700/60 px-3 py-2 text-[10px] font-bold text-cyan-300 transition-colors hover:border-cyan-500 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                  >
+                    เปิดแผนที่บริการ <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-2 border-b border-slate-800 lg:grid-cols-4">
+                  <div className="border-b border-r border-slate-800 px-4 py-4 lg:border-b-0">
+                    <div className="text-[10px] font-semibold text-slate-500">ค่าเฉลี่ยการเข้าถึง 5 หมวด</div>
+                    <div className="mt-1 text-2xl font-black tabular-nums text-cyan-300">
+                      {profileData.accessibility.district.accessibility_score.toFixed(1)}<span className="ml-1 text-xs text-slate-500">/100</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">เฉลี่ย กทม. {profileData.accessibility.summary.average_accessibility_score.toFixed(1)}</div>
+                  </div>
+                  <div className="border-b border-slate-800 px-4 py-4 lg:border-b-0 lg:border-r">
+                    <div className="text-[10px] font-semibold text-slate-500">กรณีเดินช้า 4 กม./ชม.</div>
+                    <div className="mt-1 text-2xl font-black tabular-nums text-indigo-300">
+                      {profileData.accessibility.district.inclusive_accessibility_score.toFixed(1)}<span className="ml-1 text-xs text-slate-500">/100</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">เฉลี่ย กทม. {profileData.accessibility.summary.inclusive_average_accessibility_score.toFixed(1)}</div>
+                  </div>
+                  <div className="border-r border-slate-800 px-4 py-4">
+                    <div className="text-[10px] font-semibold text-slate-500">เข้าถึงครบทั้ง 5 หมวด</div>
+                    <div className="mt-1 text-2xl font-black tabular-nums text-emerald-300">
+                      {profileData.accessibility.district.complete_coverage_pct.toFixed(1)}%
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">คิดตามประชากรที่กระจายบนจุดตัวอย่าง</div>
+                  </div>
+                  <div className="px-4 py-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"><Users className="h-3.5 w-3.5" /> ยังเข้าไม่ถึงครบ</div>
+                    <div className="mt-1 text-2xl font-black tabular-nums text-amber-300">
+                      {profileData.accessibility.district.underserved_population.toLocaleString("th-TH")}<span className="ml-1 text-xs text-slate-500">คน</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-slate-500">ประชากรตามทะเบียน ไม่ใช่ผู้อยู่อาศัยจริงทั้งหมด</div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] border-collapse text-[11px]">
+                    <thead className="bg-slate-900/80 text-left text-[9px] font-bold text-slate-500">
+                      <tr className="border-b border-slate-800">
+                        <th className="px-4 py-2.5">หมวดบริการ</th>
+                        <th className="px-4 py-2.5">ประชากรในระยะ {profileData.accessibility.metadata.thresholdMinutes} นาที</th>
+                        <th className="px-4 py-2.5 text-right">เวลามัธยฐาน</th>
+                        <th className="px-4 py-2.5 text-right">เวลาที่ครอบคลุม 90% (P90)</th>
+                        <th className="px-4 py-2.5 text-right">จุดบริการในเขต</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accessibilityCategories.map(item => (
+                        <tr key={item.category} className="border-b border-slate-800/60 last:border-b-0">
+                          <td className="px-4 py-3 font-bold text-slate-300">{item.label}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-1.5 min-w-24 flex-1 overflow-hidden rounded-full bg-slate-800" aria-hidden="true">
+                                <div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.max(0, Math.min(100, item.coverage_pct))}%` }} />
+                              </div>
+                              <span className="w-12 text-right font-mono font-bold tabular-nums text-cyan-300">{item.coverage_pct.toFixed(1)}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-400">{item.median_minutes != null ? `${item.median_minutes.toFixed(1)} นาที` : "ไม่มีข้อมูล"}</td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-400">{item.p90_minutes != null ? `${item.p90_minutes.toFixed(1)} นาที` : "ไม่มีข้อมูล"}</td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-400">{item.service_count.toLocaleString("th-TH")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="border-t border-slate-800 bg-slate-950/40 px-4 py-3 text-[10px] leading-relaxed text-slate-500">
+                  <span className="font-bold text-slate-300">หลักฐานและข้อจำกัด:</span>{" "}
+                  ข้อมูลทะเบียนราษฎร DOPA ปี {profileData.accessibility.metadata.populationYear} • บริการเมืองจาก {profileData.accessibility.metadata.serviceSourceCount} ชุดข้อมูล •
+                  ระยะเส้นตรงปรับตัวคูณทางอ้อม {profileData.accessibility.metadata.standardMode.routeDetourFactor.toFixed(2)} •
+                  ผลเป็น proximity screening ไม่ใช่เวลาเดินทางจริงบนโครงข่ายถนน ทางเท้า จักรยาน หรือขนส่งสาธารณะ
+                </div>
+              </section>
             )}
 
             {/* Trend charts — 3×2 grid */}

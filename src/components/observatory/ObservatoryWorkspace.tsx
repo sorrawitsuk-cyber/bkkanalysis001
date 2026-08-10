@@ -16,6 +16,7 @@ import {
   ScanSearch,
   Satellite,
   Sparkles,
+  Trees,
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -84,6 +85,11 @@ function formatSignedValue(value: number | null | undefined, decimals: number, u
   if (typeof value !== "number" || !Number.isFinite(value)) return "ยังไม่มีข้อมูล";
   const sign = value > 0 ? "+" : "";
   return `${sign}${formatValue(value, decimals, unit)}`;
+}
+
+function readNumber(record: Record<string, unknown> | undefined, key: string) {
+  const value = record?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function sourceStatusText(origin: string | undefined) {
@@ -224,6 +230,12 @@ export default function ObservatoryWorkspace({
   const selectedFeature = useMemo(
     () => areas?.features.find((feature) => feature.properties.nameTh === selectedName) ?? null,
     [areas, selectedName],
+  );
+  const selectedPayloadFeature = useMemo(
+    () => payload?.geojson?.features.find((feature) => (
+      feature.properties.name_th === selectedName || feature.properties.district_name === selectedName
+    )) ?? null,
+    [payload, selectedName],
   );
 
   const updateUrl = useCallback((next?: {
@@ -643,6 +655,21 @@ export default function ObservatoryWorkspace({
                     <strong>{formatSignedValue(selectedFeature.properties.metricDelta, lens.decimals, displayUnit)}</strong>
                   </div>
                 </div>
+                {lens.id === "treecover" && (
+                  <dl className="mt-3 grid grid-cols-2 overflow-hidden rounded-[var(--radius-control)] border border-[var(--oe-line-soft)] text-xs">
+                    {[
+                      ["ชั้นต้นไม้เพิ่ม", readNumber(selectedPayloadFeature?.properties, "tree_gain_pct")],
+                      ["ชั้นต้นไม้สูญเสีย", readNumber(selectedPayloadFeature?.properties, "tree_loss_pct")],
+                      ["ความเชื่อมั่นเฉลี่ย", readNumber(selectedPayloadFeature?.properties, "confidence_pct")],
+                      ["พื้นที่ที่มีข้อมูล", readNumber(selectedPayloadFeature?.properties, "coverage_pct")],
+                    ].map(([label, value], index) => (
+                      <div key={String(label)} className={`${index < 2 ? "border-b" : ""} ${index % 2 === 0 ? "border-r" : ""} border-[var(--oe-line-soft)] p-3`}>
+                        <dt className="text-[var(--oe-muted)]">{label}</dt>
+                        <dd className="mt-1 font-bold tabular-nums">{formatValue(value as number | null, 1, "%")}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
               </section>
             ) : (
               <div className="rounded-[var(--radius-control)] bg-[var(--oe-surface-muted)] p-3 text-sm leading-6 text-[var(--oe-muted)]">
@@ -685,6 +712,21 @@ export default function ObservatoryWorkspace({
                   className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--oe-primary)] px-3 text-xs font-bold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--oe-primary)] focus-visible:ring-offset-2"
                 >
                   เปิดการคัดกรองคนและพื้นที่คลายร้อน <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </section>
+            )}
+
+            {lens.id === "treecover" && (
+              <section className="mt-5 border-t border-[var(--oe-line)] pt-4">
+                <div className="flex items-center gap-2 text-xs font-bold"><Trees className="h-3.5 w-3.5 text-[var(--oe-primary)]" /> ตรวจเรือนยอดไม้ต่อ</div>
+                <p className="mt-1 text-xs leading-5 text-[var(--oe-muted)]">
+                  เปิดแผนที่ Dynamic World เพื่อดูชั้นต้นไม้ พื้นที่เพิ่ม และพื้นที่สูญเสีย พร้อมตารางส่งออก
+                </p>
+                <Link
+                  href="/green-space"
+                  className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--oe-primary)] px-3 text-xs font-bold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--oe-primary)] focus-visible:ring-offset-2"
+                >
+                  เปิดการวิเคราะห์เรือนยอดไม้แบบละเอียด <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </section>
             )}

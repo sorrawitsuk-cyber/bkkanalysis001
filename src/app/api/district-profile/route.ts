@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase/server";
 import geojson from "@/data/bkk_districts.json";
+import accessibilityData from "@/data/bkk_accessibility.json";
 import * as turf from "@turf/turf";
 
 // Module-level lookups built from static GeoJSON — never change between requests
@@ -160,6 +161,30 @@ export async function GET(request: Request) {
 
     const years = Object.keys(metrics).map(Number).sort();
 
+    // Accessibility is a separate, non-annual context layer. Keep its vintage
+    // and proximity-screening method explicit instead of blending it into the
+    // environmental time-series or composite score.
+    const accessibilityDistrict = accessibilityData.districts.find(
+      (district) => district.district_name === districtName
+    );
+    const accessibility = accessibilityDistrict
+      ? {
+          district: accessibilityDistrict,
+          summary: accessibilityData.summary,
+          metadata: {
+            generatedAt: accessibilityData.metadata.generated_at,
+            populationYear: accessibilityData.metadata.population_year,
+            populationSource: accessibilityData.metadata.population_source,
+            thresholdMinutes: accessibilityData.metadata.methodology.threshold_minutes,
+            standardMode: accessibilityData.metadata.methodology.modes.standard,
+            inclusiveMode: accessibilityData.metadata.methodology.modes.inclusive,
+            coverageBasis: accessibilityData.metadata.methodology.coverage_basis,
+            interpretation: accessibilityData.metadata.methodology.interpretation,
+            serviceSourceCount: accessibilityData.metadata.sources.length,
+          },
+        }
+      : null;
+
     // ── Composite score per year ──────────────────────────────────────────────
     const compositeScores: Record<number, number | null> = {};
     for (const yr of years) {
@@ -173,6 +198,7 @@ export async function GET(request: Request) {
         years,
         metrics,
         bkkAverages,
+        accessibility,
         compositeScores,
         compositeMeta: {
           label: "ดัชนีสิ่งแวดล้อมเชิงสำรวจ",

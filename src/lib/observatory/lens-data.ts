@@ -109,6 +109,9 @@ export function buildLensDataRequest(lens: ObservatoryLens, year: number, baseli
     params.set("year", String(year));
     params.set("compareYear", String(baseline));
     params.set("level", "district");
+  } else if (endpoint === "tree-cover") {
+    params.set("year", String(year));
+    params.set("baseline", String(baseline));
   } else {
     params.set("product", "annual");
     params.set("year", String(year));
@@ -160,7 +163,7 @@ export function normalizeLensDataPayload(
   const dataOrigin = firstString(rawSummary.dataOrigin) ?? (
     endpoint === "population"
       ? "administrative-file"
-      : endpoint === "nighttime-lights" || endpoint === "flood-risk"
+      : endpoint === "nighttime-lights" || endpoint === "flood-risk" || endpoint === "tree-cover"
         ? "gee-live"
         : undefined
   );
@@ -168,11 +171,13 @@ export function normalizeLensDataPayload(
     rawSummary.averageValue,
     rawSummary.avgDisplayValue,
     rawSummary.averageRadiance,
+    rawSummary.treeCoverPct,
     average(values),
   );
   const averageDelta = firstNumber(
     rawSummary.valueDelta,
     rawSummary.avgDelta,
+    rawSummary.treeCoverChangePp,
     average(deltas),
   );
   const validDistrictCount = values.length;
@@ -213,13 +218,15 @@ export function normalizeLensDataPayload(
         rawSummary.source,
         rawSummary.sourceLabel,
       ),
-      dataQuality: firstString(rawSummary.dataQuality),
+      dataQuality: endpoint === "tree-cover"
+        ? `research-${firstString(rawSummary.dataQuality) ?? "model-derived"}`
+        : firstString(rawSummary.dataQuality),
       unavailableReason: firstString(rawSummary.unavailableReason, raw.error),
       observationStart: firstString(rawSummary.observationStart) ?? `${year}-01-01`,
       observationEnd: firstString(rawSummary.observationEnd) ?? `${year}-12-31`,
       resolutionMeters: firstNumber(rawSummary.resolutionMeters),
       aggregationScaleMeters: firstNumber(rawSummary.aggregationScaleMeters),
-      sceneCount: firstNumber(rawSummary.sceneCount, rawSummary.observationCount),
+      sceneCount: firstNumber(rawSummary.sceneCount, rawSummary.observationCount, rawSummary.currentSceneCount),
     },
     error: typeof raw.error === "string" ? raw.error : undefined,
   };

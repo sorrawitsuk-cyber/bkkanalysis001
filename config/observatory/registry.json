@@ -397,6 +397,32 @@
       }
     },
     {
+      "id": "dynamic-world",
+      "name": "Google Dynamic World V1",
+      "owner": "Google / World Resources Institute",
+      "sourceUrl": "https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_DYNAMICWORLD_V1",
+      "roleTh": "ชั้นสิ่งปกคลุมดินจากแบบจำลองสำหรับคัดกรองเรือนยอดไม้",
+      "measurementType": "model-derived",
+      "sourceClass": "authoritative-public",
+      "spatialResolution": "ประมาณ 10 เมตร",
+      "temporalCadence": "ตามภาพ Sentinel-2 ที่ผ่านการประมวลผล",
+      "license": {
+        "status": "unverified",
+        "name": "ต้องตรวจเงื่อนไข Dynamic World และ Google Earth Engine",
+        "url": "https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_DYNAMICWORLD_V1",
+        "redistribution": "pending"
+      },
+      "acceptance": {
+        "status": "research",
+        "checkedAt": null,
+        "blockers": [
+          "ต้องตรวจการใช้ซ้ำและการเผยแพร่ผลลัพธ์จากชุดข้อมูล",
+          "ต้องตรวจเทียบชั้น trees กับภาพละเอียดสูงและข้อมูลภาคสนาม",
+          "ห้ามตีความพิกเซลแบบจำลองเป็นทะเบียนต้นไม้จริง"
+        ]
+      }
+    },
+    {
       "id": "viirs-black-marble",
       "name": "VIIRS Black Marble",
       "owner": "NASA",
@@ -529,6 +555,46 @@
       "limitationsTh": [
         "NDVI บ่งชี้ความเขียวและสภาพพืชพรรณ ไม่ใช่พื้นที่เรือนยอดไม้",
         "ควรตรวจร่วมกับ land-cover class และข้อมูลสวน/ต้นไม้"
+      ]
+    },
+    {
+      "id": "treecover",
+      "nameTh": "เรือนยอดไม้จากแบบจำลอง",
+      "nameEn": "Modeled tree-cover class",
+      "phase": "phase-2",
+      "measurementType": "derived-indicator",
+      "sourceDatasetIds": [
+        "dynamic-world"
+      ],
+      "unit": "% of valid modeled area",
+      "statistics": [
+        "tree-cover-share",
+        "tree-gain-share",
+        "tree-loss-share",
+        "classification-confidence"
+      ],
+      "recipe": {
+        "methodVersion": "dynamic-world-tree-cover-v1.0.0",
+        "temporalComposite": "annual mean class probabilities",
+        "nativeScaleMeters": 10,
+        "aggregation": "district area share at 30 m processing scale",
+        "qaRules": [
+          "select the class with the highest annual mean probability",
+          "retain pixels whose highest probability is at least 0.45",
+          "report valid coverage and average classification confidence",
+          "keep tree-cover class separate from NDVI"
+        ]
+      },
+      "publishGate": {
+        "status": "research",
+        "minValidCoverage": 0.75,
+        "minSceneCount": 3,
+        "requiresValidatedDatasets": true
+      },
+      "limitationsTh": [
+        "เป็นชั้นต้นไม้จากแบบจำลอง ไม่ใช่ทะเบียนต้นไม้หรือขอบเขตเรือนยอดรายต้น",
+        "การเพิ่มและสูญเสียควรตรวจร่วมกับภาพละเอียดสูงและการสำรวจภาคสนาม",
+        "ค่าการเปลี่ยนแปลงใช้เฉพาะพิกเซลที่มีข้อมูลทั้งสองปี จึงต้องอ่านร่วมกับ coverage"
       ]
     },
     {
