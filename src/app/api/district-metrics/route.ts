@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import geojson from "@/data/bkk_districts.json";
+import verifiedSnapshotJson from "@/data/district_metrics_verified.json";
 import { supabaseServer as supabase } from "@/lib/supabase/server";
 import ee, { initGEE } from "@/lib/gee";
 import {
@@ -76,6 +77,25 @@ async function getGeoJsonIdBySupabaseId(): Promise<Map<number, number>> {
 }
 
 type DistrictMetric = "lst" | "vegetation" | "builtup" | "air_pollution";
+
+type VerifiedSnapshot = {
+  generatedAt: string | null;
+  methodVersion: string;
+  rows: DistrictStatistic[];
+};
+
+const verifiedSnapshot = verifiedSnapshotJson as VerifiedSnapshot;
+
+function snapshotRows(year?: number): DistrictStatistic[] {
+  return verifiedSnapshot.rows.filter((row) => year === undefined || row.year === year);
+}
+
+function rowsHaveMetric(rows: DistrictStatistic[], metric: DistrictMetric): boolean {
+  if (metric === "vegetation") return hasNdviData(rows);
+  if (metric === "builtup") return hasNdbiData(rows);
+  if (metric === "air_pollution") return hasAirPollutionData(rows);
+  return hasLstData(rows);
+}
 
 function valueFor(row: any, metric: DistrictMetric): number | null {
   if (!row) return null;
@@ -497,6 +517,37 @@ export async function GET(request: Request) {
       } catch (geeErr) {
         console.warn("GEE air-pollution district stats failed:", geeErr);
         unavailableReason = geeErr instanceof Error ? geeErr.message : String(geeErr);
+      }
+    }
+
+    // A checked-in snapshot keeps the dashboard useful when Supabase or live
+    // GEE is temporarily unavailable. These are real GEE reductions with
+    // provenance, never generated/demo values.
+    if (!useDbYear) {
+      const fallbackYearRows = snapshotRows(year);
+      if (rowsHaveMetric(fallbackYearRows, metric)) {
+        effectiveYearRows = fallbackYearRows;
+        useDbYear = true;
+        dataOrigin = "verified-snapshot";
+        unavailableReason = null;
+        if (metric === "air_pollution") {
+          airDataSource = firstSource(fallbackYearRows, "air_quality_source")
+            || "Verified Sentinel-5P district snapshot";
+        }
+      }
+    }
+    if (compareYear && !useDbCompare) {
+      const fallbackCompareRows = snapshotRows(compareYear);
+      if (rowsHaveMetric(fallbackCompareRows, metric)) {
+        effectiveCompareRows = fallbackCompareRows;
+        useDbCompare = true;
+      }
+    }
+    if (!useDbAll) {
+      const allFallbackRows = snapshotRows();
+      if (rowsHaveMetric(allFallbackRows, metric)) {
+        effectiveAllRows = allFallbackRows;
+        useDbAll = true;
       }
     }
 

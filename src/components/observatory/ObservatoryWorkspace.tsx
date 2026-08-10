@@ -118,6 +118,7 @@ function formatSignedValue(value: number | null | undefined, decimals: number, u
 
 function sourceStatusText(origin: string | undefined) {
   if (origin === "live-gee" || origin === "gee") return "คำนวณใหม่จากภาพดาวเทียม";
+  if (origin === "verified-snapshot") return "ข้อมูลดาวเทียมที่ประมวลผลและตรวจไว้แล้ว";
   if (origin === "database" || origin === "supabase") return "ใช้ข้อมูลสรุปที่บันทึกไว้";
   if (origin === "unavailable") return "ข้อมูลยังไม่ครบ";
   return "กำลังตรวจแหล่งข้อมูล";
