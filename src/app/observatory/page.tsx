@@ -2,9 +2,11 @@ import AppShell from "@/components/observatory/AppShell";
 import ObservatoryWorkspace from "@/components/observatory/ObservatoryWorkspace";
 import {
   DEFAULT_LENS_ID,
+  getObservatoryLens,
   OBSERVATORY_LENSES,
   type ObservatoryLensId,
 } from "@/lib/observatory/catalog";
+import { clampLensBaseline, clampLensYear } from "@/lib/observatory/lens-data";
 
 type ObservatoryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -27,11 +29,16 @@ export default async function ObservatoryPage({ searchParams }: ObservatoryPageP
   const lens = OBSERVATORY_LENSES.some((item) => item.id === requestedLens)
     ? requestedLens as ObservatoryLensId
     : DEFAULT_LENS_ID;
+  const lensConfig = getObservatoryLens(lens);
   const isVegetation = lens === "vegetation";
-  const year = safeYear(first(params.year), isVegetation ? 2025 : 2024);
-  const baseline = Math.min(
+  const year = clampLensYear(
+    lensConfig,
+    safeYear(first(params.year), isVegetation ? 2025 : 2024),
+  );
+  const baseline = clampLensBaseline(
+    lensConfig,
+    year,
     safeYear(first(params.baseline), isVegetation ? 2024 : 2018),
-    year - 1,
   );
   const requestedSeason = first(params.season);
   const season: ObservatorySeason =

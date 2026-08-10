@@ -42,6 +42,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const year = Number.parseInt(searchParams.get("year") || String(POPULATION_MAX_YEAR), 10);
   const level = (searchParams.get("level") || "district") as PopulationLevel;
+  const compareYearParam = searchParams.get("compareYear");
 
   if (!Number.isInteger(year) || year < POPULATION_MIN_YEAR || year > POPULATION_MAX_YEAR) {
     return NextResponse.json(
@@ -53,7 +54,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "level ต้องเป็น district หรือ subdistrict" }, { status: 400 });
   }
 
-  const previousYear = year > POPULATION_MIN_YEAR ? year - 1 : null;
+  const requestedCompareYear = compareYearParam === null
+    ? null
+    : Number.parseInt(compareYearParam, 10);
+  if (
+    requestedCompareYear !== null
+    && (!Number.isInteger(requestedCompareYear)
+      || requestedCompareYear < POPULATION_MIN_YEAR
+      || requestedCompareYear >= year)
+  ) {
+    return NextResponse.json(
+      { error: `compareYear ต้องอยู่ระหว่าง ${POPULATION_MIN_YEAR}-${year - 1}` },
+      { status: 400 },
+    );
+  }
+  const previousYear = requestedCompareYear ?? (year > POPULATION_MIN_YEAR ? year - 1 : null);
   const subdistricts = populationData.subdistricts as Array<{
     id: number;
     district_id: number;

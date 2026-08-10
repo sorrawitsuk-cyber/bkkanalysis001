@@ -114,7 +114,7 @@ export default function ObservatoryMap({
   }, [geojson, trustedValues]);
 
   const readPoint = useCallback(async (lat: number, lng: number) => {
-    if (mode !== "gee" || !geeMetric || geeMetric === "mndwi") return;
+    if (mode !== "gee" || !geeMetric) return;
     pointAbortRef.current?.abort();
     const controller = new AbortController();
     pointAbortRef.current = controller;

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import ee, { initGEE } from '@/lib/gee';
 
@@ -18,7 +19,19 @@ export async function GET(request: Request) {
   const baselineYear = parseInt(searchParams.get('baseline') || '2018', 10);
   const isCompare = searchParams.get('compare') === 'true';
   const metricParam = searchParams.get('metric');
-  const metric = metricParam === 'vegetation' ? 'vegetation' : metricParam === 'builtup' ? 'builtup' : metricParam === 'nightlights' ? 'nightlights' : metricParam === 'air_pollution' ? 'air_pollution' : 'lst';
+  const metric = metricParam === 'vegetation'
+    ? 'vegetation'
+    : metricParam === 'builtup'
+      ? 'builtup'
+      : metricParam === 'nightlights'
+        ? 'nightlights'
+        : metricParam === 'ndwi'
+          ? 'ndwi'
+          : metricParam === 'mndwi'
+            ? 'mndwi'
+            : metricParam === 'air_pollution'
+              ? 'air_pollution'
+              : 'lst';
   const pollutantParam = searchParams.get('pollutant');
   const pollutant = pollutantParam === 'co' ? 'co' : pollutantParam === 'so2' ? 'so2' : pollutantParam === 'aerosol' ? 'aerosol' : 'no2';
   const nightLightsProduct = searchParams.get('product') === 'monthly' ? 'monthly' : 'annual';
@@ -101,6 +114,30 @@ export async function GET(request: Request) {
         })
         .median()
         .updateMask(waterMask);
+    };
+
+    const getSentinelWaterImage = (
+      targetYear: number,
+      waterMetric: 'ndwi' | 'mndwi',
+      endMMDD = '12-31',
+    ) => {
+      const { startDate, endDate } = getDateRange(targetYear, endMMDD);
+      return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        .filterBounds(point)
+        .filterDate(startDate, endDate)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .map(maskSentinel2)
+        .map((image: any) => {
+          const green = image.select('B3').divide(10000);
+          const comparisonBand = image
+            .select(waterMetric === 'mndwi' ? 'B11' : 'B8')
+            .divide(10000);
+          return green
+            .subtract(comparisonBand)
+            .divide(green.add(comparisonBand))
+            .rename(waterMetric.toUpperCase());
+        })
+        .mean();
     };
 
     const getLandsatLSTImage = (targetYear: number, endMMDD = '12-31') => {
@@ -199,7 +236,7 @@ export async function GET(request: Request) {
     };
 
     const { startDate, endDate } = getDateRange(year);
-    const collection = metric === 'vegetation' || metric === 'builtup'
+    const collection = metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi'
       ? ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
           .filterBounds(point)
           .filterDate(startDate, endDate)
@@ -236,23 +273,61 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No satellite data found for this location/year' }, { status: 404 });
     }
 
-    const currentImage = metric === 'vegetation' ? getSentinelNdviImage(year, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(year, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(year) : metric === 'air_pollution' ? getAirPollutionImage(year, todayMMDD) : getLandsatLSTImage(year, todayMMDD);
+    const currentImage = metric === 'vegetation'
+      ? getSentinelNdviImage(year, todayMMDD)
+      : metric === 'builtup'
+        ? getSentinelNdbiImage(year, todayMMDD)
+        : metric === 'ndwi' || metric === 'mndwi'
+          ? getSentinelWaterImage(year, metric, todayMMDD)
+          : metric === 'nightlights'
+            ? getNightLightsImage(year)
+            : metric === 'air_pollution'
+              ? getAirPollutionImage(year, todayMMDD)
+              : getLandsatLSTImage(year, todayMMDD);
     const metricImage = isCompare
-      ? currentImage.subtract(metric === 'vegetation' ? getSentinelNdviImage(baselineYear, todayMMDD) : metric === 'builtup' ? getSentinelNdbiImage(baselineYear, todayMMDD) : metric === 'nightlights' ? getNightLightsImage(baselineYear) : metric === 'air_pollution' ? getAirPollutionImage(baselineYear, todayMMDD) : getLandsatLSTImage(baselineYear, todayMMDD))
+      ? currentImage.subtract(
+          metric === 'vegetation'
+            ? getSentinelNdviImage(baselineYear, todayMMDD)
+            : metric === 'builtup'
+              ? getSentinelNdbiImage(baselineYear, todayMMDD)
+              : metric === 'ndwi' || metric === 'mndwi'
+                ? getSentinelWaterImage(baselineYear, metric, todayMMDD)
+                : metric === 'nightlights'
+                  ? getNightLightsImage(baselineYear)
+                  : metric === 'air_pollution'
+                    ? getAirPollutionImage(baselineYear, todayMMDD)
+                    : getLandsatLSTImage(baselineYear, todayMMDD),
+        )
       : currentImage;
 
     // 3. Sample the value at the point
     const result = await evaluateEe<Record<string, number | null>>(metricImage.reduceRegion({
       reducer: ee.Reducer.first(),
       geometry: point,
-      scale: metric === 'vegetation' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30,
+      scale: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi'
+        ? 10
+        : metric === 'nightlights' || metric === 'air_pollution'
+          ? 1000
+          : 30,
       bestEffort: true,
     }));
 
-    const value = metric === 'vegetation' ? result.NDVI : metric === 'builtup' ? result.NDBI : metric === 'nightlights' ? result.NTL : metric === 'air_pollution' ? result.AIR : result.LST;
+    const value = metric === 'vegetation'
+      ? result.NDVI
+      : metric === 'builtup'
+        ? result.NDBI
+        : metric === 'ndwi'
+          ? result.NDWI
+          : metric === 'mndwi'
+            ? result.MNDWI
+            : metric === 'nightlights'
+              ? result.NTL
+              : metric === 'air_pollution'
+                ? result.AIR
+                : result.LST;
 
     return NextResponse.json({
-      temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' || metric === 'nightlights' ? 3 : metric === 'air_pollution' ? 6 : 2)) : null,
+      temp: value !== null && value !== undefined ? parseFloat(value.toFixed(metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' || metric === 'nightlights' ? 3 : metric === 'air_pollution' ? 6 : 2)) : null,
       metric,
       lat,
       lng,
@@ -265,12 +340,14 @@ export async function GET(request: Request) {
         ? 'Sentinel-2 SR Harmonized yearly median NDVI'
         : metric === 'builtup'
           ? 'Sentinel-2 SR Harmonized yearly median NDBI'
+          : metric === 'ndwi' || metric === 'mndwi'
+            ? `Sentinel-2 SR Harmonized yearly mean ${metric.toUpperCase()}`
           : metric === 'nightlights'
             ? nightLightsProduct === 'monthly' ? 'VIIRS DNB monthly avg_rad preview' : 'VIIRS DNB Annual V2.2 average_masked'
             : metric === 'air_pollution'
               ? `Sentinel-5P OFFL yearly mean ${pollutant.toUpperCase()} (ความละเอียด 1,000m — ตีความระดับเขตด้วยความระมัดระวัง)`
             : 'Landsat 8/9 C2 L2 yearly median LST (emissivity-corrected)',
-      resolutionMeters: metric === 'vegetation' || metric === 'builtup' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30
+      resolutionMeters: metric === 'vegetation' || metric === 'builtup' || metric === 'ndwi' || metric === 'mndwi' ? 10 : metric === 'nightlights' || metric === 'air_pollution' ? 1000 : 30
     });
 
   } catch (error: any) {

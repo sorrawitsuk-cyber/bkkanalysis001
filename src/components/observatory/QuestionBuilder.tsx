@@ -3,7 +3,16 @@
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarRange, MapPin, ScanSearch } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { OBSERVATORY_LENSES, type ObservatoryLensId } from "@/lib/observatory/catalog";
+import {
+  getObservatoryLens,
+  OBSERVATORY_LENSES,
+  type ObservatoryLensId,
+} from "@/lib/observatory/catalog";
+import {
+  clampLensBaseline,
+  clampLensYear,
+  getLensYears,
+} from "@/lib/observatory/lens-data";
 
 type QuestionBuilderProps = {
   areas: string[];
@@ -13,8 +22,6 @@ type QuestionBuilderProps = {
   initialYear?: number;
   initialBaseline?: number;
 };
-
-const YEARS = [2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
 
 export default function QuestionBuilder({
   areas,
@@ -29,6 +36,8 @@ export default function QuestionBuilder({
   const [area, setArea] = useState(initialArea);
   const [year, setYear] = useState(initialYear);
   const [baseline, setBaseline] = useState(initialBaseline);
+  const lensConfig = getObservatoryLens(lens);
+  const years = getLensYears(lensConfig);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,7 +74,14 @@ export default function QuestionBuilder({
           <span className="mb-1.5 block text-xs font-semibold text-[var(--oe-muted)]">ต้องการตรวจอะไร</span>
           <select
             value={lens}
-            onChange={(event) => setLens(event.target.value as ObservatoryLensId)}
+            onChange={(event) => {
+              const nextLens = event.target.value as ObservatoryLensId;
+              const nextLensConfig = getObservatoryLens(nextLens);
+              const nextYear = clampLensYear(nextLensConfig, year);
+              setLens(nextLens);
+              setYear(nextYear);
+              setBaseline(clampLensBaseline(nextLensConfig, nextYear, baseline));
+            }}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
           >
             {OBSERVATORY_LENSES.map((item) => (
@@ -100,10 +116,14 @@ export default function QuestionBuilder({
           </span>
           <select
             value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
+            onChange={(event) => {
+              const nextYear = Number(event.target.value);
+              setYear(nextYear);
+              setBaseline(clampLensBaseline(lensConfig, nextYear, baseline));
+            }}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
           >
-            {YEARS.map((item) => <option key={item}>{item}</option>)}
+            {years.filter((item) => item > lensConfig.minYear).map((item) => <option key={item}>{item}</option>)}
           </select>
         </label>
 
@@ -114,7 +134,7 @@ export default function QuestionBuilder({
             onChange={(event) => setBaseline(Number(event.target.value))}
             className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
           >
-            {YEARS.filter((item) => item < year).map((item) => <option key={item}>{item}</option>)}
+            {years.filter((item) => item < year).map((item) => <option key={item}>{item}</option>)}
           </select>
         </label>
 

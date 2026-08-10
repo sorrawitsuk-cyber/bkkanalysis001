@@ -1,10 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowDownUp,
+  ArrowRight,
   BarChart3,
   Check,
   Database,
@@ -22,6 +24,14 @@ import {
   OBSERVATORY_LENSES,
   type ObservatoryLensId,
 } from "@/lib/observatory/catalog";
+import {
+  buildLensDataRequest,
+  clampLensBaseline,
+  clampLensYear,
+  getLensYears,
+  normalizeLensDataPayload,
+  type ObservatoryDistrictPayload,
+} from "@/lib/observatory/lens-data";
 import type {
   AreaCollection,
   AreaFeature,
@@ -45,45 +55,6 @@ type DataState = "loading" | "available" | "research" | "withheld" | "planned" |
 type ObservatorySeason = "hot" | "wet" | "cool";
 type ResultMode = "current" | "change";
 
-type DistrictApiFeature = {
-  type: "Feature";
-  geometry: GeoJSON.Geometry;
-  properties: Record<string, unknown> & {
-    id?: number;
-    name_th?: string;
-    name_en?: string;
-    delta?: number | null;
-  };
-};
-
-type DistrictPayload = {
-  geojson?: {
-    type: "FeatureCollection";
-    features: DistrictApiFeature[];
-  };
-  summary?: {
-    averageValue?: number | null;
-    baselineAverageValue?: number | null;
-    valueDelta?: number | null;
-    avgDelta?: number | null;
-    maxValue?: number | null;
-    minValue?: number | null;
-    validDistrictCount?: number;
-    totalDistrictCount?: number;
-    coverageRatio?: number | null;
-    dataOrigin?: string;
-    dataSource?: string;
-    dataQuality?: string;
-    unavailableReason?: string | null;
-    observationStart?: string;
-    observationEnd?: string;
-    resolutionMeters?: number | null;
-    aggregationScaleMeters?: number | null;
-    sceneCount?: number | null;
-  };
-  error?: string;
-};
-
 type ObservatoryWorkspaceProps = {
   initialLens: ObservatoryLensId;
   initialYear: number;
@@ -94,7 +65,6 @@ type ObservatoryWorkspaceProps = {
   initialCompare?: boolean;
 };
 
-const YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015];
 const SEASONS: Array<{ id: ObservatorySeason; label: string }> = [
   { id: "hot", label: "ฤดูร้อน มี.ค.–พ.ค." },
   { id: "wet", label: "ฤดูฝน มิ.ย.–ต.ค." },
@@ -117,9 +87,10 @@ function formatSignedValue(value: number | null | undefined, decimals: number, u
 }
 
 function sourceStatusText(origin: string | undefined) {
-  if (origin === "live-gee" || origin === "gee") return "คำนวณใหม่จากภาพดาวเทียม";
+  if (origin === "live-gee" || origin === "gee-live" || origin === "gee") return "คำนวณใหม่จากภาพดาวเทียม";
   if (origin === "verified-snapshot") return "ข้อมูลดาวเทียมที่ประมวลผลและตรวจไว้แล้ว";
   if (origin === "database" || origin === "supabase") return "ใช้ข้อมูลสรุปที่บันทึกไว้";
+  if (origin === "administrative-file") return "ใช้ข้อมูลทะเบียนที่จัดเตรียมและตรวจแหล่งไว้แล้ว";
   if (origin === "unavailable") return "ข้อมูลยังไม่ครบ";
   return "กำลังตรวจแหล่งข้อมูล";
 }
@@ -152,7 +123,7 @@ export default function ObservatoryWorkspace({
   const [season, setSeason] = useState<ObservatorySeason>(initialSeason);
   const [dataMode, setDataMode] = useState<MapDisplayMode>(initialMode);
   const [resultMode, setResultMode] = useState<ResultMode>(initialCompare ? "change" : "current");
-  const [payload, setPayload] = useState<DistrictPayload | null>(null);
+  const [payload, setPayload] = useState<ObservatoryDistrictPayload | null>(null);
   const [state, setState] = useState<DataState>("loading");
   const [statusReason, setStatusReason] = useState("");
   const [selectedName, setSelectedName] = useState<string | null>(
@@ -163,6 +134,7 @@ export default function ObservatoryWorkspace({
   const [pointResult, setPointResult] = useState<GeePointResult | null>(null);
 
   const lens = getObservatoryLens(lensId);
+  const availableYears = useMemo(() => getLensYears(lens), [lens]);
   const displayUnit = lens.id === "air" ? "" : lens.unit;
   const compare = resultMode === "change";
 
@@ -179,14 +151,11 @@ export default function ObservatoryWorkspace({
     }
 
     setState("loading");
-    const params = new URLSearchParams({
-      metric: lens.apiMetric,
-      year: String(year),
-      compareYear: String(baseline),
-    });
-    fetch(`/api/district-metrics?${params.toString()}`, { cache: "no-store" })
+    const requestUrl = buildLensDataRequest(lens, year, baseline);
+    fetch(requestUrl, { cache: "no-store" })
       .then(async (response) => {
-        const nextPayload = await response.json() as DistrictPayload;
+        const rawPayload = await response.json() as unknown;
+        const nextPayload = normalizeLensDataPayload(rawPayload, lens, year);
         if (!response.ok) throw new Error(nextPayload.error || "อ่านข้อมูลรายเขตไม่สำเร็จ");
         return nextPayload;
       })
@@ -210,7 +179,7 @@ export default function ObservatoryWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [baseline, lens.apiMetric, lens.valueKey, year]);
+  }, [baseline, lens, year]);
 
   const areas = useMemo<AreaCollection | null>(() => {
     const source = payload?.geojson;
@@ -281,11 +250,21 @@ export default function ObservatoryWorkspace({
   function chooseLens(nextLensId: ObservatoryLensId) {
     const nextLens = getObservatoryLens(nextLensId);
     const nextMode = dataMode === "gee" && !nextLens.geeMetric ? "district" : dataMode;
+    const nextYear = clampLensYear(nextLens, year);
+    const nextBaseline = clampLensBaseline(nextLens, nextYear, baseline);
     setLensId(nextLensId);
+    setYear(nextYear);
+    setBaseline(nextBaseline);
     setDataMode(nextMode);
     setSelectedName(null);
     setPointResult(null);
-    updateUrl({ lens: nextLensId, area: "bangkok", mode: nextMode });
+    updateUrl({
+      lens: nextLensId,
+      nextYear,
+      nextBaseline,
+      area: "bangkok",
+      mode: nextMode,
+    });
   }
 
   function chooseMode(nextMode: MapDisplayMode) {
@@ -409,14 +388,14 @@ export default function ObservatoryWorkspace({
               value={year}
               onChange={(event) => {
                 const nextYear = Number(event.target.value);
-                const nextBaseline = baseline >= nextYear ? nextYear - 1 : baseline;
+                const nextBaseline = clampLensBaseline(lens, nextYear, baseline);
                 setYear(nextYear);
                 setBaseline(nextBaseline);
                 updateUrl({ nextYear, nextBaseline });
               }}
               className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
             >
-              {YEARS.map((item) => <option key={item}>{item}</option>)}
+              {availableYears.filter((item) => item > lens.minYear).map((item) => <option key={item}>{item}</option>)}
             </select>
           </label>
 
@@ -431,7 +410,7 @@ export default function ObservatoryWorkspace({
               }}
               className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--oe-line-strong)] bg-white px-3 text-sm outline-none focus:border-[var(--oe-primary)] focus:ring-2 focus:ring-[var(--oe-primary-soft)]"
             >
-              {YEARS.filter((item) => item < year).map((item) => <option key={item}>{item}</option>)}
+              {availableYears.filter((item) => item < year).map((item) => <option key={item}>{item}</option>)}
             </select>
           </label>
 
@@ -692,6 +671,21 @@ export default function ObservatoryWorkspace({
                     </li>
                   ))}
                 </ol>
+              </section>
+            )}
+
+            {lens.id === "heat" && (
+              <section className="mt-5 border-t border-[var(--oe-line)] pt-4">
+                <p className="text-xs font-bold">วิเคราะห์ต่อจากสัญญาณความร้อน</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--oe-muted)]">
+                  เทียบ LST กับประชากรตามทะเบียนและการเข้าถึงพื้นที่คลายร้อน โดยแสดงหลักฐานทั้งสามมิติแยกกัน
+                </p>
+                <Link
+                  href={`/decision-support?mode=heat&year=${year}&baseline=${baseline}`}
+                  className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-[var(--oe-primary)] px-3 text-xs font-bold text-white outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--oe-primary)] focus-visible:ring-offset-2"
+                >
+                  เปิดการคัดกรองคนและพื้นที่คลายร้อน <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </section>
             )}
 

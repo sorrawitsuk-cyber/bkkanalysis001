@@ -7,8 +7,26 @@ export type ObservatoryLensId =
   | "air"
   | "activity";
 
-export type BridgeMetric = "lst" | "vegetation" | "builtup" | "air_pollution";
-export type GeeMetric = BridgeMetric | "nightlights" | "mndwi";
+export type BridgeMetric =
+  | "lst"
+  | "vegetation"
+  | "builtup"
+  | "water"
+  | "population"
+  | "air_pollution"
+  | "nightlights";
+export type GeeMetric =
+  | "lst"
+  | "vegetation"
+  | "builtup"
+  | "air_pollution"
+  | "nightlights"
+  | "mndwi";
+export type ObservatoryDataEndpoint =
+  | "district-metrics"
+  | "flood-risk"
+  | "population"
+  | "nighttime-lights";
 
 export type ObservatoryLens = {
   id: ObservatoryLensId;
@@ -19,8 +37,12 @@ export type ObservatoryLens = {
   phase: "mvp" | "phase-2";
   measurementType: "Satellite observation" | "Derived indicator" | "Administrative" | "Proxy";
   apiMetric?: BridgeMetric;
+  apiEndpoint?: ObservatoryDataEndpoint;
   geeMetric?: GeeMetric;
   valueKey?: string;
+  deltaKey?: string;
+  minYear: number;
+  maxYear?: number;
   unit: string;
   decimals: number;
   source: string;
@@ -43,8 +65,11 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "mvp",
     measurementType: "Satellite observation",
     apiMetric: "lst",
+    apiEndpoint: "district-metrics",
     geeMetric: "lst",
     valueKey: "mean_lst",
+    deltaKey: "delta",
+    minYear: 2015,
     unit: "°C",
     decimals: 1,
     source: "ภาพสำรวจ Landsat 8/9 จาก USGS",
@@ -71,8 +96,11 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "mvp",
     measurementType: "Derived indicator",
     apiMetric: "vegetation",
+    apiEndpoint: "district-metrics",
     geeMetric: "vegetation",
     valueKey: "ndvi_mean",
+    deltaKey: "delta",
+    minYear: 2017,
     unit: "ค่าความเขียว",
     decimals: 3,
     source: "ภาพสำรวจ Sentinel-2 จาก Copernicus",
@@ -99,8 +127,11 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "mvp",
     measurementType: "Derived indicator",
     apiMetric: "builtup",
+    apiEndpoint: "district-metrics",
     geeMetric: "builtup",
     valueKey: "ndbi_mean",
+    deltaKey: "delta",
+    minYear: 2017,
     unit: "สัญญาณผิวเมือง",
     decimals: 3,
     source: "Sentinel-2 ร่วมกับข้อมูลสิ่งปลูกสร้างอ้างอิง",
@@ -126,9 +157,14 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     description: "เชื่อมข้อมูลฝนและระดับน้ำกับภาพสำรวจ เพื่อดูสัญญาณน้ำบนผิวดิน",
     phase: "mvp",
     measurementType: "Satellite observation",
+    apiMetric: "water",
+    apiEndpoint: "flood-risk",
     geeMetric: "mndwi",
-    unit: "มม. / สัญญาณ",
-    decimals: 1,
+    valueKey: "mndwi_mean",
+    deltaKey: "delta",
+    minYear: 2017,
+    unit: "ดัชนี MNDWI",
+    decimals: 3,
     source: "ข้อมูลฝนของกรุงเทพฯ ร่วมกับภาพสำรวจดาวเทียม",
     sourceId: "BMA_DDS_GPM_S1",
     resolution: "ความละเอียดต่างกันตามชนิดข้อมูล เหมาะสำหรับคัดกรองพื้นที่",
@@ -152,7 +188,13 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     description: "อ่านประชากรตามทะเบียนและประชากรแบบจำลองแยกกัน พร้อมตำแหน่งบริการเมืองที่ผ่านการตรวจแหล่งข้อมูล",
     phase: "mvp",
     measurementType: "Administrative",
-    unit: "คน / แห่ง",
+    apiMetric: "population",
+    apiEndpoint: "population",
+    valueKey: "population",
+    deltaKey: "change_abs",
+    minYear: 2018,
+    maxYear: 2025,
+    unit: "คน",
     decimals: 0,
     source: "ข้อมูลทะเบียนประชากร แบบจำลองประชากร และข้อมูลเปิดกรุงเทพฯ",
     sourceId: "DOPA_WORLDPOP_BMA",
@@ -178,8 +220,11 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "phase-2",
     measurementType: "Proxy",
     apiMetric: "air_pollution",
+    apiEndpoint: "district-metrics",
     geeMetric: "air_pollution",
     valueKey: "no2_mean",
+    deltaKey: "delta",
+    minYear: 2018,
     unit: "ตามชนิดข้อมูล",
     decimals: 4,
     source: "ภาพสำรวจบรรยากาศร่วมกับสถานีภาคพื้น",
@@ -205,7 +250,13 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     description: "หัวข้อระยะถัดไปสำหรับอ่านกิจกรรมและแสง ไม่ใช้แทน GDP รายได้ หรือจำนวนประชากร",
     phase: "phase-2",
     measurementType: "Proxy",
+    apiMetric: "nightlights",
+    apiEndpoint: "nighttime-lights",
     geeMetric: "nightlights",
+    valueKey: "ntl_mean",
+    deltaKey: "ntl_delta",
+    minYear: 2014,
+    maxYear: 2024,
     unit: "nW/sr/cm²",
     decimals: 1,
     source: "ภาพแสงกลางคืนจาก NASA",
