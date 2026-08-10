@@ -41,7 +41,7 @@ const ObservatoryMap = dynamic(() => import("./ObservatoryMap"), {
 });
 
 type BasemapStatus = "loading" | "ready" | "unavailable";
-type DataState = "loading" | "available" | "withheld" | "planned" | "error";
+type DataState = "loading" | "available" | "research" | "withheld" | "planned" | "error";
 type ObservatorySeason = "hot" | "wet" | "cool";
 type ResultMode = "current" | "change";
 
@@ -194,7 +194,8 @@ export default function ObservatoryWorkspace({
         setPayload(nextPayload);
         const count = nextPayload.summary?.validDistrictCount ?? 0;
         if (count > 0) {
-          setState("available");
+          const quality = String(nextPayload.summary?.dataQuality ?? "").toLowerCase();
+          setState(quality.includes("research") ? "research" : "available");
         } else {
           setState("withheld");
           setStatusReason(friendlyMessage(nextPayload.summary?.unavailableReason || "ช่วงเวลานี้ยังไม่มีข้อมูลครบพอสำหรับสรุปรายเขต"));
@@ -308,7 +309,7 @@ export default function ObservatoryWorkspace({
   const sourceLabel = summary?.dataSource && summary.dataSource !== "unavailable"
     ? summary.dataSource
     : lens.source;
-  const districtValuesReady = state === "available";
+  const districtValuesReady = state === "available" || state === "research";
   const mapValuesReady = dataMode === "district" && districtValuesReady;
 
   const statusLabel = dataMode === "gee"
@@ -319,8 +320,8 @@ export default function ObservatoryWorkspace({
         : geeStatus.state === "error"
           ? "ยังเปิดภาพไม่ได้"
           : "กำลังเตรียมภาพ"
-    : state === "available"
-      ? "สรุปรายเขตพร้อมใช้งาน"
+    : state === "available" || state === "research"
+      ? state === "research" ? "ข้อมูลทดลองพร้อมตรวจ" : "สรุปรายเขตพร้อมใช้งาน"
       : state === "loading"
         ? "กำลังสรุปข้อมูล"
         : "ข้อมูลยังไม่ครบ";
@@ -337,11 +338,11 @@ export default function ObservatoryWorkspace({
             <h1 className="mt-1 text-lg font-bold sm:text-xl">{lens.question}</h1>
           </div>
           <div className={`inline-flex min-h-9 items-center gap-2 rounded-full px-3 text-xs font-bold ${
-            (dataMode === "gee" ? geeStatus.state === "ready" : state === "available")
+            (dataMode === "gee" ? geeStatus.state === "ready" : districtValuesReady)
               ? "bg-[var(--oe-success-soft)] text-[var(--oe-success-ink)]"
               : "bg-[var(--oe-info-soft)] text-[var(--oe-info-ink)]"
           }`} role="status" aria-live="polite">
-            {(dataMode === "gee" ? geeStatus.state === "ready" : state === "available")
+            {(dataMode === "gee" ? geeStatus.state === "ready" : districtValuesReady)
               ? <Check className="h-3.5 w-3.5" />
               : <ScanSearch className="h-3.5 w-3.5" />}
             {statusLabel}
@@ -514,7 +515,17 @@ export default function ObservatoryWorkspace({
             </div>
           </div>
 
-          {dataMode === "district" && state !== "available" && state !== "loading" && (
+          {dataMode === "district" && state === "research" && (
+            <div className="flex items-start gap-3 border-b border-[var(--oe-warning-line)] bg-[var(--oe-warning-soft)] px-4 py-3 text-sm text-[var(--oe-warning-ink)]">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <strong>ข้อมูลทดลอง ใช้เพื่อประกอบการตรวจสอบ</strong>
+                <p className="mt-0.5 leading-6">ควรอ่านร่วมกับที่มา ความครบของข้อมูล และข้อควรระวังก่อนนำไปใช้งาน</p>
+              </div>
+            </div>
+          )}
+
+          {dataMode === "district" && !districtValuesReady && state !== "loading" && (
             <div className="flex items-start gap-3 border-b border-[var(--oe-warning-line)] bg-[var(--oe-warning-soft)] px-4 py-3 text-sm text-[var(--oe-warning-ink)]">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
@@ -607,6 +618,23 @@ export default function ObservatoryWorkspace({
             <div className="p-3">
               <p className="text-[11px] text-[var(--oe-muted)]">เขตที่มีข้อมูล</p>
               <p className="mt-1 text-base font-bold tabular-nums">{validDistricts.toLocaleString("th-TH")} / {totalDistricts.toLocaleString("th-TH")}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 border-b border-[var(--oe-line)] bg-[var(--oe-surface-muted)] px-4 py-3 text-xs">
+            <div className="border-r border-[var(--oe-line-soft)] pr-3">
+              <p className="text-[var(--oe-muted)]">ช่วงค่าที่พบใน 50 เขต</p>
+              <p className="mt-1 font-semibold tabular-nums">
+                {formatValue(summary?.minValue, lens.decimals, displayUnit)} – {formatValue(summary?.maxValue, lens.decimals, displayUnit)}
+              </p>
+            </div>
+            <div className="pl-3">
+              <p className="text-[var(--oe-muted)]">ความครบของข้อมูล</p>
+              <p className="mt-1 font-semibold tabular-nums">
+                {typeof summary?.coverageRatio === "number"
+                  ? `${(summary.coverageRatio * 100).toLocaleString("th-TH", { maximumFractionDigits: 1 })}%`
+                  : "ยังไม่มีข้อมูล"}
+              </p>
             </div>
           </div>
 
