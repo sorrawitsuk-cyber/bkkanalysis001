@@ -8,6 +8,7 @@ export type ObservatoryLensId =
   | "activity";
 
 export type BridgeMetric = "lst" | "vegetation" | "builtup" | "air_pollution";
+export type GeeMetric = BridgeMetric | "nightlights" | "mndwi";
 
 export type ObservatoryLens = {
   id: ObservatoryLensId;
@@ -18,6 +19,7 @@ export type ObservatoryLens = {
   phase: "mvp" | "phase-2";
   measurementType: "Satellite observation" | "Derived indicator" | "Administrative" | "Proxy";
   apiMetric?: BridgeMetric;
+  geeMetric?: GeeMetric;
   valueKey?: string;
   unit: string;
   decimals: number;
@@ -41,6 +43,7 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "mvp",
     measurementType: "Satellite observation",
     apiMetric: "lst",
+    geeMetric: "lst",
     valueKey: "mean_lst",
     unit: "°C",
     decimals: 1,
@@ -68,6 +71,7 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "mvp",
     measurementType: "Derived indicator",
     apiMetric: "vegetation",
+    geeMetric: "vegetation",
     valueKey: "ndvi_mean",
     unit: "ค่าความเขียว",
     decimals: 3,
@@ -95,6 +99,7 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     phase: "mvp",
     measurementType: "Derived indicator",
     apiMetric: "builtup",
+    geeMetric: "builtup",
     valueKey: "ndbi_mean",
     unit: "สัญญาณผิวเมือง",
     decimals: 3,
@@ -121,6 +126,7 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     description: "เชื่อมข้อมูลฝนและระดับน้ำกับภาพสำรวจ เพื่อดูสัญญาณน้ำบนผิวดิน",
     phase: "mvp",
     measurementType: "Satellite observation",
+    geeMetric: "mndwi",
     unit: "มม. / สัญญาณ",
     decimals: 1,
     source: "ข้อมูลฝนของกรุงเทพฯ ร่วมกับภาพสำรวจดาวเทียม",
@@ -171,6 +177,9 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     description: "หัวข้อระยะถัดไป ต้องตรวจเทียบกับสถานีภาคพื้นก่อนใช้งานเชิงปฏิบัติการ",
     phase: "phase-2",
     measurementType: "Proxy",
+    apiMetric: "air_pollution",
+    geeMetric: "air_pollution",
+    valueKey: "no2_mean",
     unit: "ตามชนิดข้อมูล",
     decimals: 4,
     source: "ภาพสำรวจบรรยากาศร่วมกับสถานีภาคพื้น",
@@ -196,6 +205,7 @@ export const OBSERVATORY_LENSES: ObservatoryLens[] = [
     description: "หัวข้อระยะถัดไปสำหรับอ่านกิจกรรมและแสง ไม่ใช้แทน GDP รายได้ หรือจำนวนประชากร",
     phase: "phase-2",
     measurementType: "Proxy",
+    geeMetric: "nightlights",
     unit: "nW/sr/cm²",
     decimals: 1,
     source: "ภาพแสงกลางคืนจาก NASA",

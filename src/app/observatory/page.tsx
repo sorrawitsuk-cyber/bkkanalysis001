@@ -39,6 +39,8 @@ export default async function ObservatoryPage({ searchParams }: ObservatoryPageP
       ? requestedSeason
       : "wet";
   const area = first(params.area) || "bangkok";
+  const mode = first(params.mode) === "gee" ? "gee" : "district";
+  const compare = first(params.compare) === "1";
 
   return (
     <AppShell>
@@ -48,6 +50,8 @@ export default async function ObservatoryPage({ searchParams }: ObservatoryPageP
         initialBaseline={baseline}
         initialSeason={season}
         initialArea={area}
+        initialMode={mode}
+        initialCompare={compare}
       />
     </AppShell>
   );

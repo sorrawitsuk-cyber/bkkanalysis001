@@ -1,27 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import type { GeeMetric } from "@/lib/observatory/catalog";
+
+export type MapDisplayMode = "district" | "gee";
+export type GeeLayerStatus = {
+  state: "idle" | "loading" | "ready" | "error";
+  message?: string;
+  sceneCount?: number;
+  resolutionMeters?: number;
+  dataSource?: string;
+};
+
+export type GeePointResult = {
+  value: number | null;
+  lat: number;
+  lng: number;
+  sceneCount?: number;
+  resolutionMeters?: number;
+  loading?: boolean;
+  error?: string;
+};
 
 type BasemapStatus = "loading" | "ready" | "unavailable";
 
-type AreaProperties = {
+export type AreaProperties = {
   areaCode: string;
   legacyId: number;
   nameTh: string;
   nameEn: string;
   level: string;
   metricValue?: number | null;
+  baselineValue?: number | null;
+  metricDelta?: number | null;
 };
 
-type AreaFeature = {
+export type AreaFeature = {
   type: "Feature";
   geometry: GeoJSON.Geometry;
   properties: AreaProperties;
 };
 
-type AreaCollection = {
+export type AreaCollection = {
   type: "FeatureCollection";
   features: AreaFeature[];
 };
@@ -31,8 +53,15 @@ type ObservatoryMapProps = {
   trustedValues: boolean;
   selectedName: string | null;
   ramp: string[];
+  mode: MapDisplayMode;
+  geeMetric?: GeeMetric;
+  year: number;
+  baseline: number;
+  compare: boolean;
   onSelect: (feature: AreaFeature) => void;
   onBasemapStatus: (status: BasemapStatus) => void;
+  onGeeStatus: (status: GeeLayerStatus) => void;
+  onPointResult: (result: GeePointResult | null) => void;
 };
 
 const EMPTY_COLOR = "oklch(0.32 0.02 265)";
@@ -50,16 +79,28 @@ export default function ObservatoryMap({
   trustedValues,
   selectedName,
   ramp,
+  mode,
+  geeMetric,
+  year,
+  baseline,
+  compare,
   onSelect,
   onBasemapStatus,
+  onGeeStatus,
+  onPointResult,
 }: ObservatoryMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const layerRef = useRef<L.GeoJSON | null>(null);
+  const districtLayerRef = useRef<L.GeoJSON | null>(null);
+  const geeLayerRef = useRef<L.TileLayer | null>(null);
+  const pointMarkerRef = useRef<L.CircleMarker | null>(null);
   const selectRef = useRef(onSelect);
   const basemapStatusRef = useRef(onBasemapStatus);
+  const pointResultRef = useRef(onPointResult);
+  const pointAbortRef = useRef<AbortController | null>(null);
   selectRef.current = onSelect;
   basemapStatusRef.current = onBasemapStatus;
+  pointResultRef.current = onPointResult;
 
   const range = useMemo(() => {
     if (!geojson || !trustedValues) return { min: 0, max: 0 };
@@ -72,6 +113,51 @@ export default function ObservatoryMap({
     };
   }, [geojson, trustedValues]);
 
+  const readPoint = useCallback(async (lat: number, lng: number) => {
+    if (mode !== "gee" || !geeMetric || geeMetric === "mndwi") return;
+    pointAbortRef.current?.abort();
+    const controller = new AbortController();
+    pointAbortRef.current = controller;
+    pointResultRef.current({ value: null, lat, lng, loading: true });
+
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+      year: String(year),
+      baseline: String(baseline),
+      compare: String(compare),
+      metric: geeMetric,
+    });
+
+    try {
+      const response = await fetch(`/api/gee/point?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      const payload = await response.json() as {
+        temp?: number | null;
+        sceneCount?: number;
+        resolutionMeters?: number;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(payload.error || "ยังอ่านค่าจุดนี้ไม่ได้");
+      pointResultRef.current({
+        value: typeof payload.temp === "number" ? payload.temp : null,
+        lat,
+        lng,
+        sceneCount: payload.sceneCount,
+        resolutionMeters: payload.resolutionMeters,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      pointResultRef.current({
+        value: null,
+        lat,
+        lng,
+        error: error instanceof Error ? error.message : "ยังอ่านค่าจุดนี้ไม่ได้",
+      });
+    }
+  }, [baseline, compare, geeMetric, mode, year]);
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -82,23 +168,24 @@ export default function ObservatoryMap({
       attributionControl: true,
       keyboard: true,
     });
-
-    const basemap = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
-      minZoom: 8,
-      maxZoom: 19,
-      keepBuffer: 2,
-      updateWhenIdle: true,
-    });
+    const basemap = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
+        minZoom: 8,
+        maxZoom: 19,
+        keepBuffer: 2,
+        updateWhenIdle: true,
+      },
+    );
     basemap.on("loading", () => basemapStatusRef.current("loading"));
     basemap.on("load", () => basemapStatusRef.current("ready"));
-    basemap.on("tileerror", () =>
-      basemapStatusRef.current("unavailable"),
-    );
+    basemap.on("tileerror", () => basemapStatusRef.current("unavailable"));
     basemap.addTo(map);
-
     mapRef.current = map;
+
     return () => {
+      pointAbortRef.current?.abort();
       map.remove();
       mapRef.current = null;
     };
@@ -106,24 +193,110 @@ export default function ObservatoryMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !geojson) return;
+    if (!map) return;
+    const handleClick = (event: L.LeafletMouseEvent) => {
+      if (mode !== "gee" || !geeMetric) return;
+      if (pointMarkerRef.current) pointMarkerRef.current.removeFrom(map);
+      pointMarkerRef.current = L.circleMarker(event.latlng, {
+        radius: 6,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: "#38bdf8",
+        fillOpacity: 1,
+      }).addTo(map);
+      void readPoint(event.latlng.lat, event.latlng.lng);
+    };
+    map.on("click", handleClick);
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [geeMetric, mode, readPoint]);
 
-    if (layerRef.current) {
-      layerRef.current.removeFrom(map);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (geeLayerRef.current) {
+      geeLayerRef.current.removeFrom(map);
+      geeLayerRef.current = null;
     }
+    pointAbortRef.current?.abort();
+    pointResultRef.current(null);
+    if (pointMarkerRef.current) {
+      pointMarkerRef.current.removeFrom(map);
+      pointMarkerRef.current = null;
+    }
+
+    if (mode !== "gee" || !geeMetric) {
+      onGeeStatus({ state: "idle" });
+      return;
+    }
+
+    const controller = new AbortController();
+    onGeeStatus({ state: "loading" });
+    const params = new URLSearchParams({
+      year: String(year),
+      baseline: String(baseline),
+      compare: String(compare),
+      metric: geeMetric,
+    });
+
+    fetch(`/api/gee/tiles?${params.toString()}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as {
+          urlFormat?: string;
+          sceneCount?: number;
+          resolutionMeters?: number;
+          dataSource?: string;
+          error?: string;
+        };
+        if (!response.ok || !payload.urlFormat) {
+          throw new Error(payload.error || "ยังเปิดภาพดาวเทียมไม่ได้");
+        }
+        return payload;
+      })
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        geeLayerRef.current = L.tileLayer(payload.urlFormat!, {
+          maxZoom: 20,
+          opacity: 0.84,
+        }).addTo(map);
+        districtLayerRef.current?.bringToFront();
+        onGeeStatus({
+          state: "ready",
+          sceneCount: payload.sceneCount,
+          resolutionMeters: payload.resolutionMeters,
+          dataSource: payload.dataSource,
+        });
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        onGeeStatus({
+          state: "error",
+          message: error instanceof Error ? error.message : "ยังเปิดภาพดาวเทียมไม่ได้",
+        });
+      });
+
+    return () => controller.abort();
+  }, [baseline, compare, geeMetric, mode, onGeeStatus, year]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !geojson) return;
+    districtLayerRef.current?.removeFrom(map);
 
     const layer = L.geoJSON(geojson as GeoJSON.GeoJsonObject, {
       style: (feature) => {
         const properties = feature?.properties as AreaProperties | undefined;
         const selected = properties?.nameTh === selectedName;
+        const showDistrictFill = mode === "district";
         return {
-          fillColor: trustedValues
+          fillColor: trustedValues && showDistrictFill
             ? rampColor(properties?.metricValue, range.min, range.max, ramp)
             : EMPTY_COLOR,
-          fillOpacity: trustedValues ? 0.72 : 0.22,
+          fillOpacity: showDistrictFill ? (trustedValues ? 0.72 : 0.22) : 0.02,
           color: selected ? SELECTED_STROKE : EMPTY_STROKE,
-          weight: selected ? 3 : 1,
-          opacity: 1,
+          weight: selected ? 3 : mode === "gee" ? 1.2 : 1,
+          opacity: mode === "gee" ? 0.82 : 1,
         };
       },
       onEachFeature: (feature, featureLayer) => {
@@ -137,19 +310,19 @@ export default function ObservatoryMap({
       },
     }).addTo(map);
 
-    layerRef.current = layer;
+    districtLayerRef.current = layer;
     const bounds = layer.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [18, 18] });
-    }
-  }, [geojson, ramp, range.max, range.min, selectedName, trustedValues]);
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [18, 18] });
+  }, [geojson, mode, ramp, range.max, range.min, selectedName, trustedValues]);
 
   return (
     <div
       ref={containerRef}
-      className="map-keyboard-target h-full min-h-[520px] w-full bg-[var(--oe-map-canvas)]"
+      className={`map-keyboard-target h-full min-h-[580px] w-full bg-[var(--oe-map-canvas)] ${mode === "gee" ? "cursor-crosshair" : ""}`}
       role="application"
-      aria-label="แผนที่เลือกพื้นที่วิเคราะห์กรุงเทพมหานคร ใช้แป้นลูกศรเพื่อเลื่อนแผนที่ และใช้ตารางด้านล่างเป็นทางเลือกสำหรับเลือกเขต"
+      aria-label={mode === "gee"
+        ? "แผนที่ภาพดาวเทียมกรุงเทพมหานคร คลิกเพื่ออ่านค่าจุด หรือคลิกเขตเพื่อดูสรุป"
+        : "แผนที่สรุปข้อมูล 50 เขต คลิกเขตเพื่อดูรายละเอียด"}
       tabIndex={0}
     />
   );

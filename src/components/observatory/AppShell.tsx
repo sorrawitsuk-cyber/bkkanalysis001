@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleGauge, Database, Map, MapPinned, Satellite } from "lucide-react";
+import { Database, Map, MapPinned, Satellite } from "lucide-react";
 import type { ReactNode } from "react";
 
 const navigation = [
-  { href: "/", label: "ภาพรวมเมือง", shortLabel: "ภาพรวม", icon: CircleGauge },
-  { href: "/observatory", label: "พื้นที่วิเคราะห์", shortLabel: "วิเคราะห์", icon: Map },
+  { href: "/", label: "วิเคราะห์เมือง", shortLabel: "วิเคราะห์", icon: Map },
   { href: "/areas", label: "พื้นที่ศึกษา", shortLabel: "พื้นที่", icon: MapPinned },
   { href: "/evidence", label: "หลักฐานข้อมูล", shortLabel: "ข้อมูล", icon: Database },
 ];
@@ -41,7 +40,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav aria-label="เมนูหลัก" className="border-t border-[var(--oe-line-soft)]">
-          <div className="mx-auto grid max-w-[1600px] grid-cols-4 px-1 sm:flex sm:gap-1 sm:px-5">
+          <div className="mx-auto grid max-w-[1600px] grid-cols-3 px-1 sm:flex sm:gap-1 sm:px-5">
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
